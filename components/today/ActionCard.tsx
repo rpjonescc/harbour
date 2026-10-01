@@ -10,11 +10,11 @@ export function ActionCard({ action }: { action: ActionPreview }) {
   const product = productById(action.productId);
   return (
     <Panel className="p-4">
-      <article aria-labelledby={`action-${action.id}`}>
+      <article aria-labelledby={`today-action-${action.id}`}>
         <Tag tone={action.impact === "high" ? "warn" : "neutral"}>
           {IMPACT_LABEL[action.impact]}
         </Tag>
-        <h3 id={`action-${action.id}`} className="mt-2 text-sm text-ink">
+        <h3 id={`today-action-${action.id}`} className="mt-2 text-sm text-ink">
           {action.href ? (
             <Link href={action.href} className="rounded-sm hover:text-accent">
               {action.title}

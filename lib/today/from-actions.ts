@@ -1,8 +1,6 @@
-import { and, count, inArray } from "drizzle-orm";
-import { ACTIVE, type ActionRow } from "@/lib/actions/types";
-import { topActiveActions } from "@/lib/actions/views";
+import type { ActionRow } from "@/lib/actions/types";
+import { activeImpactCounts, topActiveActions } from "@/lib/actions/views";
 import type { Db } from "@/lib/db/client";
-import { actions } from "@/lib/db/schema";
 import type { Impact } from "@/lib/scan/issues";
 import type { ActionPreview } from "./types";
 
@@ -21,15 +19,8 @@ const toPreview = (action: ActionRow): ActionPreview => ({
 
 /** The impact of every active action (high first), so the headline counts them all. */
 function activeImpacts(db: Db, productIds: readonly string[]): Impact[] {
-  if (productIds.length === 0) return [];
-  const rows = db
-    .select({ impact: actions.impact, n: count() })
-    .from(actions)
-    .where(and(inArray(actions.productId, [...productIds]), inArray(actions.status, [...ACTIVE])))
-    .groupBy(actions.impact)
-    .all();
-  const byImpact = new Map(rows.map((row) => [row.impact, row.n]));
-  return IMPACTS.flatMap((impact) => Array<Impact>(byImpact.get(impact) ?? 0).fill(impact));
+  const counts = activeImpactCounts(db, productIds);
+  return IMPACTS.flatMap((impact) => Array<Impact>(counts[impact]).fill(impact));
 }
 
 /**

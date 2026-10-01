@@ -201,6 +201,20 @@ export function openActionCount(db: Db, productIds: readonly string[]): number {
   return ACTIVE.reduce((sum, status) => sum + counts[status], 0);
 }
 
+/** How many active actions each impact holds, for configured products. */
+export function activeImpactCounts(db: Db, productIds: readonly string[]): Record<Impact, number> {
+  const counts: Record<Impact, number> = { high: 0, medium: 0, low: 0 };
+  if (productIds.length === 0) return counts;
+  const rows = db
+    .select({ impact: actions.impact, n: count() })
+    .from(actions)
+    .where(whereOf({ productIds, statuses: ACTIVE }))
+    .groupBy(actions.impact)
+    .all();
+  for (const { impact, n } of rows) counts[impact] = n;
+  return counts;
+}
+
 /** Top `n` active actions across products (same order as the board) and how many more there are. */
 export function topActiveActions(
   db: Db,

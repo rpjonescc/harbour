@@ -9,6 +9,7 @@ import {
   type ActionFilter,
   type ActionGroup,
   actionCounts,
+  activeImpactCounts,
   boardActions,
   MAX_BOARD_ACTIONS,
   openActionCount,
@@ -210,6 +211,13 @@ describe("counts and summaries", () => {
     expect(topActiveActions(db, PRODUCTS, 10)).toMatchObject({ more: 0 });
     expect(topActiveActions(db, PRODUCTS, 10).actions).toHaveLength(4);
     expect(topActiveActions(db, [], 3)).toEqual({ actions: [], more: 0 });
+  });
+
+  it("counts active actions by impact for configured products only", () => {
+    const db = openTestDb();
+    seed(db);
+    expect(activeImpactCounts(db, PRODUCTS)).toEqual({ high: 2, medium: 1, low: 1 });
+    expect(activeImpactCounts(db, [])).toEqual({ high: 0, medium: 0, low: 0 });
   });
 
   it("maps one product's rule keys to their action status", () => {

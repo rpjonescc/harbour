@@ -21,11 +21,11 @@ const WORDS = [
 ];
 
 /** The one-line summary: how many actions are worth a look, calm unless one is high impact. */
-export function headlineFor(items: readonly { impact: Impact }[]): string {
-  const n = items.length;
+export function headlineFor(impacts: readonly Impact[]): string {
+  const n = impacts.length;
   if (n === 0) return "Calm waters. Nothing needs your attention.";
   const phrase = `${WORDS[n] ?? n} ${n === 1 ? "thing" : "things"} worth your attention.`;
-  return items.some((item) => item.impact === "high") ? phrase : `Calm waters. ${phrase}`;
+  return impacts.includes("high") ? phrase : `Calm waters. ${phrase}`;
 }
 
 type ProductToday = {
@@ -69,6 +69,7 @@ export function todaySummary(db: Db, products: readonly Product[], now: Date): T
     const lastFailedAt = failed.length > 0 ? new Date(Math.max(...failed)) : null;
     return { ...sampleToday(products), scanning, lastFailedAt, failures };
   }
+  // Actions are current here because the scan job runs the rule sync in the same job as scoring.
   const attention = attentionFromActions(
     db,
     products.map((p) => p.id),
@@ -78,7 +79,7 @@ export function todaySummary(db: Db, products: readonly Product[], now: Date): T
     scannedAt: new Date(Math.max(...scanned.map((d) => d.getTime()))),
     scanning,
     lastFailedAt: null,
-    headline: headlineFor(attention.headlineImpacts.map((impact) => ({ impact }))),
+    headline: headlineFor(attention.headlineImpacts),
     scores: perProduct.map((p) => p.row),
     actions: attention.actions,
     moreActions: attention.more,

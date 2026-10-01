@@ -141,14 +141,12 @@ describe("todaySummary", () => {
 describe("headlineFor", () => {
   it("is calm without issues or without high-impact ones", () => {
     expect(headlineFor([])).toBe("Calm waters. Nothing needs your attention.");
-    expect(headlineFor([{ impact: "low" }])).toBe("Calm waters. One thing worth your attention.");
-    expect(headlineFor([{ impact: "high" }, { impact: "low" }])).toBe(
-      "Two things worth your attention.",
-    );
+    expect(headlineFor(["low"])).toBe("Calm waters. One thing worth your attention.");
+    expect(headlineFor(["high", "low"])).toBe("Two things worth your attention.");
   });
 
   it("uses digits past ten", () => {
-    expect(headlineFor(Array.from({ length: 12 }, () => ({ impact: "high" as const })))).toBe(
+    expect(headlineFor(Array.from({ length: 12 }, () => "high" as const))).toBe(
       "12 things worth your attention.",
     );
   });
