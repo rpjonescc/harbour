@@ -1,0 +1,21 @@
+[Unit]
+Description=Harbour worker (runs agent jobs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__REPO__
+Environment=NODE_ENV=production
+Environment=PATH=__NODE_BIN__:/usr/bin:/bin
+ExecStart=__NODE_BIN__/pnpm worker
+Restart=always
+RestartSec=5
+# Agents run as child processes; stopping the worker stops the whole group.
+KillMode=control-group
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

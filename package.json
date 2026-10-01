@@ -23,6 +23,7 @@
     "check": "pnpm typecheck && pnpm lint && pnpm check:files && pnpm check:private && pnpm test",
     "db:generate": "drizzle-kit generate",
     "setup-token": "tsx --env-file=.env scripts/setup-token.ts",
+    "agents:initial-run": "tsx --env-file=.env scripts/queue-initial-run.ts",
     "worker": "tsx --env-file=.env worker/index.ts",
     "prepare": "lefthook install"
   },

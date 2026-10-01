@@ -57,10 +57,12 @@ esac
 mkdir -p "$UNIT_DIR"
 sed -e "s|__REPO__|$REPO|g" -e "s|__NODE_BIN__|$NODE_BIN|g" \
   "$REPO/deploy/harbour-web.service.template" > "$UNIT_DIR/harbour-web.service"
+sed -e "s|__REPO__|$REPO|g" -e "s|__NODE_BIN__|$NODE_BIN|g" \
+  "$REPO/deploy/harbour-worker.service.template" > "$UNIT_DIR/harbour-worker.service"
 systemctl --user daemon-reload
-systemctl --user enable --now harbour-web.service
+systemctl --user enable --now harbour-web.service harbour-worker.service
 # enable --now does nothing for a running unit; restart so a re-run serves the new build.
-systemctl --user restart harbour-web.service
+systemctl --user restart harbour-web.service harbour-worker.service
 
 if [[ "$PORT_STATE" == "ours" ]]; then
   echo "Tailscale Serve already proxies port $HTTPS_PORT to Harbour; leaving it as is."
@@ -76,3 +78,4 @@ else
   echo "To start Harbour at boot without logging in, run once:  sudo loginctl enable-linger $USER"
 fi
 echo "Register your first passkey:  pnpm setup-token"
+grep -q "^HARBOUR_CLAUDE_OAUTH_TOKEN=." "$REPO/.env" || echo "Agents are disabled until you add HARBOUR_CLAUDE_OAUTH_TOKEN to .env (run: claude setup-token), then: systemctl --user restart harbour-worker"

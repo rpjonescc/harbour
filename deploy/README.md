@@ -48,12 +48,30 @@ From another tailnet device, `https://<machine>.<tailnet>.ts.net:8444` should sh
 ## Updating
 
 ```bash
-git pull && pnpm install --frozen-lockfile && pnpm build && systemctl --user restart harbour-web
+git pull && pnpm install --frozen-lockfile && pnpm build && systemctl --user restart harbour-web harbour-worker
 ```
+
+## Worker and agents
+
+`install.sh` also installs `harbour-worker.service` (runs `pnpm worker`, restarts automatically).
+The worker is the only process that runs agents and touches the brain's git history: it runs
+queued research and discovery jobs one at a time, autosaves your brain edits and retries unpushed
+commits.
+
+1. Run `claude setup-token` and put the result in `.env` as `HARBOUR_CLAUDE_OAUTH_TOKEN=`.
+   Without it agents stay disabled.
+2. `systemctl --user restart harbour-worker` to pick it up.
+3. The brain repo must be pushable non-interactively by the worker. Test it from a
+   non-interactive shell: `git -C <brain> push --dry-run`. If it prompts, set up a credential
+   helper or an SSH remote.
+4. Once, after the first deploy, queue the whole first run (all research topics, then discovery
+   for every product): `pnpm agents:initial-run`. It is safe to repeat; jobs already queued or
+   running are not duplicated.
 
 ## Logs
 
 `journalctl --user -u harbour-web -f`
+`journalctl --user -u harbour-worker -f`
 
 ## Lost every device
 

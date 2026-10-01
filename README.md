@@ -157,7 +157,11 @@ Start the app and register your first passkey:
 pnpm dev            # http://localhost:3400
 pnpm setup-token    # prints a one-time link; open it to create a passkey
 pnpm worker         # runs queued agent jobs, one at a time (reads .env)
+pnpm agents:initial-run  # once: queues every research topic, then discovery per product
 ```
+
+A deployed install runs the worker as the `harbour-worker` systemd user service (see
+`deploy/README.md`).
 
 The worker is the only process that runs agents or touches the brain's git history. Between
 jobs it saves your own brain edits (commit + push) once they have been quiet for 2 minutes,
