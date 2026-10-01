@@ -52,8 +52,10 @@ function pendingRuns(db: Db): { job: Job; sha: string }[] {
 /** One attempt for one run; returns whether it imported. Failures are recorded on the job. */
 function retryOne(deps: ImportRetryDeps, job: Job, sha: string): boolean {
   const { db, now } = deps;
-  const attempt = countImportAttempt(db, job.id);
+  let attempt = 0;
   try {
+    // Inside the try: a failure to count is recorded like any failed attempt, never thrown.
+    attempt = countImportAttempt(db, job.id);
     if (job.kind !== "discovery" && job.kind !== "weekly-analyst") return false;
     const output = outputForJob(job.kind, job.params);
     if (!output) return false;
@@ -64,7 +66,8 @@ function retryOne(deps: ImportRetryDeps, job: Job, sha: string): boolean {
     return true;
   } catch (error) {
     const last = attempt >= MAX_IMPORT_ATTEMPTS ? " — giving up; run the agent again" : "";
-    const text = `Import attempt ${attempt} of ${MAX_IMPORT_ATTEMPTS} failed: ${(error as Error).message}${last}`;
+    const which = attempt > 0 ? `attempt ${attempt} of ${MAX_IMPORT_ATTEMPTS}` : "attempt";
+    const text = `Import ${which} failed: ${(error as Error).message}${last}`;
     console.error(`job ${job.id}: ${text}`);
     addEvent(db, job.id, "error", text, now);
     return false;

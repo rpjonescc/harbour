@@ -128,8 +128,9 @@ export function importAfterCommit(
   now: Date,
   event: (kind: "status" | "error", text: string) => void,
 ): void {
-  countImportAttempt(db, job.id);
   try {
+    // Inside the try: the run is committed, so no import failure may fail the job.
+    countImportAttempt(db, job.id);
     const text = importAgentOutput(db, output, job, now);
     if (text) event("status", text);
   } catch (error) {

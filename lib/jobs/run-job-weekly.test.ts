@@ -153,6 +153,29 @@ describe("runAgentJob for the weekly analyst", () => {
     }
   });
 
+  it("keeps the run ok when counting the import attempt fails after the commit", async () => {
+    const { brain, db, deps } = setup("success");
+    const run = deps.run;
+    deps.run = async (o) => {
+      const outcome = await run(o);
+      db.run(
+        sql`CREATE TRIGGER no_count BEFORE UPDATE OF import_attempts ON agent_runs BEGIN SELECT RAISE(ABORT, 'database is busy'); END`,
+      );
+      return outcome;
+    };
+    try {
+      const job = await runOne(deps, "weekly-analyst", WEEK);
+      expect(job).toMatchObject({ status: "ok", error: null });
+      expect(brain.git("log", "-1", "--format=%s").trim()).toBe("agent(weekly-analyst): 2026-W40");
+      expect(eventsSince(db, job.id, 0).filter((e) => e.kind === "error")).toMatchObject([
+        { text: expect.stringMatching(/^Import failed .*database is busy$/) },
+      ]);
+      expect(db.select().from(agentRuns).get()).toMatchObject({ importedAt: null });
+    } finally {
+      brain.cleanup();
+    }
+  });
+
   it("does not build the export while the job waits for a quiet brain", async () => {
     const { brain, db, deps } = setup("success");
     try {

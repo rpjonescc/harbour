@@ -52,6 +52,23 @@ describe("retryPendingImports", () => {
     }
   });
 
+  it("records a failure to count the attempt instead of throwing", async () => {
+    const { brain, db, job, retry } = await committedNotImported();
+    try {
+      db.run(sql`DROP TRIGGER no_actions`);
+      db.run(
+        sql`CREATE TRIGGER no_count BEFORE UPDATE OF import_attempts ON agent_runs BEGIN SELECT RAISE(ABORT, 'database is busy'); END`,
+      );
+      expect(retryPendingImports(retry)).toBe(0);
+      expect(eventsSince(db, job.id, 0).at(-1)?.text).toBe(
+        "Import attempt failed: database is busy",
+      );
+      expect(db.select().from(actions).all()).toEqual([]);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
   it("leaves runs alone that were imported, never committed, or write nothing to import", async () => {
     const s = setup("success");
     try {
