@@ -10,5 +10,5 @@ playwright-report/
 .env.*
 !.env.example
 harbour.config.json
-brain/
+/brain/
 .private-terms
