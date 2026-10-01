@@ -49,7 +49,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: /(agents|scans|actions|analyst)\.spec\.ts/,
+      testIgnore: /(agents|scans|actions|analyst|settings)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     // Agent runs change the brain (new documents, sidebar counts), so they run after the rest.
@@ -83,6 +83,14 @@ export default defineConfig({
       name: "analyst",
       testMatch: /analyst\.spec\.ts/,
       dependencies: ["actions"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+    // Back up now and the research refresh queue work behind every earlier run, and the
+    // refresh rewrites a research document, so operations run after everything else.
+    {
+      name: "operations",
+      testMatch: /settings\.spec\.ts/,
+      dependencies: ["analyst"],
       use: { ...devices["Desktop Chrome"] },
     },
   ],

@@ -758,14 +758,22 @@ the scan specs choose **Scan now** and check the product page, Sources and Today
 results. Only this environment may scan a loopback address (`HARBOUR_TEST_MODE` and
 `HARBOUR_SCAN_ALLOW_LOOPBACK`, both refused outside tests).
 
-The Playwright projects run in order — the shell and brain specs, then agents, scans, actions
-and the weekly analyst — because each later one changes what the earlier ones check. The actions
-specs seed a scored scan of the fictional Lighthouse Café and two analyst suggestions through
-Harbour's own code (`tests/e2e/seed-actions.ts`), then work the Actions board: filters, status
-changes, snooze, **Hand to Claude** (read back from the clipboard), Today's top three, keyboard
-paths and both themes. The analyst specs choose **Run weekly report now** twice (the scheduled
+The Playwright projects run in order — the shell and brain specs, then agents, scans, actions,
+the weekly analyst and finally operations (Settings) — because each later one changes what the
+earlier ones check. The actions specs seed a scored scan of the fictional Lighthouse Café and
+two analyst suggestions through Harbour's own code (`tests/e2e/seed-actions.ts`), then work the
+Actions board: filters, status changes, snooze, **Hand to Claude** (read back from the
+clipboard), Today's top three, keyboard paths and both themes. The analyst specs choose **Run weekly report now** twice (the scheduled
 analyst is off, `HARBOUR_SCHEDULED_ANALYST=off`): the first run commits the report and imports a
 suggestion, the second finds it already known.
+
+The operations specs (`tests/e2e/settings.spec.ts`) check the Settings page — products, every
+schedule shown as off, key status without values, the A$0.00 budget — then choose **Back up
+now** and **Refresh stale research**. Every schedule is off in this environment
+(`HARBOUR_SCHEDULED_SCANS`, `_ANALYST`, `_RESEARCH` and `_BACKUP` all `off`), so only these
+clicks queue work. `HARBOUR_BACKUP_DIR` is unset, so the backup lands in `data/e2e/backups`,
+which each run recreates; the specs check its file and folder modes and that the retention job
+follows.
 
 ## Project structure
 

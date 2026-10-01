@@ -3,7 +3,10 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, rmSync } from "node:fs";
 
-const DATA = "./data/e2e"; // E2E database and its quarantine (kept apart from the live service)
+// E2E database, its quarantine and its backups (kept apart from the live service). E2E leaves
+// HARBOUR_BACKUP_DIR unset, so Back up now writes to `<folder of the database>/backups`, inside
+// this folder: removing it below also removes the previous run's backups.
+const DATA = "./data/e2e";
 const BRAIN = "./data/e2e-brain";
 const REMOTE = "./data/e2e-brain-remote.git";
 const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "ignore" });
