@@ -2,7 +2,8 @@ import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
 import { addEvent, type EventKind, finishJob, isCancelRequested, type Job } from "@/lib/jobs/queue";
 import type { Product } from "@/lib/products/catalog";
-import { collectorLabel, collectorTimeoutMs } from "./registry";
+import { collectorLabel } from "./labels";
+import { collectorTimeoutMs } from "./registry";
 import {
   collectorObservations,
   finishScan,
