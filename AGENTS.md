@@ -74,6 +74,17 @@ explicitly and update the spec in the same change.
   (`example.com`, `owner@example.com`).
 - The owner's products live in `harbour.config.json` and the Second Brain in
   `HARBOUR_BRAIN_DIR`; both are gitignored and the brain belongs in its own private repo.
+- **Check for private or sensitive data before every commit and push.** Review the
+  staged diff (`git diff --cached`) and the commit message for: secrets (API keys,
+  tokens, passwords, private keys, `.env` contents), personal information (names,
+  emails, phone numbers, addresses, locations), machine or network identifiers
+  (hostnames, tailnet names, IPs, home paths), and the owner's real products, clients
+  or research. Replace them with fictional examples or move them to gitignored files.
+  If anything sensitive was already committed, stop and tell the owner before pushing:
+  removing it later means rewriting history.
+- `pnpm check:private` (in the pre-commit and pre-push hooks) scans for secret patterns
+  and for the owner's own terms listed in the gitignored `.private-terms` file. It
+  supports this review but does not replace it.
 
 ## README
 

@@ -61,8 +61,9 @@ Phase 2 ships in two parts with separate implementation plans:
 
 - Three columns, matching the approved mockup: file tree; reading column (Newsreader,
   ~65ch); context rail with outline, backlinks ("Linked from"), and sources.
-- Below 1024px the tree and rail become drawers opened from the header; the reading
-  column is full width.
+- Below 1024px the tree collapses into a "Browse documents" disclosure above the
+  reading column, and the context rail stacks below the document (side by side from
+  1280px). The reading column is full width on small screens.
 - `/brain` shows `00-start-here.md` if present, otherwise a short index of recently
   changed documents.
 - Every page calls `requireSession()` (Lock 2 per page, as in Phase 1).
@@ -92,6 +93,9 @@ Phase 2 ships in two parts with separate implementation plans:
 
 ### A7. Installable app
 
+- `/manifest.webmanifest`, `/icon`, `/apple-icon` and `/icons/*` are reachable with a
+  Tailscale identity but no session (browsers fetch manifests without cookies); they
+  contain no private data.
 - `app/manifest.ts`: name "Harbour", short name "Harbour", `display: standalone`,
   theme/background colours from the light tokens, icons at 192/512 and maskable 512,
   `start_url: "/"`. Apple touch icon and theme-color meta in the root layout.
@@ -102,8 +106,9 @@ Phase 2 ships in two parts with separate implementation plans:
 - Device rows show added date **and time**, last used date and time, and a
   "This device" marker for the passkey that created the current session
   (`sessions.passkey_id`).
-- Registering with a device name already in use shows a warning and suggests a
-  suffix; it is not blocked.
+- Registering with a device name already in use is not blocked: the name gets a
+  numeric suffix ("Laptop 2") and the setup page says "Saved as “Laptop 2” because that
+  name was already used" before continuing.
 - Removing the current device's passkey: the confirm text says "This will sign you out
   on this device".
 - Dates use `HARBOUR_TIMEZONE` and `HARBOUR_LOCALE`.
