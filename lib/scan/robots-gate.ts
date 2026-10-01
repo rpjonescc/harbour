@@ -5,11 +5,14 @@ import { isAllowed, parseRobots, type Robots } from "./robots";
 const ROBOTS_AGENT = "HarbourBot";
 const DISALLOW_ALL: Robots = parseRobots("User-agent: *\nDisallow: /\n");
 
+/** No rules: everything allowed. */
+export const NO_RULES: Robots = parseRobots("");
+
 /** robots.txt for a fetched status, with Google's semantics. */
 export function robotsForStatus(status: number, body: string): Robots {
   // Rate limiting and server errors mean "don't crawl now"; other 4xx mean "no rules".
   if (status === 429 || status >= 500) return DISALLOW_ALL;
-  return parseRobots(status < 300 ? body : "");
+  return status < 300 ? parseRobots(body) : NO_RULES;
 }
 
 /**

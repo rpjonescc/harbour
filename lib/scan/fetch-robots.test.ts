@@ -81,6 +81,30 @@ describe("safeFetch and robots.txt", () => {
     expect(response.body).toBe("ok");
   });
 
+  it("allows everything when robots.txt redirects somewhere it may not follow", async () => {
+    const { origin, hits } = await site({
+      "/robots.txt": redirect("https://cdn.example.net/robots.txt"),
+      "/page": text("ok"),
+    });
+    const fetch = testFetch();
+    await expect(fetch(`${origin}/page`, { maxBytes: 64 })).resolves.toMatchObject({ body: "ok" });
+    await expect(fetch(`${origin}/page`, { maxBytes: 64 })).resolves.toMatchObject({ body: "ok" });
+    expect(hits).toEqual(["/robots.txt", "/page", "/page"]);
+  });
+
+  it("allows everything when robots.txt redirects too many times", async () => {
+    const { origin } = await site({
+      "/robots.txt": redirect("/r1"),
+      "/r1": redirect("/r2"),
+      "/r2": redirect("/r3"),
+      "/r3": redirect("/r4"),
+      "/page": text("ok"),
+    });
+    await expect(testFetch()(`${origin}/page`, { maxBytes: 64 })).resolves.toMatchObject({
+      body: "ok",
+    });
+  });
+
   it.each([503, 429])("treats robots.txt status %i as disallow-all", async (code) => {
     const { origin } = await site({ "/robots.txt": status(code), "/page": text("ok") });
     const error = await fetchError(testFetch()(`${origin}/page`, { maxBytes: 64 }));

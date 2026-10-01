@@ -2,7 +2,7 @@ import { readCappedBody } from "./fetch-body";
 import { FetchError } from "./fetch-error";
 import { HostLimiter } from "./host-limiter";
 import { resolvePublicHost } from "./public-host";
-import { createRobotsGate, robotsForStatus } from "./robots-gate";
+import { createRobotsGate, NO_RULES, robotsForStatus } from "./robots-gate";
 import { sameSite, siteKey } from "./site";
 import type { SafeFetch, SafeFetchOptions } from "./types";
 
@@ -17,7 +17,10 @@ export type SafeFetchSettings = {
   /** Tests only: lets requests reach 127.0.0.1 / ::1. Private ranges stay refused. */
   allowLoopback: boolean;
   limiter: HostLimiter;
-  /** How long a fetched robots.txt is reused for its origin. */
+  /**
+   * Upper bound on reusing a fetched robots.txt for its origin. The worker builds one safe
+   * fetch per scan, so in practice the cache also ends with the scan.
+   */
   robotsTtlMs: number;
 };
 
@@ -115,10 +118,14 @@ export function createSafeFetch(
     // Google parses the first ~500 KiB of an oversized file, so truncate rather than fail.
     const options = { maxBytes: ROBOTS_MAX_BYTES, signal, ignoreRobots: true } as const;
     const response = await follow(url, options).catch((error: unknown) => {
+      // A robots.txt redirecting off the allowlist (e.g. to a CDN) or too often can't be read;
+      // like Google, treat it as unavailable (4xx): no rules. Collectors that fetch robots.txt
+      // themselves see the redirect error and report it.
+      if (error instanceof FetchError && error.kind === "redirect") return null;
       if (error instanceof FetchError || !signal.aborted) throw error;
       throw new FetchError("timeout", `${url} took too long`, { cause: error });
     });
-    return robotsForStatus(response.status, response.body);
+    return response ? robotsForStatus(response.status, response.body) : NO_RULES;
   }
 
   function assertAllowedHost(url: URL, kind: "network" | "redirect"): void {
