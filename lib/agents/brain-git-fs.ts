@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  constants,
   copyFileSync,
   type Dirent,
   lstatSync,
@@ -7,10 +8,11 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { posix, resolve } from "node:path";
+import { posix, resolve, sep } from "node:path";
 
 export type FileStat = { size: number; mtimeMs: number; ino: number };
 
@@ -33,6 +35,7 @@ export function gitMetaPaths(root: string): string[] {
   const walk = (rel: string) => {
     let entries: Dirent[];
     try {
+      if (!lstatSync(posix.join(root, rel)).isDirectory()) return; // not a dir, or a symlink
       entries = readdirSync(posix.join(root, rel), { withFileTypes: true });
     } catch {
       return;
@@ -93,34 +96,76 @@ export function nestedGitDirs(root: string, starts: string[]): string[] {
   return found;
 }
 
-/** Copies each change's current content into the quarantine; returns what was copied. */
+const MAX_QUARANTINE_FILE_BYTES = 50 * 1024 * 1024;
+
+/**
+ * Validates and creates the quarantine directory: it must be outside the brain (real paths
+ * compared, after creation) and empty, so a copy can never overwrite earlier quarantined data.
+ */
+export function prepareQuarantineDir(root: string, dir: string): string {
+  const rootAbs = resolve(root);
+  const dirAbs = resolve(dir);
+  const inside = (d: string, r: string) => d === r || d.startsWith(r + sep);
+  if (inside(dirAbs, rootAbs)) throw new Error("quarantine directory must be outside the brain");
+  mkdirSync(dirAbs, { recursive: true });
+  if (inside(realpathSync(dirAbs), realpathSync(rootAbs))) {
+    rmSync(dirAbs, { recursive: true, force: true });
+    throw new Error("quarantine directory must be outside the brain");
+  }
+  if (readdirSync(dirAbs).length) throw new Error("quarantine directory must be empty");
+  return dirAbs;
+}
+
+/**
+ * Copies each change's current content (files, and directories recursively including `.git`) into
+ * the quarantine and notes every entry. Throws, before anything is deleted, if a file exceeds the
+ * cap. Symlinks and special files are noted, not copied. Files in `done` are skipped.
+ */
 export function quarantine(
   root: string,
   dir: string,
   changes: { path: string }[],
   notes: string[],
-): string[] {
-  const copied: string[] = [];
-  for (const change of changes) {
-    const from = posix.join(root, change.path);
+  done: Set<string>,
+): void {
+  const visit = (rel: string) => {
+    const from = posix.join(root, rel);
     let st: ReturnType<typeof lstatSync>;
     try {
       st = lstatSync(from);
     } catch {
-      notes.push(`${change.path}: deleted (nothing to copy)`);
-      continue;
+      notes.push(`${rel}: deleted (nothing to copy)`);
+      return;
     }
     if (st.isSymbolicLink()) {
-      notes.push(`${change.path}: symlink to ${readlinkSync(from)} (not copied)`);
+      notes.push(`${rel}: symlink to ${readlinkSync(from)} (not copied)`);
+    } else if (st.isDirectory()) {
+      mkdirSync(resolve(dir, rel), { recursive: true });
+      notes.push(`${rel}/: directory`);
+      for (const entry of readdirSync(from)) visit(posix.join(rel, entry));
     } else if (st.isFile()) {
-      const to = resolve(dir, change.path);
+      if (done.has(rel)) return;
+      if (st.size > MAX_QUARANTINE_FILE_BYTES) {
+        throw new Error(`file too large to quarantine (nothing was deleted): ${rel}`);
+      }
+      const to = resolve(dir, rel);
       mkdirSync(resolve(to, ".."), { recursive: true });
-      copyFileSync(from, to);
-      copied.push(change.path);
-      notes.push(`${change.path}: copied`);
+      copyFileSync(from, to, constants.COPYFILE_EXCL);
+      done.add(rel);
+      notes.push(`${rel}: copied`);
+    } else {
+      notes.push(`${rel}: special file (not copied)`);
     }
+  };
+  for (const change of changes) visit(change.path.replace(/\/$/, ""));
+}
+
+function isLink(path: string): boolean {
+  try {
+    return lstatSync(path).isSymbolicLink();
+  } catch {
+    return false;
   }
-  return copied;
 }
 
 export function restoreGitMetadata(
@@ -131,7 +176,10 @@ export function restoreGitMetadata(
 ): void {
   for (const [path, data] of gitRestore) {
     if (hashOf(root, path) === gitMeta.get(path)) continue;
-    mkdirSync(posix.join(root, posix.dirname(path)), { recursive: true });
+    const dirPath = posix.join(root, posix.dirname(path));
+    if (isLink(dirPath)) rmSync(dirPath, { force: true });
+    mkdirSync(dirPath, { recursive: true });
+    if (isLink(posix.join(root, path))) rmSync(posix.join(root, path), { force: true });
     writeFileSync(posix.join(root, path), data);
     notes.push(`${path}: restored from snapshot`);
   }

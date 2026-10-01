@@ -5,9 +5,11 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
+  truncateSync,
   utimesSync,
   writeFileSync,
 } from "node:fs";
@@ -397,6 +399,98 @@ describe("snapshot safety", () => {
       expect(readFileSync(join(dir, "notes/old.md"), "utf8")).toBe("# Edited mid-run\n");
       expect(readFileSync(join(dir, "MANIFEST.txt"), "utf8")).toContain("link.md: symlink");
       expect(readFileSync(join(b.root, "notes/old.md"), "utf8")).toBe("# Old\n");
+    } finally {
+      b.cleanup();
+    }
+  });
+
+  it("quarantines a nested repo created mid-run, including its .git", () => {
+    const b = makeGitBrain({});
+    try {
+      const snap = snapshotRun(b.root);
+      const clone = join(b.root, "clone");
+      mkdirSync(clone);
+      execFileSync("git", ["init", "-q", clone]);
+      writeFileSync(join(clone, "committed.md"), "# committed\n");
+      execFileSync("git", ["-C", clone, "add", "."]);
+      execFileSync("git", [
+        "-C",
+        clone,
+        "-c",
+        "user.name=T",
+        "-c",
+        "user.email=t@example.com",
+        "commit",
+        "-qm",
+        "c",
+      ]);
+      writeFileSync(join(clone, "uncommitted.md"), "# uncommitted\n");
+      const dir = quarantine();
+      const { quarantined } = discardRun(b.root, snap, dir);
+      expect(readFileSync(join(dir, "clone/committed.md"), "utf8")).toBe("# committed\n");
+      expect(readFileSync(join(dir, "clone/uncommitted.md"), "utf8")).toBe("# uncommitted\n");
+      expect(existsSync(join(dir, "clone/.git/HEAD"))).toBe(true);
+      expect(quarantined).toContain("clone/uncommitted.md");
+      expect(readFileSync(join(dir, "MANIFEST.txt"), "utf8")).toContain("clone/.git/HEAD: copied");
+      expect(existsSync(join(b.root, "clone"))).toBe(false);
+    } finally {
+      b.cleanup();
+    }
+  });
+
+  it("refuses a non-empty quarantine directory", () => {
+    const b = makeGitBrain({});
+    try {
+      const snap = snapshotRun(b.root);
+      write(b, "stray.txt");
+      const dir = quarantine();
+      writeFileSync(join(dir, "earlier.txt"), "keep");
+      expect(() => discardRun(b.root, snap, dir)).toThrow(/empty/);
+      expect(existsSync(join(b.root, "stray.txt"))).toBe(true);
+    } finally {
+      b.cleanup();
+    }
+  });
+
+  it("refuses a quarantine directory that is inside the brain via a symlink", () => {
+    const b = makeGitBrain({});
+    try {
+      const snap = snapshotRun(b.root);
+      mkdirSync(join(b.root, "inner"));
+      const viaLink = join(quarantine(), "link");
+      symlinkSync(join(b.root, "inner"), viaLink);
+      write(b, "stray.txt");
+      expect(() => discardRun(b.root, snap, viaLink)).toThrow(/outside the brain/);
+      expect(existsSync(join(b.root, "stray.txt"))).toBe(true);
+    } finally {
+      b.cleanup();
+    }
+  });
+
+  it("fails closed instead of deleting a file too large to quarantine", () => {
+    const b = makeGitBrain({});
+    try {
+      const snap = snapshotRun(b.root);
+      const big = join(b.root, "big.bin");
+      writeFileSync(big, "");
+      truncateSync(big, 51 * 1024 * 1024);
+      expect(() => discardRun(b.root, snap, quarantine())).toThrow(/too large/);
+      expect(existsSync(big)).toBe(true);
+    } finally {
+      b.cleanup();
+    }
+  });
+
+  it("does not follow a symlinked .git/info when restoring", () => {
+    const b = makeGitBrain({});
+    try {
+      const snap = snapshotRun(b.root);
+      const outside = mkdtempSync(join(tmpdir(), "harbour-outside-"));
+      quarantines.push(outside);
+      rmSync(join(b.root, ".git/info"), { recursive: true, force: true });
+      symlinkSync(outside, join(b.root, ".git/info"));
+      discardRun(b.root, snap, quarantine());
+      expect(readdirSync(outside)).toEqual([]);
     } finally {
       b.cleanup();
     }

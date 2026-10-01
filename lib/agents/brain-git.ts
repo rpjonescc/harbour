@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { appendFileSync, lstatSync, mkdirSync, readFileSync, rmSync } from "node:fs";
-import { posix, resolve, sep } from "node:path";
+import { appendFileSync, lstatSync, readFileSync, rmSync } from "node:fs";
+import { posix, resolve } from "node:path";
 import {
   type FileStat,
   gitMetaHashes,
   isRestorable,
   nestedGitDirs,
+  prepareQuarantineDir,
   quarantine,
   restoreGitMetadata,
   statOf,
@@ -242,35 +243,39 @@ export function discardRun(
   snapshot: RunSnapshot,
   quarantineDir: string,
 ): { quarantined: string[] } {
-  const rootAbs = resolve(root);
-  const dirAbs = resolve(quarantineDir);
-  if (dirAbs === rootAbs || dirAbs.startsWith(rootAbs + sep)) {
-    throw new Error("quarantine directory must be outside the brain");
-  }
-  const quarantined: string[] = [];
+  const dirAbs = prepareQuarantineDir(root, quarantineDir);
+  const done = new Set<string>();
   const notes: string[] = [];
   const removeNestedGit = () => {
-    for (const path of newNestedGit(root, snapshot, [""])) {
+    const nested = newNestedGit(root, snapshot, [""]);
+    quarantine(
+      root,
+      dirAbs,
+      nested.map((path) => ({ path })),
+      notes,
+      done,
+    );
+    for (const path of nested) {
       notes.push(`${path}: nested .git removed`);
       rmSync(posix.join(root, path), { recursive: true, force: true });
     }
   };
   const flush = () => {
     if (!notes.length) return;
-    mkdirSync(dirAbs, { recursive: true });
     appendFileSync(resolve(dirAbs, "MANIFEST.txt"), `${notes.join("\n")}\n`);
     notes.length = 0;
   };
   let pending = runChanges(root, snapshot);
   for (let round = 0; round < MAX_DISCARD_ROUNDS; round++) {
-    const fresh = pending.filter((c) => !quarantined.includes(c.path));
-    quarantined.push(...quarantine(root, dirAbs, fresh, notes));
+    quarantine(root, dirAbs, pending, notes, done);
+    flush();
     removeNestedGit();
     restoreGitMetadata(root, snapshot.gitMeta, snapshot.gitRestore, notes);
     flush();
     if (pending.length) revert(root, pending);
     pending = runChanges(root, snapshot);
-    if (!pending.length && !newNestedGit(root, snapshot, [""]).length) return { quarantined };
+    if (!pending.length && !newNestedGit(root, snapshot, [""]).length)
+      return { quarantined: [...done] };
   }
   throw new Error(`could not restore: ${pending.map((c) => c.path).join(", ")}`);
 }
