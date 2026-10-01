@@ -1,14 +1,17 @@
 import { execFileSync } from "node:child_process";
-import { lstatSync } from "node:fs";
+import { type Dirent, lstatSync, readdirSync, rmSync } from "node:fs";
 import { posix } from "node:path";
 
 /** `pair` links both halves of a rename: the destination and the deleted source. */
 export type Change = { path: string; untracked: boolean; pair?: string };
 export type AllowedPaths = { prefixes: string[]; exact: string[] };
+type FileStat = { size: number; mtimeMs: number; ino: number };
+/** Ignored files that existed before an agent run; they belong to the owner. */
+export type RunSnapshot = { ignored: Map<string, FileStat> };
 
 const GIT_TIMEOUT_MS = 60_000;
 const MAX_BUFFER = 16 * 1024 * 1024;
-const MAX_RESTORE_ROUNDS = 3;
+const MAX_DISCARD_ROUNDS = 3;
 
 function gitEnv(): Record<string, string> {
   return {
@@ -21,7 +24,7 @@ function gitEnv(): Record<string, string> {
 
 /**
  * Every gate git call is hardened: literal pathspecs (file names are never magic), no fsmonitor
- * or hook execution from repo config, no global excludes, no system config, no prompts.
+ * or hook execution from repo config, no system config, no prompts.
  */
 function git(root: string, args: string[]): string {
   return execFileSync(
@@ -32,8 +35,6 @@ function git(root: string, args: string[]): string {
       "core.fsmonitor=false",
       "-c",
       "core.hooksPath=/dev/null",
-      "-c",
-      "core.excludesFile=/dev/null",
       ...args,
     ],
     {
@@ -47,22 +48,8 @@ function git(root: string, args: string[]): string {
   );
 }
 
-function ignoredFiles(root: string): string[] {
-  return git(root, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"])
-    .split("\0")
-    .filter(Boolean);
-}
-
-/** Files git currently ignores; take it before a run so pre-existing ignored files are not blamed on the agent. */
-export function snapshotIgnored(root: string): Set<string> {
-  return new Set(ignoredFiles(root));
-}
-
-/**
- * Uncommitted changes (including untracked and new ignored files), brain-relative. Files in
- * `baseline` (ignored before the run) are skipped. A rename yields both halves, linked by `pair`.
- */
-export function changedPaths(root: string, baseline?: Set<string>): Change[] {
+/** Tracked/untracked changes from `git status` (never ignored files); a rename yields both halves. */
+function statusChanges(root: string): Change[] {
   const out = git(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
   const entries = out.split("\0").filter(Boolean);
   const changes: Change[] = [];
@@ -78,12 +65,37 @@ export function changedPaths(root: string, baseline?: Set<string>): Change[] {
       changes.push({ path, untracked: code === "??" });
     }
   }
-  const seen = new Set(changes.map((c) => c.path));
-  for (const path of ignoredFiles(root)) {
-    if (baseline?.has(path) || seen.has(path)) continue;
-    changes.push({ path, untracked: true });
-  }
   return changes;
+}
+
+function ignoredFiles(root: string): string[] {
+  return git(root, ["ls-files", "-z", "--others", "--ignored", "--exclude-standard"])
+    .split("\0")
+    .filter(Boolean);
+}
+
+function statOf(root: string, path: string): FileStat | null {
+  try {
+    const st = lstatSync(posix.join(root, path));
+    return { size: st.size, mtimeMs: st.mtimeMs, ino: st.ino };
+  } catch {
+    return null;
+  }
+}
+
+/** The owner's uncommitted changes (never ignored files), for owner-notes autosave. */
+export function ownerChanges(root: string): Change[] {
+  return statusChanges(root);
+}
+
+/** Records the owner's ignored files before an agent run. */
+export function snapshotRun(root: string): RunSnapshot {
+  const ignored = new Map<string, FileStat>();
+  for (const path of ignoredFiles(root)) {
+    const stat = statOf(root, path);
+    if (stat) ignored.set(path, stat);
+  }
+  return { ignored };
 }
 
 /** Inside an allowed prefix as markdown, or one of the exact allowed paths. */
@@ -92,6 +104,7 @@ export function isAllowedChange(path: string, allowed: AllowedPaths): boolean {
     if (!prefix.endsWith("/")) throw new Error(`allowed prefix must end with "/": ${prefix}`);
   }
   if (posix.normalize(path) !== path || path.startsWith("/")) return false;
+  if (path.split("/").includes(".git")) return false;
   if (allowed.exact.includes(path)) return true;
   return path.endsWith(".md") && allowed.prefixes.some((prefix) => path.startsWith(prefix));
 }
@@ -104,21 +117,72 @@ function isSymlink(root: string, path: string): boolean {
   }
 }
 
-/** Splits out changes that are symlinks: they could point outside the brain whatever their name. */
-export function rejectSymlinks(root: string, changes: Change[]) {
-  return {
-    ok: changes.filter((c) => !isSymlink(root, c.path)),
-    symlinks: changes.filter((c) => isSymlink(root, c.path)),
+/** Nested `.git` entries under `starts`, found by an lstat walk (never follows symlinks). */
+function nestedGitDirs(root: string, starts: string[]): string[] {
+  const found: string[] = [];
+  const walk = (rel: string) => {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(posix.join(root, rel), { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const child = rel ? posix.join(rel, entry.name) : entry.name;
+      if (entry.name === ".git") {
+        if (rel) found.push(child);
+      } else if (entry.isDirectory()) walk(child);
+    }
   };
+  for (const start of starts) walk(start);
+  return found;
 }
 
-/** A rename is allowed only when both its destination and its source are allowed. */
-export function partitionChanges(changes: Change[], allowed: AllowedPaths, root?: string) {
+function newIgnored(root: string, snapshot: RunSnapshot, seen: Set<string>): Change[] {
+  return ignoredFiles(root)
+    .filter((path) => !snapshot.ignored.has(path) && !seen.has(path))
+    .map((path) => ({ path, untracked: true }));
+}
+
+/**
+ * Everything the run changed, split into allowed and rejected (symlinks rejected; a rename is
+ * allowed only when both halves are), plus pre-existing ignored files that were edited or deleted.
+ */
+export function inspectRun(
+  root: string,
+  snapshot: RunSnapshot,
+  allowed: AllowedPaths,
+): { allowed: Change[]; rejected: Change[]; tampered: string[] } {
+  const changes = statusChanges(root);
+  const seen = new Set(changes.map((c) => c.path));
+  changes.push(...newIgnored(root, snapshot, seen));
+  for (const path of nestedGitDirs(
+    root,
+    allowed.prefixes.map((p) => p.slice(0, -1)),
+  )) {
+    if (!changes.some((c) => c.path === path)) changes.push({ path, untracked: true });
+  }
   const ok = (c: Change) =>
     isAllowedChange(c.path, allowed) &&
     (c.pair === undefined || isAllowedChange(c.pair, allowed)) &&
-    (root === undefined || !isSymlink(root, c.path));
-  return { allowed: changes.filter(ok), rejected: changes.filter((c) => !ok(c)) };
+    !isSymlink(root, c.path);
+  const tampered: string[] = [];
+  for (const [path, before] of snapshot.ignored) {
+    const now = statOf(root, path);
+    if (
+      !now ||
+      now.size !== before.size ||
+      now.mtimeMs !== before.mtimeMs ||
+      now.ino !== before.ino
+    ) {
+      tampered.push(path);
+    }
+  }
+  return {
+    allowed: changes.filter(ok),
+    rejected: changes.filter((c) => !ok(c)),
+    tampered,
+  };
 }
 
 function inHead(root: string, path: string): boolean {
@@ -130,9 +194,9 @@ function inHead(root: string, path: string): boolean {
   }
 }
 
-function restoreOnce(root: string, changes: Change[]): void {
+function revert(root: string, changes: Change[]): void {
   const tracked = changes.filter((c) => !c.untracked && inHead(root, c.path)).map((c) => c.path);
-  const gone = changes.filter((c) => c.untracked || !tracked.includes(c.path)).map((c) => c.path);
+  const gone = changes.filter((c) => !tracked.includes(c.path)).map((c) => c.path);
   if (tracked.length)
     git(root, ["restore", "--staged", "--worktree", "--source=HEAD", "--", ...tracked]);
   if (gone.length) {
@@ -141,26 +205,28 @@ function restoreOnce(root: string, changes: Change[]): void {
   }
 }
 
+function runChanges(root: string, snapshot: RunSnapshot): Change[] {
+  const changes = statusChanges(root).filter((c) => !snapshot.ignored.has(c.path));
+  const seen = new Set(changes.map((c) => c.path));
+  return [...changes, ...newIgnored(root, snapshot, seen)];
+}
+
 /**
- * Puts changed files back to HEAD; deletes untracked and ignored ones. Re-scans afterwards and
- * throws if a rejected path survives or a new out-of-scope change appeared.
+ * Throws the run away: tracked changes back to HEAD, unstaged, untracked and new ignored files
+ * deleted. Files in the snapshot are never deleted. Re-scans and throws if anything remains.
  */
-export function restoreChanges(
-  root: string,
-  changes: Change[],
-  opts: { baseline?: Set<string>; allowed?: AllowedPaths } = {},
-): void {
-  const rejected = new Set(changes.map((c) => c.path));
-  let pending = changes;
-  for (let round = 0; round < MAX_RESTORE_ROUNDS; round++) {
-    if (pending.length) restoreOnce(root, pending);
-    pending = changedPaths(root, opts.baseline).filter(
-      (c) =>
-        rejected.has(c.path) ||
-        (opts.allowed !== undefined && !partitionChanges([c], opts.allowed, root).allowed.length),
-    );
+export function discardRun(root: string, snapshot: RunSnapshot): void {
+  const removeNestedGit = () => {
+    for (const path of nestedGitDirs(root, [""]))
+      rmSync(posix.join(root, path), { recursive: true, force: true });
+  };
+  removeNestedGit();
+  let pending = runChanges(root, snapshot);
+  for (let round = 0; round < MAX_DISCARD_ROUNDS; round++) {
+    if (pending.length) revert(root, pending);
+    removeNestedGit();
+    pending = runChanges(root, snapshot);
     if (!pending.length) return;
-    for (const c of pending) rejected.add(c.path);
   }
   throw new Error(`could not restore: ${pending.map((c) => c.path).join(", ")}`);
 }

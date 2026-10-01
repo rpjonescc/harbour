@@ -1,20 +1,35 @@
-import { chmodSync, existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { makeGitBrain } from "@/tests/helpers/git-brain";
 import {
-  changedPaths,
   commitChanges,
+  discardRun,
+  inspectRun,
   isAllowedChange,
-  partitionChanges,
+  ownerChanges,
   pushBrain,
   redactCredentials,
-  rejectSymlinks,
-  restoreChanges,
-  snapshotIgnored,
+  snapshotRun,
   unpushedCount,
 } from "./brain-git";
 
 const research = { prefixes: ["research/"], exact: ["00-start-here.md"] };
+type Brain = ReturnType<typeof makeGitBrain>;
+
+function write(b: Brain, path: string, content = "x\n") {
+  mkdirSync(join(b.root, path.split("/").slice(0, -1).join("/") || "."), { recursive: true });
+  writeFileSync(join(b.root, path), content);
+}
+const paths = (changes: { path: string }[]) => changes.map((c) => c.path).sort();
 
 describe("isAllowedChange", () => {
   it("allows markdown inside the area and exact paths only", () => {
@@ -32,34 +47,42 @@ describe("isAllowedChange", () => {
     expect(isAllowedChange("products/acme-docs/proposals.json", discovery)).toBe(true);
     expect(isAllowedChange("products/acme-docs/other.json", discovery)).toBe(false);
   });
+  it("requires prefixes to end with a slash", () => {
+    expect(() => isAllowedChange("research/a.md", { prefixes: ["research"], exact: [] })).toThrow();
+  });
+  it("rejects any .git path component", () => {
+    expect(isAllowedChange("research/sub/.git/x.md", research)).toBe(false);
+  });
 });
 
-describe("git gate", () => {
-  it("lists changes, restores rejected ones, commits allowed ones and pushes", () => {
+describe("ownerChanges", () => {
+  it("lists uncommitted changes but never ignored files, and leaves them alone", () => {
+    const b = makeGitBrain({ ".gitignore": "*.local\n" });
+    try {
+      write(b, "secret.local");
+      write(b, "notes/n.md");
+      expect(paths(ownerChanges(b.root))).toEqual(["notes/n.md"]);
+      commitChanges(b.root, ["notes/n.md"], "owner notes");
+      expect(existsSync(join(b.root, "secret.local"))).toBe(true);
+    } finally {
+      b.cleanup();
+    }
+  });
+});
+
+describe("run gate", () => {
+  it("partitions a run, commits the allowed part and pushes", () => {
     const b = makeGitBrain({ "products/acme-docs/notes.md": "# Notes\n" });
     try {
-      mkdirSync(join(b.root, "research/geo"), { recursive: true });
-      writeFileSync(join(b.root, "research/geo/a.md"), "# A\n");
-      writeFileSync(join(b.root, "products/acme-docs/notes.md"), "# Tampered\n");
-      writeFileSync(join(b.root, "stray.txt"), "x");
-
-      const changes = changedPaths(b.root);
-      expect(changes.map((c) => c.path).sort()).toEqual([
-        "products/acme-docs/notes.md",
-        "research/geo/a.md",
-        "stray.txt",
-      ]);
-      const { allowed, rejected } = partitionChanges(changes, research);
-      expect(allowed.map((c) => c.path)).toEqual(["research/geo/a.md"]);
-
-      restoreChanges(b.root, rejected);
-      expect(existsSync(join(b.root, "stray.txt"))).toBe(false);
-      expect(b.git("show", "HEAD:products/acme-docs/notes.md")).toBe("# Notes\n");
-      expect(changedPaths(b.root).map((c) => c.path)).toEqual(["research/geo/a.md"]);
+      const snap = snapshotRun(b.root);
+      write(b, "research/geo/a.md", "# A\n");
+      const inspected = inspectRun(b.root, snap, research);
+      expect(paths(inspected.allowed)).toEqual(["research/geo/a.md"]);
+      expect(inspected.rejected).toEqual([]);
+      expect(inspected.tampered).toEqual([]);
 
       const sha = commitChanges(b.root, ["research/geo/a.md"], "agent(research): add a");
       expect(sha).toMatch(/^[0-9a-f]{40}$/);
-      expect(changedPaths(b.root)).toEqual([]);
       expect(unpushedCount(b.root)).toBe(1);
       expect(pushBrain(b.root)).toEqual({ ok: true });
       expect(unpushedCount(b.root)).toBe(0);
@@ -68,55 +91,55 @@ describe("git gate", () => {
     }
   });
 
+  it("rejects out-of-scope changes and discardRun restores everything", () => {
+    const b = makeGitBrain({ "products/acme-docs/notes.md": "# Notes\n" });
+    try {
+      const snap = snapshotRun(b.root);
+      write(b, "research/geo/a.md", "# A\n");
+      write(b, "products/acme-docs/notes.md", "# Tampered\n");
+      write(b, "stray.txt");
+      const inspected = inspectRun(b.root, snap, research);
+      expect(paths(inspected.allowed)).toEqual(["research/geo/a.md"]);
+      expect(paths(inspected.rejected)).toEqual(["products/acme-docs/notes.md", "stray.txt"]);
+
+      discardRun(b.root, snap);
+      expect(existsSync(join(b.root, "stray.txt"))).toBe(false);
+      expect(existsSync(join(b.root, "research/geo/a.md"))).toBe(false);
+      expect(readFileSync(join(b.root, "products/acme-docs/notes.md"), "utf8")).toBe("# Notes\n");
+      expect(ownerChanges(b.root)).toEqual([]);
+    } finally {
+      b.cleanup();
+    }
+  });
+
   it("handles paths with spaces and unusual characters", () => {
     const b = makeGitBrain({});
     try {
-      mkdirSync(join(b.root, "research/my topic"), { recursive: true });
+      const snap = snapshotRun(b.root);
       const odd = 'research/my topic/it\'s "odd" é.md';
-      writeFileSync(join(b.root, odd), "# Odd\n");
-      expect(changedPaths(b.root)).toEqual([{ path: odd, untracked: true }]);
+      write(b, odd, "# Odd\n");
+      expect(inspectRun(b.root, snap, research).allowed).toEqual([{ path: odd, untracked: true }]);
       commitChanges(b.root, [odd], "odd");
-      writeFileSync(join(b.root, odd), "# Odd 2\n");
-      expect(changedPaths(b.root)).toEqual([{ path: odd, untracked: false }]);
-      restoreChanges(b.root, changedPaths(b.root));
-      expect(changedPaths(b.root)).toEqual([]);
+      write(b, odd, "# Odd 2\n");
+      expect(inspectRun(b.root, snap, research).allowed).toEqual([{ path: odd, untracked: false }]);
+      discardRun(b.root, snap);
+      expect(ownerChanges(b.root)).toEqual([]);
     } finally {
       b.cleanup();
     }
   });
 
-  it("reports a push failure instead of throwing", () => {
-    const b = makeGitBrain({});
-    try {
-      b.git("remote", "set-url", "origin", "/nonexistent/remote.git");
-      writeFileSync(join(b.root, "x.md"), "# x\n");
-      commitChanges(b.root, ["x.md"], "x");
-      const result = pushBrain(b.root);
-      expect(result.ok).toBe(false);
-    } finally {
-      b.cleanup();
-    }
-  });
-});
-
-describe("git gate hardening", () => {
   it("treats file names literally, never as pathspec magic", () => {
-    const b = makeGitBrain({});
+    const b = makeGitBrain({ ".gitignore": "*.local\n" });
     try {
-      mkdirSync(join(b.root, "research"), { recursive: true });
-      writeFileSync(join(b.root, ":(exclude)zz"), "x");
-      writeFileSync(join(b.root, "research/*"), "x");
-      writeFileSync(join(b.root, "keep.md"), "# keep\n");
-      writeFileSync(join(b.root, "research/keep.md"), "# keep\n");
-      const magic = changedPaths(b.root).filter(
-        (c) => c.path === ":(exclude)zz" || c.path === "research/*",
-      );
-      expect(magic).toHaveLength(2);
-      restoreChanges(b.root, magic);
+      write(b, "owner.local", "mine");
+      const snap = snapshotRun(b.root);
+      write(b, ":(exclude)zz");
+      write(b, "research/*");
+      discardRun(b.root, snap);
       expect(existsSync(join(b.root, ":(exclude)zz"))).toBe(false);
       expect(existsSync(join(b.root, "research/*"))).toBe(false);
-      expect(existsSync(join(b.root, "keep.md"))).toBe(true);
-      expect(existsSync(join(b.root, "research/keep.md"))).toBe(true);
+      expect(readFileSync(join(b.root, "owner.local"), "utf8")).toBe("mine");
     } finally {
       b.cleanup();
     }
@@ -127,7 +150,7 @@ describe("git gate hardening", () => {
     try {
       const marker = join(b.root, "..", `fsmonitor-ran-${process.pid}`);
       b.git("config", "core.fsmonitor", `touch ${marker}; echo`);
-      changedPaths(b.root);
+      ownerChanges(b.root);
       expect(existsSync(marker)).toBe(false);
     } finally {
       b.cleanup();
@@ -137,62 +160,70 @@ describe("git gate hardening", () => {
   it("detects and removes new files hidden by an agent-written .gitignore", () => {
     const b = makeGitBrain({});
     try {
-      const baseline = snapshotIgnored(b.root);
-      mkdirSync(join(b.root, "products/x"), { recursive: true });
-      writeFileSync(join(b.root, "products/.gitignore"), "*\n!.gitignore\n");
-      writeFileSync(join(b.root, "products/x/evil.md"), "# evil\n");
-      const changes = changedPaths(b.root, baseline);
-      expect(changes.map((c) => c.path).sort()).toEqual([
-        "products/.gitignore",
-        "products/x/evil.md",
-      ]);
-      const { rejected } = partitionChanges(changes, research);
-      expect(rejected).toHaveLength(2);
-      restoreChanges(b.root, rejected, { baseline, allowed: research });
+      const snap = snapshotRun(b.root);
+      write(b, "products/.gitignore", "*\n!.gitignore\n");
+      write(b, "products/x/evil.md", "# evil\n");
+      const inspected = inspectRun(b.root, snap, research);
+      expect(paths(inspected.rejected)).toEqual(["products/.gitignore", "products/x/evil.md"]);
+      discardRun(b.root, snap);
       expect(existsSync(join(b.root, "products/x/evil.md"))).toBe(false);
-      expect(changedPaths(b.root, baseline)).toEqual([]);
+      expect(ownerChanges(b.root)).toEqual([]);
     } finally {
       b.cleanup();
     }
   });
 
-  it("ignores files that were already ignored before the run", () => {
+  it("keeps the owner's pre-existing ignored files through discardRun", () => {
+    const b = makeGitBrain({ ".gitignore": "*.local\n" });
+    try {
+      write(b, "owner.local", "mine");
+      const snap = snapshotRun(b.root);
+      write(b, "stray.txt");
+      const inspected = inspectRun(b.root, snap, research);
+      expect(paths(inspected.rejected)).toEqual(["stray.txt"]);
+      expect(inspected.tampered).toEqual([]);
+      discardRun(b.root, snap);
+      expect(readFileSync(join(b.root, "owner.local"), "utf8")).toBe("mine");
+    } finally {
+      b.cleanup();
+    }
+  });
+
+  it("flags edits to pre-existing ignored files as tampered", () => {
+    const b = makeGitBrain({ ".gitignore": ".obsidian/\n" });
+    try {
+      write(b, ".obsidian/x.js", "old");
+      const snap = snapshotRun(b.root);
+      write(b, ".obsidian/x.js", "new, longer");
+      utimesSync(join(b.root, ".obsidian/x.js"), new Date(), new Date(Date.now() + 5000));
+      expect(inspectRun(b.root, snap, research).tampered).toEqual([".obsidian/x.js"]);
+    } finally {
+      b.cleanup();
+    }
+  });
+
+  it("flags deleted pre-existing ignored files as tampered", () => {
     const b = makeGitBrain({ ".gitignore": "*.log\n" });
     try {
-      writeFileSync(join(b.root, "old.log"), "x");
-      const baseline = snapshotIgnored(b.root);
-      expect(changedPaths(b.root, baseline)).toEqual([]);
-      writeFileSync(join(b.root, "new.log"), "x");
-      expect(changedPaths(b.root, baseline).map((c) => c.path)).toEqual(["new.log"]);
+      write(b, "a.log", "log");
+      const snap = snapshotRun(b.root);
+      rmSync(join(b.root, "a.log"));
+      expect(inspectRun(b.root, snap, research).tampered).toEqual(["a.log"]);
     } finally {
       b.cleanup();
     }
   });
 
-  it("throws instead of reporting success when a rejected path cannot be removed", () => {
+  it("throws instead of reporting success when a change cannot be removed", () => {
     const b = makeGitBrain({});
     try {
-      mkdirSync(join(b.root, "locked"), { recursive: true });
-      writeFileSync(join(b.root, "locked/a.txt"), "x");
+      const snap = snapshotRun(b.root);
+      write(b, "locked/a.txt");
       chmodSync(join(b.root, "locked"), 0o555);
-      const changes = changedPaths(b.root);
-      expect(() => restoreChanges(b.root, changes)).toThrow();
+      expect(() => discardRun(b.root, snap)).toThrow();
       expect(existsSync(join(b.root, "locked/a.txt"))).toBe(true);
     } finally {
       chmodSync(join(b.root, "locked"), 0o755);
-      b.cleanup();
-    }
-  });
-
-  it("also removes out-of-scope changes that appear after the first scan", () => {
-    const b = makeGitBrain({});
-    try {
-      writeFileSync(join(b.root, "stray.txt"), "x");
-      const changes = changedPaths(b.root);
-      writeFileSync(join(b.root, "late.txt"), "x");
-      restoreChanges(b.root, changes, { allowed: research });
-      expect(existsSync(join(b.root, "late.txt"))).toBe(false);
-    } finally {
       b.cleanup();
     }
   });
@@ -206,24 +237,22 @@ describe("git gate hardening", () => {
     }
   });
 
-  it("restores a rename out of a rejected area, including the deleted source", () => {
+  it("rejects a rename into the allowed area and restores the deleted source", () => {
     const b = makeGitBrain({ "products/acme-docs/notes.md": "# Notes\n" });
     try {
+      const snap = snapshotRun(b.root);
       mkdirSync(join(b.root, "research"), { recursive: true });
       b.git("mv", "products/acme-docs/notes.md", "research/notes.md");
-      const changes = changedPaths(b.root);
-      expect(changes.map((c) => c.path).sort()).toEqual([
+      const inspected = inspectRun(b.root, snap, research);
+      expect(inspected.allowed).toEqual([]);
+      expect(paths(inspected.rejected)).toEqual([
         "products/acme-docs/notes.md",
         "research/notes.md",
       ]);
-      const { allowed, rejected } = partitionChanges(changes, research);
-      expect(allowed).toEqual([]);
-      expect(rejected).toHaveLength(2);
-      restoreChanges(b.root, rejected);
-      expect(b.git("show", "HEAD:products/acme-docs/notes.md")).toBe("# Notes\n");
-      expect(existsSync(join(b.root, "products/acme-docs/notes.md"))).toBe(true);
+      discardRun(b.root, snap);
+      expect(readFileSync(join(b.root, "products/acme-docs/notes.md"), "utf8")).toBe("# Notes\n");
       expect(existsSync(join(b.root, "research/notes.md"))).toBe(false);
-      expect(changedPaths(b.root)).toEqual([]);
+      expect(ownerChanges(b.root)).toEqual([]);
     } finally {
       b.cleanup();
     }
@@ -232,10 +261,11 @@ describe("git gate hardening", () => {
   it("rejects a rename out of the allowed area", () => {
     const b = makeGitBrain({ "research/a.md": "# A\n" });
     try {
+      const snap = snapshotRun(b.root);
       b.git("mv", "research/a.md", "stolen.md");
-      const { allowed, rejected } = partitionChanges(changedPaths(b.root), research);
-      expect(allowed).toEqual([]);
-      expect(rejected).toHaveLength(2);
+      const inspected = inspectRun(b.root, snap, research);
+      expect(inspected.allowed).toEqual([]);
+      expect(inspected.rejected).toHaveLength(2);
     } finally {
       b.cleanup();
     }
@@ -244,14 +274,13 @@ describe("git gate hardening", () => {
   it("rejects symlinks even when the name is allowed", () => {
     const b = makeGitBrain({});
     try {
+      const snap = snapshotRun(b.root);
       mkdirSync(join(b.root, "research"), { recursive: true });
       symlinkSync("/etc/hostname", join(b.root, "research/l.md"));
-      const changes = changedPaths(b.root);
-      expect(partitionChanges(changes, research).allowed).toHaveLength(1);
-      const gated = partitionChanges(changes, research, b.root);
-      expect(gated.allowed).toEqual([]);
-      expect(rejectSymlinks(b.root, changes).symlinks).toHaveLength(1);
-      restoreChanges(b.root, gated.rejected);
+      const inspected = inspectRun(b.root, snap, research);
+      expect(inspected.allowed).toEqual([]);
+      expect(paths(inspected.rejected)).toEqual(["research/l.md"]);
+      discardRun(b.root, snap);
       expect(existsSync(join(b.root, "research/l.md"))).toBe(false);
       expect(existsSync("/etc/hostname")).toBe(true);
     } finally {
@@ -259,8 +288,33 @@ describe("git gate hardening", () => {
     }
   });
 
-  it("requires prefixes to end with a slash", () => {
-    expect(() => isAllowedChange("research/a.md", { prefixes: ["research"], exact: [] })).toThrow();
+  it("rejects a nested .git directory under an allowed area", () => {
+    const b = makeGitBrain({});
+    try {
+      const snap = snapshotRun(b.root);
+      write(b, "research/sub/.git/x", "x");
+      const inspected = inspectRun(b.root, snap, research);
+      expect(inspected.allowed).toEqual([]);
+      expect(inspected.rejected.map((c) => c.path)).toContain("research/sub/.git");
+      discardRun(b.root, snap);
+      expect(existsSync(join(b.root, "research/sub/.git"))).toBe(false);
+    } finally {
+      b.cleanup();
+    }
+  });
+});
+
+describe("push", () => {
+  it("reports a push failure instead of throwing", () => {
+    const b = makeGitBrain({});
+    try {
+      b.git("remote", "set-url", "origin", "/nonexistent/remote.git");
+      write(b, "x.md", "# x\n");
+      commitChanges(b.root, ["x.md"], "x");
+      expect(pushBrain(b.root).ok).toBe(false);
+    } finally {
+      b.cleanup();
+    }
   });
 
   it("strips credentials from push errors", () => {
@@ -270,7 +324,7 @@ describe("git gate hardening", () => {
     const b = makeGitBrain({});
     try {
       b.git("remote", "set-url", "origin", "https://user:s3cret@127.0.0.1:1/x.git");
-      writeFileSync(join(b.root, "x.md"), "# x\n");
+      write(b, "x.md", "# x\n");
       commitChanges(b.root, ["x.md"], "x");
       const result = pushBrain(b.root);
       expect(result.ok).toBe(false);
