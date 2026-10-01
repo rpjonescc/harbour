@@ -86,6 +86,8 @@ export const jobs = sqliteTable(
     finishedAt: timestamp("finished_at"),
     heartbeatAt: timestamp("heartbeat_at"),
     cancelRequested: integer("cancel_requested", { mode: "boolean" }).notNull().default(false),
+    // A deferred job is not claimed before this time (e.g. while the owner edits the brain).
+    notBefore: timestamp("not_before"),
     error: text("error"),
   },
   (t) => [index("jobs_status").on(t.status), index("jobs_dedupe_key").on(t.dedupeKey)],

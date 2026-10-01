@@ -19,7 +19,8 @@ import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import type { Product } from "@/lib/products/catalog";
 import { brainRootError, finish, recoveryBlock, saveOwnerNotes } from "./git-jobs";
-import { addEvent, type EventKind, isCancelRequested, type Job } from "./queue";
+import { newestOwnerChange } from "./housekeeping";
+import { addEvent, deferJob, type EventKind, isCancelRequested, type Job } from "./queue";
 import { freshQuarantineDir, removeRunMarker, writeRunMarker } from "./run-marker";
 
 export type RunDeps = {
@@ -49,6 +50,10 @@ const BENIGN_TAMPER = [/(^|\/)\.DS_Store$/, /^\.obsidian\/workspace(-mobile)?\.j
 
 const MAX_PROPOSALS_BYTES = 1024 * 1024;
 
+// How long the brain must be unchanged before an agent run starts.
+const QUIET_MS = 3 * 60_000;
+const WAITING = "Waiting for the brain to be quiet (changes in the last 3 minutes)";
+
 function describeDuration(ms: number): string {
   return ms >= 60_000 ? `${Math.round(ms / 60_000)} minutes` : `${Math.round(ms / 1000)} seconds`;
 }
@@ -65,8 +70,6 @@ function specOrFail(deps: RunDeps, job: Job): AgentSpec {
 }
 
 function checkPreconditions(deps: RunDeps, spec: AgentSpec): string {
-  const blocked = brainRootError(deps.root) ?? recoveryBlock(deps.quarantineRoot);
-  if (blocked) throw new JobFailure(blocked);
   if (!deps.token) {
     throw new JobFailure(
       "HARBOUR_CLAUDE_OAUTH_TOKEN is not set — run `claude setup-token` and add it to .env",
@@ -78,6 +81,23 @@ function checkPreconditions(deps: RunDeps, spec: AgentSpec): string {
     }
   }
   return deps.token;
+}
+
+/**
+ * Puts the job back in the queue while the brain changed in the last QUIET_MS (the owner is
+ * still editing): an agent run would commit their half-written notes. Returns true if deferred.
+ */
+function deferWhileEditing(deps: RunDeps, job: Job): boolean {
+  const now = deps.now();
+  const newest = newestOwnerChange(deps.root, now);
+  if (newest === null || now.getTime() - newest >= QUIET_MS) return false;
+  if (!deferJob(deps.db, job.id, new Date(newest + QUIET_MS))) {
+    console.warn(`job ${job.id} was no longer running; not deferred`);
+    return true;
+  }
+  // Once per job: a deferred job carries notBefore when it is claimed again.
+  if (job.notBefore === null) addEvent(deps.db, job.id, "status", WAITING, now);
+  return true;
 }
 
 /** Throws unless the CLI finished successfully. */
@@ -155,6 +175,9 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
   };
   try {
     const spec = specOrFail(deps, job);
+    const blocked = brainRootError(root) ?? recoveryBlock(deps.quarantineRoot);
+    if (blocked) throw new JobFailure(blocked);
+    if (deferWhileEditing(deps, job)) return { pushed: null };
     const token = checkPreconditions(deps, spec);
     const saved = saveOwnerNotes(root);
     if (saved > 0) event("status", `Saved ${saved} note file(s) before starting`);

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { snapshotRun } from "@/lib/agents/brain-git";
 import { agentRuns, proposals } from "@/lib/db/schema";
@@ -116,7 +116,10 @@ describe("runAgentJob", () => {
   it("saves the owner's unsaved notes in their own commit before running", async () => {
     const a = setup("success");
     try {
+      // Edited a while ago and not autosaved yet (a fresh edit defers the run instead).
+      const editedAt = new Date(Date.now() - 10 * 60_000);
       writeFileSync(join(a.brain.root, "draft.md"), "# draft\n");
+      utimesSync(join(a.brain.root, "draft.md"), editedAt, editedAt);
       const job = await runOne(a.deps, "research", { topic: "glossary" });
       expect(job.status).toBe("ok");
       const subjects = a.brain.git("log", "--format=%s", "-2").trim().split("\n");

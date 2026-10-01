@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, isNull, lt, or, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, lt, lte, or, type SQL } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { agentRunEvents, agentRuns, jobs } from "@/lib/db/schema";
 
@@ -53,14 +53,14 @@ export function enqueueJob(
   );
 }
 
-/** Atomically moves the oldest queued job to running. */
+/** Atomically moves the oldest queued job that is due (see `deferJob`) to running. */
 export function claimNextJob(db: Db, now = new Date()): Job | null {
   return db.transaction(
     (tx) => {
       const next = tx
         .select({ id: jobs.id })
         .from(jobs)
-        .where(eq(jobs.status, "queued"))
+        .where(and(eq(jobs.status, "queued"), or(isNull(jobs.notBefore), lte(jobs.notBefore, now))))
         .orderBy(asc(jobs.id))
         .get();
       if (!next) return null;
@@ -74,6 +74,18 @@ export function claimNextJob(db: Db, now = new Date()): Job | null {
       );
     },
     { behavior: "immediate" },
+  );
+}
+
+/** Puts a running job back in the queue, not to be claimed before `until`. */
+export function deferJob(db: Db, id: number, until: Date): boolean {
+  return (
+    db
+      .update(jobs)
+      .set({ status: "queued", notBefore: until, startedAt: null, heartbeatAt: null })
+      .where(and(eq(jobs.id, id), eq(jobs.status, "running")))
+      .returning({ id: jobs.id })
+      .all().length > 0
   );
 }
 

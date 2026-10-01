@@ -1,0 +1,1 @@
+ALTER TABLE `jobs` ADD `not_before` integer;

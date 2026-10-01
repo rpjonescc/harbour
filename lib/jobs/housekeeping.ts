@@ -29,6 +29,13 @@ function changedAt(root: string, path: string, now: Date): number {
   }
 }
 
+/** When the owner last changed the brain (newest uncommitted change, in ms), or null if never. */
+export function newestOwnerChange(root: string, now: Date): number | null {
+  const changes = ownerChanges(root);
+  if (changes.length === 0) return null;
+  return changes.reduce((max, c) => Math.max(max, changedAt(root, c.path, now)), 0);
+}
+
 /**
  * What the worker should do between jobs: save the owner's edits once they have been quiet for
  * `quietMs`, otherwise push unpushed commits when a retry is due. Does nothing while an
@@ -54,12 +61,9 @@ export function housekeepingAction(
       warnOnce((error as Error).message);
       return null;
     }
-    const changes = ownerChanges(root);
+    const newest = newestOwnerChange(root, now);
     lastWarning = null;
-    if (changes.length > 0) {
-      const newest = changes.reduce((max, c) => Math.max(max, changedAt(root, c.path, now)), 0);
-      return now.getTime() - newest >= opts.quietMs ? "notes-sync" : null;
-    }
+    if (newest !== null) return now.getTime() - newest >= opts.quietMs ? "notes-sync" : null;
     if (opts.pushRetryDue && (unpushedCount(root) ?? 0) > 0) return "brain-push";
     return null;
   } catch (error) {

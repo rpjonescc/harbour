@@ -8,6 +8,7 @@ import { openTestDb } from "@/tests/helpers/db";
 import {
   addEvent,
   claimNextJob,
+  deferJob,
   enqueueJob,
   eventsSince,
   finishJob,
@@ -146,6 +147,26 @@ describe("job queue transitions", () => {
     recoverStaleJobs(db, at(120_000));
     expect(finishJob(db, failed, "ok", null, at(130_000))).toBe(false);
     expect(getJob(db, failed)?.status).toBe("failed");
+  });
+
+  it("defers a running job back to the queue until a time, skipping it until then", () => {
+    const db = openTestDb();
+    const agent = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
+    const push = enqueueJob(db, "brain-push", {}, null, t0).id;
+    claimNextJob(db, t0);
+    expect(deferJob(db, agent, at(60_000))).toBe(true);
+    expect(getJob(db, agent)).toMatchObject({
+      status: "queued",
+      notBefore: at(60_000),
+      startedAt: null,
+      heartbeatAt: null,
+    });
+    expect(claimNextJob(db, at(1))?.id).toBe(push);
+    expect(claimNextJob(db, at(59_999))).toBeNull();
+    expect(claimNextJob(db, at(60_000))?.id).toBe(agent);
+    expect(deferJob(db, push, at(1))).toBe(true);
+    finishJob(db, agent, "ok", null, at(2));
+    expect(deferJob(db, agent, at(3))).toBe(false);
   });
 
   it("dedupes regardless of param order", () => {
