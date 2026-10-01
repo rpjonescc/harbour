@@ -15,12 +15,10 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
-import {
-  assertBrainRepoRoot,
-  discardRun,
-  ownerChanges,
-  type RunSnapshot,
-} from "@/lib/agents/brain-git";
+import { discardRun } from "@/lib/agents/brain-discard";
+import { assertBrainRepoRoot, ownerChanges, type RunSnapshot } from "@/lib/agents/brain-git";
+import { activeDir, markerPath, touchedPath } from "./run-paths";
+import { readTouched } from "./touched-log";
 
 /**
  * A run marker is the durable copy of an agent run's snapshot, written before the agent starts
@@ -40,10 +38,6 @@ const markerSchema = z.object({
   gitMeta: z.array(z.tuple([z.string(), z.string()])),
   gitRestore: z.array(z.tuple([z.string(), z.string()])),
 });
-
-const activeDir = (quarantineRoot: string) => join(quarantineRoot, "active");
-const markerPath = (quarantineRoot: string, jobId: number | string) =>
-  join(activeDir(quarantineRoot), `job-${jobId}.json`);
 
 /** Durably records a run's snapshot (tmp file, fsync, rename) in a private folder. */
 export function writeRunMarker(quarantineRoot: string, jobId: number, snapshot: RunSnapshot): void {
@@ -75,7 +69,9 @@ export function writeRunMarker(quarantineRoot: string, jobId: number, snapshot: 
   }
 }
 
+/** Removes a run's marker and its touched-path sidecar. */
 export function removeRunMarker(quarantineRoot: string, jobId: number | string): void {
+  rmSync(touchedPath(quarantineRoot, jobId), { force: true });
   rmSync(markerPath(quarantineRoot, jobId), { force: true });
 }
 
@@ -166,6 +162,7 @@ function setAside(quarantineRoot: string, jobId: string): string {
   let target = join(dir, `job-${jobId}.json`);
   for (let n = 2; existsSync(target); n++) target = join(dir, `job-${jobId}-${n}.json`);
   renameSync(markerPath(quarantineRoot, jobId), target);
+  rmSync(touchedPath(quarantineRoot, jobId), { force: true });
   return target;
 }
 
@@ -184,7 +181,7 @@ function recoverOne(root: string, quarantineRoot: string, jobId: string, result:
     return;
   }
   const dir = freshQuarantineDir(quarantineRoot, jobId);
-  const { quarantined } = discardRun(root, snapshot, dir);
+  const { quarantined } = discardRun(root, snapshot, dir, readTouched(quarantineRoot, jobId));
   removeRunMarker(quarantineRoot, jobId);
   result.recovered.push({ jobId, dir, quarantined });
 }

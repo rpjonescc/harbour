@@ -60,6 +60,8 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
       }
     }
     if (scenario === "escape") write("outside.md", "# Not allowed\n");
+    // Claude Code denies writes outside the brain, but the attempt is still in the stream.
+    if (scenario === "outside-attempt") tool("Write", { file_path: "/etc/harbour-denied.md" });
     // Claude Code's permissions would refuse this; the fake does it to exercise the git gate.
     if (scenario === "tamper-git") appendFileSync(".git/config", "[core]\n\tpager = evil\n");
     if (scenario === "tamper-head") writeFileSync(".git/HEAD", "garbage\n");

@@ -1,24 +1,20 @@
 import { execFileSync } from "node:child_process";
 import {
-  appendFileSync,
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
-  truncateSync,
   utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeGitBrain } from "@/tests/helpers/git-brain";
+import { discardRun } from "./brain-discard";
 import {
   commitChanges,
-  discardRun,
   inspectRun,
   isAllowedChange,
   ownerChanges,
@@ -92,7 +88,7 @@ describe("run gate", () => {
     try {
       const snap = snapshotRun(b.root);
       write(b, "research/geo/a.md", "# A\n");
-      const inspected = inspectRun(b.root, snap, research);
+      const inspected = inspectRun(b.root, snap, research, "all");
       expect(paths(inspected.allowed)).toEqual(["research/geo/a.md"]);
       expect(inspected.rejected).toEqual([]);
       expect(inspected.tampered).toEqual([]);
@@ -114,11 +110,11 @@ describe("run gate", () => {
       write(b, "research/geo/a.md", "# A\n");
       write(b, "products/acme-docs/notes.md", "# Tampered\n");
       write(b, "stray.txt");
-      const inspected = inspectRun(b.root, snap, research);
+      const inspected = inspectRun(b.root, snap, research, "all");
       expect(paths(inspected.allowed)).toEqual(["research/geo/a.md"]);
       expect(paths(inspected.rejected)).toEqual(["products/acme-docs/notes.md", "stray.txt"]);
 
-      discardRun(b.root, snap, quarantine());
+      discardRun(b.root, snap, quarantine(), "all");
       expect(existsSync(join(b.root, "stray.txt"))).toBe(false);
       expect(existsSync(join(b.root, "research/geo/a.md"))).toBe(false);
       expect(readFileSync(join(b.root, "products/acme-docs/notes.md"), "utf8")).toBe("# Notes\n");
@@ -134,11 +130,15 @@ describe("run gate", () => {
       const snap = snapshotRun(b.root);
       const odd = 'research/my topic/it\'s "odd" é.md';
       write(b, odd, "# Odd\n");
-      expect(inspectRun(b.root, snap, research).allowed).toEqual([{ path: odd, untracked: true }]);
+      expect(inspectRun(b.root, snap, research, "all").allowed).toEqual([
+        { path: odd, untracked: true },
+      ]);
       commitChanges(b.root, [odd], "odd");
       write(b, odd, "# Odd 2\n");
-      expect(inspectRun(b.root, snap, research).allowed).toEqual([{ path: odd, untracked: false }]);
-      discardRun(b.root, snap, quarantine());
+      expect(inspectRun(b.root, snap, research, "all").allowed).toEqual([
+        { path: odd, untracked: false },
+      ]);
+      discardRun(b.root, snap, quarantine(), "all");
       expect(ownerChanges(b.root)).toEqual([]);
     } finally {
       b.cleanup();
@@ -152,7 +152,7 @@ describe("run gate", () => {
       const snap = snapshotRun(b.root);
       write(b, ":(exclude)zz");
       write(b, "research/*");
-      discardRun(b.root, snap, quarantine());
+      discardRun(b.root, snap, quarantine(), "all");
       expect(existsSync(join(b.root, ":(exclude)zz"))).toBe(false);
       expect(existsSync(join(b.root, "research/*"))).toBe(false);
       expect(readFileSync(join(b.root, "owner.local"), "utf8")).toBe("mine");
@@ -179,27 +179,11 @@ describe("run gate", () => {
       const snap = snapshotRun(b.root);
       write(b, "products/.gitignore", "*\n!.gitignore\n");
       write(b, "products/x/evil.md", "# evil\n");
-      const inspected = inspectRun(b.root, snap, research);
+      const inspected = inspectRun(b.root, snap, research, "all");
       expect(paths(inspected.rejected)).toEqual(["products/.gitignore", "products/x/evil.md"]);
-      discardRun(b.root, snap, quarantine());
+      discardRun(b.root, snap, quarantine(), "all");
       expect(existsSync(join(b.root, "products/x/evil.md"))).toBe(false);
       expect(ownerChanges(b.root)).toEqual([]);
-    } finally {
-      b.cleanup();
-    }
-  });
-
-  it("keeps the owner's pre-existing ignored files through discardRun", () => {
-    const b = makeGitBrain({ ".gitignore": "*.local\n" });
-    try {
-      write(b, "owner.local", "mine");
-      const snap = snapshotRun(b.root);
-      write(b, "stray.txt");
-      const inspected = inspectRun(b.root, snap, research);
-      expect(paths(inspected.rejected)).toEqual(["stray.txt"]);
-      expect(inspected.tampered).toEqual([]);
-      discardRun(b.root, snap, quarantine());
-      expect(readFileSync(join(b.root, "owner.local"), "utf8")).toBe("mine");
     } finally {
       b.cleanup();
     }
@@ -212,7 +196,7 @@ describe("run gate", () => {
       const snap = snapshotRun(b.root);
       write(b, ".obsidian/x.js", "new, longer");
       utimesSync(join(b.root, ".obsidian/x.js"), new Date(), new Date(Date.now() + 5000));
-      expect(inspectRun(b.root, snap, research).tampered).toEqual([".obsidian/x.js"]);
+      expect(inspectRun(b.root, snap, research, "all").tampered).toEqual([".obsidian/x.js"]);
     } finally {
       b.cleanup();
     }
@@ -224,22 +208,8 @@ describe("run gate", () => {
       write(b, "a.log", "log");
       const snap = snapshotRun(b.root);
       rmSync(join(b.root, "a.log"));
-      expect(inspectRun(b.root, snap, research).tampered).toEqual(["a.log"]);
+      expect(inspectRun(b.root, snap, research, "all").tampered).toEqual(["a.log"]);
     } finally {
-      b.cleanup();
-    }
-  });
-
-  it("throws instead of reporting success when a change cannot be removed", () => {
-    const b = makeGitBrain({});
-    try {
-      const snap = snapshotRun(b.root);
-      write(b, "locked/a.txt");
-      chmodSync(join(b.root, "locked"), 0o555);
-      expect(() => discardRun(b.root, snap, quarantine())).toThrow();
-      expect(existsSync(join(b.root, "locked/a.txt"))).toBe(true);
-    } finally {
-      chmodSync(join(b.root, "locked"), 0o755);
       b.cleanup();
     }
   });
@@ -259,13 +229,13 @@ describe("run gate", () => {
       const snap = snapshotRun(b.root);
       mkdirSync(join(b.root, "research"), { recursive: true });
       b.git("mv", "products/acme-docs/notes.md", "research/notes.md");
-      const inspected = inspectRun(b.root, snap, research);
+      const inspected = inspectRun(b.root, snap, research, "all");
       expect(inspected.allowed).toEqual([]);
       expect(paths(inspected.rejected)).toEqual([
         "products/acme-docs/notes.md",
         "research/notes.md",
       ]);
-      discardRun(b.root, snap, quarantine());
+      discardRun(b.root, snap, quarantine(), "all");
       expect(readFileSync(join(b.root, "products/acme-docs/notes.md"), "utf8")).toBe("# Notes\n");
       expect(existsSync(join(b.root, "research/notes.md"))).toBe(false);
       expect(ownerChanges(b.root)).toEqual([]);
@@ -279,7 +249,7 @@ describe("run gate", () => {
     try {
       const snap = snapshotRun(b.root);
       b.git("mv", "research/a.md", "stolen.md");
-      const inspected = inspectRun(b.root, snap, research);
+      const inspected = inspectRun(b.root, snap, research, "all");
       expect(inspected.allowed).toEqual([]);
       expect(inspected.rejected).toHaveLength(2);
     } finally {
@@ -293,10 +263,10 @@ describe("run gate", () => {
       const snap = snapshotRun(b.root);
       mkdirSync(join(b.root, "research"), { recursive: true });
       symlinkSync("/etc/hostname", join(b.root, "research/l.md"));
-      const inspected = inspectRun(b.root, snap, research);
+      const inspected = inspectRun(b.root, snap, research, "all");
       expect(inspected.allowed).toEqual([]);
       expect(paths(inspected.rejected)).toEqual(["research/l.md"]);
-      discardRun(b.root, snap, quarantine());
+      discardRun(b.root, snap, quarantine(), "all");
       expect(existsSync(join(b.root, "research/l.md"))).toBe(false);
       expect(existsSync("/etc/hostname")).toBe(true);
     } finally {
@@ -309,10 +279,10 @@ describe("run gate", () => {
     try {
       const snap = snapshotRun(b.root);
       write(b, "research/sub/.git/x", "x");
-      const inspected = inspectRun(b.root, snap, research);
+      const inspected = inspectRun(b.root, snap, research, "all");
       expect(inspected.allowed).toEqual([]);
       expect(inspected.rejected.map((c) => c.path)).toContain("research/sub/.git");
-      discardRun(b.root, snap, quarantine());
+      discardRun(b.root, snap, quarantine(), "all");
       expect(existsSync(join(b.root, "research/sub/.git"))).toBe(false);
     } finally {
       b.cleanup();
@@ -339,32 +309,12 @@ describe("snapshot safety", () => {
         execFileSync("git", ["init", "-q", join(b.root, dir)]);
       }
       const snap = snapshotRun(b.root);
-      expect(inspectRun(b.root, snap, research).rejected).toEqual([]);
+      expect(inspectRun(b.root, snap, research, "all").rejected).toEqual([]);
       write(b, "stray.txt");
-      discardRun(b.root, snap, quarantine());
+      discardRun(b.root, snap, quarantine(), "all");
       expect(existsSync(join(b.root, "vendor/tool/.git"))).toBe(true);
       expect(existsSync(join(b.root, "research/clone/.git"))).toBe(true);
       expect(existsSync(join(b.root, "stray.txt"))).toBe(false);
-    } finally {
-      b.cleanup();
-    }
-  });
-
-  it("reports tampered git config and info, and discardRun restores them", () => {
-    const b = makeGitBrain({});
-    try {
-      const snap = snapshotRun(b.root);
-      const config = readFileSync(join(b.root, ".git/config"));
-      appendFileSync(join(b.root, ".git/config"), '[filter "x"]\n\tclean = touch /tmp/never\n');
-      write(b, ".git/info/attributes", "* filter=x\n");
-      expect(inspectRun(b.root, snap, research).gitTampered).toEqual([
-        ".git/config",
-        ".git/info/attributes",
-      ]);
-      discardRun(b.root, snap, quarantine());
-      expect(readFileSync(join(b.root, ".git/config"))).toEqual(config);
-      expect(existsSync(join(b.root, ".git/info/attributes"))).toBe(false);
-      expect(inspectRun(b.root, snap, research).gitTampered).toEqual([]);
     } finally {
       b.cleanup();
     }
@@ -377,130 +327,9 @@ describe("snapshot safety", () => {
       commitChanges(b.root, ["n.md"], "second");
       const snap = snapshotRun(b.root);
       b.git("update-ref", "refs/heads/main", "HEAD~1");
-      expect(inspectRun(b.root, snap, research).gitTampered).toEqual([".git/refs/heads/main"]);
-    } finally {
-      b.cleanup();
-    }
-  });
-
-  it("quarantines new and modified files before discarding them", () => {
-    const b = makeGitBrain({ "notes/old.md": "# Old\n" });
-    try {
-      const snap = snapshotRun(b.root);
-      write(b, "notes/mid-run.md", "# Written by the owner mid-run\n");
-      write(b, "notes/old.md", "# Edited mid-run\n");
-      symlinkSync("/etc/hostname", join(b.root, "link.md"));
-      const dir = quarantine();
-      const { quarantined } = discardRun(b.root, snap, dir);
-      expect(quarantined.sort()).toEqual(["notes/mid-run.md", "notes/old.md"]);
-      expect(readFileSync(join(dir, "notes/mid-run.md"), "utf8")).toBe(
-        "# Written by the owner mid-run\n",
-      );
-      expect(readFileSync(join(dir, "notes/old.md"), "utf8")).toBe("# Edited mid-run\n");
-      expect(readFileSync(join(dir, "MANIFEST.txt"), "utf8")).toContain("link.md: symlink");
-      expect(readFileSync(join(b.root, "notes/old.md"), "utf8")).toBe("# Old\n");
-    } finally {
-      b.cleanup();
-    }
-  });
-
-  it("quarantines a nested repo created mid-run, including its .git", () => {
-    const b = makeGitBrain({});
-    try {
-      const snap = snapshotRun(b.root);
-      const clone = join(b.root, "clone");
-      mkdirSync(clone);
-      execFileSync("git", ["init", "-q", clone]);
-      writeFileSync(join(clone, "committed.md"), "# committed\n");
-      execFileSync("git", ["-C", clone, "add", "."]);
-      execFileSync("git", [
-        "-C",
-        clone,
-        "-c",
-        "user.name=T",
-        "-c",
-        "user.email=t@example.com",
-        "commit",
-        "-qm",
-        "c",
+      expect(inspectRun(b.root, snap, research, "all").gitTampered).toEqual([
+        ".git/refs/heads/main",
       ]);
-      writeFileSync(join(clone, "uncommitted.md"), "# uncommitted\n");
-      const dir = quarantine();
-      const { quarantined } = discardRun(b.root, snap, dir);
-      expect(readFileSync(join(dir, "clone/committed.md"), "utf8")).toBe("# committed\n");
-      expect(readFileSync(join(dir, "clone/uncommitted.md"), "utf8")).toBe("# uncommitted\n");
-      expect(existsSync(join(dir, "clone/.git/HEAD"))).toBe(true);
-      expect(quarantined).toContain("clone/uncommitted.md");
-      expect(readFileSync(join(dir, "MANIFEST.txt"), "utf8")).toContain("clone/.git/HEAD: copied");
-      expect(existsSync(join(b.root, "clone"))).toBe(false);
-    } finally {
-      b.cleanup();
-    }
-  });
-
-  it("refuses a non-empty quarantine directory", () => {
-    const b = makeGitBrain({});
-    try {
-      const snap = snapshotRun(b.root);
-      write(b, "stray.txt");
-      const dir = quarantine();
-      writeFileSync(join(dir, "earlier.txt"), "keep");
-      expect(() => discardRun(b.root, snap, dir)).toThrow(/empty/);
-      expect(existsSync(join(b.root, "stray.txt"))).toBe(true);
-    } finally {
-      b.cleanup();
-    }
-  });
-
-  it("refuses a quarantine directory that is inside the brain via a symlink", () => {
-    const b = makeGitBrain({});
-    try {
-      const snap = snapshotRun(b.root);
-      mkdirSync(join(b.root, "inner"));
-      const viaLink = join(quarantine(), "link");
-      symlinkSync(join(b.root, "inner"), viaLink);
-      write(b, "stray.txt");
-      expect(() => discardRun(b.root, snap, viaLink)).toThrow(/outside the brain/);
-      expect(existsSync(join(b.root, "stray.txt"))).toBe(true);
-    } finally {
-      b.cleanup();
-    }
-  });
-
-  it("fails closed instead of deleting a file too large to quarantine", () => {
-    const b = makeGitBrain({});
-    try {
-      const snap = snapshotRun(b.root);
-      const big = join(b.root, "big.bin");
-      writeFileSync(big, "");
-      truncateSync(big, 51 * 1024 * 1024);
-      expect(() => discardRun(b.root, snap, quarantine())).toThrow(/too large/);
-      expect(existsSync(big)).toBe(true);
-    } finally {
-      b.cleanup();
-    }
-  });
-
-  it("does not follow a symlinked .git/info when restoring", () => {
-    const b = makeGitBrain({});
-    try {
-      const snap = snapshotRun(b.root);
-      const outside = mkdtempSync(join(tmpdir(), "harbour-outside-"));
-      quarantines.push(outside);
-      rmSync(join(b.root, ".git/info"), { recursive: true, force: true });
-      symlinkSync(outside, join(b.root, ".git/info"));
-      discardRun(b.root, snap, quarantine());
-      expect(readdirSync(outside)).toEqual([]);
-    } finally {
-      b.cleanup();
-    }
-  });
-
-  it("refuses a quarantine directory inside the brain", () => {
-    const b = makeGitBrain({});
-    try {
-      const snap = snapshotRun(b.root);
-      expect(() => discardRun(b.root, snap, join(b.root, "q"))).toThrow();
     } finally {
       b.cleanup();
     }
@@ -511,7 +340,7 @@ describe("snapshot safety", () => {
     try {
       const snap = snapshotRun(b.root);
       write(b, "research/hidden/x.md");
-      const inspected = inspectRun(b.root, snap, research);
+      const inspected = inspectRun(b.root, snap, research, "all");
       expect(inspected.allowed).toEqual([]);
       expect(paths(inspected.rejected)).toEqual(["research/hidden/x.md"]);
     } finally {
