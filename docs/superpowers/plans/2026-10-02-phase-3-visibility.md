@@ -99,7 +99,7 @@ Readiness (`site`-level observations, kind `readiness`): robots.txt present/vali
 - `schema: {pagesChecked, pagesWith: {Organization, WebSite, LocalBusiness, FAQPage, HowTo, Article}}` — distinct HTML pages by final URL; common subtypes count (`lib/scan/schema-types.ts`).
 - `preferredSources: {button, buttonPages, freshUrls, freshContent}` — fresh = sitemap `lastmod` or Article `datePublished` within 30 days (up to a day ahead allowed); `freshContent` at ≥ 3 URLs.
 - `https: {productUrlHttps, httpUpgradesToHttps, downgrades: [{from,to}], hosts: [{url, finalUrl, error}], hostsConsistent, siteOrigin}` — home page plus https apex and www variants (just the home page for an IP host); `hostsConsistent` is `null` when fewer than two variants answered (e.g. a subdomain without www); any https→http redirect hop is a downgrade.
-- `sitemap`, `schema` and `preferredSources` are `null` when the crawler did not end ok in this scan (a gap, not a zero).
+- `sitemap`, `schema` and `preferredSources` are `null` when the crawler did not end ok in this scan, or when its observations don't have the expected shape (validated with zod; a job event says why) — a gap, not a zero.
 
 PageSpeed (weekly): PSI API v5 `runPagespeed?url=<product url>&strategy=mobile&category=performance` (optional `HARBOUR_PAGESPEED_API_KEY`), observation `cwv`: `{ performanceScore, lcpMs, inpMs (field) | null, cls, fcpMs, tbtMs, fieldDataAvailable }`. Quota/429 → failed with readable error.
 

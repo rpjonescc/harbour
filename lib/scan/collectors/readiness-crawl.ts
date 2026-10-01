@@ -153,30 +153,51 @@ function preferredSourcesOf(
   };
 }
 
+const UNKNOWN: CrawlReadiness = { sitemap: null, schema: null, preferredSources: null };
+
 /** Distinct HTML pages by final URL (a redirect and its target are one page). */
-function htmlPages(observations: readonly Observation[]): HtmlPage[] {
+function htmlPages(pages: readonly z.infer<typeof crawledPage>[]): HtmlPage[] {
   const byUrl = new Map<string, HtmlPage>();
-  for (const o of observations) {
-    if (o.kind !== "page") continue;
-    const page = crawledPage.parse(o.value);
+  for (const page of pages) {
     if (page.jsonLdTypes === null || byUrl.has(page.finalUrl)) continue;
     byUrl.set(page.finalUrl, { ...page, jsonLdTypes: page.jsonLdTypes });
   }
   return [...byUrl.values()];
 }
 
+/** Where a zod error points, e.g. "sitemapsRead: expected number". */
+function describeIssue(error: z.ZodError | undefined): string {
+  const issue = error?.issues[0];
+  return issue ? `${issue.path.join(".") || "value"}: ${issue.message}` : "invalid";
+}
+
 /**
  * Sitemap, structured data and Preferred Sources readiness from the crawler's observations of
- * this scan. Without its `site` observation (the crawl failed or didn't run) all are unknown.
+ * this scan. Without its `site` observation (the crawl failed or didn't run), or when the
+ * observations don't have the crawler's shape (logged), all three are unknown.
  */
-export function readCrawl(observations: readonly Observation[], now: Date): CrawlReadiness {
+export function readCrawl(
+  observations: readonly Observation[],
+  now: Date,
+  log: (line: string) => void,
+): CrawlReadiness {
   const siteObservation = observations.find((o) => o.kind === "site");
-  if (!siteObservation) return { sitemap: null, schema: null, preferredSources: null };
-  const site = crawlSite.parse(siteObservation.value);
-  const pages = htmlPages(observations);
+  if (!siteObservation) return UNKNOWN;
+  const site = crawlSite.safeParse(siteObservation.value);
+  const pageValues = observations.filter((o) => o.kind === "page").map((o) => o.value);
+  const pages = z.array(crawledPage).safeParse(pageValues);
+  if (!site.success || !pages.success) {
+    const why = describeIssue(site.error ?? pages.error);
+    log(
+      `crawler observations have an unexpected shape (${why}): ` +
+        "sitemap, schema and Preferred Sources are unknown",
+    );
+    return UNKNOWN;
+  }
+  const html = htmlPages(pages.data);
   return {
-    sitemap: sitemapOf(site, now),
-    schema: schemaOf(pages),
-    preferredSources: preferredSourcesOf(pages, site, now),
+    sitemap: sitemapOf(site.data, now),
+    schema: schemaOf(html),
+    preferredSources: preferredSourcesOf(html, site.data, now),
   };
 }

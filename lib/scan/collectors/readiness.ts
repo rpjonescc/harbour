@@ -32,7 +32,7 @@ async function collect(ctx: CollectContext): Promise<CollectorResult> {
   // A failed crawl stored nothing, so its parts read as unknown rather than absent.
   const crawled = ctx.earlier.status("crawler") === "ok";
   if (!crawled) ctx.log("no crawl this scan: sitemap, schema and Preferred Sources are unknown");
-  const crawl = readCrawl(crawled ? ctx.earlier.observations("crawler") : [], ctx.now);
+  const crawl = readCrawl(crawled ? ctx.earlier.observations("crawler") : [], ctx.now, ctx.log);
   const value: Readiness = { ...crawl, robotsTxt, llmsTxt, llmsFullTxt, https };
   return { status: "ok", observations: [{ kind: "readiness", subject, value }] };
 }

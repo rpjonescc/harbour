@@ -102,6 +102,29 @@ describe("readiness on a recorded site", () => {
     });
   });
 
+  it("still checks files and HTTPS when the crawl's observations have an unexpected shape", async () => {
+    const { origin } = await fixtureSite("acme-news");
+    const logs: string[] = [];
+    const ctx = context(`${origin}/`, {
+      log: (line) => logs.push(line),
+      earlier: {
+        status: () => "ok",
+        observations: () => [{ kind: "site", subject: `${origin}/`, value: { pagesCrawled: 1 } }],
+      },
+    });
+    const result = await readiness.collect(ctx);
+    const value = result.status === "ok" ? result.observations[0]?.value : null;
+    expect(value).toMatchObject({
+      sitemap: null,
+      schema: null,
+      preferredSources: null,
+      robotsTxt: { state: "ok" },
+      llmsTxt: { present: true },
+      https: { siteOrigin: origin },
+    });
+    expect(logs.some((line) => line.includes("unexpected shape"))).toBe(true);
+  });
+
   it("does not take an HTML page served at /llms.txt for the file", async () => {
     const { origin } = await fixtureSite("acme-news", {
       "/llms.txt": text("<!doctype html><html><body>App shell</body></html>"),

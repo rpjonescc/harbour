@@ -45,6 +45,8 @@ function site(fields: Record<string, unknown> = {}): Observation {
   };
 }
 
+const noLog = () => {};
+
 const NO_HTML = {
   jsonLdTypes: null,
   hasFaqMarkup: null,
@@ -62,7 +64,7 @@ describe("readCrawl sitemap", () => {
         { url: `${origin}/c`, lastmod: "2026-08-31T00:00:00.000Z" },
       ],
     };
-    const { sitemap } = readCrawl([site({ sitemapLastmods: lastmods })], now);
+    const { sitemap } = readCrawl([site({ sitemapLastmods: lastmods })], now, noLog);
     expect(sitemap).toEqual({
       reachable: true,
       valid: true,
@@ -82,7 +84,7 @@ describe("readCrawl sitemap", () => {
       { url: "https://example.com/sitemap.xml", kind: "off_origin" },
       { url: `${origin}/broken.xml`, status: 500 },
     ];
-    const { sitemap } = readCrawl([site({ sitemapErrors: errors })], now);
+    const { sitemap } = readCrawl([site({ sitemapErrors: errors })], now, noLog);
     expect(sitemap).toMatchObject({
       urlCount: 3,
       partial: true,
@@ -95,7 +97,7 @@ describe("readCrawl sitemap", () => {
   it("reports an unreadable sitemap as unreachable with an unknown count", () => {
     const errors = [{ url: `${origin}/sitemap.xml`, kind: "invalid" }];
     const value = { pagesInSitemap: null, sitemapsRead: 0, sitemapErrors: errors };
-    const { sitemap } = readCrawl([site({ ...value, sitemapLastmods: null })], now);
+    const { sitemap } = readCrawl([site({ ...value, sitemapLastmods: null })], now, noLog);
     expect(sitemap).toMatchObject({
       reachable: false,
       valid: false,
@@ -109,7 +111,7 @@ describe("readCrawl sitemap", () => {
 
   it("has no validity verdict when the site has no sitemap at all", () => {
     const value = { pagesInSitemap: 0, sitemapsRead: 0 };
-    const { sitemap } = readCrawl([site(value)], now);
+    const { sitemap } = readCrawl([site(value)], now, noLog);
     expect(sitemap).toMatchObject({ reachable: false, valid: null, urlCount: 0 });
   });
 });
@@ -125,7 +127,7 @@ describe("readCrawl schema", () => {
       page("/post", { jsonLdTypes: ["BlogPosting"] }),
       page("/gone", { status: 404, ...NO_HTML }),
     ];
-    expect(readCrawl([site(), ...pages], now).schema).toEqual({
+    expect(readCrawl([site(), ...pages], now, noLog).schema).toEqual({
       pagesChecked: 5,
       pagesWith: {
         Organization: 2,
@@ -155,7 +157,11 @@ describe("readCrawl Preferred Sources", () => {
       page("/old", { articleDatePublished: "2026-07-01T00:00:00.000Z" }),
       page("/future", { articleDatePublished: "2027-01-01T00:00:00.000Z" }),
     ];
-    const { preferredSources } = readCrawl([site({ sitemapLastmods: lastmods }), ...pages], now);
+    const { preferredSources } = readCrawl(
+      [site({ sitemapLastmods: lastmods }), ...pages],
+      now,
+      noLog,
+    );
     expect(preferredSources).toEqual({
       button: true,
       buttonPages: [`${origin}/`],
@@ -166,7 +172,7 @@ describe("readCrawl Preferred Sources", () => {
 
   it("has no fresh content below three URLs", () => {
     const pages = [page("/a", { articleDatePublished: "2026-09-30T00:00:00.000Z" })];
-    expect(readCrawl([site(), ...pages], now).preferredSources).toEqual({
+    expect(readCrawl([site(), ...pages], now, noLog).preferredSources).toEqual({
       button: false,
       buttonPages: [],
       freshUrls: 1,
@@ -177,10 +183,21 @@ describe("readCrawl Preferred Sources", () => {
 
 describe("readCrawl without a crawl", () => {
   it("reports every crawl-based section as unknown when there is no site observation", () => {
-    expect(readCrawl([], now)).toEqual({ sitemap: null, schema: null, preferredSources: null });
+    expect(readCrawl([], now, noLog)).toEqual({
+      sitemap: null,
+      schema: null,
+      preferredSources: null,
+    });
   });
 
-  it("rejects observations that do not have the crawler's shape", () => {
-    expect(() => readCrawl([site({ sitemapsRead: "three" })], now)).toThrow();
+  it("reports crawl-based parts as unknown, and says why, when the shape is unexpected", () => {
+    const logs: string[] = [];
+    const log = (line: string) => logs.push(line);
+    const unknown = { sitemap: null, schema: null, preferredSources: null };
+    expect(readCrawl([site({ sitemapsRead: "three" })], now, log)).toEqual(unknown);
+    const badPage = { kind: "page", subject: `${origin}/x`, value: { status: 200 } };
+    expect(readCrawl([site(), badPage], now, log)).toEqual(unknown);
+    expect(logs).toHaveLength(2);
+    expect(logs[0]).toMatch(/^crawler observations have an unexpected shape \(sitemapsRead/);
   });
 });
