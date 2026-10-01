@@ -1,4 +1,5 @@
 import type { Db } from "@/lib/db/client";
+import { type LocalTime, localTime } from "@/lib/format/zoned-time";
 import { lastGoodScanAt } from "@/lib/scan/store";
 import { enqueueJob, jobsCreatedSince } from "./queue";
 import { makeThrottle } from "./throttle";
@@ -10,27 +11,7 @@ const DAY_MS = 24 * 60 * 60_000;
 /** How far back a job can be and still fall on today's local date (a day is at most 25 h). */
 const LOOKBACK_MS = 2 * DAY_MS;
 
-export type LocalTime = { day: string; minute: number };
 export type QueuedScan = { productId: string; jobId: number };
-
-/** The local date (YYYY-MM-DD) and minute of the day of `at` in `timeZone`, DST-aware. */
-export function localTime(timeZone: string, at: Date): LocalTime {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(at);
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === type)?.value ?? "";
-  return {
-    day: `${part("year")}-${part("month")}-${part("day")}`,
-    minute: Number(part("hour")) * 60 + Number(part("minute")),
-  };
-}
 
 /** True when `at` is on the same local day as `today`, at or after 06:00. */
 function inDailySlot(timeZone: string, at: Date, today: LocalTime): boolean {

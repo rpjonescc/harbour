@@ -1,19 +1,8 @@
-import { localTime } from "@/lib/jobs/scan-schedule";
+import { addDays, localTime, parseDay, zonedInstant } from "@/lib/format/zoned-time";
 
 /** The weekly analyst runs on Sundays at 20:00 local time. */
 const SLOT_MINUTE = 20 * 60;
 const DAY_MS = 24 * 60 * 60_000;
-
-function parseDay(day: string): number {
-  const ms = Date.parse(`${day}T00:00:00Z`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(ms) || toDay(ms) !== day) {
-    throw new Error(`Invalid date (expected YYYY-MM-DD): ${day}`);
-  }
-  return ms;
-}
-
-const toDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-const addDays = (day: string, days: number) => toDay(parseDay(day) + days * DAY_MS);
 
 /** Whether `week` is an ISO week label such as "2026-W40". */
 export function isWeekLabel(week: string): boolean {
@@ -29,21 +18,6 @@ export function isoWeekLabel(day: string): string {
   const year = date.getUTCFullYear();
   const week = Math.ceil(((date.getTime() - Date.UTC(year, 0, 1)) / DAY_MS + 1) / 7);
   return `${year}-W${String(week).padStart(2, "0")}`;
-}
-
-/**
- * The instant that is `minute` minutes into local `day` in `timeZone`. Adjusts for the zone's
- * offset twice, so a clock change between the guess and the answer is followed. Sunday 20:00
- * never falls in a clock change's gap or overlap, which happen in the small hours.
- */
-function zonedInstant(day: string, minute: number, timeZone: string): Date {
-  const target = parseDay(day) + minute * 60_000;
-  let at = target;
-  for (let i = 0; i < 2; i++) {
-    const local = localTime(timeZone, new Date(at));
-    at += target - (parseDay(local.day) + local.minute * 60_000);
-  }
-  return new Date(at);
 }
 
 /** The most recent Sunday 20:00 local at or before `now`, as { at: Date, week: label of that Sunday }. */

@@ -1,7 +1,8 @@
+import { localTime } from "@/lib/format/zoned-time";
 import { finishScan, startScan } from "@/lib/scan/store";
 import { openTestDb } from "@/tests/helpers/db";
 import { claimNextJob, enqueueJob, finishJob, listJobs } from "./queue";
-import { localTime, makeScanSchedule, nextDailyScan } from "./scan-schedule";
+import { makeScanSchedule, nextDailyScan } from "./scan-schedule";
 
 const HOUR = 60 * 60_000;
 const PRODUCTS = ["acme-docs", "acme-blog"];
