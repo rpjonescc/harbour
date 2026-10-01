@@ -22,6 +22,10 @@ const sampleProposals = {
   ],
 };
 
+// Each weekly run writes something new, as a real analyst run would: a rerun in the same week
+// with byte-identical files would change nothing and fail as a run that wrote nothing.
+const runAt = new Date().toISOString();
+
 const weeklyProposals = (productId) => ({
   actions: [
     {
@@ -33,7 +37,12 @@ const weeklyProposals = (productId) => ({
       check: "The home page answers the question in its first paragraph.",
       impact: "high",
       effort: "small",
-      evidence: [{ url: "https://docs.example.com/", note: "No direct answer on the home page" }],
+      evidence: [
+        {
+          url: "https://docs.example.com/",
+          note: `No direct answer on the home page (checked ${runAt})`,
+        },
+      ],
       docs: ["research/geo/how-ai-engines-pick-sources.md"],
     },
   ],
@@ -72,6 +81,11 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
         write(rel, JSON.stringify(weeklyProposals(productId), null, 2));
       } else if (rel.endsWith(".md") && scenario === "no-report") {
         // Skips the report: a half-done run.
+      } else if (/^reports\/weekly\/.+\.md$/.test(rel)) {
+        write(
+          rel,
+          `---\ntitle: Fake ${rel}\nresearched: 2026-10-01\nconfidence: low\n---\n# Fake ${rel}\n\nWritten by the fake CLI at ${runAt}.\n`,
+        );
       } else if (rel.endsWith("proposals.json")) {
         write(rel, scenario === "bad-json" ? "{ nope" : JSON.stringify(sampleProposals, null, 2));
       } else {

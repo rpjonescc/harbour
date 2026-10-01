@@ -45,7 +45,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: /(agents|scans)\.spec\.ts/,
+      testIgnore: /(agents|scans|actions|analyst)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     // Agent runs change the brain (new documents, sidebar counts), so they run after the rest.
@@ -61,6 +61,24 @@ export default defineConfig({
       name: "scans",
       testMatch: /scans\.spec\.ts/,
       dependencies: ["agents"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+    // The board needs the scan's rule actions; actions.spec.ts seeds a second product on top.
+    {
+      name: "actions",
+      testMatch: /actions\.spec\.ts/,
+      dependencies: ["scans"],
+      use: {
+        ...devices["Desktop Chrome"],
+        // "Hand to Claude" copies to the clipboard, which the spec reads back.
+        permissions: ["clipboard-read", "clipboard-write"],
+      },
+    },
+    // The weekly analyst adds a suggestion to the board the actions specs count, so it runs last.
+    {
+      name: "analyst",
+      testMatch: /analyst\.spec\.ts/,
+      dependencies: ["actions"],
       use: { ...devices["Desktop Chrome"] },
     },
   ],

@@ -563,6 +563,15 @@ the scan specs choose **Scan now** and check the product page, Sources and Today
 results. Only this environment may scan a loopback address (`HARBOUR_TEST_MODE` and
 `HARBOUR_SCAN_ALLOW_LOOPBACK`, both refused outside tests).
 
+The Playwright projects run in order — the shell and brain specs, then agents, scans, actions
+and the weekly analyst — because each later one changes what the earlier ones check. The actions
+specs seed a scored scan of the fictional Lighthouse Café and two analyst suggestions through
+Harbour's own code (`tests/e2e/seed-actions.ts`), then work the Actions board: filters, status
+changes, snooze, **Hand to Claude** (read back from the clipboard), Today's top three, keyboard
+paths and both themes. The analyst specs choose **Run weekly report now** twice (the scheduled
+analyst is off, `HARBOUR_SCHEDULED_ANALYST=off`): the first run commits the report and imports a
+suggestion, the second finds it already known.
+
 ## Project structure
 
 ```
