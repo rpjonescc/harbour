@@ -19,7 +19,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "check:files": "tsx scripts/check.ts",
-    "check": "pnpm typecheck && pnpm lint && pnpm check:files && pnpm test",
+    "check:private": "tsx scripts/check-private.ts",
+    "check": "pnpm typecheck && pnpm lint && pnpm check:files && pnpm check:private && pnpm test",
     "db:generate": "drizzle-kit generate",
     "setup-token": "tsx --env-file=.env scripts/setup-token.ts",
     "prepare": "lefthook install"

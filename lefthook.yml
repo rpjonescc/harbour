@@ -7,7 +7,11 @@ pre-commit:
       stage_fixed: true
     files:
       run: pnpm check:files
+    private:
+      run: pnpm check:private
 pre-push:
   commands:
+    private:
+      run: pnpm check:private --commits
     check:
       run: pnpm check

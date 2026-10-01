@@ -1,0 +1,6 @@
+# Words that must never appear in this public repo: your name, emails, product and
+# client names, hostnames. One per line, matched case-insensitively as whole words.
+# Copy this file to .private-terms (gitignored) and replace these examples.
+Jane Example
+jane@example.org
+Acme Widgets Pty Ltd
