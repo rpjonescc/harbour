@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
-import { actionEvents, actions, jobs } from "@/lib/db/schema";
+import { actionEvents, actions } from "@/lib/db/schema";
+import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import {
   actionEventsFor,
@@ -12,62 +13,9 @@ import {
   setStatus,
   wakeDueSnoozes,
 } from "./store";
-import type { NewAction } from "./types";
 
 const t0 = new Date("2026-10-02T09:00:00Z");
 const at = (ms: number) => new Date(t0.getTime() + ms);
-
-function ruleAction(over: Partial<NewAction> = {}): NewAction {
-  return {
-    productId: "acme-docs",
-    area: "SEO",
-    title: "Add meta descriptions",
-    why: "Pages without a description get a generated snippet.",
-    fix: "Write a one-sentence description for each page.",
-    check: "Every page has a meta description.",
-    impact: "medium",
-    effort: "small",
-    evidence: {
-      items: [{ text: "https://example.com/a", url: "https://example.com/a" }],
-      total: 1,
-    },
-    docs: [],
-    source: "rule",
-    ruleKey: "missing-meta-description",
-    sourceJobId: null,
-    status: "open",
-    snoozedUntil: null,
-    issuePresent: true,
-    ...over,
-  };
-}
-
-function analystJob(db: Db): number {
-  return db
-    .insert(jobs)
-    .values({
-      kind: "weekly-analyst",
-      params: {},
-      dedupeKey: "weekly-analyst:[]",
-      status: "ok",
-      requestedBy: null,
-      createdAt: t0,
-    })
-    .returning({ id: jobs.id })
-    .get().id;
-}
-
-function agentAction(sourceJobId: number, title: string, over: Partial<NewAction> = {}): NewAction {
-  return ruleAction({
-    source: "agent",
-    ruleKey: null,
-    sourceJobId,
-    issuePresent: null,
-    status: "suggested",
-    title,
-    ...over,
-  });
-}
 
 /** Makes every action_events insert fail, so a write's second half errors. */
 function failEventInserts(db: Db): void {
