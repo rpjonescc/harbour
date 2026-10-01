@@ -14,6 +14,8 @@ function realOrResolved(path: string): string {
 }
 
 /**
+ * `GIT_OPTIONAL_LOCKS=0` keeps read-only calls (status, polled by the web every few seconds)
+ * from taking `index.lock`, which would make the owner's own git commands fail at random.
  * `pinned` fixes git to `<root>/.git` with `root` as the work tree, and stops discovery above
  * `root`: a broken or missing `.git` fails loudly instead of falling through to an enclosing
  * repository.
@@ -24,6 +26,7 @@ function gitEnv(root: string, pinned: boolean): Record<string, string> {
     HOME: process.env.HOME ?? "",
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_TERMINAL_PROMPT: "0",
+    GIT_OPTIONAL_LOCKS: "0",
   };
   if (!pinned) return env;
   const real = realOrResolved(root);
