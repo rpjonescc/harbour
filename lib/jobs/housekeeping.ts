@@ -1,6 +1,6 @@
-import { existsSync, lstatSync } from "node:fs";
+import { lstatSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { ownerChanges, unpushedCount } from "@/lib/agents/brain-git";
+import { assertBrainRepoRoot, ownerChanges, unpushedCount } from "@/lib/agents/brain-git";
 import { checkBrainRoot } from "@/lib/brain/docs";
 import { pendingRecovery } from "./run-marker";
 
@@ -48,8 +48,10 @@ export function housekeepingAction(
       return null;
     }
     // Never autosave into a repository that merely contains the brain directory.
-    if (!existsSync(join(root, ".git"))) {
-      warnOnce(`brain directory is not a git repository: ${root}`);
+    try {
+      assertBrainRepoRoot(root);
+    } catch (error) {
+      warnOnce((error as Error).message);
       return null;
     }
     const changes = ownerChanges(root);

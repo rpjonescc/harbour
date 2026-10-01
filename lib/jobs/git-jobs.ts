@@ -1,4 +1,9 @@
-import { commitChanges, ownerChanges, pushBrain } from "@/lib/agents/brain-git";
+import {
+  assertBrainRepoRoot,
+  commitChanges,
+  ownerChanges,
+  pushBrain,
+} from "@/lib/agents/brain-git";
 import type { Db } from "@/lib/db/client";
 import { addEvent, finishJob, type Job } from "./queue";
 import { pendingRecovery } from "./run-marker";
@@ -15,6 +20,16 @@ export function finish(
 ): void {
   if (!finishJob(db, id, status, error, now)) {
     console.warn(`job ${id} was no longer running; its result (${status}) was not recorded`);
+  }
+}
+
+/** Why git must not run in `root` (not its own repository root), or null when it may. */
+export function brainRootError(root: string): string | null {
+  try {
+    assertBrainRepoRoot(root);
+    return null;
+  } catch (error) {
+    return (error as Error).message;
   }
 }
 
@@ -52,7 +67,7 @@ export function runNotesSyncJob(
     finish(deps.db, job.id, "failed", message, deps.now());
     return { committed: false, pushed: false };
   };
-  const blocked = recoveryBlock(deps.quarantineRoot);
+  const blocked = brainRootError(deps.root) ?? recoveryBlock(deps.quarantineRoot);
   if (blocked) return fail(blocked);
   let saved: number;
   try {
@@ -67,7 +82,8 @@ export function runNotesSyncJob(
 
 /** Pushes local brain commits (automatic retry, or "Retry now"). Returns whether it pushed. */
 export function runPushJob(deps: Omit<GitJobDeps, "quarantineRoot">, job: Job): boolean {
-  const push = pushBrain(deps.root);
+  const refused = brainRootError(deps.root);
+  const push = refused ? { ok: false as const, error: refused } : pushBrain(deps.root);
   if (push.ok) {
     addEvent(deps.db, job.id, "status", "Pushed to the brain repository", deps.now());
     finish(deps.db, job.id, "ok", null, deps.now());

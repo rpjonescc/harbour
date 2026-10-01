@@ -14,7 +14,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
-import { discardRun, type RunSnapshot } from "@/lib/agents/brain-git";
+import { assertBrainRepoRoot, discardRun, type RunSnapshot } from "@/lib/agents/brain-git";
 
 /**
  * A run marker is the durable copy of an agent run's snapshot, written before the agent starts
@@ -116,7 +116,14 @@ export type RecoveryResult = {
 /** Discards every interrupted run's changes into quarantine; markers are removed only on success. */
 export function recoverRuns(root: string, quarantineRoot: string): RecoveryResult {
   const result: RecoveryResult = { recovered: [], failed: [] };
-  for (const jobId of pendingRecovery(quarantineRoot)) {
+  const pending = pendingRecovery(quarantineRoot);
+  try {
+    if (pending.length > 0) assertBrainRepoRoot(root);
+  } catch (error) {
+    result.failed = pending.map((jobId) => ({ jobId, error: (error as Error).message }));
+    return result;
+  }
+  for (const jobId of pending) {
     try {
       const snapshot = readRunMarker(quarantineRoot, jobId);
       const dir = freshQuarantineDir(quarantineRoot, jobId);

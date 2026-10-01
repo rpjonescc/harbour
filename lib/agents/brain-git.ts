@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { appendFileSync, lstatSync, readFileSync, rmSync } from "node:fs";
+import { appendFileSync, lstatSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { posix, resolve } from "node:path";
 import {
   type FileStat,
@@ -64,6 +64,24 @@ function git(root: string, args: string[]): string {
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
+}
+
+/**
+ * Throws unless `root` is the top level of its own git repository. Git run in a subfolder of
+ * another repository (the default `./brain` sits inside the Harbour checkout) would commit and
+ * push that repository instead.
+ */
+export function assertBrainRepoRoot(root: string): void {
+  const prefix = "HARBOUR_BRAIN_DIR must be the root of its own git repository";
+  let toplevel: string;
+  try {
+    toplevel = git(root, ["rev-parse", "--show-toplevel"]).trim();
+  } catch {
+    throw new Error(`${prefix} (${root} is not a git repository)`);
+  }
+  if (realpathSync(toplevel) !== realpathSync(root)) {
+    throw new Error(`${prefix} (it is inside ${toplevel})`);
+  }
 }
 
 /** Tracked/untracked changes from `git status` (never ignored files); a rename yields both halves. */

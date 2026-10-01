@@ -18,7 +18,7 @@ import { type StreamResult, summariseLine } from "@/lib/agents/stream";
 import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import type { Product } from "@/lib/products/catalog";
-import { finish, recoveryBlock, saveOwnerNotes } from "./git-jobs";
+import { brainRootError, finish, recoveryBlock, saveOwnerNotes } from "./git-jobs";
 import { addEvent, type EventKind, isCancelRequested, type Job } from "./queue";
 import { freshQuarantineDir, removeRunMarker, writeRunMarker } from "./run-marker";
 
@@ -65,7 +65,7 @@ function specOrFail(deps: RunDeps, job: Job): AgentSpec {
 }
 
 function checkPreconditions(deps: RunDeps, spec: AgentSpec): string {
-  const blocked = recoveryBlock(deps.quarantineRoot);
+  const blocked = brainRootError(deps.root) ?? recoveryBlock(deps.quarantineRoot);
   if (blocked) throw new JobFailure(blocked);
   if (!deps.token) {
     throw new JobFailure(
