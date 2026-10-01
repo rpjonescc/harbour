@@ -146,6 +146,7 @@ export function createSearchConsole(deps: { accessToken: AccessTokenSource }): C
   return {
     id: "search-console",
     cadence: "daily",
+    paid: false,
     collect: (ctx) => collectWith(deps.accessToken, ctx),
   };
 }

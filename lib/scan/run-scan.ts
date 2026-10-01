@@ -1,5 +1,6 @@
 import { ACTION_SYNC_FAILED } from "@/lib/actions/sync-error";
 import type { Config } from "@/lib/config";
+import { budgetSkipReason, makeSpend, noSpend, type Spend } from "@/lib/costs/guard";
 import type { Db } from "@/lib/db/client";
 import { addEvent, type EventKind, finishJob, type Job } from "@/lib/jobs/queue";
 import type { Product } from "@/lib/products/catalog";
@@ -35,6 +36,8 @@ export type ScanDeps = {
   pollMs?: number;
   /** Most observations one collector may store per scan. */
   maxObservations?: number;
+  /** Monthly cap on paid calls (0: none at all) and the zone whose calendar month it covers. */
+  budget: { capMicroAud: number; timeZone: string };
   /**
    * Runs once a scan that is not failed has been scored (the worker syncs rule actions); its
    * result, if any, becomes a job event. A throw fails the job but keeps the scan and scores.
@@ -91,10 +94,23 @@ function weeklySkipReason(scan: Scan, collector: Collector, now: Date): string |
   return `runs weekly; last ran ${last.toISOString().slice(0, 10)}`;
 }
 
+function spendFor(scan: Scan, collector: Collector): Spend {
+  const { deps } = scan;
+  if (!collector.paid) return noSpend(collector.id);
+  return makeSpend(deps.db, {
+    ...deps.budget,
+    now: deps.now,
+    productId: scan.product.id,
+    collector: collector.id,
+    jobId: scan.job.id,
+  });
+}
+
 async function attempt(scan: Scan, collector: Collector): Promise<CollectorResult> {
   const { deps } = scan;
   const label = collectorLabel(collector.id);
   const timeoutMs = (deps.timeoutMs ?? collectorTimeoutMs)(collector.id);
+  const spend = spendFor(scan, collector);
   const run = runBounded(
     (signal) =>
       collector.collect(
@@ -105,19 +121,34 @@ async function attempt(scan: Scan, collector: Collector): Promise<CollectorResul
           statuses: scan.statuses,
           log: (text) => scan.event("status", `${label}: ${text}`),
           signal,
+          spend,
         }),
       ),
     timeoutMs,
     scan.signal,
   );
   try {
-    return await run.result;
+    const result = await run.result;
+    // A cost the ledger refused is a pricing bug: fail visibly even if the collector caught it.
+    const lost = spend.failure();
+    if (lost) throw new Error(lost);
+    return result;
   } catch (error) {
     if (!run.signal.aborted) throw error;
     if (scan.signal.aborted && run.signal.reason === scan.signal.reason) scan.interrupted = true;
     // Prefer why we aborted (timeout, cancel) over the collector's own reaction to it.
     throw run.signal.reason;
+  } finally {
+    spend.release();
   }
+}
+
+/** Why the collector is skipped before it runs (weekly cadence, or a paid one over budget). */
+function skipReason(scan: Scan, collector: Collector, now: Date): string | null {
+  const weekly = weeklySkipReason(scan, collector, now);
+  if (weekly || !collector.paid) return weekly;
+  const { db, budget } = scan.deps;
+  return budgetSkipReason(db, budget.capMicroAud, budget.timeZone, now);
 }
 
 /** Runs one collector and records its outcome; never throws for a collector's own failure. */
@@ -136,7 +167,7 @@ async function runCollector(scan: Scan, collector: Collector): Promise<Collector
       observations: items?.status === "ok" ? items.observations : undefined,
     });
 
-  const skip = weeklySkipReason(scan, collector, startedAt);
+  const skip = skipReason(scan, collector, startedAt);
   if (skip) {
     record("skipped", skip);
     scan.event("status", `${label}: skipped — ${skip}`);

@@ -41,6 +41,7 @@ async function collect(ctx: CollectContext): Promise<CollectorResult> {
 export const readiness: Collector = {
   id: "readiness",
   cadence: "daily",
+  paid: false,
   dependsOn: ["crawler"],
   collect,
 };

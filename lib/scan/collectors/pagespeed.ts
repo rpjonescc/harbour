@@ -85,4 +85,9 @@ async function collect(ctx: CollectContext): Promise<CollectorResult> {
 }
 
 /** Core Web Vitals from Google PageSpeed Insights (mobile), at most once a week. */
-export const pagespeed: Collector = { id: "pagespeed", cadence: "weekly", collect };
+export const pagespeed: Collector = {
+  id: "pagespeed",
+  cadence: "weekly",
+  paid: false,
+  collect,
+};

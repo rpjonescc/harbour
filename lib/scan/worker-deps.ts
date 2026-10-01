@@ -1,4 +1,5 @@
 import { syncRuleActions } from "@/lib/actions/rule-sync-store";
+import { audToMicro } from "@/lib/costs/budget";
 import { isoDateIn } from "@/lib/format/date";
 import { createSafeFetch } from "./fetch";
 import { evaluateRules } from "./issues";
@@ -37,6 +38,10 @@ export function workerScanDeps(context: WorkerContext): ScanDeps {
       allowLoopback: context.config.HARBOUR_SCAN_ALLOW_LOOPBACK,
     }),
     scoreScan,
+    budget: {
+      capMicroAud: audToMicro(context.config.HARBOUR_MONTHLY_BUDGET_AUD),
+      timeZone: context.config.HARBOUR_TIMEZONE,
+    },
     afterScore: (input) => syncActions(context, input),
   };
 }

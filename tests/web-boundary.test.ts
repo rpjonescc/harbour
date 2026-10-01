@@ -7,6 +7,7 @@ const ROOT = resolve(__dirname, "..");
 const FORBIDDEN_FILES = [
   /^lib\/scan\/collectors\//,
   /^lib\/actions\/rule-sync-store\.ts$/,
+  /^lib\/costs\/guard\.ts$/,
   /^lib\/analyst\/(export|export-product)\.ts$/,
   /^lib\/jobs\/(agent-output|import-retry)\.ts$/,
   /^lib\/ops\/(backup|backup-job|retention)\.ts$/,

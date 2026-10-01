@@ -124,6 +124,18 @@ const schema = z
     HARBOUR_PAGESPEED_API_KEY: z.string().min(1).optional(),
     // Path to a Google credentials JSON file for Search Console (secret, mode 600). Worker only.
     HARBOUR_GSC_CREDENTIALS: z.string().min(1).optional(),
+    // Monthly cap on paid API spend in AUD; 0 (the default) means no paid calls at all.
+    HARBOUR_MONTHLY_BUDGET_AUD: z.coerce.number().min(0).max(10000).multipleOf(0.01).default(0),
+    // Secret: DataForSEO API login. Reserved: read only for its status until its collector exists.
+    HARBOUR_DATAFORSEO_LOGIN: z.string().min(1).optional(),
+    // Secret: DataForSEO API password. Reserved: read only for its status until its collector exists.
+    HARBOUR_DATAFORSEO_PASSWORD: z.string().min(1).optional(),
+    // Secret: OpenAI API key. Reserved: read only for its status until its collector exists.
+    HARBOUR_OPENAI_API_KEY: z.string().min(1).optional(),
+    // Secret: Perplexity API key. Reserved: read only for its status until its collector exists.
+    HARBOUR_PERPLEXITY_API_KEY: z.string().min(1).optional(),
+    // Secret: Gemini API key. Reserved: read only for its status until its collector exists.
+    HARBOUR_GEMINI_API_KEY: z.string().min(1).optional(),
     // Test only: marks the E2E environment. Refused unless Harbour runs on a loopback origin.
     HARBOUR_TEST_MODE: flag,
     // Test only: lets scans reach 127.0.0.1 / ::1 (the E2E fixture site). Needs HARBOUR_TEST_MODE.

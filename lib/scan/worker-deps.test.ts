@@ -32,6 +32,18 @@ describe("workerScanDeps", () => {
     expect(deps().scoreScan).toBe(scoreScan);
   });
 
+  it("caps paid calls at the monthly budget, in micro-AUD and the configured zone", () => {
+    const config = parseConfig({
+      ...process.env,
+      HARBOUR_MONTHLY_BUDGET_AUD: "60.5",
+      HARBOUR_TIMEZONE: "Australia/Sydney",
+    });
+    expect(deps(config).budget).toEqual({ capMicroAud: 60_500_000, timeZone: "Australia/Sydney" });
+    expect(
+      deps(parseConfig({ ...process.env, HARBOUR_MONTHLY_BUDGET_AUD: undefined })).budget,
+    ).toEqual(expect.objectContaining({ capMicroAud: 0 }));
+  });
+
   it("only lets the fetch reach configured product hosts", async () => {
     const error = await fetchError(deps().fetch("https://example.org/", { maxBytes: 64 }));
     expect(error.kind).toBe("network");

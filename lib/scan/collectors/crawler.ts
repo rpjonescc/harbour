@@ -159,7 +159,7 @@ async function collect(ctx: CollectContext, limits: CrawlLimits): Promise<Collec
 /** The crawler with its byte budget (tests shrink it). */
 export function createCrawler(overrides: Partial<CrawlLimits> = {}): Collector {
   const limits = { ...DEFAULT_LIMITS, ...overrides };
-  return { id: "crawler", cadence: "daily", collect: (ctx) => collect(ctx, limits) };
+  return { id: "crawler", cadence: "daily", paid: false, collect: (ctx) => collect(ctx, limits) };
 }
 
 /** Crawls each product's own site: pages, links, titles, structured data. */

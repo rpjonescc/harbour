@@ -1,20 +1,25 @@
 import Link from "next/link";
 import { RefreshWhileScanning } from "@/components/products/RefreshWhileScanning";
+import type { CostMeterView } from "@/lib/costs/meter-view";
 import type { TodaySummary } from "@/lib/today/types";
 import { ActionCard } from "./ActionCard";
+import { CostMeter } from "./CostMeter";
 import { SampleBanner } from "./SampleBanner";
 import { ScoreTable } from "./ScoreTable";
 import { SourceFailures } from "./SourceFailures";
 import { TodayHeader } from "./TodayHeader";
 
-/** Today: scan status, headline, scores per product and the open actions worth a look. */
+/** Today: scan status, headline, paid spend, scores per product and the open actions worth a look. */
 export function TodayView({
   today,
+  costMeter,
   now,
   timeZone,
   locale,
 }: {
   today: TodaySummary;
+  /** Real spend even on the sample Today: the ledger is never sample data. */
+  costMeter: CostMeterView;
   now: Date;
   timeZone: string;
   locale: string;
@@ -31,6 +36,7 @@ export function TodayView({
         lastFailedAt={today.lastFailedAt}
         headline={today.headline}
       />
+      <CostMeter view={costMeter} now={now} timeZone={timeZone} locale={locale} />
       {today.isSample && <SampleBanner />}
       <SourceFailures failures={today.failures} />
       <ScoreTable scores={today.scores} />

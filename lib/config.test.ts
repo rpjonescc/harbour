@@ -305,3 +305,45 @@ describe("backup settings", () => {
     }
   });
 });
+
+describe("cost settings", () => {
+  it("defaults the monthly budget to 0: no paid calls at all", () => {
+    expect(parseConfig(base).HARBOUR_MONTHLY_BUDGET_AUD).toBe(0);
+  });
+
+  it("accepts a budget in dollars and cents up to A$10,000", () => {
+    for (const [value, expected] of [
+      ["60", 60],
+      ["12.5", 12.5],
+      ["0.01", 0.01],
+      ["10000", 10000],
+    ] as const) {
+      expect(
+        parseConfig({ ...base, HARBOUR_MONTHLY_BUDGET_AUD: value }).HARBOUR_MONTHLY_BUDGET_AUD,
+      ).toBe(expected);
+    }
+  });
+
+  it("refuses a negative, too large, sub-cent or non-numeric budget", () => {
+    for (const value of ["-1", "10000.01", "0.005", "sixty"]) {
+      expect(() => parseConfig({ ...base, HARBOUR_MONTHLY_BUDGET_AUD: value }), value).toThrow(
+        /HARBOUR_MONTHLY_BUDGET_AUD/,
+      );
+    }
+  });
+
+  it("reserves the paid-source keys as optional settings", () => {
+    const keys = [
+      "HARBOUR_DATAFORSEO_LOGIN",
+      "HARBOUR_DATAFORSEO_PASSWORD",
+      "HARBOUR_OPENAI_API_KEY",
+      "HARBOUR_PERPLEXITY_API_KEY",
+      "HARBOUR_GEMINI_API_KEY",
+    ] as const;
+    const without = parseConfig(base);
+    for (const key of keys) expect(without[key]).toBeUndefined();
+    const filled = parseConfig({ ...base, ...Object.fromEntries(keys.map((k) => [k, "example"])) });
+    for (const key of keys) expect(filled[key]).toBe("example");
+    for (const key of keys) expect(() => parseConfig({ ...base, [key]: "" }), key).toThrow();
+  });
+});

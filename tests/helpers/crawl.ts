@@ -1,4 +1,5 @@
 import { getConfig } from "@/lib/config";
+import { noSpend } from "@/lib/costs/guard";
 import type { Product } from "@/lib/products/catalog";
 import { crawler } from "@/lib/scan/collectors/crawler";
 import { createSafeFetch } from "@/lib/scan/fetch";
@@ -16,6 +17,7 @@ export const html = (body: string, headers: Record<string, string> = {}) =>
 /** A crawl of a product at `url` on a local test site: loopback allowed, 1 ms spacing. */
 export function crawlContext(url: string, overrides: Partial<CollectContext> = {}, maxPages = 200) {
   const product: Product = { id: "acme-docs", name: "Acme Docs", url, hue: "amber" };
+  const free = noSpend("crawler");
   const ctx: CollectContext = {
     product,
     config: { ...getConfig(), HARBOUR_CRAWL_MAX_PAGES: maxPages },
@@ -29,6 +31,8 @@ export function crawlContext(url: string, overrides: Partial<CollectContext> = {
     log: () => {},
     signal: new AbortController().signal,
     earlier: { status: () => undefined, observations: () => [] },
+    cost: free.cost,
+    budget: free.budget,
     ...overrides,
   };
   return ctx;

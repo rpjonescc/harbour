@@ -28,9 +28,10 @@ export function fake(
   collect: Collector["collect"],
   cadence: Collector["cadence"] = "daily",
 ): Collector & { calls: number } {
-  const collector = {
+  const collector: Collector & { calls: number } = {
     id,
     cadence,
+    paid: false,
     calls: 0,
     collect: (ctx: Parameters<Collector["collect"]>[0]) => {
       collector.calls += 1;
@@ -81,6 +82,8 @@ export function setup(collectors: Collector[], over: Partial<ScanDeps> = {}) {
     stopping: () => false,
     timeoutMs: () => 1000,
     pollMs: 5,
+    // No monthly budget unless a test sets one: paid collectors are skipped.
+    budget: { capMicroAud: 0, timeZone: "UTC" },
     ...over,
   };
   const claim = (productId = product.id): Job => {

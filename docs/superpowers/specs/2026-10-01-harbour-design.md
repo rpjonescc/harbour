@@ -54,7 +54,7 @@ falls back. The example uses fictional products:
 | Docs store | Markdown files in a separate private directory/repo (`HARBOUR_BRAIN_DIR`), git-versioned; never in the code repo |
 | Agent runtime | Claude Code headless (`claude -p`) launched by the worker |
 | Paid data | DataForSEO (rankings, SERP features, AI Overviews) + direct AI engine APIs |
-| Budget | Lean: ~$20–60/month, hard cap default $60 (example figures; configurable) |
+| Budget | Lean: ~$20–60/month (example figures). Hard monthly cap `HARBOUR_MONTHLY_BUDGET_AUD`, default **0** = no paid calls until the owner sets one (e.g. A$60) |
 | Existing data | Assumes Google Search Console is verified; no analytics or GBP required |
 | Competitors | Agent discovers and proposes 3–5 per product; the owner approves |
 | Acting on findings | Action board + "Hand to Claude" prompt copy |
@@ -173,12 +173,17 @@ Each collector implements one contract:
 interface Collector {
   id: string;                       // e.g. "crawler"
   cadence: "daily" | "weekly";
-  paid: boolean;
-  collect(product: Product, ctx: CollectContext): Promise<Observation[]>;
+  paid: boolean;                    // required; the four free collectors are `paid: false`
+  collect(ctx: CollectContext): Promise<CollectorResult>;
 }
 ```
 
-`CollectContext` provides the cost ledger, budget guard, logger and an HTTP client.
+`CollectContext` provides the product, logger, an HTTP client, earlier results, and for paid
+collectors the cost ledger (`cost.record({ provider, units, amountMicroAud })`, product,
+collector and job filled in) and the budget guard (`budget.allow(estimateMicroAud)`, asked
+before every paid call; an allowed estimate is reserved until the call is recorded, and an
+invalid or unknown price is refused). A free collector's `allow` is always false and its
+`record` throws. Every `paid: true` collector is named by a `PAID_SOURCES` entry.
 Collectors write raw observations only; they never compute scores.
 
 | Collector | Source | Measures |
@@ -428,12 +433,18 @@ runs set to 90 days).
 
 ## 12. Cost control
 
-- Every paid call writes a `costs` row (provider, collector, product, units, AUD
-  estimate).
-- Monthly cap (default $60) in Settings. At 80%: warning on Today. At 100%:
-  paid collectors are skipped (recorded as `skipped: budget`), free collectors and
-  agents on the Claude subscription continue.
-- Today shows month-to-date spend and projection.
+- Every paid call writes a `costs` row (provider, collector, product, units, amount,
+  job). Amounts are integer **micro-AUD** (1 AUD = 1,000,000) so per-call prices that are
+  fractions of a cent sum exactly; a row above A$100 is refused as a pricing bug and fails
+  the collector. The ledger is the complete record, so no rows is a real A$0.00.
+- Monthly cap `HARBOUR_MONTHLY_BUDGET_AUD`, default **0** = no paid calls (A$60 is an
+  example), over the calendar month in `HARBOUR_TIMEZONE`; shown in Settings. At 80%:
+  warning on Today. At 100% (or with no budget): paid collectors are skipped before they
+  run (recorded as `skipped: budget: …`); a running paid collector asks
+  `ctx.budget.allow(estimate)` before each call. Free collectors and agents on the Claude
+  subscription continue.
+- Today shows month-to-date spend and a linear projection; until a paid collector exists
+  and is configured the meter says "No paid sources connected".
 
 ## 13. Testing
 
@@ -464,9 +475,11 @@ Each phase gets its own implementation plan.
    competitors.
 3. **Daily scan** — worker, job queue, scheduler; collectors in order: crawler,
    readiness, search-console, pagespeed, rankings, aeo-serp, ai-engines; scoring;
-   Product pages; cost ledger and cap.
+   Product pages.
 4. **Weekly analyst + Actions** — rule-based actions, weekly analyst agent,
    actions board, Hand to Claude.
+5. **Operations** — nightly backups, observation retention, monthly research
+   refresh, cost ledger and budget guard (with the Today cost meter), Settings.
 
 ## 15. Open items for implementation planning
 

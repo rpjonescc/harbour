@@ -37,6 +37,9 @@ continues with:
 - **Agents** — research and discovery agents that write into the Second Brain, one at a time,
   with live activity, cancel, and automatic save and sync; stale research is re-checked monthly
   (see [Research refresh](#research-refresh)).
+- **Cost meter** — Today shows this month's paid API spend against your monthly budget, with a
+  month-end projection, a warning at 80 % and a pause at 100 %. No paid source exists yet, so it
+  says "No paid sources connected" (see [Costs and budget](#costs-and-budget)).
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
   a living reference at `/design` showing every component in its main states.
 - **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14
@@ -324,6 +327,12 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_OBSERVATION_SCANS_KEPT` | no | `30` | How many of each product's newest scans keep their raw observations (7 to 365); older scans' observations are deleted after each verified backup (see [Data kept](#data-kept)). Scores and scan history are always kept. Restart the worker after changing it. |
 | `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
 | `HARBOUR_GSC_CREDENTIALS` | for Search Console | unset | Absolute path to a Google credentials JSON file — a service account key or an OAuth authorized-user file (see [Connect Search Console](#connect-search-console)). Keep it outside the repo with mode 600; Harbour warns in the scan if other users can read it. Read by the worker only; its contents and the access tokens are never logged, shown or stored. Restart the worker after changing it. |
+| `HARBOUR_MONTHLY_BUDGET_AUD` | no | `0` | Monthly cap on paid API spend in Australian dollars, 0 to 10000 in whole cents (e.g. `60` or `12.50`). `0` means no paid calls at all. See [Costs and budget](#costs-and-budget). Restart both services after changing it. |
+| `HARBOUR_DATAFORSEO_LOGIN` | no | unset | Not used yet — reserved for the DataForSEO login of the future rankings and SERP collectors. Secret: only whether it is set will ever be shown (on Settings), never its value. |
+| `HARBOUR_DATAFORSEO_PASSWORD` | no | unset | Not used yet — reserved for the DataForSEO password of the future rankings and SERP collectors. Secret: only whether it is set will ever be shown (on Settings), never its value. |
+| `HARBOUR_OPENAI_API_KEY` | no | unset | Not used yet — reserved for the future AI-engines collector (ChatGPT search). Secret: only whether it is set will ever be shown (on Settings), never its value. |
+| `HARBOUR_PERPLEXITY_API_KEY` | no | unset | Not used yet — reserved for the future AI-engines collector (Perplexity Sonar). Secret: only whether it is set will ever be shown (on Settings), never its value. |
+| `HARBOUR_GEMINI_API_KEY` | no | unset | Not used yet — reserved for the future AI-engines collector (Gemini with Google grounding). Secret: only whether it is set will ever be shown (on Settings), never its value. |
 | `HARBOUR_TEST_MODE` | tests only | `0` | `1` marks the end-to-end test environment (`pnpm test:e2e` sets it). Refused unless `HARBOUR_ORIGIN` is a loopback origin (`http://localhost`, `127.0.0.1` or `[::1]`), so a deployed Harbour cannot turn it on. Never set it yourself. |
 | `HARBOUR_SCAN_ALLOW_LOOPBACK` | tests only | `0` | `1` lets scans reach `127.0.0.1` / `::1`, so the end-to-end tests can scan a local fixture site. Refused unless `HARBOUR_TEST_MODE=1`; private and tailnet addresses stay refused either way. Never set it yourself. |
 | `HARBOUR_HTTPS_PORT` | no | `8444` | Shell variable for `deploy/install.sh` (Tailscale Serve HTTPS port); the app itself does not read it. |
@@ -490,6 +499,35 @@ to remove, the totals, and the row counts of `observations`, `jobs` and `agent_r
 (job history is kept; it grows by a few rows a day). Run it as the user that runs Harbour: even
 a read-only SQLite connection needs write access to the data folder for the database's `-shm`
 and `-wal` files, and it says so if it cannot open the database.
+
+## Costs and budget
+
+Some data Harbour plans to collect comes from paid APIs (DataForSEO for rankings and AI
+Overviews; OpenAI, Perplexity and Gemini for AI answers). None of those collectors exists yet,
+so today Harbour makes **no paid calls**. The guard below is in place so the first one can only
+spend what you allow.
+
+- **The ledger.** Every paid call writes one row to the `costs` table: provider, collector,
+  product, units billed and the amount. Amounts are stored as whole **micro-AUD** (1 AUD =
+  1,000,000), because a single search request costs a fraction of a cent and whole cents would
+  round it to zero. A row above A$100 is refused as a pricing bug and fails that collector.
+- **The budget.** `HARBOUR_MONTHLY_BUDGET_AUD` caps the spend per calendar month in
+  `HARBOUR_TIMEZONE`. It defaults to **0, which means no paid calls at all**: set it (e.g.
+  `HARBOUR_MONTHLY_BUDGET_AUD=60`) to allow them. A paid collector asks the budget before every
+  call, and a call is only made if its price fits what is left this month.
+- **At 80 %** Today's meter shows a warning tag.
+- **At 100 %** paid collectors are skipped until the 1st of next month (the scan records them as
+  "skipped — budget: …"). Free collectors, agents and everything else keep running.
+
+The meter on **Today** says one of:
+
+| Meter | Meaning |
+|---|---|
+| No paid sources connected | No paid collector exists (or its keys are missing). Spend so far this month is shown if there is any. |
+| Paid sources are off: no monthly budget set | A paid source is connected but the budget is 0. |
+| A$12.40 of A$60.00 this month · on track for A$31.00 | Spend so far, the budget and a straight-line month-end projection (from the second day of the month). |
+| … with "80 % of budget" | You have used at least 80 % of the budget. |
+| Budget reached — paid sources are paused until 1 Nov | Paid collectors are skipped until the next month starts. |
 
 ## Reading the results
 
@@ -708,7 +746,7 @@ suggestion, the second finds it already known.
 app/          routes (thin: parse input, call lib/, render)
 components/   UI components built on semantic tokens
 design/       tokens.css (primitives + semantic) and the token list for /design
-lib/          auth, agents, brain, config, db, jobs, ops (backups), products, security, formatting — logic + tests
+lib/          auth, agents, brain, config, costs (ledger, budget), db, jobs, ops (backups), products, security, formatting — logic + tests
 worker/       the job worker (`pnpm worker`): agent runs, scans, backups, autosave and push retries
 deploy/       systemd unit template, install script, deployment guide
 drizzle/      SQL migrations

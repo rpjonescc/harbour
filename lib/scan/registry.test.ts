@@ -1,3 +1,4 @@
+import { PAID_SOURCES } from "@/lib/costs/paid-sources";
 import { COLLECTOR_IDS } from "./labels";
 import { COLLECTORS } from "./registry";
 
@@ -24,5 +25,15 @@ describe("COLLECTORS", () => {
         expect(at, `${collector.id} runs after ${dependency}`).toBeLessThan(index);
       }
     }
+  });
+
+  it("declares a paid collector exactly when a paid source names it", () => {
+    const paid = COLLECTORS.filter((c) => c.paid).map((c) => c.id);
+    const named = PAID_SOURCES.flatMap((s) => (s.collector === null ? [] : [s.collector]));
+    expect(paid.sort()).toEqual(named.sort());
+  });
+
+  it("has only free collectors in this phase", () => {
+    expect(COLLECTORS.map((c) => c.paid)).toEqual([false, false, false, false]);
   });
 });

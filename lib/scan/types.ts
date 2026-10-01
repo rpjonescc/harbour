@@ -78,12 +78,21 @@ export type CollectContext = {
   signal: AbortSignal;
   /** Results of the collectors that ran before this one in the same scan. */
   earlier: EarlierResults;
+  /** Writes a costs row for a paid call already made (product, collector and job filled in). */
+  cost: { record(entry: { provider: string; units: number; amountMicroAud: number }): void };
+  /** Whether a paid call estimated at `estimateMicroAud` fits this month's budget. Ask before every paid call. */
+  budget: { allow(estimateMicroAud: number): boolean };
 };
 
 export type Collector = {
   /** "crawler" | "readiness" | "pagespeed" | "search-console" */
   id: string;
   cadence: "daily" | "weekly";
+  /**
+   * Makes paid API calls: skipped before it runs when no budget is set or the month's budget is
+   * reached, and named by a `PAID_SOURCES` entry. Only a paid collector can record costs.
+   */
+  paid: boolean;
   /** Collectors whose results this one reads through `ctx.earlier`: they must run before it. */
   dependsOn?: readonly string[];
   /** Throwing means the collector failed. */

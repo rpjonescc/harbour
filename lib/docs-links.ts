@@ -6,4 +6,5 @@ export const DOCS_LINKS = {
   pagespeed: `${README}connect-pagespeed`,
   scores: `${README}how-scores-work`,
   schedule: `${README}when-things-run`,
+  costs: `${README}costs-and-budget`,
 } as const;

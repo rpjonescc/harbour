@@ -9,7 +9,15 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const NOW = new Date("2026-10-01T09:00:00Z");
 const renderToday = (today: TodaySummary) =>
-  render(<TodayView today={today} now={NOW} timeZone="UTC" locale="en-GB" />);
+  render(
+    <TodayView
+      today={today}
+      costMeter={{ state: "no-paid-sources", spentMicro: 0 }}
+      now={NOW}
+      timeZone="UTC"
+      locale="en-GB"
+    />,
+  );
 
 const real: TodaySummary = {
   isSample: false,
@@ -101,5 +109,13 @@ describe("TodayView", () => {
     expect(
       screen.getByText("Nothing open — new actions arrive with each scan."),
     ).toBeInTheDocument();
+  });
+
+  it("shows the cost meter on the sample and on real Today", () => {
+    const { unmount } = renderToday(sampleToday(getProducts()));
+    expect(screen.getByText("No paid sources connected")).toBeInTheDocument();
+    unmount();
+    renderToday(real);
+    expect(screen.getByText("No paid sources connected")).toBeInTheDocument();
   });
 });
