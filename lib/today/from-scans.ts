@@ -92,6 +92,7 @@ export function todaySummary(db: Db, products: readonly Product[], now: Date): T
     headline: headlineFor(issues),
     scores: perProduct.map((p) => p.row),
     actions: issues.slice(0, TOP_ACTIONS).map(toAction),
+    moreActions: Math.max(0, issues.length - TOP_ACTIONS),
     failures,
   };
 }

@@ -38,6 +38,9 @@ export type TodaySummary = {
   scanning: boolean;
   headline: string;
   scores: ProductScores[];
+  /** The top issues; the headline counts them all. */
   actions: ActionPreview[];
+  /** Issues beyond `actions`, left for the product pages. */
+  moreActions: number;
   failures: SourceFailure[];
 };

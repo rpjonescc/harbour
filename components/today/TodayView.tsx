@@ -44,6 +44,9 @@ export function TodayView({
             <ActionCard key={action.id} action={action} linked={!today.isSample} />
           ))
         )}
+        {today.moreActions > 0 && (
+          <p className="text-sm text-ink-muted">{today.moreActions} more on the product pages.</p>
+        )}
       </section>
     </div>
   );

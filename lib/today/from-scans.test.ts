@@ -109,6 +109,8 @@ describe("todaySummary", () => {
       ["acme-docs:missing-description", "medium"],
       ["acme-docs:ai-crawlers-blocked", "low"],
     ]);
+    // The headline counts all four; the fourth is left for the product page.
+    expect(today?.moreActions).toBe(1);
   });
 });
 

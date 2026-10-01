@@ -37,6 +37,7 @@ const real: TodaySummary = {
     },
   ],
   failures: [{ productId: "acme-docs", collector: "pagespeed", error: "quota exceeded" }],
+  moreActions: 0,
 };
 
 describe("TodayView", () => {
@@ -79,6 +80,16 @@ describe("TodayView", () => {
       screen.getByRole("heading", { name: "A source failed in the last scan" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/PageSpeed · Acme Docs/)).toHaveTextContent("quota exceeded");
+  });
+
+  it("says how many more issues are on the product pages when only the top ones are shown", () => {
+    renderToday({ ...real, moreActions: 3 });
+    expect(screen.getByText("3 more on the product pages.")).toBeInTheDocument();
+  });
+
+  it("adds no note when every issue is shown", () => {
+    renderToday(real);
+    expect(screen.queryByText(/more on the product pages/)).not.toBeInTheDocument();
   });
 
   it("says so when nothing needs attention", () => {
