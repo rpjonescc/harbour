@@ -4,13 +4,19 @@ import type { SafeFetchResponse } from "../types";
 type HtmlFields = Omit<PageFacts, "links">;
 
 /**
- * The `page` observation: the response, plus what its HTML says. Pages without HTML to read
- * (error statuses, other content types) record every HTML field as null — a gap, not a zero.
+ * The `page` observation (subject: the requested URL): the response, plus what its HTML says
+ * (see PageFacts, without `links`). Pages without HTML to read (non-2xx statuses, other content
+ * types) record every HTML field as null — a gap, not a zero. `noindex` here also counts the
+ * X-Robots-Tag header.
  */
 export type CrawledPage = {
+  /** HTTP status of the final response. */
   status: number;
+  /** URL after redirects. */
   finalUrl: string;
+  /** Request time in ms, redirects included. */
   ms: number;
+  /** The body passed the 2 MiB cap, so the HTML facts describe only its start. */
   truncated: boolean;
 } & { [K in keyof HtmlFields]: HtmlFields[K] | null };
 

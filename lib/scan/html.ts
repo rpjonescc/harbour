@@ -3,25 +3,36 @@ import { summariseJsonLd } from "./json-ld";
 
 /** What one HTML page says about itself, as the crawler records it. */
 export type PageFacts = {
+  /** The document <title>, whitespace collapsed; null when missing or empty. */
   title: string | null;
+  /** Characters in the title; 0 when there is none. */
   titleLength: number;
+  /** <meta name="description"> content, whitespace collapsed; null when missing or empty. */
   metaDescription: string | null;
   descriptionLength: number;
   h1Count: number;
-  /** Absolute URL. */
+  /** <link rel="canonical"> as an absolute URL. */
   canonical: string | null;
+  /** <meta name="robots"> content as written. */
   robotsMeta: string | null;
   /** From the robots meta tag only; the crawler adds the X-Robots-Tag header. */
   noindex: boolean;
+  /** <html lang>. */
   lang: string | null;
+  /** schema.org types in JSON-LD (top level and @graph), sorted and unique. */
   jsonLdTypes: string[];
+  /** JSON-LD blocks that are not valid JSON. */
   invalidJsonLd: number;
+  /** FAQPage in JSON-LD or microdata. */
   hasFaqMarkup: boolean;
+  /** Words of visible body text (scripts, styles, noscript and templates excluded). */
   wordCount: number;
-  /** Unique same-origin http(s) link targets. */
+  /** Unique same-origin http(s) link targets (fragment-only links excluded). */
   internalLinks: number;
+  /** Unique http(s) link targets on other origins. */
   externalLinks: number;
   images: number;
+  /** <img> without an alt attribute; alt="" marks a decorative image and counts as present. */
   imagesMissingAlt: number;
   /** The internal link targets, absolute and without fragments, in page order. */
   links: string[];

@@ -1,8 +1,9 @@
-import { FetchError, type FetchErrorKind } from "../fetch-error";
+import { FetchError } from "../fetch-error";
 import type { CollectContext, Collector, CollectorResult, Observation } from "../types";
 import { Frontier } from "./crawl-frontier";
 import { type CrawledPage, pageFromResponse } from "./crawl-page";
 import { discoverSeeds } from "./crawl-seeds";
+import type { CrawlSite } from "./crawl-site";
 import { summarisePages } from "./crawl-summary";
 
 export type CrawlLimits = {
@@ -17,7 +18,7 @@ const DEFAULT_LIMITS: CrawlLimits = { maxBytes: 64 * 1024 * 1024 };
 const CONCURRENCY = 2;
 const MAX_FETCH_ERRORS = 50;
 
-type FetchFailure = { url: string; kind: FetchErrorKind };
+type FetchFailure = CrawlSite["fetchErrors"][number];
 
 type Crawl = {
   ctx: CollectContext;
@@ -132,7 +133,7 @@ async function collect(ctx: CollectContext, limits: CrawlLimits): Promise<Collec
   for (const link of product.links) frontier.add(link, start);
   await crawlFrontier(crawl, frontier);
 
-  const site = {
+  const site: CrawlSite = {
     ...summarisePages(crawl.pages, (url) => frontier.referrersOf(url)),
     pagesInSitemap: seeds.urls?.length ?? null,
     robotsTxt: seeds.robotsTxt,
