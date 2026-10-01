@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /drafts/
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /archive/
+
+Sitemap: {{origin}}/sitemap.xml
+Sitemap: https://example.com/sitemap.xml

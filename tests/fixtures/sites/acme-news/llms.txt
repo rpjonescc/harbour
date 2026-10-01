@@ -1,0 +1,5 @@
+# Acme News
+
+> Fictional news about the Acme example product.
+
+- [About](/about)

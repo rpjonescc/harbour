@@ -92,6 +92,15 @@ Tests: fixture sites served by a local server (pages with missing titles, noinde
 
 Readiness (`site`-level observations, kind `readiness`): robots.txt present/valid + `aiCrawlerAccess`; sitemap reachable/valid/URL count/lastmod freshness; `llms.txt` present (and `llms-full.txt`) with size; Organization / WebSite / LocalBusiness / FAQPage / HowTo / Article schema presence across crawled pages (reads crawler observations from the same scan — run order: crawler first); Google Preferred Sources: button/deeplink present on any crawled page (links or `<a>` to `https://www.google.com/preferences/source?q=` or `google.com/preferences/source`), and "fresh content section" heuristic (≥ 3 URLs with sitemap `lastmod` or Article `datePublished` in the last 30 days); HTTPS and `www`/apex redirect consistency.
 
+**As built — readiness** (type `Readiness` in `lib/scan/collectors/readiness.ts`; `dependsOn: ["crawler"]`, and collectors read earlier results of the same scan through `ctx.earlier`): one `readiness` observation per scan (subject: normalised product URL) with
+- `robotsTxt: {state, valid, aiCrawlerAccess}` — `state` as the crawler reports it; `valid` (plain text with a group or sitemap line) is `null` unless `ok`; a missing file means every AI crawler `allowed`; unreadable (429/5xx/no response/unfollowable redirect) means `aiCrawlerAccess: null`.
+- `llmsTxt`, `llmsFullTxt: {present, status, bytes, truncated, error}` — an HTML page answering 200 is not the file; `present: null` when unknown (no response, 429, 5xx).
+- `sitemap: {reachable, valid, sitemapsRead, urlCount, partial, errors, offOrigin, datedUrls, newestLastmod, modifiedLast30Days}` from the crawler's `site` observation; `partial` whenever `sitemapErrors` is non-empty; `offOrigin` lists sitemaps on another origin (e.g. a www site listing the apex's).
+- `schema: {pagesChecked, pagesWith: {Organization, WebSite, LocalBusiness, FAQPage, HowTo, Article}}` — distinct HTML pages by final URL; common subtypes count (`lib/scan/schema-types.ts`).
+- `preferredSources: {button, buttonPages, freshUrls, freshContent}` — fresh = sitemap `lastmod` or Article `datePublished` within 30 days (up to a day ahead allowed); `freshContent` at ≥ 3 URLs.
+- `https: {productUrlHttps, httpUpgradesToHttps, downgrades: [{from,to}], hosts: [{url, finalUrl, error}], hostsConsistent, siteOrigin}` — home page plus https apex and www variants (just the home page for an IP host); `hostsConsistent` is `null` when fewer than two variants answered (e.g. a subdomain without www); any https→http redirect hop is a downgrade.
+- `sitemap`, `schema` and `preferredSources` are `null` when the crawler did not end ok in this scan (a gap, not a zero).
+
 PageSpeed (weekly): PSI API v5 `runPagespeed?url=<product url>&strategy=mobile&category=performance` (optional `HARBOUR_PAGESPEED_API_KEY`), observation `cwv`: `{ performanceScore, lcpMs, inpMs (field) | null, cls, fcpMs, tbtMs, fieldDataAvailable }`. Quota/429 → failed with readable error.
 
 Tests: fixture site + recorded PSI JSON fixture (no live calls).
