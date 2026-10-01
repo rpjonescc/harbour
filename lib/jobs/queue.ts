@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, lt, or, type SQL } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { agentRunEvents, jobs } from "@/lib/db/schema";
 
@@ -123,18 +123,34 @@ export function isCancelRequested(db: Db, id: number): boolean {
 /** Marks running jobs with a stale heartbeat as failed (the worker died mid-run). */
 export function recoverStaleJobs(db: Db, now = new Date(), staleMs = STALE_MS): number {
   const cutoff = new Date(now.getTime() - staleMs);
+  return failRunning(
+    db,
+    now,
+    "Worker stopped during run — check the brain repo for partial changes (git status)",
+    or(isNull(jobs.heartbeatAt), lt(jobs.heartbeatAt, cutoff)),
+  ).length;
+}
+
+/**
+ * At worker start every running job is orphaned (the worker is the only runner), whatever its
+ * heartbeat says. Returns their ids so their partial changes can be recovered.
+ */
+export function recoverRunningJobs(db: Db, now = new Date()): number[] {
+  return failRunning(
+    db,
+    now,
+    "Worker stopped during run — partial changes are moved to quarantine automatically",
+  );
+}
+
+function failRunning(db: Db, now: Date, error: string, extra?: SQL): number[] {
   return db
     .update(jobs)
-    .set({
-      status: "failed",
-      finishedAt: now,
-      error: "Worker stopped during run — check the brain repo for partial changes (git status)",
-    })
-    .where(
-      and(eq(jobs.status, "running"), or(isNull(jobs.heartbeatAt), lt(jobs.heartbeatAt, cutoff))),
-    )
+    .set({ status: "failed", finishedAt: now, error })
+    .where(and(eq(jobs.status, "running"), extra))
     .returning({ id: jobs.id })
-    .all().length;
+    .all()
+    .map((row) => row.id);
 }
 
 export function listJobs(db: Db, limit = 30): Job[] {

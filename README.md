@@ -127,8 +127,14 @@ pnpm worker         # runs queued agent jobs, one at a time (reads .env)
 
 The worker is the only process that runs agents or touches the brain's git history. Between
 jobs it saves your own brain edits (commit + push) once they have been quiet for 2 minutes,
-and retries unpushed commits every 10 minutes. Files a failed or cancelled run leaves behind
-are moved to `quarantine/job-<id>` next to the database before the brain is restored.
+and retries unpushed commits from 10 minutes apart, backing off up to 6 hours while pushes
+keep failing. Before each agent run your unsaved edits are committed on their own. Edits you
+make in the brain *while* an agent runs are never lost: changes to the agent's own target
+files are included in its commit; an edit anywhere else fails the run (the worker cannot
+tell it from the agent's) and is moved, with the run's output, to `quarantine/job-<id>` (next
+to the database). Files a failed or cancelled run leaves behind go there
+too. If the worker stops mid-run, it recovers the run on restart the same way; until then
+autosave and new agent runs wait.
 
 ## Configuration
 

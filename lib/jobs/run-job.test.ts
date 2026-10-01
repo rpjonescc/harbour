@@ -1,72 +1,11 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { snapshotRun } from "@/lib/agents/brain-git";
-import { runProcess } from "@/lib/agents/process";
 import { agentRuns, proposals } from "@/lib/db/schema";
-import { openTestDb } from "@/tests/helpers/db";
-import { makeGitBrain } from "@/tests/helpers/git-brain";
-import { claimNextJob, enqueueJob, eventsSince, getJob, type Job, requestCancel } from "./queue";
-import { type RunDeps, runAgentJob, runNotesSyncJob } from "./run-job";
-
-const FAKE = join(process.cwd(), "tests/fixtures/fake-claude.mjs");
-const products = [
-  { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" as const },
-];
-
-function setup(
-  scenario: string,
-  files: Record<string, string> = {},
-  overrides: Partial<RunDeps> = {},
-) {
-  const brain = makeGitBrain(files);
-  const db = openTestDb();
-  const deps: RunDeps = {
-    db,
-    root: brain.root,
-    quarantineRoot: join(brain.remote, "..", "quarantine"),
-    bin: FAKE,
-    token: "test-token",
-    model: "sonnet",
-    timeoutMs: 20_000,
-    products,
-    today: "2026-10-01",
-    home: brain.root,
-    path: process.env.PATH ?? "",
-    run: (o) =>
-      runProcess({
-        ...o,
-        env: { ...o.env, FAKE_CLAUDE_SCENARIO: scenario },
-        pollMs: 50,
-        killGraceMs: 500,
-      }),
-    now: () => new Date(),
-    ...overrides,
-  };
-  return { brain, db, deps };
-}
-
-function claim(deps: Pick<RunDeps, "db">): Job {
-  const job = claimNextJob(deps.db);
-  if (!job) throw new Error("expected a queued job");
-  return job;
-}
-
-function reload(deps: Pick<RunDeps, "db">, id: number): Job {
-  const job = getJob(deps.db, id);
-  if (!job) throw new Error(`expected job ${id}`);
-  return job;
-}
-
-async function runOne(
-  deps: RunDeps,
-  kind: "research" | "discovery",
-  params: Record<string, string>,
-) {
-  enqueueJob(deps.db, kind, params, null);
-  const job = claim(deps);
-  await runAgentJob(deps, job);
-  return reload(deps, job.id);
-}
+import { claim, reload, runOne, setup } from "@/tests/helpers/run-job";
+import { runNotesSyncJob } from "./git-jobs";
+import { enqueueJob, eventsSince, getJob, requestCancel } from "./queue";
+import { type RunDeps, runAgentJob } from "./run-job";
 
 describe("runAgentJob", () => {
   it("commits the research document, pushes, and records activity", async () => {
@@ -247,13 +186,28 @@ describe("runNotesSyncJob", () => {
       writeFileSync(join(brain.root, "draft.md"), "# draft\n");
       enqueueJob(db, "notes-sync", {}, null);
       const job = claim(deps);
-      runNotesSyncJob(deps, job);
+      expect(runNotesSyncJob(deps, job)).toEqual({ committed: true, pushed: true });
       expect(reload(deps, job.id)).toMatchObject({ status: "ok", error: null });
       expect(brain.git("log", "-1", "--format=%s").trim()).toBe("notes: owner update (1 file(s))");
       expect(brain.git("status", "--porcelain")).toBe("");
       expect(brain.git("rev-list", "--count", "@{upstream}..HEAD").trim()).toBe("0");
       // A later agent run is no longer blocked by "uncommitted changes".
       expect(() => snapshotRun(brain.root)).not.toThrow();
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("reports a failed push separately from the commit", () => {
+    const { brain, db, deps } = setup("success");
+    try {
+      brain.git("remote", "set-url", "origin", "/nonexistent/remote.git");
+      writeFileSync(join(brain.root, "draft.md"), "# draft\n");
+      enqueueJob(db, "notes-sync", {}, null);
+      const job = claim(deps);
+      expect(runNotesSyncJob(deps, job)).toEqual({ committed: true, pushed: false });
+      expect(reload(deps, job.id).status).toBe("failed");
+      expect(brain.git("status", "--porcelain")).toBe("");
     } finally {
       brain.cleanup();
     }

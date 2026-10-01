@@ -1,10 +1,15 @@
 import { mkdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeGitBrain } from "@/tests/helpers/git-brain";
 import { housekeepingAction } from "./housekeeping";
 
 const QUIET = 2 * 60_000;
-const opts = (pushRetryDue: boolean) => ({ quietMs: QUIET, pushRetryDue });
+const opts = (pushRetryDue: boolean) => ({
+  quietMs: QUIET,
+  pushRetryDue,
+  quarantineRoot: join(tmpdir(), "harbour-no-quarantine"),
+});
 
 /** Writes a file and sets its mtime to `at`. */
 function edit(root: string, path: string, at: Date) {

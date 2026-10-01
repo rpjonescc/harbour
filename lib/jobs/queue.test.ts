@@ -15,6 +15,7 @@ import {
   isCancelRequested,
   listJobs,
   MAX_EVENTS,
+  recoverRunningJobs,
   recoverStaleJobs,
   requestCancel,
 } from "./queue";
@@ -71,6 +72,21 @@ describe("job queue", () => {
       status: "failed",
       error: expect.stringMatching(/worker stopped/i),
     });
+  });
+
+  it("recovers every running job at worker start, even with a fresh heartbeat", () => {
+    const db = openTestDb();
+    const running = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
+    const queued = enqueueJob(db, "research", { topic: "b" }, null, t0).id;
+    claimNextJob(db, t0);
+    heartbeat(db, running, at(1000));
+    expect(recoverRunningJobs(db, at(1001))).toEqual([running]);
+    expect(getJob(db, running)).toMatchObject({
+      status: "failed",
+      error: expect.stringMatching(/worker stopped/i),
+    });
+    expect(getJob(db, queued)?.status).toBe("queued");
+    expect(recoverRunningJobs(db, at(2000))).toEqual([]);
   });
 
   it("caps events per job with one final note", () => {

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Fake `claude -p` for tests and E2E. Behaviour chosen by FAKE_CLAUDE_SCENARIO.
 import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const scenario = process.env.FAKE_CLAUDE_SCENARIO ?? "success";
@@ -60,6 +60,8 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
       }
     }
     if (scenario === "escape") write("outside.md", "# Not allowed\n");
+    // Claude Code's permissions would refuse this; the fake does it to exercise the git gate.
+    if (scenario === "tamper-git") appendFileSync(".git/config", "[core]\n\tpager = evil\n");
   }
   out({ type: "result", subtype: "success", is_error: false, result: "done" });
 }

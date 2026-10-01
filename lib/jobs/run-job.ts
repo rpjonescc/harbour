@@ -1,11 +1,10 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import {
   commitChanges,
   discardRun,
   inspectRun,
-  ownerChanges,
   pushBrain,
   type RunSnapshot,
   snapshotRun,
@@ -19,7 +18,9 @@ import { type StreamResult, summariseLine } from "@/lib/agents/stream";
 import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import type { Product } from "@/lib/products/catalog";
-import { addEvent, type EventKind, finishJob, isCancelRequested, type Job } from "./queue";
+import { finish, recoveryBlock, saveOwnerNotes } from "./git-jobs";
+import { addEvent, type EventKind, isCancelRequested, type Job } from "./queue";
+import { freshQuarantineDir, removeRunMarker, writeRunMarker } from "./run-marker";
 
 export type RunDeps = {
   db: Db;
@@ -36,6 +37,8 @@ export type RunDeps = {
   path: string;
   run: typeof runProcess;
   now: () => Date;
+  /** True once the worker is shutting down: the run is cancelled and discarded. */
+  stopping: () => boolean;
 };
 
 /** An expected, owner-readable failure (as opposed to a crash, which is also logged). */
@@ -44,26 +47,7 @@ class JobFailure extends Error {}
 // Ignored files editors rewrite on their own; changes to these never fail a run.
 const BENIGN_TAMPER = [/(^|\/)\.DS_Store$/, /^\.obsidian\/workspace(-mobile)?\.json$/];
 
-/** Commits the owner's own uncommitted edits so they are never mixed with agent work. */
-function saveOwnerNotes(root: string): number {
-  const changes = ownerChanges(root);
-  if (changes.length > 0) {
-    commitChanges(
-      root,
-      changes.map((c) => c.path),
-      `notes: owner update (${changes.length} file(s))`,
-    );
-  }
-  return changes.length;
-}
-
-/** `job-<id>`, or `job-<id>-2`, `-3`… when an earlier folder with that name is still in use. */
-function freshQuarantineDir(base: string, jobId: number): string {
-  for (let n = 1; ; n++) {
-    const dir = join(base, n === 1 ? `job-${jobId}` : `job-${jobId}-${n}`);
-    if (!existsSync(dir) || readdirSync(dir).length === 0) return dir;
-  }
-}
+const MAX_PROPOSALS_BYTES = 1024 * 1024;
 
 function describeDuration(ms: number): string {
   return ms >= 60_000 ? `${Math.round(ms / 60_000)} minutes` : `${Math.round(ms / 1000)} seconds`;
@@ -81,6 +65,8 @@ function specOrFail(deps: RunDeps, job: Job): AgentSpec {
 }
 
 function checkPreconditions(deps: RunDeps, spec: AgentSpec): string {
+  const blocked = recoveryBlock(deps.quarantineRoot);
+  if (blocked) throw new JobFailure(blocked);
   if (!deps.token) {
     throw new JobFailure(
       "HARBOUR_CLAUDE_OAUTH_TOKEN is not set — run `claude setup-token` and add it to .env",
@@ -126,8 +112,13 @@ function readProposals(root: string, spec: AgentSpec, paths: string[]): Proposal
   if (!paths.includes(spec.proposalsPath)) {
     throw new JobFailure(`Agent did not write ${spec.proposalsPath}`);
   }
+  const file = join(root, spec.proposalsPath);
+  const { size } = statSync(file);
+  if (size > MAX_PROPOSALS_BYTES) {
+    throw new JobFailure(`${spec.proposalsPath} is too large (${size} bytes; the limit is 1 MiB)`);
+  }
   try {
-    return parseProposals(readFileSync(join(root, spec.proposalsPath), "utf8"));
+    return parseProposals(readFileSync(file, "utf8"));
   } catch (error) {
     throw new JobFailure((error as Error).message);
   }
@@ -145,9 +136,17 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
     const dir = freshQuarantineDir(deps.quarantineRoot, job.id);
     const { quarantined } = discardRun(root, snapshot, dir);
     snapshot = undefined;
+    removeRunMarker(deps.quarantineRoot, job.id);
     if (quarantined.length > 0) {
       event("status", `${reason}: ${quarantined.length} file(s) moved to quarantine (${dir})`);
     }
+  };
+  const discardFailed = (discardError: unknown) => {
+    console.error(`job ${job.id}: could not discard the agent's changes`, discardError);
+    event(
+      "error",
+      `Could not discard the agent's changes — they will be moved to quarantine automatically: ${(discardError as Error).message}`,
+    );
   };
   try {
     const spec = specOrFail(deps, job);
@@ -155,6 +154,8 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
     const saved = saveOwnerNotes(root);
     if (saved > 0) event("status", `Saved ${saved} note file(s) before starting`);
     snapshot = snapshotRun(root);
+    // Durable before the agent starts: if the worker dies mid-run, startup recovery discards.
+    writeRunMarker(deps.quarantineRoot, job.id, snapshot);
 
     db.insert(agentRuns).values({ jobId: job.id, promptVersion: PROMPT_VERSION }).run();
     event("status", `Started ${spec.label}`);
@@ -170,7 +171,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
         for (const e of summary.events) event(e.kind, e.text);
         if (summary.result) result = summary.result;
       },
-      shouldCancel: () => isCancelRequested(db, job.id),
+      shouldCancel: () => deps.stopping() || isCancelRequested(db, job.id),
     });
     setRun({
       exitCode: outcome.exitCode,
@@ -178,9 +179,13 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
       stderrTail: outcome.stderrTail,
     });
     if (outcome.cancelled) {
-      discard("Cancelled");
-      event("status", "Cancelled");
-      finishJob(db, job.id, "cancelled", null, deps.now());
+      try {
+        discard("Cancelled");
+      } catch (discardError) {
+        discardFailed(discardError); // the marker stays, so recovery retries
+      }
+      event("status", deps.stopping() ? "Cancelled: the worker is stopping" : "Cancelled");
+      finish(db, job.id, "cancelled", null, deps.now());
       return;
     }
     checkOutcome(deps, outcome, result);
@@ -193,6 +198,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
       `agent(${spec.kind}): ${spec.label.replace(/^[^:]+:\s*/, "")}`,
     );
     snapshot = undefined; // committed: nothing left to discard
+    removeRunMarker(deps.quarantineRoot, job.id);
     setRun({ filesChanged: paths, commitSha: sha });
     event("status", `Committed ${paths.length} file(s)`);
 
@@ -207,53 +213,16 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
     if (push.ok) event("status", "Pushed to the brain repository");
     else
       event("error", `Push failed — commit kept locally, will retry automatically: ${push.error}`);
-    finishJob(db, job.id, "ok", null, deps.now());
+    finish(db, job.id, "ok", null, deps.now());
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!(error instanceof JobFailure)) console.error(`job ${job.id} crashed`, error);
     try {
       discard("Discarded");
     } catch (discardError) {
-      console.error(`job ${job.id}: could not discard the agent's changes`, discardError);
-      event(
-        "error",
-        `Could not discard the agent's changes — check the brain repo: ${(discardError as Error).message}`,
-      );
+      discardFailed(discardError);
     }
     event("error", message);
-    finishJob(db, job.id, "failed", message, deps.now());
-  }
-}
-
-type GitJobDeps = Pick<RunDeps, "db" | "root" | "now">;
-
-/**
- * Saves the owner's own edits (autosave, or "Save now"): commits every uncommitted change in
- * the brain and pushes. Runs in the worker, so it never overlaps an agent's git work.
- */
-export function runNotesSyncJob(deps: GitJobDeps, job: Job): void {
-  let saved: number;
-  try {
-    saved = saveOwnerNotes(deps.root);
-  } catch (error) {
-    const message = `Could not commit notes: ${(error as Error).message}`;
-    addEvent(deps.db, job.id, "error", message, deps.now());
-    finishJob(deps.db, job.id, "failed", message, deps.now());
-    return;
-  }
-  const text = saved > 0 ? `Saved ${saved} file(s)` : "Nothing to save";
-  addEvent(deps.db, job.id, "status", text, deps.now());
-  runPushJob(deps, job);
-}
-
-/** Pushes local brain commits (automatic retry, or "Retry now"). */
-export function runPushJob(deps: GitJobDeps, job: Job): void {
-  const push = pushBrain(deps.root);
-  if (push.ok) {
-    addEvent(deps.db, job.id, "status", "Pushed to the brain repository", deps.now());
-    finishJob(deps.db, job.id, "ok", null, deps.now());
-  } else {
-    addEvent(deps.db, job.id, "error", push.error, deps.now());
-    finishJob(deps.db, job.id, "failed", `Push failed: ${push.error}`, deps.now());
+    finish(db, job.id, "failed", message, deps.now());
   }
 }
