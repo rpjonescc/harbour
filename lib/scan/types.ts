@@ -24,12 +24,20 @@ export type SafeFetchResponse = {
 };
 
 export type SafeFetchOptions = {
-  /** Body cap; a longer streamed body is cut here and marked `truncated`. */
+  /** Body cap in bytes. */
   maxBytes: number;
+  /**
+   * Over the cap: "truncate" (default) returns the first `maxBytes` with `truncated: true`;
+   * "error" throws FetchError "too_large", whether the size was declared or streamed.
+   */
+  onOverflow?: "truncate" | "error";
   accept?: string;
   signal?: AbortSignal;
-  /** Refuse (FetchError "blocked_by_robots") any hop robots.txt disallows for HarbourBot. */
-  respectRobots?: boolean;
+  /**
+   * Every hop is refused (FetchError "blocked_by_robots") when robots.txt disallows it for
+   * HarbourBot. Only API calls that aren't crawling a site (Google APIs) opt out.
+   */
+  ignoreRobots?: true;
 };
 
 /** Outbound HTTP for collectors: timeouts, redirect and size limits, robots, politeness. */

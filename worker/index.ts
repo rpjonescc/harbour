@@ -45,7 +45,7 @@ async function main() {
       scheduler.notesSynced(runNotesSyncJob({ db, root, quarantineRoot, now }, job));
     } else if (job.kind === "scan") {
       // Scans never touch the brain, so they don't wait for it to be quiet.
-      // Fetch and scoring are stand-ins (replaced in Task 2 / Task 6); see workerScanDeps.
+      // Scoring is a stand-in (replaced in Task 6); see workerScanDeps.
       const deps = workerScanDeps({
         db,
         config,
