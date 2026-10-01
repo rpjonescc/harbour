@@ -50,7 +50,13 @@ export function ProductOverview({
         </h2>
         <Tabs label="Score breakdown" tabs={tabs} />
       </section>
-      <IssueList issues={view.issues} product={product} scanned={latest !== null} />
+      <IssueList
+        issues={view.issues}
+        actionByRule={view.actionByRule}
+        product={product}
+        scanned={latest !== null}
+        locale={locale}
+      />
       <PagesTable rows={view.pages.rows} total={view.pages.total} />
       <SearchConsolePanel search={view.search} locale={locale} />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

@@ -1,17 +1,25 @@
 import { Panel } from "@/components/ui/Panel";
+import type { RuleActionStatus } from "@/lib/actions/views";
 import type { Product } from "@/lib/products/catalog";
 import type { Issue } from "@/lib/scan/issues";
 import { IssueItem } from "./IssueItem";
 
-/** The scan's issues, highest impact first; `scanned` tells "none found" from "not scanned". */
+/**
+ * The scan's issues, highest impact first, each with its action's status; `scanned` tells
+ * "none found" from "not scanned".
+ */
 export function IssueList({
   issues,
+  actionByRule,
   product,
   scanned,
+  locale,
 }: {
   issues: Issue[];
+  actionByRule: Map<string, RuleActionStatus>;
   product: Product;
   scanned: boolean;
+  locale: string;
 }) {
   return (
     <section
@@ -31,7 +39,12 @@ export function IssueList({
           <ul className="divide-y divide-line">
             {issues.map((issue) => (
               <li key={issue.id}>
-                <IssueItem issue={issue} product={product} />
+                <IssueItem
+                  issue={issue}
+                  action={actionByRule.get(issue.id) ?? null}
+                  product={product}
+                  locale={locale}
+                />
               </li>
             ))}
           </ul>

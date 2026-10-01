@@ -47,6 +47,12 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
   const broken = issues.getByRole("article", { name: "1 linked page is broken" });
   await broken.getByText("Where").click();
   await expect(broken.getByText(`${SITE}/missing (HTTP 404)`, { exact: false })).toBeVisible();
+  // The scan's rule sync opened an action for each issue; the issue links to it on the board.
+  await expect(noTitle.getByText("Open", { exact: true })).toBeVisible();
+  await expect(noTitle.getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
+    "href",
+    /^\/actions\?product=acme-docs&status=all#action-\d+$/,
+  );
 
   const pages = page.getByRole("region", { name: "Pages" }).getByRole("table");
   await expect(pages.getByRole("row", { name: /\/about\b.*No title/ })).toBeVisible();
@@ -142,9 +148,9 @@ test("Today shows the real scores instead of the sample", async ({ page }) => {
       .getByRole("cell")
       .first(),
   ).toHaveText(/no score/);
-  // Real actions link to the product's issues (sample ones do not).
+  // Worth your attention lists the actions the scan opened, each linked to its board card.
   await expect(page.getByRole("link", { name: "1 page has no title" })).toHaveAttribute(
     "href",
-    "/products/acme-docs#issues",
+    /^\/actions#action-\d+$/,
   );
 });

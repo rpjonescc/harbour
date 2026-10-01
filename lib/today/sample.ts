@@ -50,6 +50,7 @@ export function sampleToday(products: readonly Product[]): TodaySummary {
         impact: "high",
         title: "An AI assistant cites a competitor for one of your target questions",
         detail: "~1 hr",
+        href: null,
       },
       {
         id: "sample-2",
@@ -58,6 +59,7 @@ export function sampleToday(products: readonly Product[]): TodaySummary {
         impact: "medium",
         title: "Add FAQ structured data to your most-visited page",
         detail: "~30 min",
+        href: null,
       },
     ],
   };

@@ -314,7 +314,11 @@ product was last scanned and will be next.
 
 - **Today** (`/`) lists every product's scores. A dash is a gap (no data), never a zero; an
   asterisk marks an incomplete score, where a source was not connected or failed. Each product
-  name opens its page. While a scan is queued or running, the page refreshes itself.
+  name opens its page. While a scan is queued or running, the page refreshes itself. **Worth
+  your attention** shows the top three open or in-progress actions (in the Actions board's
+  order), each linked to its card, and the headline counts every one of them; the rest are a
+  link away on the Actions board. Before the first scan is scored, Today shows clearly flagged
+  sample data instead.
 - **Product page** (`/products/<id>`) shows where scanning stands (never scanned, queued,
   running, or how the last scan ended — a failed scan never hides the last good results) and
   explains each score in its tab. **Issues** come from the scan's raw observations: pages
@@ -325,7 +329,10 @@ product was last scanned and will be next.
   a page check that found nothing on a partial crawl (stopped at its page or byte limit, or some
   pages could not be fetched or read). **Hand to Claude** copies a prompt with the product, the affected URLs, the
   problem, a suggested fix and an acceptance check, to paste into Claude Code in the site's
-  repository; it contains only the product's name and URL and the scan's findings. The
+  repository; it contains only the product's name and URL and the scan's findings. Each issue
+  also shows its action's status (open, in progress, snoozed until a date, dismissed, or done
+  but still found in the last scan) with a link to it on the Actions board; an issue with no
+  action yet says tracking starts with the next scan. The
   **Pages** table lists the 50 crawled pages with the most problems.
 - **Actions** (`/actions`) follow every scan that is not failed: each issue becomes one tracked
   action per product and rule. The next scan that no

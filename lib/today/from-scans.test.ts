@@ -1,10 +1,13 @@
+import { insertAction } from "@/lib/actions/store";
 import { enqueueJob } from "@/lib/jobs/queue";
 import type { Product } from "@/lib/products/catalog";
 import type { Observation } from "@/lib/scan/types";
+import { ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { daysAfter, seedScan, T0 } from "@/tests/helpers/scan-views";
-import { htmlPage, readiness } from "@/tests/helpers/scoring";
+import { htmlPage } from "@/tests/helpers/scoring";
 import { headlineFor, todaySummary } from "./from-scans";
+import { sampleToday } from "./sample";
 
 const products: Product[] = [
   { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" },
@@ -28,6 +31,16 @@ describe("todaySummary", () => {
     expect(todaySummary(db, products, T0)).toMatchObject({ isSample: true, scanning: true });
   });
 
+  it("keeps the sample's actions until some product has scores, whatever actions exist", () => {
+    const db = openTestDb();
+    insertAction(db, ruleAction({ impact: "high" }), "scan", null, T0);
+    const today = todaySummary(db, products, T0);
+    const sample = sampleToday(products);
+    expect(today.headline).toBe(sample.headline);
+    expect(today.actions).toEqual(sample.actions);
+    expect(today.moreActions).toBe(0);
+  });
+
   it("before any scores, says the last scan failed and keeps its failing sources", () => {
     const db = openTestDb();
     seedScan(db, {
@@ -45,7 +58,7 @@ describe("todaySummary", () => {
     });
   });
 
-  it("summarises real scores, the top issues and failing sources", () => {
+  it("summarises real scores, the top active actions and failing sources", () => {
     const db = openTestDb();
     seedScan(db, {
       productId: "acme-docs",
@@ -63,11 +76,6 @@ describe("todaySummary", () => {
           collector: "crawler",
           status: "ok",
           observations: [obs(htmlPage("/", { title: null, titleLength: 0, descriptionLength: 0 }))],
-        },
-        {
-          collector: "readiness",
-          status: "ok",
-          observations: [obs(readiness({ llmsTxt: { present: false } }))],
         },
         { collector: "pagespeed", status: "failed", error: "PageSpeed Insights quota exceeded" },
       ],
@@ -102,15 +110,31 @@ describe("todaySummary", () => {
         trend: [],
       },
     ]);
-    // Four issues: missing title (high), description (medium), then GPTBot and llms.txt (low).
-    expect(today?.headline).toBe("Four things worth your attention.");
-    expect(today?.actions.map((a) => [a.id, a.impact])).toEqual([
-      ["acme-docs:missing-title", "high"],
-      ["acme-docs:missing-description", "medium"],
-      ["acme-docs:ai-crawlers-blocked", "low"],
+    // The scan found issues, but Today reads actions: none exist yet.
+    expect(today.headline).toBe("Calm waters. Nothing needs your attention.");
+    expect(today.actions).toEqual([]);
+    expect(today.moreActions).toBe(0);
+  });
+
+  it("counts active actions in the headline and shows the top three", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: T0, totals: { seo: 52, geo: 40, aeo: 30 } });
+    const add = (title: string, over: Parameters<typeof ruleAction>[0]) =>
+      insertAction(db, ruleAction({ title, ruleKey: title, ...over }), "scan", null, T0);
+    const top = add("Pages have no title", { impact: "high" });
+    add("Add meta descriptions", { impact: "medium" });
+    add("Allow AI crawlers", { impact: "low", area: "GEO" });
+    add("Publish llms.txt", { impact: "low", area: "GEO", productId: "fern-and-field" });
+    add("Snoozed", { impact: "high", status: "snoozed", snoozedUntil: "2026-10-12" });
+    const today = todaySummary(db, products, T0);
+    expect(today.headline).toBe("Four things worth your attention.");
+    expect(today.actions.map((a) => [a.title, a.impact])).toEqual([
+      ["Pages have no title", "high"],
+      ["Add meta descriptions", "medium"],
+      ["Allow AI crawlers", "low"],
     ]);
-    // The headline counts all four; the fourth is left for the product page.
-    expect(today?.moreActions).toBe(1);
+    expect(today.actions[0]?.href).toBe(`/actions#action-${top}`);
+    expect(today.moreActions).toBe(1);
   });
 });
 

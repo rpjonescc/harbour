@@ -1,3 +1,4 @@
+import { type RuleActionStatus, ruleActionStatuses } from "@/lib/actions/views";
 import type { Db } from "@/lib/db/client";
 import { deriveIssues, type Issue } from "./issues";
 import { type PageRow, pageRows } from "./page-rows";
@@ -23,6 +24,8 @@ export type ProductView = {
   scores: ScoreTrend;
   scan: ScanState;
   issues: Issue[];
+  /** Each issue's action by rule id; an issue without one is not tracked yet. */
+  actionByRule: Map<string, RuleActionStatus>;
   pages: { rows: PageRow[]; total: number };
   search: SearchState;
 };
@@ -60,6 +63,7 @@ export function productView(db: Db, productId: string, now: Date): ProductView {
     scores,
     scan: scanState(db, productId),
     issues: deriveIssues(observations, statuses),
+    actionByRule: ruleActionStatuses(db, productId),
     pages: pageRows(observations),
     search: searchState(observations, runs),
   };

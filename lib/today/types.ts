@@ -13,13 +13,16 @@ export type ProductScores = {
 };
 
 export type ActionPreview = {
-  id: string;
+  /** The action's id; a string for the sample's placeholders. */
+  id: number | string;
   productId: ProductId;
   area: IssueArea;
   impact: Impact;
   title: string;
   /** What to do, or an effort estimate. */
   detail: string;
+  /** Where the action lives on the Actions board; null for the sample. */
+  href: string | null;
 };
 
 /** A collector that failed in a product's last scan. */
@@ -38,9 +41,9 @@ export type TodaySummary = {
   scanning: boolean;
   headline: string;
   scores: ProductScores[];
-  /** The top issues; the headline counts them all. */
+  /** The top active actions; the headline counts them all. */
   actions: ActionPreview[];
-  /** Issues beyond `actions`, left for the product pages. */
+  /** Active actions beyond `actions`, left for the Actions board. */
   moreActions: number;
   failures: SourceFailure[];
 };

@@ -211,11 +211,11 @@ export function topActiveActions(
   return { actions: rows, more: total - rows.length };
 }
 
+/** Where a rule's action stands, for the product page's issues. */
+export type RuleActionStatus = Pick<ActionRow, "id" | "status" | "snoozedUntil">;
+
 /** ruleKey → { id, status, snoozedUntil } for one product's rule actions. */
-export function ruleActionStatuses(
-  db: Db,
-  productId: string,
-): Map<string, Pick<ActionRow, "id" | "status" | "snoozedUntil">> {
+export function ruleActionStatuses(db: Db, productId: string): Map<string, RuleActionStatus> {
   const rows = db
     .select({
       ruleKey: actions.ruleKey,

@@ -1,12 +1,11 @@
 import type { Db } from "@/lib/db/client";
 import type { Product } from "@/lib/products/catalog";
-import { byImpact, deriveIssues, type Issue } from "@/lib/scan/issues";
-import { scanFindings } from "@/lib/scan/product-view";
+import type { Impact } from "@/lib/scan/issues";
 import { productScoreTrend, scanState } from "@/lib/scan/views";
+import { attentionFromActions } from "./from-actions";
 import { sampleToday } from "./sample";
-import type { ActionPreview, ProductScores, SourceFailure, TodaySummary } from "./types";
+import type { ProductScores, SourceFailure, TodaySummary } from "./types";
 
-const TOP_ACTIONS = 3;
 const WORDS = [
   "Zero",
   "One",
@@ -21,12 +20,12 @@ const WORDS = [
   "Ten",
 ];
 
-/** The one-line summary: how many issues are worth a look, calm unless one is high impact. */
-export function headlineFor(issues: readonly Pick<Issue, "impact">[]): string {
-  const n = issues.length;
+/** The one-line summary: how many actions are worth a look, calm unless one is high impact. */
+export function headlineFor(items: readonly { impact: Impact }[]): string {
+  const n = items.length;
   if (n === 0) return "Calm waters. Nothing needs your attention.";
   const phrase = `${WORDS[n] ?? n} ${n === 1 ? "thing" : "things"} worth your attention.`;
-  return issues.some((issue) => issue.impact === "high") ? phrase : `Calm waters. ${phrase}`;
+  return items.some((item) => item.impact === "high") ? phrase : `Calm waters. ${phrase}`;
 }
 
 type ProductToday = {
@@ -35,15 +34,12 @@ type ProductToday = {
   scanning: boolean;
   /** When the product's last scan finished, if it failed. */
   failedAt: Date | null;
-  issues: (Issue & { productId: string })[];
   failures: SourceFailure[];
 };
 
 function productToday(db: Db, productId: string, now: Date): ProductToday {
   const { latest, deltas, trend } = productScoreTrend(db, productId, now);
   const scan = scanState(db, productId);
-  const { observations, statuses } = scanFindings(db, latest?.scanId);
-  const issues = deriveIssues(observations, statuses);
   return {
     row: {
       productId,
@@ -55,19 +51,9 @@ function productToday(db: Db, productId: string, now: Date): ProductToday {
     scannedAt: latest?.computedAt ?? null,
     scanning: scan.active !== null,
     failedAt: scan.last?.status === "failed" ? (scan.last.finishedAt ?? scan.last.startedAt) : null,
-    issues: issues.map((issue) => ({ ...issue, productId })),
     failures: (scan.last?.failedCollectors ?? []).map((f) => ({ productId, ...f })),
   };
 }
-
-const toAction = (issue: Issue & { productId: string }): ActionPreview => ({
-  id: `${issue.productId}:${issue.id}`,
-  productId: issue.productId,
-  area: issue.area,
-  impact: issue.impact,
-  title: issue.title,
-  detail: issue.fix,
-});
 
 /**
  * Today from real scans, or the clearly flagged sample until some product has scores (still
@@ -83,17 +69,19 @@ export function todaySummary(db: Db, products: readonly Product[], now: Date): T
     const lastFailedAt = failed.length > 0 ? new Date(Math.max(...failed)) : null;
     return { ...sampleToday(products), scanning, lastFailedAt, failures };
   }
-  // Stable sort: equal impact keeps product order, then each product's rule order.
-  const issues = perProduct.flatMap((p) => p.issues).sort(byImpact);
+  const attention = attentionFromActions(
+    db,
+    products.map((p) => p.id),
+  );
   return {
     isSample: false,
     scannedAt: new Date(Math.max(...scanned.map((d) => d.getTime()))),
     scanning,
     lastFailedAt: null,
-    headline: headlineFor(issues),
+    headline: headlineFor(attention.headlineImpacts.map((impact) => ({ impact }))),
     scores: perProduct.map((p) => p.row),
-    actions: issues.slice(0, TOP_ACTIONS).map(toAction),
-    moreActions: Math.max(0, issues.length - TOP_ACTIONS),
+    actions: attention.actions,
+    moreActions: attention.more,
     failures,
   };
 }

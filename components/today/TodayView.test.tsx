@@ -28,12 +28,13 @@ const real: TodaySummary = {
   ],
   actions: [
     {
-      id: "acme-docs:missing-title",
+      id: 7,
       productId: "acme-docs",
       area: "SEO",
       impact: "high",
       title: "2 pages have no title",
       detail: "Give each page a unique, descriptive <title>.",
+      href: "/actions#action-7",
     },
   ],
   failures: [{ productId: "acme-docs", collector: "pagespeed", error: "quota exceeded" }],
@@ -65,7 +66,7 @@ describe("TodayView", () => {
     expect(screen.getByText(/scan running/)).toBeInTheDocument();
   });
 
-  it("with scans shows real scores, linked issues and failing sources, without the banner", () => {
+  it("with scans shows real scores, linked actions and failing sources, without the banner", () => {
     renderToday(real);
     expect(screen.queryByText(/Sample data/)).toBeNull();
     expect(screen.getByText(/last scan 1 Oct 2026, 06:04/)).toBeInTheDocument();
@@ -74,7 +75,7 @@ describe("TodayView", () => {
     );
     expect(screen.getByRole("link", { name: "2 pages have no title" })).toHaveAttribute(
       "href",
-      "/products/acme-docs#issues",
+      "/actions#action-7",
     );
     expect(
       screen.getByRole("heading", { name: "A source failed in the last scan" }),
@@ -82,18 +83,23 @@ describe("TodayView", () => {
     expect(screen.getByText(/PageSpeed · Acme Docs/)).toHaveTextContent("quota exceeded");
   });
 
-  it("says how many more issues are on the product pages when only the top ones are shown", () => {
+  it("links the actions beyond the top ones to the Actions board", () => {
     renderToday({ ...real, moreActions: 3 });
-    expect(screen.getByText("3 more on the product pages.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "3 more on the Actions board" })).toHaveAttribute(
+      "href",
+      "/actions",
+    );
   });
 
-  it("adds no note when every issue is shown", () => {
+  it("adds no note when every active action is shown", () => {
     renderToday(real);
-    expect(screen.queryByText(/more on the product pages/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/more on the Actions board/)).not.toBeInTheDocument();
   });
 
-  it("says so when nothing needs attention", () => {
+  it("says so when no action is open", () => {
     renderToday({ ...real, actions: [], failures: [] });
-    expect(screen.getByText(/the last scans found no issues/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Nothing open — new actions arrive with each scan."),
+    ).toBeInTheDocument();
   });
 });

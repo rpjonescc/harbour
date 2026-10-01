@@ -63,7 +63,12 @@ export function ScanExamples() {
           },
         ]}
       />
-      <IssueItem issue={EXAMPLE_ISSUE} product={EXAMPLE_PRODUCT} />
+      <IssueItem
+        issue={EXAMPLE_ISSUE}
+        action={{ id: 1, status: "in_progress", snoozedUntil: null }}
+        product={EXAMPLE_PRODUCT}
+        locale={ZONE.locale}
+      />
       <PagesTable
         total={2}
         rows={[

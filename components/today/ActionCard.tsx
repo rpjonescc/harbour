@@ -5,8 +5,8 @@ import { Tag } from "@/components/ui/Tag";
 import { productById } from "@/lib/products/catalog";
 import type { ActionPreview } from "@/lib/today/types";
 
-/** Compact action summary for Today; a real one links to the product's issues. */
-export function ActionCard({ action, linked }: { action: ActionPreview; linked: boolean }) {
+/** Compact action summary for Today; a real one links to its card on the Actions board. */
+export function ActionCard({ action }: { action: ActionPreview }) {
   const product = productById(action.productId);
   return (
     <Panel className="p-4">
@@ -15,8 +15,8 @@ export function ActionCard({ action, linked }: { action: ActionPreview; linked: 
           {IMPACT_LABEL[action.impact]}
         </Tag>
         <h3 id={`action-${action.id}`} className="mt-2 text-sm text-ink">
-          {linked ? (
-            <Link href={`/products/${product.id}#issues`} className="rounded-sm hover:text-accent">
+          {action.href ? (
+            <Link href={action.href} className="rounded-sm hover:text-accent">
               {action.title}
             </Link>
           ) : (

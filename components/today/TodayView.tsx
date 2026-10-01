@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { RefreshWhileScanning } from "@/components/products/RefreshWhileScanning";
 import type { TodaySummary } from "@/lib/today/types";
 import { ActionCard } from "./ActionCard";
@@ -6,7 +7,7 @@ import { ScoreTable } from "./ScoreTable";
 import { SourceFailures } from "./SourceFailures";
 import { TodayHeader } from "./TodayHeader";
 
-/** Today: scan status, headline, scores per product and the issues worth a look. */
+/** Today: scan status, headline, scores per product and the open actions worth a look. */
 export function TodayView({
   today,
   now,
@@ -38,14 +39,18 @@ export function TodayView({
           Worth your attention
         </h2>
         {today.actions.length === 0 ? (
-          <p className="text-sm text-ink-muted">Nothing — the last scans found no issues.</p>
+          <p className="text-sm text-ink-muted">
+            Nothing open — new actions arrive with each scan.
+          </p>
         ) : (
-          today.actions.map((action) => (
-            <ActionCard key={action.id} action={action} linked={!today.isSample} />
-          ))
+          today.actions.map((action) => <ActionCard key={action.id} action={action} />)
         )}
         {today.moreActions > 0 && (
-          <p className="text-sm text-ink-muted">{today.moreActions} more on the product pages.</p>
+          <p className="text-sm">
+            <Link href="/actions" className="rounded-sm text-accent underline underline-offset-2">
+              {today.moreActions} more on the Actions board
+            </Link>
+          </p>
         )}
       </section>
     </div>

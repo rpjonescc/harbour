@@ -21,6 +21,7 @@ const empty: ProductView = {
   scores: { latest: null, deltas: { seo: null, geo: null, aeo: null }, trend: [] },
   scan: { active: null, last: null },
   issues: [],
+  actionByRule: new Map(),
   pages: { rows: [], total: 0 },
   search: { state: "none", reason: null },
 };
@@ -83,6 +84,10 @@ const scanned: ProductView = {
     },
   },
   issues: deriveIssues([...ACME_CRAWL, readiness()], ALL_OK),
+  actionByRule: new Map([
+    ["broken-links", { id: 5, status: "in_progress", snoozedUntil: null }],
+    ["noindex", { id: 6, status: "snoozed", snoozedUntil: "2026-10-12" }],
+  ]),
   pages: pageRows(ACME_CRAWL),
   search: { state: "not_configured", reason: "HARBOUR_GSC_CREDENTIALS is not set" },
 };
@@ -157,6 +162,41 @@ describe("ProductOverview", () => {
     const pages = screen.getByRole("table", { name: /crawled pages/ });
     expect(within(pages).getByRole("link", { name: "/about" })).toBeInTheDocument();
     expect(within(pages).getByText("noindex")).toBeInTheDocument();
+  });
+
+  it("shows each issue's action status with a link to it on the Actions board", () => {
+    renderPage(scanned);
+    const issue = (name: string) =>
+      screen.getByRole("article", { name: new RegExp(name) }) as HTMLElement;
+    const broken = issue("linked page is broken");
+    expect(within(broken).getByText("In progress")).toBeInTheDocument();
+    expect(within(broken).getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
+      "href",
+      "/actions?product=acme-docs&status=all#action-5",
+    );
+    expect(
+      within(issue("hidden from search")).getByText("Snoozed until 12 Oct 2026"),
+    ).toBeInTheDocument();
+    const untracked = issue("blocks GPTBot");
+    expect(within(untracked).getByText("Tracking starts with the next scan")).toBeInTheDocument();
+    expect(within(untracked).queryByRole("link", { name: "View on the Actions board" })).toBeNull();
+  });
+
+  it("names open, dismissed and done-but-still-found actions", () => {
+    const status = (s: "open" | "dismissed" | "done") => ({ id: 5, status: s, snoozedUntil: null });
+    for (const [s, text] of [
+      ["open", "Open"],
+      ["dismissed", "Dismissed"],
+      ["done", "Done — still found in the last scan"],
+    ] as const) {
+      const { unmount } = renderPage({
+        ...scanned,
+        actionByRule: new Map([["broken-links", status(s)]]),
+      });
+      const broken = screen.getByRole("article", { name: /linked page is broken/ });
+      expect(within(broken).getByText(text)).toBeInTheDocument();
+      unmount();
+    }
   });
 
   it("shows Search Console's setup link and the paid sources as not connected", () => {
