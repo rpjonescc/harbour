@@ -199,3 +199,13 @@ export function lastGoodScanAt(db: Db, productId: string): Date | null {
     .get();
   return row?.at ?? null;
 }
+
+/** The id of the product's latest ok or partial scan, or null if it never had one. */
+export function latestGoodScanId(db: Db, productId: string): number | null {
+  const row = db
+    .select({ id: max(scanRuns.id) })
+    .from(scanRuns)
+    .where(and(eq(scanRuns.productId, productId), inArray(scanRuns.status, ["ok", "partial"])))
+    .get();
+  return row?.id ?? null;
+}

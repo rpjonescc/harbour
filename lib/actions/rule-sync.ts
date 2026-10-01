@@ -30,7 +30,8 @@ const clamp = (text: string, max: number) => (text.length <= max ? text : text.s
 
 /** A location as evidence, linked when it is (or starts with) an http(s) URL. */
 function evidenceItem(location: string): EvidenceItem {
-  const lead = location.split(/\s/, 1)[0] ?? "";
+  // Notes follow the URL ("…/a, linked from …"): their punctuation is not part of it.
+  const lead = (location.split(/\s/, 1)[0] ?? "").replace(/[,;.)]+$/, "");
   const url = httpUrl.safeParse(lead);
   return { text: clamp(location, MAX_EVIDENCE_TEXT), url: url.success ? url.data : null };
 }

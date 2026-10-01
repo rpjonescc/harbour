@@ -156,7 +156,7 @@ Drizzle ORM · SimpleWebAuthn · zod · Vitest · Playwright · Biome · lefthoo
 
 ## Quick start (development)
 
-Requires Node 22+ and pnpm 9.
+Requires Node 22.1+ and pnpm 9.
 
 ```bash
 git clone https://github.com/rpjonescc/harbour && cd harbour

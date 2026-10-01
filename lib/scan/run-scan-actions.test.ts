@@ -3,7 +3,17 @@ import { actionEventsFor } from "@/lib/actions/store";
 import { actions, scanRuns, scores } from "@/lib/db/schema";
 import { isoDateIn } from "@/lib/format/date";
 import { getJob } from "@/lib/jobs/queue";
-import { DAY, fake, ok, returns, setup, t0, texts, throws } from "@/tests/helpers/scan-run";
+import {
+  DAY,
+  fake,
+  ok,
+  product,
+  returns,
+  setup,
+  t0,
+  texts,
+  throws,
+} from "@/tests/helpers/scan-run";
 import { ACME_CRAWL, crawlSite, htmlPage, readiness } from "@/tests/helpers/scoring";
 import { scoreScan } from "./score";
 import type { CollectorResult, Observation, ScanObservation } from "./types";
@@ -81,6 +91,22 @@ describe("runScan action sync", () => {
       note: `Resolved — not found in scan of ${run.day(t0.getTime() + DAY)}`,
     });
     expect(texts(run.db, job)).toContain("Actions: 0 new, 1 resolved, 0 reopened");
+  });
+
+  it("does not sync a scan that is not the product's latest good scan", async () => {
+    const run = workerSetup();
+    await run.scan();
+    const [first] = run.db.select().from(scanRuns).all();
+    run.crawler.set("titled");
+    run.advance(DAY);
+    await run.scan();
+    const afterScore = run.deps.afterScore;
+    if (!first || !afterScore) throw new Error("expected a scan and the worker's sync");
+    const statuses = { crawler: "ok", readiness: "ok" } as const;
+    expect(afterScore({ scanId: first.id, product, statuses })).toBe(
+      `Actions: not synced — scan ${first.id} is not the latest good scan of Acme Docs`,
+    );
+    expect(titleActions(run)).toEqual([expect.objectContaining({ status: "done" })]);
   });
 
   it("does not sync after a failed scan", async () => {

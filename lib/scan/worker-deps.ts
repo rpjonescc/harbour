@@ -6,13 +6,18 @@ import { outboundHosts } from "./outbound-hosts";
 import { COLLECTORS } from "./registry";
 import type { AfterScoreInput, ScanDeps } from "./run-scan";
 import { scoreScan } from "./score";
-import { scanObservations } from "./store";
+import { latestGoodScanId, scanObservations } from "./store";
 
 type WorkerContext = Pick<ScanDeps, "db" | "config" | "products" | "now" | "stopping">;
 
 /** Brings the product's rule actions in line with a scored scan; returns the job event text. */
 function syncActions(context: WorkerContext, { scanId, product, statuses }: AfterScoreInput) {
   const { db, now } = context;
+  // The worker runs one job at a time, so scans are serialized and this one is normally the
+  // latest; the guard keeps an older scan from ever undoing what a newer one found.
+  if (latestGoodScanId(db, product.id) !== scanId) {
+    return `Actions: not synced — scan ${scanId} is not the latest good scan of ${product.name}`;
+  }
   const outcomes = evaluateRules(scanObservations(db, scanId), statuses);
   const at = now();
   const scanDate = isoDateIn(context.config.HARBOUR_TIMEZONE, at);

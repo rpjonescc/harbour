@@ -196,6 +196,17 @@ describe("actionFields", () => {
     });
   });
 
+  it.each([
+    ["https://docs.example.com/a, and 3 more", "https://docs.example.com/a"],
+    ["https://docs.example.com/a; see robots.txt", "https://docs.example.com/a"],
+    ["https://docs.example.com/a.", "https://docs.example.com/a"],
+    ["https://docs.example.com/a) is broken", "https://docs.example.com/a"],
+    ["https://docs.example.com/a).", "https://docs.example.com/a"],
+  ])("links %j without its trailing punctuation", (location, url) => {
+    const [item] = actionFields(issue({ locations: [location], total: 1 })).evidence.items;
+    expect(item).toEqual({ text: location, url });
+  });
+
   it("bounds every field and never links a URL with credentials", () => {
     const fields = actionFields(
       issue({

@@ -7,7 +7,7 @@
   "repository": "github:rpjonescc/harbour",
   "packageManager": "pnpm@9.15.4",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.1"
   },
   "scripts": {
     "dev": "next dev -H 127.0.0.1 -p 3400",

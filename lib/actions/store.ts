@@ -65,8 +65,18 @@ export function insertAction(
 /** Content an existing action may have rewritten (by the scan that raised it), never its status. */
 export type ActionContent = Partial<ActionFields> & { issuePresent?: boolean };
 
-/** Rewrites an action's content, keeping the title key in step with the title. */
+/**
+ * Rewrites an action's content, keeping the title key in step with the title. Writes nothing
+ * (and leaves `updatedAt`) when every given field already holds that value.
+ */
 export function updateActionContent(tx: Db, id: number, content: ActionContent, now: Date): void {
+  const stored = tx.select().from(actions).where(eq(actions.id, id)).get();
+  if (!stored) throw new Error(`Action ${id} not found`);
+  const changed = (Object.keys(content) as (keyof ActionContent)[]).some(
+    // JSON compares the evidence and docs values too; both sides come from the same writer.
+    (key) => JSON.stringify(stored[key]) !== JSON.stringify(content[key]),
+  );
+  if (!changed) return;
   const titleKey = content.title === undefined ? {} : { titleKey: normaliseTitle(content.title) };
   tx.update(actions)
     .set({ ...content, ...titleKey, updatedAt: now })

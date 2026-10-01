@@ -151,16 +151,50 @@ describe("syncRuleActions", () => {
     expect(only(db)).toMatchObject({ status: "snoozed", snoozedUntil: "2026-10-20" });
   });
 
-  it("is idempotent when the same outcomes are synced twice", () => {
+  it("writes nothing when a later scan has the same outcomes", () => {
     const db = openTestDb();
     const outcomes = [present("missing-title"), present("no-llms-txt"), clear("noindex")];
     sync(db, outcomes, "2026-10-02", t1);
     const rows = db.select().from(actions).all();
     const events = db.select().from(actionEvents).all();
-    expect(sync(db, outcomes, "2026-10-02", t1)).toEqual({ created: 0, resolved: 0, reopened: 0 });
+    expect(sync(db, outcomes, "2026-10-03", t2)).toEqual({ created: 0, resolved: 0, reopened: 0 });
     expect(db.select().from(actions).all()).toEqual(rows);
     expect(db.select().from(actionEvents).all()).toEqual(events);
   });
+
+  it("reopens a resolved action when the issue comes back", () => {
+    const db = openTestDb();
+    sync(db, [present("missing-title")], "2026-10-02", t1);
+    sync(db, [clear("missing-title")], "2026-10-03", t2);
+    const t3 = new Date("2026-10-04T06:30:00Z");
+    expect(sync(db, [present("missing-title")], "2026-10-04", t3).reopened).toBe(1);
+    const row = only(db);
+    expect(row).toMatchObject({ status: "open", issuePresent: true });
+    expect(history(db, row.id).at(-1)).toEqual({
+      actor: "scan",
+      from: "done",
+      to: "open",
+      note: "Back in scan of 2026-10-04",
+    });
+  });
+
+  it.each(["done", "dismissed"] as const)(
+    "only records that the issue cleared on a %s action",
+    (status) => {
+      const db = openTestDb();
+      sync(db, [present("missing-title")], "2026-10-02", t1);
+      const { id } = only(db);
+      setStatus(db, id, "open", status, { actor: "owner", now: t1 });
+      const before = history(db, id);
+      expect(sync(db, [clear("missing-title")], "2026-10-03", t2)).toEqual({
+        created: 0,
+        resolved: 0,
+        reopened: 0,
+      });
+      expect(only(db)).toMatchObject({ status, issuePresent: false, updatedAt: t2 });
+      expect(history(db, id)).toEqual(before);
+    },
+  );
 
   it("leaves other products' actions alone", () => {
     const db = openTestDb();
