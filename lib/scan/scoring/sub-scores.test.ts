@@ -222,6 +222,25 @@ describe("search impressions trend", () => {
     );
   });
 
+  it.each([
+    ["a window shorter than 28 days", { endDate: "2026-09-27" }],
+    ["an earlier window that ends before it starts", { priorEndDate: "2026-08-03" }],
+    [
+      "an earlier window of zero days",
+      { priorEndDate: "2026-08-03", priorStartDate: "2026-08-04" },
+    ],
+    ["windows longer than 28 days", { startDate: "2026-08-31", priorEndDate: "2026-09-01" }],
+  ])("is missing for %s, never dividing by a bad length", (_, dates) => {
+    const observations = searchConsole(daysOf(28, 50), daysOf(28, 50)).map((o) =>
+      o.kind === "gsc_summary" ? { ...o, value: { ...o.value, ...dates } } : o,
+    );
+    expect(entryOf(scoreOf([...ACME_CRAWL, ...observations]), "seo.searchTrend")).toMatchObject({
+      score: null,
+      status: "missing",
+      evidence: "Search Console windows have an unexpected length",
+    });
+  });
+
   it("has no trend for a new property without earlier impressions", () => {
     expect(trend(daysOf(10, 12), [])).toMatchObject({
       score: null,

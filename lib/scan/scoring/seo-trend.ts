@@ -2,6 +2,8 @@ import type { GscDay, SearchConsole } from "./inputs";
 import { measured, missing, plural, type SubScore, short } from "./sub-score";
 
 const DAY_MS = 24 * 60 * 60_000;
+/** Both windows Search Console reports on are exactly this many days long. */
+const WINDOW_DAYS = 28;
 /** A flat trend scores 75; +33% or more scores 100; a full drop scores 0. */
 const FLAT_TREND = 75;
 /** Below this many earlier impressions, a few searches swing the trend: no verdict. */
@@ -69,20 +71,25 @@ function noBaseline(search: SearchConsole): string | null {
  * Search impressions trend: mean daily impressions over the 28-day window against the 28 days
  * before, as 75 + 75 × change (flat 75, +33% or more 100, a full drop 0). A day without a row is
  * a zero, except up to 3 missing days at the end of the current window (Search Console's lag).
- * No verdict without 100 earlier impressions or a full earlier window.
+ * No verdict without 100 earlier impressions or a full earlier window, or when either window
+ * is not exactly 28 days long.
  */
 export function searchTrend(search: SearchConsole): SubScore {
+  const { window, days, priorDays } = search;
+  const length = offset(window.startDate, window.endDate) + 1;
+  const priorLength = offset(window.priorStartDate, window.priorEndDate) + 1;
+  // The summary's dates are only format-checked: a bad span must not divide by zero or less.
+  if (length !== WINDOW_DAYS || priorLength !== WINDOW_DAYS) {
+    return missing("Search Console windows have an unexpected length");
+  }
   const why = noBaseline(search);
   if (why) return missing(why);
-  const { window, days, priorDays } = search;
   const before = total(priorDays);
   const now = total(days);
   if (now === 0) {
     return measured(0, `No impressions in the last 28 days vs ${before} in the 28 days before.`);
   }
-  const length = offset(window.startDate, window.endDate) + 1;
   const counted = length - trailingLag(days, window.startDate, length);
-  const priorLength = offset(window.priorStartDate, window.priorEndDate) + 1;
   const daily = now / counted;
   const priorDaily = before / priorLength;
   const change = (daily - priorDaily) / priorDaily;
