@@ -77,6 +77,7 @@ export function ScanExamples() {
         ]}
       />
       <SearchConsolePanel
+        locale={ZONE.locale}
         search={{
           state: "ok",
           summary: {

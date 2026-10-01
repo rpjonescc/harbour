@@ -51,6 +51,14 @@ const scanned: ProductView = {
           status: "missing",
         },
         {
+          key: "seo.indexability",
+          label: "Indexability",
+          score: null,
+          weight: 0.25,
+          evidence: "Crawler failed in this scan",
+          status: "missing",
+        },
+        {
           key: "geo.aiEngines",
           label: "AI engine mentions",
           score: null,
@@ -131,8 +139,11 @@ describe("ProductOverview", () => {
     const panel = screen.getByRole("tabpanel");
     expect(within(panel).getByRole("heading", { name: "Technical health" })).toBeInTheDocument();
     expect(within(panel).getByText("35% of SEO")).toBeInTheDocument();
-    expect(within(panel).getByText("Missing")).toBeInTheDocument();
+    // A source without its key reads as not connected, whatever the sub-score's weight.
+    expect(within(panel).getByText("Not connected")).toBeInTheDocument();
     expect(within(panel).getByText("PageSpeed is not connected")).toBeInTheDocument();
+    expect(within(panel).getByText("Missing")).toBeInTheDocument();
+    expect(within(panel).getByText("Crawler failed in this scan")).toBeInTheDocument();
     expect(screen.getByText(/PageSpeed failed: quota exceeded/)).toBeInTheDocument();
   });
 
@@ -184,5 +195,40 @@ describe("ProductOverview", () => {
     expect(within(gsc).getByText("Connected")).toBeInTheDocument();
     expect(within(gsc).getByRole("img", { name: /Daily clicks/ })).toBeInTheDocument();
     expect(within(gsc).getByRole("rowheader", { name: "acme docs install" })).toBeInTheDocument();
+    // Numbers and dates follow HARBOUR_LOCALE (en-GB here).
+    expect(gsc).toHaveTextContent("1 Sept 2026 to 28 Sept 2026");
+    expect(within(gsc).queryByRole("link", { name: /How to connect/ })).toBeNull();
+  });
+
+  it("formats Search Console numbers in the configured locale", () => {
+    render(
+      <ProductOverview
+        product={product}
+        view={{
+          ...scanned,
+          search: {
+            state: "ok",
+            summary: {
+              startDate: "2026-09-01",
+              endDate: "2026-09-28",
+              days: [],
+              clicks: 1234,
+              impressions: 56789,
+              topQueries: [],
+            },
+          },
+        }}
+        timeZone="UTC"
+        locale="de-DE"
+      />,
+    );
+    expect(screen.getByRole("region", { name: "Search Console" })).toHaveTextContent("56.789");
+  });
+
+  it("does not offer setup steps when Search Console ran but stored no summary", () => {
+    renderPage({ ...scanned, search: { state: "ok", summary: null } });
+    const gsc = screen.getByRole("region", { name: "Search Console" });
+    expect(gsc).toHaveTextContent("No Search Console data in this scan.");
+    expect(within(gsc).queryByRole("link", { name: /How to connect/ })).toBeNull();
   });
 });

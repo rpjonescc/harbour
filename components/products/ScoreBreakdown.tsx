@@ -8,12 +8,16 @@ function weightNote(entry: ScoreBreakdownEntry, area: string): string {
   return entry.weight > 0 ? `${Math.round(entry.weight * 100)}% of ${area}` : "Not counted yet";
 }
 
+// Scoring words an unconfigured source's reason "<Source> is not connected" (scoring/inputs.ts),
+// and the paid-source notes "… not connected …": those need setting up, not a retry.
+const NOT_CONNECTED = /\bnot connected\b/i;
+
 function statusTag(entry: ScoreBreakdownEntry) {
   if (entry.status === "ok") return null;
-  return (
-    <Tag tone={entry.weight > 0 ? "warn" : "neutral"}>
-      {entry.weight > 0 ? "Missing" : "Not connected"}
-    </Tag>
+  return NOT_CONNECTED.test(entry.evidence) ? (
+    <Tag tone="neutral">Not connected</Tag>
+  ) : (
+    <Tag tone="warn">Missing</Tag>
   );
 }
 

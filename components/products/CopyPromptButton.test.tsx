@@ -23,6 +23,23 @@ describe("CopyPromptButton", () => {
     expect(writeText).toHaveBeenCalledWith(PROMPT);
   });
 
+  it("clears the confirmation on each copy so a repeat copy is announced again", async () => {
+    writeText.mockResolvedValueOnce(undefined);
+    const button = renderButton();
+    fireEvent.click(button);
+    expect(await screen.findByText("Copied — paste it into Claude")).toBeInTheDocument();
+    let finish = () => {};
+    writeText.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    fireEvent.click(button);
+    expect(screen.getByRole("status")).toHaveTextContent(/^$/);
+    finish();
+    expect(await screen.findByText("Copied — paste it into Claude")).toBeInTheDocument();
+  });
+
   it("shows the prompt to copy by hand when the clipboard is refused", async () => {
     writeText.mockRejectedValue(new Error("denied"));
     fireEvent.click(renderButton());

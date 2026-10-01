@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { getProducts } from "@/lib/products/catalog";
+import { productById } from "@/lib/products/catalog";
 import { collectorLabel } from "@/lib/scan/labels";
 import type { SourceFailure } from "@/lib/today/types";
 
 /** Sources that failed in each product's last scan; scores they feed are incomplete. */
 export function SourceFailures({ failures }: { failures: SourceFailure[] }) {
   if (failures.length === 0) return null;
-  const nameOf = (id: string) => getProducts().find((p) => p.id === id)?.name ?? id;
   return (
     <section
       aria-labelledby="failures-heading"
@@ -19,7 +18,7 @@ export function SourceFailures({ failures }: { failures: SourceFailure[] }) {
       <ul className="mt-1 flex flex-col gap-0.5">
         {failures.map((f) => (
           <li key={`${f.productId}:${f.collector}`}>
-            {collectorLabel(f.collector)} · {nameOf(f.productId)}
+            {collectorLabel(f.collector)} · {productById(f.productId).name}
             {f.error && <span className="text-ink-muted"> — {f.error}</span>}
           </li>
         ))}

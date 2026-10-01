@@ -31,3 +31,11 @@ export function formatDateTime(date: Date, timeZone: string, locale: string): st
     timeZone,
   }).format(date);
 }
+
+/** A calendar date given as YYYY-MM-DD (e.g. Search Console's), in the locale's medium style. */
+export function formatIsoDay(day: string, locale: string): string {
+  // Read and shown in UTC: a calendar date has no zone, so it must not move a day.
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(
+    new Date(`${day}T00:00:00Z`),
+  );
+}

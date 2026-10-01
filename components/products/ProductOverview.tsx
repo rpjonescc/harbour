@@ -52,7 +52,7 @@ export function ProductOverview({
       </section>
       <IssueList issues={view.issues} product={product} scanned={latest !== null} />
       <PagesTable rows={view.pages.rows} total={view.pages.total} />
-      <SearchConsolePanel search={view.search} />
+      <SearchConsolePanel search={view.search} locale={locale} />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <PaidSourcePanels />
       </div>

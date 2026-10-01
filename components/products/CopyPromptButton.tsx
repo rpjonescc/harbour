@@ -12,6 +12,8 @@ export function CopyPromptButton({ prompt, issueTitle }: { prompt: string; issue
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
 
   async function copy() {
+    // Clear first, so a repeat copy changes the live region and is announced again.
+    setState("idle");
     try {
       await navigator.clipboard.writeText(prompt);
       setState("copied");
