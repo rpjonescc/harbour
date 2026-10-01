@@ -31,7 +31,8 @@ a folder tree, a reading view with an outline, links between notes (`[[note-name
 `[[note-name|label]]`), backlinks, and sources from frontmatter. Press **⌘K** or **Ctrl+K** to
 search titles and document text. New and changed notes are marked
 until you open them. If `00-start-here.md` exists, it opens at `/brain`; otherwise, the page lists
-recently changed documents.
+recently changed documents. The tree lists up to 5,000 documents. Hidden files and folders,
+symlinks, and documents larger than 2 MB are not shown or searched.
 
 Keep the brain in its own **private** git repository. It holds research and plans that must never
 be committed to this public repo. Optional frontmatter looks like this:
@@ -46,6 +47,8 @@ review_by: 2027-01-01
 sources: [https://example.com/article]
 ---
 ```
+
+`sources` accepts only `http` and `https` URLs; anything else is reported as invalid frontmatter.
 
 Set `HARBOUR_EDITOR_URL_TEMPLATE` to a URL containing `{path}` to open a document in an editor.
 Its default is `vscode://file/{path}`; an empty value hides the link.

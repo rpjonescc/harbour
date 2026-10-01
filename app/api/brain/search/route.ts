@@ -6,7 +6,7 @@ import { jsonError } from "@/lib/http/responses";
 
 export async function GET(request: Request) {
   if (!(await getSession())) return jsonError(401, "unauthenticated");
-  if (!ensureBrain().available) return Response.json({ hits: [] });
+  if (!ensureBrain().available) return jsonError(409, "brain_unavailable");
   const query = new URL(request.url).searchParams.get("q") ?? "";
   return Response.json({ hits: searchBrain(getDb(), query) });
 }

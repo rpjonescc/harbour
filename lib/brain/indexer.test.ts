@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { brainDocs, brainLinks } from "@/lib/db/schema";
 import { makeBrain } from "@/tests/helpers/brain";
 import { openTestDb } from "@/tests/helpers/db";
+import { MAX_DOC_BYTES } from "./docs";
 import { reindexAll } from "./indexer";
 import { searchBrain } from "./search";
 
@@ -15,7 +16,7 @@ describe("reindexAll", () => {
     });
     const db = openTestDb();
     try {
-      expect(reindexAll(db, brain.root)).toEqual({ indexed: 2, removed: 0 });
+      expect(reindexAll(db, brain.root)).toEqual({ indexed: 2, removed: 0, skipped: [] });
       expect(
         db
           .select()
@@ -28,7 +29,7 @@ describe("reindexAll", () => {
         { fromPath: "research/geo.md", toPath: "research/glossary.md" },
       ]);
       expect(searchBrain(db, "perplexity").map((h) => h.path)).toEqual(["research/geo.md"]);
-      expect(reindexAll(db, brain.root)).toEqual({ indexed: 0, removed: 0 });
+      expect(reindexAll(db, brain.root)).toEqual({ indexed: 0, removed: 0, skipped: [] });
     } finally {
       brain.cleanup();
     }
@@ -40,7 +41,7 @@ describe("reindexAll", () => {
     try {
       reindexAll(db, brain.root);
       rmSync(join(brain.root, "b.md"));
-      expect(reindexAll(db, brain.root)).toEqual({ indexed: 0, removed: 1 });
+      expect(reindexAll(db, brain.root)).toEqual({ indexed: 0, removed: 1, skipped: [] });
       expect(searchBrain(db, "bravo")).toEqual([]);
       expect(db.select().from(brainLinks).all()).toEqual([]);
     } finally {
@@ -69,11 +70,29 @@ describe("reindexAll", () => {
     const db = openTestDb();
     try {
       reindexAll(db, brain.root);
-      writeFileSync(join(brain.root, "0.txt"), "x");
-      writeFileSync(join(brain.root, "1.txt"), "x");
-      writeFileSync(join(brain.root, "2.txt"), "x");
+      writeFileSync(join(brain.root, "c.md"), "# C");
       expect(() => reindexAll(db, brain.root, 2)).toThrow("Brain tree truncated");
       expect(db.select().from(brainDocs).all()).toHaveLength(2);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("skips and reports documents over the size cap, dropping any earlier index entry", () => {
+    const brain = makeBrain({ "small.md": "# Small\n[[big]]", "big.md": "# Big\nbravo" });
+    const db = openTestDb();
+    try {
+      reindexAll(db, brain.root);
+      writeFileSync(join(brain.root, "big.md"), `# Big\n${"x".repeat(MAX_DOC_BYTES)}`);
+      expect(reindexAll(db, brain.root)).toEqual({ indexed: 0, removed: 1, skipped: ["big.md"] });
+      expect(searchBrain(db, "bravo")).toEqual([]);
+      expect(
+        db
+          .select()
+          .from(brainDocs)
+          .all()
+          .map((d) => d.path),
+      ).toEqual(["small.md"]);
     } finally {
       brain.cleanup();
     }

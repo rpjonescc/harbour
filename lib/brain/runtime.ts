@@ -9,33 +9,51 @@ import { newDocPaths } from "./views";
 import { isIgnoredChange } from "./watch-filter";
 
 export type BrainStatus =
-  | { available: true; root: string; watchError: string | null }
+  | { available: true; root: string; watchError: string | null; indexError: string | null }
   | { available: false; root: string; reason: "missing" | "not-directory" | "unreadable" };
 
-export type Runtime = { watcher: FSWatcher | null; error: string | null; reindex: () => boolean };
+export type Runtime = {
+  watcher: FSWatcher | null;
+  /** The file watcher failed; only a restart brings live updates back. */
+  watchError: string | null;
+  /** The last index run failed; cleared by the next successful run. */
+  indexError: string | null;
+  reindex: () => boolean;
+};
 
 const WATCH_DEBOUNCE_MS = 1000;
 let runtime: Runtime | undefined;
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-/** Starts the index and watcher, retaining an error so the viewer can offer recovery. */
+/** Starts the index and watcher, retaining errors so the viewer can offer recovery. */
 export function createBrainRuntime(root: string, index: () => void): Runtime {
-  const state: Runtime = { watcher: null, error: null, reindex: () => false };
+  const state: Runtime = {
+    watcher: null,
+    watchError: null,
+    indexError: null,
+    reindex: () => false,
+  };
+  const indexFailed = (error: unknown) => {
+    console.error("brain reindex failed", error);
+    state.indexError = `Reindex failed: ${message(error)}`;
+  };
+  const watchFailed = (prefix: string, error: unknown) => {
+    console.error("brain file watcher failed", error);
+    state.watchError = `${prefix}: ${message(error)}`;
+  };
   try {
     index(); // synchronous first pass so the first page has data
   } catch (error) {
-    state.error = `Reindex failed: ${message(error)}`;
+    indexFailed(error);
   }
   const runner = createSingleFlight(
     () => {
       index();
     },
-    (error) => {
-      state.error = `Reindex failed: ${message(error)}`;
-    },
+    indexFailed,
     () => {
-      if (state.error?.startsWith("Reindex failed")) state.error = null;
+      state.indexError = null;
     },
   );
   state.reindex = () => runner.trigger(0);
@@ -43,11 +61,9 @@ export function createBrainRuntime(root: string, index: () => void): Runtime {
     state.watcher = watch(root, { recursive: true }, (_event, filename) => {
       if (!isIgnoredChange(filename)) runner.trigger(WATCH_DEBOUNCE_MS);
     });
-    state.watcher.on("error", (error) => {
-      state.error = `File watcher stopped: ${message(error)}`;
-    });
+    state.watcher.on("error", (error) => watchFailed("File watcher stopped", error));
   } catch (error) {
-    state.error = `File watcher unavailable: ${message(error)}`;
+    watchFailed("File watcher unavailable", error);
   }
   return state;
 }
@@ -63,7 +79,12 @@ export function ensureBrain(): BrainStatus {
   const status = checkBrainRoot(root);
   if (!status.ok) return { available: false, root, reason: status.reason };
   runtime ??= start(root);
-  return { available: true, root, watchError: runtime.error };
+  return {
+    available: true,
+    root,
+    watchError: runtime.watchError,
+    indexError: runtime.indexError,
+  };
 }
 
 /** Starts a reindex now; false if one is already queued or running. */

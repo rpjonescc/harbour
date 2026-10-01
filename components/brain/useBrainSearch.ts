@@ -15,6 +15,14 @@ const searchResponse = z.object({
   ),
 });
 
+/** The server reports the brain directory missing or unreadable. */
+class BrainUnavailable extends Error {}
+
+function describe(cause: unknown): string {
+  if (cause instanceof BrainUnavailable) return "Second Brain unavailable";
+  return cause instanceof Error ? `Search failed (${cause.message})` : "Search failed";
+}
+
 /** Debounced, cancellable search against /api/brain/search. */
 export function useBrainSearch(query: string) {
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -36,6 +44,7 @@ export function useBrainSearch(query: string) {
         const response = await fetch(`/api/brain/search?q=${encodeURIComponent(q)}`, {
           signal: controller.signal,
         });
+        if (response.status === 409) throw new BrainUnavailable();
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = searchResponse.parse(await response.json());
         setHits(data.hits);
@@ -43,7 +52,7 @@ export function useBrainSearch(query: string) {
       } catch (cause) {
         if (controller.signal.aborted) return;
         setHits([]);
-        setError(cause instanceof Error ? `Search failed (${cause.message})` : "Search failed");
+        setError(describe(cause));
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }

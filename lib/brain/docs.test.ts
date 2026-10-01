@@ -1,7 +1,7 @@
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { makeBrain } from "@/tests/helpers/brain";
-import { checkBrainRoot, readDoc, titleFor } from "./docs";
+import { checkBrainRoot, MAX_DOC_BYTES, readDoc, titleFor } from "./docs";
 
 describe("titleFor", () => {
   it("prefers frontmatter title, then first heading, then file name", () => {
@@ -22,8 +22,26 @@ describe("readDoc", () => {
         frontmatter: { tags: ["seo"] },
         body: "# Alpha\nText",
         frontmatterError: null,
+        tooLarge: false,
       });
       expect(doc.mtime).toBeInstanceOf(Date);
+    } finally {
+      brain.cleanup();
+    }
+  });
+});
+
+describe("readDoc size cap", () => {
+  it("does not read a document larger than the cap", () => {
+    const brain = makeBrain({ "big.md": `# Big\n${"x".repeat(MAX_DOC_BYTES)}` });
+    try {
+      expect(readDoc(brain.root, "big.md")).toMatchObject({
+        path: "big.md",
+        title: "big",
+        tooLarge: true,
+        body: "",
+        frontmatter: {},
+      });
     } finally {
       brain.cleanup();
     }

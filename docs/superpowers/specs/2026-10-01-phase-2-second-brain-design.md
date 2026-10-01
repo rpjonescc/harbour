@@ -34,11 +34,12 @@ Phase 2 ships in two parts with separate implementation plans:
   at a hidden or non-Markdown file. Only regular `.md` files are served. Violations throw a
   typed error and render as 404 — never a stack trace.
 - `listTree()`: directory tree of `.md` files and folders (hidden entries skipped), sorted
-  folders-first then alphabetically; capped at 5,000 entries with a visible "tree
-  truncated" note.
-- `readDoc(path)`: returns `{ path, frontmatter, body, mtime }`. Frontmatter is parsed
-  with a zod schema: `title?`, `tags?: string[]`, `researched?: date`,
-  `confidence?: low|medium|high`, `review_by?: date`, `sources?: url[]`. Invalid
+  folders-first then alphabetically; capped at 5,000 Markdown documents (and 50,000
+  directory entries of any kind) with a visible "showing the first 5,000 documents" note.
+- `readDoc(path)`: returns `{ path, frontmatter, body, mtime, tooLarge }`. Files over 2 MB
+  are neither rendered nor indexed; the viewer says so and links to the editor.
+  Frontmatter is parsed with a zod schema: `title?`, `tags?: string[]`, `researched?: date`,
+  `confidence?: low|medium|high`, `review_by?: date`, `sources?: http(s) url[]`. Invalid
   frontmatter does not hide the document: it renders with a visible "frontmatter
   invalid" notice listing the problem.
 - Missing or unreadable `HARBOUR_BRAIN_DIR` renders a clear setup screen (what the

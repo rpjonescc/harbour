@@ -19,7 +19,7 @@ export default async function BrainLayout({ children }: { children: ReactNode })
   const fresh = [...newDocPaths(getDb())];
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <BrainHeader watchError={status.watchError}>
+      <BrainHeader watchError={status.watchError} indexError={status.indexError}>
         <SearchDialog />
       </BrainHeader>
       <div className="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">

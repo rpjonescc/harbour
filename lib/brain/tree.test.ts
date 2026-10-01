@@ -45,6 +45,17 @@ describe("listTree", () => {
     }
   });
 
+  it("counts only Markdown files toward the document limit", () => {
+    const brain = makeBrain({ "a.txt": "", "b.txt": "", "c.txt": "", "x.md": "", "y.md": "" });
+    try {
+      const { nodes, truncated } = listTree(brain.root, 2);
+      expect(filePaths(nodes)).toEqual(["x.md", "y.md"]);
+      expect(truncated).toBe(false);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
   it("bounds directory-heavy trees even when they contain no Markdown", () => {
     const brain = makeBrain({
       "a/one.txt": "",

@@ -29,6 +29,8 @@
   --radius-sm: var(--r-sm);
   --radius-md: var(--r-md);
   --radius-lg: var(--r-lg);
+  /* Named differently from the token so the theme variable never references itself. */
+  --shadow-overlay: var(--elevation-overlay);
 }
 
 @layer base {

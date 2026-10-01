@@ -112,6 +112,27 @@ describe("SearchDialog", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Search failed"));
   });
 
+  it("says the Second Brain is unavailable on 409", async () => {
+    stubFetch(Response.json({ error: "brain_unavailable" }, { status: 409 }));
+    render(<SearchDialog />);
+    fireEvent.click(screen.getByRole("button", { name: /Search/ }));
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "x" } });
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Second Brain unavailable"),
+    );
+  });
+
+  it.each([
+    ["MacIntel", "⌘K"],
+    ["Win32", "Ctrl K"],
+    ["Linux x86_64", "Ctrl K"],
+  ])("shows the shortcut for %s", (platform, label) => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+    render(<SearchDialog />);
+    expect(screen.getByRole("button", { name: /Search/ })).toHaveTextContent(label);
+    vi.restoreAllMocks();
+  });
+
   it("rejects a malformed search response", async () => {
     stubFetch(Response.json({ hits: {} }));
     render(<SearchDialog />);

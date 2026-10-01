@@ -23,8 +23,12 @@ export async function loadDocView(root: string, path: string, now = new Date()):
   const db = getDb();
   const config = getConfig();
   const doc = readDoc(root, path);
-  const index = buildLinkIndex(filePaths(listTree(root).nodes));
-  const rendered = await renderMarkdown(stripLeadingTitle(doc.body, doc.title), index);
+  const rendered = doc.tooLarge
+    ? { html: "", outline: [] }
+    : await renderMarkdown(
+        stripLeadingTitle(doc.body, doc.title),
+        buildLinkIndex(filePaths(listTree(root).nodes)),
+      );
   markViewed(db, path, now);
   const reviewBy = doc.frontmatter.review_by;
   return {

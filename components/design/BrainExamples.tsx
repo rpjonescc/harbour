@@ -17,9 +17,10 @@ const example: DocView = {
     frontmatterError: "Confidence must be low, medium, or high",
     body: "",
     mtime: new Date("2026-01-10T00:00:00Z"),
+    tooLarge: false,
   },
   html: "<p>An example document with an outline and a backlink.</p>",
-  outline: [{ id: "next-steps", text: "Next steps", depth: 2 }],
+  outline: [{ id: "h-next-steps", text: "Next steps", depth: 2 }],
   backlinks: [{ path: "examples/start.md", title: "Start here" }],
   editorUrl: null,
   stale: false,
@@ -30,7 +31,7 @@ export function BrainExamples() {
   return (
     <div className="space-y-6">
       <p className="text-xs text-ink-muted">Illustrative documents and states.</p>
-      <BrainHeader watchError={null}>
+      <BrainHeader watchError={null} indexError={null} titleLevel={2}>
         <SearchDialog />
       </BrainHeader>
       <div className="grid gap-4 lg:grid-cols-[12rem_minmax(0,1fr)]">
@@ -50,7 +51,7 @@ export function BrainExamples() {
             truncated={false}
           />
         </BrainNav>
-        <DocArticle view={example} />
+        <DocArticle view={example} titleLevel={2} />
       </div>
       <DocMeta frontmatter={{ tags: ["research"], review_by: "2026-02-01" }} stale />
       <RecentDocs docs={[{ path: "examples/field-guide.md", title: "Field guide" }]} />

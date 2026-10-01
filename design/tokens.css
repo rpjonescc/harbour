@@ -73,6 +73,8 @@
   --warn-soft: var(--amber-100);
   --bad: var(--clay-700);
   --focus: var(--tide-700);
+  /* Floating layers (dialogs, popovers). Exposed to Tailwind as shadow-overlay. */
+  --elevation-overlay: 0 12px 32px -8px color-mix(in srgb, var(--paper-900) 22%, transparent);
   --hue-amber: var(--hue-amber-600);
   --hue-violet: var(--hue-violet-600);
   --hue-blue: var(--hue-blue-600);
@@ -100,6 +102,7 @@
     --warn-soft: var(--amber-900);
     --bad: var(--clay-300);
     --focus: var(--tide-300);
+    --elevation-overlay: 0 16px 40px -8px color-mix(in srgb, var(--night-950) 70%, transparent);
     --hue-amber: var(--hue-amber-300);
     --hue-violet: var(--hue-violet-300);
     --hue-blue: var(--hue-blue-300);
@@ -126,6 +129,7 @@
   --warn-soft: var(--amber-900);
   --bad: var(--clay-300);
   --focus: var(--tide-300);
+  --elevation-overlay: 0 16px 40px -8px color-mix(in srgb, var(--night-950) 70%, transparent);
   --hue-amber: var(--hue-amber-300);
   --hue-violet: var(--hue-violet-300);
   --hue-blue: var(--hue-blue-300);

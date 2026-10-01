@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { TreeNode } from "@/lib/brain/tree";
+import { TREE_LIMIT } from "@/lib/brain/tree-limits";
 import { brainHref } from "@/lib/brain/wikilinks";
 
 function Nodes({
@@ -68,7 +69,9 @@ export function BrainTree({
     <div className="-ml-2">
       <Nodes nodes={nodes} current={current} fresh={new Set(freshPaths)} />
       {truncated && (
-        <p className="px-2 pt-2 text-xs text-warn">Tree truncated at 5,000 documents.</p>
+        <p className="px-2 pt-2 text-xs text-warn">
+          Showing the first {TREE_LIMIT.toLocaleString("en")} documents.
+        </p>
       )}
     </div>
   );

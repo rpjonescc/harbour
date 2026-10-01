@@ -1,11 +1,13 @@
 import { type Dirent, opendirSync } from "node:fs";
 import { join } from "node:path";
+import { ENTRY_LIMIT, TREE_LIMIT } from "./tree-limits";
 
 export type TreeNode =
   | { kind: "dir"; name: string; path: string; children: TreeNode[] }
   | { kind: "file"; name: string; path: string };
 
-export const TREE_LIMIT = 5000;
+export { TREE_LIMIT } from "./tree-limits";
+
 const MAX_DEPTH = 64;
 
 function readEntries(dir: string, remaining: number): { entries: Dirent[]; overflow: boolean } {
@@ -29,7 +31,7 @@ function readEntries(dir: string, remaining: number): { entries: Dirent[]; overf
 export function listTree(
   root: string,
   limit = TREE_LIMIT,
-  entryLimit = limit,
+  entryLimit = ENTRY_LIMIT,
 ): { nodes: TreeNode[]; truncated: boolean } {
   let count = 0;
   let visited = 0;

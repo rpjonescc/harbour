@@ -7,8 +7,9 @@ export function DocMeta({ frontmatter, stale }: { frontmatter: Frontmatter; stal
   if (tags.length === 0 && !researched && !confidence && !stale) return null;
   return (
     <div className="mt-3 flex flex-wrap gap-1.5">
-      {tags.map((tag) => (
-        <Tag key={tag}>{tag}</Tag>
+      {tags.map((tag, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: frontmatter may repeat a tag; the static list never reorders
+        <Tag key={`${index}-${tag}`}>{tag}</Tag>
       ))}
       {researched && <Tag tone="neutral">Researched {researched}</Tag>}
       {confidence && <Tag tone="neutral">Confidence: {confidence}</Tag>}

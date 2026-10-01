@@ -33,6 +33,20 @@ export default async function DesignPage() {
       <Section title="Colour tokens">
         <TokenSwatches />
       </Section>
+      <Section title="Elevation">
+        <div className="flex items-center gap-4">
+          <div
+            aria-hidden="true"
+            className="size-16 shrink-0 rounded-lg border border-line bg-surface shadow-overlay"
+          />
+          <p className="text-sm">
+            <code className="font-mono text-xs">--elevation-overlay</code>
+            <span className="block text-xs text-ink-muted">
+              Floating layers such as the search dialog (Tailwind: shadow-overlay)
+            </span>
+          </p>
+        </div>
+      </Section>
       <Section title="Type">
         <p className="font-serif text-3xl">Newsreader — headings and reading</p>
         <p className="mt-2 text-sm">Inter — interface text, labels and tables.</p>

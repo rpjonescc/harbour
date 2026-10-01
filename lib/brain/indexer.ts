@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { eq, or, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { brainDocs, brainLinks } from "@/lib/db/schema";
-import { titleFor } from "./docs";
+import { MAX_DOC_BYTES, titleFor } from "./docs";
 import { splitFrontmatter } from "./frontmatter";
 import { filePaths, listTree, TREE_LIMIT } from "./tree";
 import { buildLinkIndex, extractWikiTargets, type LinkIndex, resolveWikiLink } from "./wikilinks";
@@ -26,18 +26,23 @@ function replaceLinks(tx: Tx, path: string, body: string, linkIndex: LinkIndex) 
 /**
  * Brings brain_docs, brain_fts and brain_links in line with the files on disk.
  * Unchanged files (same content hash) are skipped, except that links are re-resolved
- * for every document when files were added or removed.
+ * for every document when files were added or removed. Files over MAX_DOC_BYTES are left
+ * out of the index and reported in `skipped`.
  */
 export function reindexAll(
   db: Db,
   root: string,
   limit = TREE_LIMIT,
-): { indexed: number; removed: number } {
+): { indexed: number; removed: number; skipped: string[] } {
   const tree = listTree(root, limit);
   if (tree.truncated) throw new Error("Brain tree truncated; index unchanged");
-  const paths = filePaths(tree.nodes);
+  const allPaths = filePaths(tree.nodes);
+  const sizes = new Map(allPaths.map((path) => [path, statSync(join(root, path))]));
+  const skipped = allPaths.filter((path) => (sizes.get(path)?.size ?? 0) > MAX_DOC_BYTES);
+  const paths = allPaths.filter((path) => !skipped.includes(path));
   const present = new Set(paths);
-  const linkIndex = buildLinkIndex(paths);
+  // Oversized documents stay link targets: the viewer explains why they are not shown.
+  const linkIndex = buildLinkIndex(allPaths);
   const existing = new Map(
     db
       .select({ path: brainDocs.path, hash: brainDocs.contentHash, mtime: brainDocs.mtime })
@@ -55,7 +60,7 @@ export function reindexAll(
       const text = readFileSync(absolute, "utf8");
       const hash = createHash("sha256").update(text).digest("hex");
       const { frontmatter, body } = splitFrontmatter(text);
-      const mtime = statSync(absolute).mtime;
+      const mtime = sizes.get(path)?.mtime ?? statSync(absolute).mtime;
       const prior = existing.get(path);
       if (prior?.hash === hash) {
         if (prior.mtime.getTime() !== mtime.getTime()) {
@@ -77,11 +82,14 @@ export function reindexAll(
     for (const path of gone) {
       tx.delete(brainDocs).where(eq(brainDocs.path, path)).run();
       tx.run(sql`DELETE FROM brain_fts WHERE path = ${path}`);
+      const linksFrom = eq(brainLinks.fromPath, path);
+      // An oversized file is still on disk, so links pointing at it stay.
+      const onDisk = skipped.includes(path);
       tx.delete(brainLinks)
-        .where(or(eq(brainLinks.fromPath, path), eq(brainLinks.toPath, path)))
+        .where(onDisk ? linksFrom : or(linksFrom, eq(brainLinks.toPath, path)))
         .run();
     }
   });
 
-  return { indexed, removed: gone.length };
+  return { indexed, removed: gone.length, skipped };
 }

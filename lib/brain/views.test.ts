@@ -31,7 +31,7 @@ describe("view state", () => {
       markViewed(db, "a.md", viewedAt);
       const changedAt = new Date(viewedAt.getTime() + 60_000);
       utimesSync(join(brain.root, "a.md"), changedAt, changedAt);
-      expect(reindexAll(db, brain.root)).toEqual({ indexed: 0, removed: 0 });
+      expect(reindexAll(db, brain.root)).toEqual({ indexed: 0, removed: 0, skipped: [] });
       expect([...newDocPaths(db)]).toEqual(["a.md"]);
     } finally {
       brain.cleanup();

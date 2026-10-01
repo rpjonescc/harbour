@@ -11,7 +11,12 @@ export type BrainDoc = {
   frontmatterError: string | null;
   body: string;
   mtime: Date;
+  /** Over MAX_DOC_BYTES: not read, rendered or indexed. */
+  tooLarge: boolean;
 };
+
+/** Documents larger than this are neither indexed nor rendered. */
+export const MAX_DOC_BYTES = 2 * 1024 * 1024;
 
 /** Frontmatter title, else the first `# ` heading, else the file name. */
 export function titleFor(path: string, frontmatter: Frontmatter, body: string): string {
@@ -23,13 +28,26 @@ export function titleFor(path: string, frontmatter: Frontmatter, body: string): 
 /** Reads one document. Throws BrainPathError for invalid or outside paths. */
 export function readDoc(root: string, path: string): BrainDoc {
   const absolutePath = resolveBrainPath(root, path);
+  const stats = statSync(absolutePath);
+  if (stats.size > MAX_DOC_BYTES) {
+    const empty = { frontmatter: {}, body: "", frontmatterError: null };
+    return {
+      path,
+      absolutePath,
+      ...empty,
+      title: basename(path, ".md"),
+      mtime: stats.mtime,
+      tooLarge: true,
+    };
+  }
   const parsed = splitFrontmatter(readFileSync(absolutePath, "utf8"));
   return {
     path,
     absolutePath,
     ...parsed,
     title: titleFor(path, parsed.frontmatter, parsed.body),
-    mtime: statSync(absolutePath).mtime,
+    mtime: stats.mtime,
+    tooLarge: false,
   };
 }
 

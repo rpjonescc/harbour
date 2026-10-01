@@ -42,6 +42,15 @@ describe("splitFrontmatter", () => {
     expect(result.frontmatterError).toMatch(/confidence/);
   });
 
+  it.each(["javascript:alert(1)", "data:text/html,hi", "ftp://example.com/a"])(
+    "rejects a %s source",
+    (source) => {
+      const result = splitFrontmatter(`---\nsources: ["${source}"]\n---\nBody`);
+      expect(result.frontmatter).toEqual({});
+      expect(result.frontmatterError).toMatch(/sources/);
+    },
+  );
+
   it("reports broken YAML without hiding the body", () => {
     const result = splitFrontmatter("---\ntags: [unclosed\n---\nBody");
     expect(result.body).toBe("Body");

@@ -47,10 +47,15 @@ describe("renderMarkdown", () => {
   it("builds an outline from h2 and h3 with stable ids", async () => {
     const { html, outline } = await renderMarkdown("## Signals that matter\n\n### Mentions", index);
     expect(outline).toEqual([
-      { id: "signals-that-matter", text: "Signals that matter", depth: 2 },
-      { id: "mentions", text: "Mentions", depth: 3 },
+      { id: "h-signals-that-matter", text: "Signals that matter", depth: 2 },
+      { id: "h-mentions", text: "Mentions", depth: 3 },
     ]);
-    expect(html).toContain('<h2 id="signals-that-matter">');
+    expect(html).toContain('<h2 id="h-signals-that-matter">');
+  });
+
+  it("prefixes heading ids so they cannot collide with app ids", async () => {
+    const { html } = await renderMarkdown("## main", index);
+    expect(html).toContain('<h2 id="h-main">');
   });
 
   it("renders GitHub-flavoured tables", async () => {

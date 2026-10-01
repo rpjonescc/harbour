@@ -8,7 +8,8 @@ const schema = z
     researched: z.iso.date().optional(),
     confidence: z.enum(["low", "medium", "high"]).optional(),
     review_by: z.iso.date().optional(),
-    sources: z.array(z.url()).optional(),
+    // Sources render as links, so only web URLs are accepted.
+    sources: z.array(z.url({ protocol: /^https?$/ })).optional(),
   })
   .loose();
 

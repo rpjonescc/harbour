@@ -37,7 +37,8 @@ export async function renderMarkdown(body: string, index: LinkIndex): Promise<Re
     .use(remarkWikiLinks, { index, onLink: (path: string) => links.add(path) })
     .use(remarkRehype)
     .use(rehypeSanitize, sanitizeSchema)
-    .use(rehypeSlug)
+    // Prefixed so a heading such as "main" cannot reuse an id the app shell owns.
+    .use(rehypeSlug, { prefix: "h-" })
     .use(rehypeHarbour, { outline })
     .use(rehypeStringify)
     .process(body);

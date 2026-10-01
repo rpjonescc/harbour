@@ -2,10 +2,26 @@
 
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { SearchHit } from "@/lib/brain/search";
 import { brainHref } from "@/lib/brain/wikilinks";
 import { useBrainSearch } from "./useBrainSearch";
+
+const APPLE = /mac|iphone|ipad|ipod/i;
+const noSubscription = () => () => {};
+
+/** "⌘K" on Apple platforms, "Ctrl K" elsewhere; null during server render and hydration. */
+function shortcutLabel(): string {
+  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+  return APPLE.test(nav.userAgentData?.platform || nav.platform) ? "⌘K" : "Ctrl K";
+}
 
 /** ⌘K / Ctrl+K command dialog searching every brain document. */
 export function SearchDialog() {
@@ -17,6 +33,7 @@ export function SearchDialog() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const { hits, loading, error } = useBrainSearch(open ? query : "");
+  const shortcut = useSyncExternalStore(noSubscription, shortcutLabel, () => null);
 
   useEffect(() => {
     function onKey(event: globalThis.KeyboardEvent) {
@@ -85,7 +102,7 @@ export function SearchDialog() {
       >
         <Search aria-hidden="true" className="size-4" />
         <span>Search</span>
-        <kbd className="font-mono text-2xs">⌘K</kbd>
+        {shortcut && <kbd className="font-mono text-2xs">{shortcut}</kbd>}
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-24">
@@ -100,7 +117,7 @@ export function SearchDialog() {
             role="dialog"
             aria-modal="true"
             aria-label="Search the Second Brain"
-            className="relative w-full max-w-xl overflow-hidden rounded-lg border border-line bg-surface shadow-lg"
+            className="relative w-full max-w-xl overflow-hidden rounded-lg border border-line bg-surface shadow-overlay"
           >
             <input
               ref={inputRef}
