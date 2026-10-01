@@ -31,7 +31,10 @@ export function ActionFilters({
 }) {
   const filtered = filter.productId !== null || filter.area !== null || filter.status !== "active";
   return (
+    // Keyed by the filter: a client navigation (Clear filters, back) re-renders the page in place,
+    // and uncontrolled selects would otherwise keep showing, and re-submit, the old choice.
     <form
+      key={`${filter.productId}|${filter.area}|${filter.status}`}
       method="get"
       action="/actions"
       aria-label="Filter actions"

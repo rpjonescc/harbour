@@ -40,4 +40,13 @@ describe("ActionFilters", () => {
     expect(screen.getByLabelText("Status")).toHaveValue("done");
     expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute("href", "/actions");
   });
+
+  it("shows the new filter after a client navigation (Clear filters, back and forward)", () => {
+    // The page re-renders in place: uncontrolled selects would keep the old choice.
+    const { rerender } = renderFilters({ productId: "acme-shop", area: "GEO", status: "done" });
+    rerender(<ActionFilters filter={DEFAULT} products={PRODUCTS} />);
+    expect(screen.getByLabelText("Product")).toHaveValue("");
+    expect(screen.getByLabelText("Area")).toHaveValue("");
+    expect(screen.getByLabelText("Status")).toHaveValue("active");
+  });
 });
