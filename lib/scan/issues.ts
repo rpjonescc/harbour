@@ -1,7 +1,8 @@
-import { type Facts, RULES } from "./issue-rules";
+import { RULES } from "./issue-rules";
 import { collectorLabel } from "./labels";
+import type { Facts } from "./rule-def";
 import type { CollectorStatus, ScanObservation } from "./types";
-import { crawledPages, crawlSiteFacts, readinessFacts } from "./view-shapes";
+import { crawlPageFacts, crawlSiteFacts, readinessFacts } from "./view-shapes";
 
 export type IssueArea = "SEO" | "GEO" | "AEO";
 export type Impact = "high" | "medium" | "low";
@@ -44,8 +45,10 @@ export function evaluateRules(
   observations: readonly ScanObservation[],
   statuses: Readonly<Record<string, CollectorStatus>>,
 ): RuleOutcome[] {
+  const crawled = crawlPageFacts(observations);
   const facts: Facts = {
-    pages: crawledPages(observations),
+    pages: crawled.pages,
+    unreadablePages: crawled.unreadable,
     site: crawlSiteFacts(observations),
     readiness: readinessFacts(observations),
   };

@@ -309,7 +309,9 @@ product was last scanned and will be next.
   without a title or meta description, broken internal links, pages hidden by noindex, AI
   crawlers blocked in robots.txt, no llms.txt, no FAQ structured data and no Google Preferred
   Sources button. An issue is raised only from collectors that ran ok in that scan: when the
-  crawler or readiness check failed, its issues are unknown rather than fixed. **Hand to Claude** copies a prompt with the product, the affected URLs, the
+  crawler or readiness check failed, its issues are unknown rather than fixed. The same goes for
+  a page check that found nothing on a partial crawl (stopped at its page or byte limit, or some
+  pages could not be fetched or read). **Hand to Claude** copies a prompt with the product, the affected URLs, the
   problem, a suggested fix and an acceptance check, to paste into Claude Code in the site's
   repository; it contains only the product's name and URL and the scan's findings. The
   **Pages** table lists the 50 crawled pages with the most problems.

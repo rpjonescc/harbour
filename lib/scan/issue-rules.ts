@@ -1,69 +1,20 @@
-import { RESEARCH_TOPICS } from "@/lib/agents/topics";
-import type { Effort, Issue } from "./issues";
 import { AI_RETRIEVAL_AGENTS } from "./robots";
-import { isHtmlPage, type PageFacts, type ReadinessFacts, type SiteFacts } from "./view-shapes";
+import {
+  count,
+  crawlGap,
+  htmlPagesWhere,
+  pagesGap,
+  type RuleDef,
+  rule,
+  topicPath,
+} from "./rule-def";
+import type { ReadinessFacts } from "./view-shapes";
 
-/** What the rules judge: one scan's facts, each null (or empty) when it was not observed. */
-export type Facts = {
-  pages: PageFacts[];
-  site: SiteFacts | null;
-  readiness: ReadinessFacts | null;
-};
-
-/** A collector a rule depends on: it must have run ok in the scan for the rule to judge. */
-export type Need = "crawler" | "readiness";
-
-/** One issue rule: what it needs, what fixing it takes, what to read, and how it judges a scan. */
-export type RuleDef = {
-  id: string;
-  needs: readonly Need[];
-  effort: Effort;
-  /** Brain paths of the research topics that explain the fix. */
-  docs: readonly string[];
-  evaluate(facts: Facts): Issue | "clear" | { unknown: string };
-};
-
-type Finding = Omit<Issue, "id" | "effort" | "docs" | "locations" | "total"> & {
-  locations: string[];
-};
-type Check = (facts: Facts) => Finding | "clear" | { unknown: string };
-
-const MAX_LOCATIONS = 20;
-
-/** A research topic's brain path; throws at load so a renamed topic fails the build. */
-function topicPath(id: string): string {
-  const topic = RESEARCH_TOPICS.find((t) => t.id === id);
-  if (!topic) throw new Error(`Unknown research topic: ${id}`);
-  return topic.path;
-}
+export type { RuleDef } from "./rule-def";
 
 const TECHNICAL_SEO = [topicPath("technical-seo-checklist")];
 const AI_CRAWLERS = [topicPath("llms-txt-and-ai-crawlers")];
-
-/** A rule from its metadata and check; a finding with no locations means nothing is wrong. */
-function rule(meta: Omit<RuleDef, "evaluate">, check: Check): RuleDef {
-  return {
-    ...meta,
-    evaluate(facts) {
-      const result = check(facts);
-      if (result === "clear" || "unknown" in result) return result;
-      const { locations, ...fields } = result;
-      if (locations.length === 0) return "clear";
-      return {
-        id: meta.id,
-        ...fields,
-        effort: meta.effort,
-        docs: [...meta.docs],
-        locations: locations.slice(0, MAX_LOCATIONS),
-        total: locations.length,
-      };
-    },
-  };
-}
-
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const atSite = (readiness: ReadinessFacts, path: string) => new URL(path, readiness.url).href;
-const NO_HTML = { unknown: "No HTML pages were crawled" };
 const NO_READINESS = { unknown: "The readiness check recorded no usable result" };
 
 function list(names: string[]): string {
@@ -71,17 +22,15 @@ function list(names: string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
-/** URLs of the crawled HTML pages matching `test`, or unknown when no HTML page was crawled. */
-function htmlPagesWhere(pages: PageFacts[], test: (page: PageFacts) => boolean) {
-  const html = pages.filter(isHtmlPage);
-  if (html.length === 0) return NO_HTML;
-  return html.filter(test).map((p) => p.url);
-}
-
 const missingTitle = rule(
   { id: "missing-title", needs: ["crawler"], effort: "small", docs: TECHNICAL_SEO },
   ({ pages }) => {
-    const urls = htmlPagesWhere(pages, (p) => p.titleLength === 0);
+    const urls = htmlPagesWhere(
+      pages,
+      (p) => p.titleLength !== null,
+      (p) => p.titleLength === 0,
+      "a title",
+    );
     if (!Array.isArray(urls)) return urls;
     return {
       area: "SEO",
@@ -93,12 +42,18 @@ const missingTitle = rule(
       locations: urls,
     };
   },
+  pagesGap,
 );
 
 const missingDescription = rule(
   { id: "missing-description", needs: ["crawler"], effort: "medium", docs: TECHNICAL_SEO },
   ({ pages }) => {
-    const urls = htmlPagesWhere(pages, (p) => p.descriptionLength === 0);
+    const urls = htmlPagesWhere(
+      pages,
+      (p) => p.descriptionLength !== null,
+      (p) => p.descriptionLength === 0,
+      "a meta description",
+    );
     if (!Array.isArray(urls)) return urls;
     return {
       area: "SEO",
@@ -110,6 +65,7 @@ const missingDescription = rule(
       locations: urls,
     };
   },
+  pagesGap,
 );
 
 const brokenLinks = rule(
@@ -135,12 +91,18 @@ const brokenLinks = rule(
       locations,
     };
   },
+  crawlGap,
 );
 
 const noindex = rule(
   { id: "noindex", needs: ["crawler"], effort: "small", docs: TECHNICAL_SEO },
   ({ pages }) => {
-    const urls = htmlPagesWhere(pages, (p) => p.noindex === true);
+    const urls = htmlPagesWhere(
+      pages,
+      (p) => p.noindex !== null,
+      (p) => p.noindex === true,
+      "noindex",
+    );
     if (!Array.isArray(urls)) return urls;
     return {
       area: "SEO",
@@ -153,6 +115,7 @@ const noindex = rule(
       locations: urls,
     };
   },
+  pagesGap,
 );
 
 const aiCrawlersBlocked = rule(
@@ -161,6 +124,8 @@ const aiCrawlersBlocked = rule(
     if (!readiness) return NO_READINESS;
     const access = readiness.robotsTxt.aiCrawlerAccess;
     if (!access) return { unknown: "AI crawler access in robots.txt could not be read" };
+    // "partial" (some paths allowed) is deliberately not blocked: the agent can still read
+    // the site, and which paths to keep out is the owner's choice.
     const blocked = Object.entries(access)
       .filter(([, state]) => state === "blocked")
       .map(([name]) => name);

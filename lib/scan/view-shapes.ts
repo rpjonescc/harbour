@@ -20,9 +20,16 @@ const crawledPage = z.object({
   hasFaqMarkup: z.boolean().nullable(),
 });
 
-const crawlSite = z.object({
-  brokenInternalLinks: z.array(z.object({ from: z.string(), to: z.string(), status: z.number() })),
-});
+const crawlSite = z
+  .object({
+    brokenInternalLinks: z.array(
+      z.object({ from: z.string(), to: z.string(), status: z.number() }),
+    ),
+    limitReached: z.enum(["pages", "bytes"]).nullable(),
+    fetchErrors: z.array(z.unknown()),
+    blockedByRobots: z.number(),
+  })
+  .transform(({ fetchErrors, ...site }) => ({ ...site, fetchErrors: fetchErrors.length }));
 
 const readiness = z.object({
   robotsTxt: z.object({
@@ -45,38 +52,66 @@ const gscMetrics = z.object({
 const gscSummary = z.object({ startDate: z.string(), endDate: z.string() });
 
 export type PageFacts = z.infer<typeof crawledPage> & { url: string };
+/** The crawl's summary; `fetchErrors` is how many URLs produced no response (capped at 50). */
 export type SiteFacts = z.infer<typeof crawlSite>;
 export type ReadinessFacts = z.infer<typeof readiness> & { url: string };
 export type GscMetricsFacts = z.infer<typeof gscMetrics> & { key: string };
 
+type Read<T extends z.ZodType> = { subject: string; value: z.output<T> };
+
 /**
- * Observations of one kind that parse (and, with `urlSubject`, whose subject is a URL); anything
- * malformed is left out (a gap, not a zero).
+ * Observations of one kind that parse (and, with `urlSubject`, whose subject is a URL), and how
+ * many of that kind did not: anything malformed is left out (a gap, not a zero).
  */
+function readCounted<T extends z.ZodType>(
+  observations: readonly ScanObservation[],
+  collector: string,
+  kind: string,
+  shape: T,
+  urlSubject = false,
+): { rows: Read<T>[]; unreadable: number } {
+  const rows: Read<T>[] = [];
+  let unreadable = 0;
+  for (const o of observations) {
+    if (o.collector !== collector || o.kind !== kind) continue;
+    const parsed = shape.safeParse(o.value);
+    if (!parsed.success || (urlSubject && !isHttpUrl(o.subject))) unreadable++;
+    else rows.push({ subject: o.subject, value: parsed.data });
+  }
+  return { rows, unreadable };
+}
+
 function read<T extends z.ZodType>(
   observations: readonly ScanObservation[],
   collector: string,
   kind: string,
   shape: T,
   urlSubject = false,
-): { subject: string; value: z.infer<T> }[] {
-  return observations.flatMap((o) => {
-    if (o.collector !== collector || o.kind !== kind) return [];
-    const parsed = shape.safeParse(o.value);
-    if (!parsed.success || (urlSubject && !isHttpUrl(o.subject))) return [];
-    return [{ subject: o.subject, value: parsed.data }];
-  });
+): Read<T>[] {
+  return readCounted(observations, collector, kind, shape, urlSubject).rows;
 }
 
-/** Crawled pages, once each by final URL (a redirect and its target are one page). */
-export function crawledPages(observations: readonly ScanObservation[]): PageFacts[] {
+/**
+ * Crawled pages, once each by final URL (a redirect and its target are one page), and how many
+ * page records could not be read.
+ */
+export function crawlPageFacts(observations: readonly ScanObservation[]): {
+  pages: PageFacts[];
+  unreadable: number;
+} {
+  const { rows, unreadable } = readCounted(observations, "crawler", "page", crawledPage, true);
   const seen = new Set<string>();
-  return read(observations, "crawler", "page", crawledPage, true).flatMap(({ subject, value }) => {
+  const pages = rows.flatMap(({ subject, value }) => {
     if (seen.has(value.finalUrl)) return [];
     seen.add(value.finalUrl);
     return [{ ...value, url: subject }];
   });
+  return { pages, unreadable };
 }
+
+/** Crawled pages, once each by final URL (a redirect and its target are one page). */
+export const crawledPages = (observations: readonly ScanObservation[]): PageFacts[] =>
+  crawlPageFacts(observations).pages;
 
 /** A 2xx page with HTML facts to judge. */
 export const isHtmlPage = (page: PageFacts) =>
