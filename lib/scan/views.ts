@@ -125,6 +125,7 @@ function activeScan(db: Db, productId: string): ScanState["active"] {
 
 /** Whether a scan is queued or running for the product, and how its last scan ended. */
 export function scanState(db: Db, productId: string): ScanState {
+  const active = activeScan(db, productId);
   const last = db
     .select({
       scanId: scanRuns.id,
@@ -140,14 +141,12 @@ export function scanState(db: Db, productId: string): ScanState {
     )
     .orderBy(desc(scanRuns.id))
     .get();
-  if (!last || last.status === "running") return { active: activeScan(db, productId), last: null };
+  // The query already leaves running scans out; the check narrows `status` for the type.
+  if (!last || last.status === "running") return { active, last: null };
   const failedCollectors = scanCollectorRuns(db, last.scanId)
     .filter((run) => run.status === "failed")
     .map(({ collector, error }) => ({ collector, error }));
-  return {
-    active: activeScan(db, productId),
-    last: { ...last, status: last.status, failedCollectors },
-  };
+  return { active, last: { ...last, status: last.status, failedCollectors } };
 }
 
 /** Every collector run of one scan, in the order they ran. */
