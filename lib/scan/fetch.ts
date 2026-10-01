@@ -157,6 +157,10 @@ export function createSafeFetch(
       const host = start.hostname;
       throw new FetchError("network", `${host} is not a Google API host: only those take a POST`);
     }
+    // The bearer token never travels in clear text; tests serve plain http on loopback.
+    if (options.post && start.protocol !== "https:" && !settings.allowLoopback) {
+      throw new FetchError("network", `A POST to ${start.hostname} must use https`);
+    }
     let current = start;
     let ms = 0;
     const redirects: string[] = [];

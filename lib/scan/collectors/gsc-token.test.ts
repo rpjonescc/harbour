@@ -1,4 +1,5 @@
 import { generateKeyPairSync } from "node:crypto";
+import { getEventListeners } from "node:events";
 import { AUTHORIZED_USER, SERVICE_ACCOUNT } from "@/tests/helpers/gsc";
 import type { GscCredentials } from "./gsc-credentials";
 import { createAccessTokenSource, GSC_SCOPE } from "./gsc-token";
@@ -84,6 +85,19 @@ describe("Search Console access tokens", () => {
     const error = (await run.catch((e: unknown) => e)) as Error;
     expect(error.message).toContain("invalid_client");
     expect(error.message).not.toContain(AUTHORIZED_USER.client_secret);
+  });
+
+  it("retries a failed token request once, then gives up", async () => {
+    const endpoint = tokenEndpoint(503, { error: "backend_error" });
+    const run = createAccessTokenSource(endpoint)(user, signal());
+    await expect(run).rejects.toThrow("Could not get a Search Console access token");
+    expect(endpoint.seen).toHaveLength(2);
+  });
+
+  it("leaves no abort listener on the scan's signal once it has the token", async () => {
+    const controller = new AbortController();
+    await createAccessTokenSource(tokenEndpoint(200, granted))(user, controller.signal);
+    expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
   });
 
   it("gives up when the scan is cancelled", async () => {

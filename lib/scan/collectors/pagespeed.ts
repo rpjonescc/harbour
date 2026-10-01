@@ -1,6 +1,6 @@
 import { FetchError } from "../fetch-error";
 import type { CollectContext, Collector, CollectorResult } from "../types";
-import { readGoogleError } from "./google-api";
+import { readGoogleError, shorten } from "./google-api";
 import { readCoreWebVitals } from "./pagespeed-response";
 
 const ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
@@ -48,7 +48,7 @@ function fetchFailure(error: FetchError): Error {
 
 function httpFailure(status: number, body: string, key: string): Error {
   const google = readGoogleError(body);
-  const message = google?.message.replaceAll(key, "[redacted]");
+  const message = google && shorten(google.message.replaceAll(key, "[redacted]"));
   const detail = message ? `: ${message}` : ".";
   if (status === 429 || google?.quota) {
     const advice =

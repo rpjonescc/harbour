@@ -82,6 +82,19 @@ describe("readGscCredentials", () => {
     expect((error as Error).message).not.toContain(AUTHORIZED_USER.client_secret);
   });
 
+  it("refuses a file too large to be a credential, without reading it", async () => {
+    const huge = JSON.stringify({ ...AUTHORIZED_USER, padding: "x".repeat(64 * 1024) });
+    await expect(readGscCredentials(file(huge))).rejects.toThrow(
+      "The Search Console credentials file is larger than 64 KiB: it is not a Google credentials file.",
+    );
+  });
+
+  it("refuses something that is not a regular file", async () => {
+    await expect(readGscCredentials(dir)).rejects.toThrow(
+      "The Search Console credentials file is not a regular file.",
+    );
+  });
+
   it("refuses other credential types", async () => {
     const run = readGscCredentials(file(JSON.stringify({ type: "external_account" })));
     await expect(run).rejects.toThrow(

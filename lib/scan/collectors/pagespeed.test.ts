@@ -169,6 +169,12 @@ describe("pagespeed collector", () => {
     );
   });
 
+  it("shortens a long Google message", async () => {
+    const body = googleError(500, "e".repeat(1000), "backendError");
+    const run = pagespeed.collect(contextWith(answering(body, 500).fetch));
+    await expect(run).rejects.toThrow(`PageSpeed Insights answered HTTP 500: ${"e".repeat(300)}…`);
+  });
+
   it("fails when Lighthouse could not load the page", async () => {
     const body = variant((json) => {
       const lighthouse = json.lighthouseResult as Record<string, unknown>;

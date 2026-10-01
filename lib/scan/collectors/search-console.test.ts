@@ -241,6 +241,34 @@ describe("search-console collector: failures", () => {
     expect(api.calls).toHaveLength(1);
   });
 
+  it("asks to enable the API when the Cloud project has it switched off", async () => {
+    const disabled = JSON.stringify({
+      error: {
+        code: 403,
+        message:
+          "Google Search Console API has not been used in project 0 before or it is disabled.",
+        errors: [{ reason: "accessNotConfigured" }],
+        details: [{ reason: "SERVICE_DISABLED" }],
+      },
+    });
+    const api = searchConsoleApi(403, disabled);
+    const path = credentialsFile(SERVICE_ACCOUNT);
+    const error = await failure(run({ path, fetch: api.fetch }).result);
+    expect(error.message).toBe(
+      "Search Console API is not enabled (HTTP 403): enable the Google Search Console API in the " +
+        "credential's Google Cloud project. Google said: Google Search Console API has not been " +
+        "used in project 0 before or it is disabled.",
+    );
+  });
+
+  it("shortens a long Google message", async () => {
+    const long = JSON.stringify({ error: { code: 500, message: "e".repeat(1000) } });
+    const api = searchConsoleApi(500, long);
+    const path = credentialsFile(AUTHORIZED_USER);
+    const error = await failure(run({ path, fetch: api.fetch }).result);
+    expect(error.message).toBe(`Search Console answered HTTP 500: ${"e".repeat(300)}…`);
+  });
+
   it("names the OAuth user's account on 401", async () => {
     const api = searchConsoleApi(401, "");
     const error = await failure(

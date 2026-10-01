@@ -12,6 +12,8 @@ export type GscCredentialsFile =
   | { state: "ok"; credentials: GscCredentials; warning: string | null };
 
 const PREFIX = "The Search Console credentials file";
+/** Real key files are a few KiB; refuse anything bigger before reading it. */
+const MAX_BYTES = 64 * 1024;
 
 const serviceAccount = z
   .object({ client_email: z.string().min(1), private_key: z.string().min(1) })
@@ -75,17 +77,24 @@ function parseCredentials(text: string): GscCredentials {
   );
 }
 
+function readFailure(error: unknown): Error {
+  const code = error instanceof Error && "code" in error ? String(error.code) : "unknown error";
+  return new Error(`${PREFIX} could not be read (${code}).`);
+}
+
 /** Reads and validates the credentials file at `path`; "missing" only when it does not exist. */
 export async function readGscCredentials(path: string): Promise<GscCredentialsFile> {
-  let text: string;
-  let mode: number;
-  try {
-    mode = (await stat(path)).mode;
-    text = await readFile(path, "utf8");
-  } catch (error) {
-    if (isNotFound(error)) return { state: "missing" };
-    const code = error instanceof Error && "code" in error ? String(error.code) : "unknown error";
-    throw new Error(`${PREFIX} could not be read (${code}).`);
+  const info = await stat(path).catch((error: unknown) => {
+    if (isNotFound(error)) return null;
+    throw readFailure(error);
+  });
+  if (!info) return { state: "missing" };
+  if (!info.isFile()) throw new Error(`${PREFIX} is not a regular file.`);
+  if (info.size > MAX_BYTES) {
+    throw new Error(`${PREFIX} is larger than 64 KiB: it is not a Google credentials file.`);
   }
-  return { state: "ok", credentials: parseCredentials(text), warning: modeWarning(mode) };
+  const text = await readFile(path, "utf8").catch((error: unknown) => {
+    throw readFailure(error);
+  });
+  return { state: "ok", credentials: parseCredentials(text), warning: modeWarning(info.mode) };
 }

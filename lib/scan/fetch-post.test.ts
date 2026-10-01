@@ -60,6 +60,19 @@ describe("safeFetch POST to Google APIs", () => {
     expect(hits).toEqual([]);
   });
 
+  it("sends the token only over https outside tests", async () => {
+    const { port, hits } = await site({});
+    const fetch = createSafeFetch({
+      allowedHosts: new Set([GOOGLE]),
+      limiter: new HostLimiter({ concurrency: 2, spacingMs: 0 }),
+      resolveHost: async (): Promise<LookupAddress[]> => [{ address: "127.0.0.1", family: 4 }],
+    });
+    const error = await fetchError(fetch(`http://${GOOGLE}:${port}/query`, opts));
+    expect(error.kind).toBe("network");
+    expect(error.message).toBe(`A POST to ${GOOGLE} must use https`);
+    expect(hits).toEqual([]);
+  });
+
   it("never follows a redirect with the token", async () => {
     const { port, hits } = await site({ "/moved": redirect("/elsewhere") });
     const error = await fetchError(testFetch()(`http://${GOOGLE}:${port}/moved`, opts));

@@ -4,7 +4,11 @@ import type { GscCredentials } from "./gsc-credentials";
 /** Read-only access to Search Console data; nothing broader. */
 export const GSC_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 
-/** google-auth-library calls Google's token endpoint itself: bound it like our own requests. */
+/**
+ * google-auth-library calls Google's token endpoint itself: bound it like our own requests.
+ * It opts its token POSTs into gaxios retries (3 by default); `retry: 1` caps that at one
+ * retry (a test counts the requests).
+ */
 const TOKEN_TIMEOUT_MS = 30_000;
 
 /** An access token for `credentials`; rejects when `signal` aborts. */
@@ -47,11 +51,15 @@ function tokenFailure(error: unknown, credentials: GscCredentials): Error {
   return new Error(`Could not get a Search Console access token: ${message.slice(0, 300)}`);
 }
 
-function aborted(signal: AbortSignal): Promise<never> {
-  return new Promise((_, reject) => {
-    signal.throwIfAborted();
-    signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+/** Settles with `request`, or rejects as soon as `signal` aborts; leaves no listener behind. */
+function untilAborted<T>(request: Promise<T>, signal: AbortSignal): Promise<T> {
+  signal.throwIfAborted();
+  let stop = () => {};
+  const aborted = new Promise<never>((_, reject) => {
+    stop = () => reject(signal.reason);
+    signal.addEventListener("abort", stop, { once: true });
   });
+  return Promise.race([request, aborted]).finally(() => signal.removeEventListener("abort", stop));
 }
 
 /** Builds the token source; the worker uses `googleAccessToken`. */
@@ -66,7 +74,7 @@ export function createAccessTokenSource(transport: Transport = {}): AccessTokenS
       .catch((error: unknown) => {
         throw tokenFailure(error, credentials);
       });
-    return Promise.race([request, aborted(signal)]);
+    return untilAborted(request, signal);
   };
 }
 

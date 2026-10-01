@@ -6,6 +6,8 @@ const googleError = z.object({
     code: z.number(),
     message: z.string(),
     errors: z.array(z.object({ reason: z.string() })).optional(),
+    // Newer APIs also say why in ErrorInfo details, e.g. SERVICE_DISABLED.
+    details: z.array(z.object({ reason: z.string().optional() })).optional(),
   }),
 });
 
@@ -16,15 +18,22 @@ const QUOTA_REASONS = new Set([
   "userRateLimitExceeded",
 ]);
 
-/** Google's error message and whether it is about quota, or null if the body isn't one. */
-export function readGoogleError(body: string): { message: string; quota: boolean } | null {
+export type GoogleError = { message: string; quota: boolean; reasons: string[] };
+
+/** Google's error message, its reasons and whether it is about quota; null if not one. */
+export function readGoogleError(body: string): GoogleError | null {
   const parsed = googleError.safeParse(parseJson(body));
   if (!parsed.success) return null;
-  const reasons = parsed.data.error.errors ?? [];
-  return {
-    message: parsed.data.error.message,
-    quota: reasons.some((r) => QUOTA_REASONS.has(r.reason)),
-  };
+  const { message, errors = [], details = [] } = parsed.data.error;
+  const reasons = [...errors, ...details].flatMap((r) => (r.reason ? [r.reason] : []));
+  return { message, quota: reasons.some((r) => QUOTA_REASONS.has(r)), reasons };
+}
+
+const MAX_MESSAGE = 300;
+
+/** A message cut to 300 characters, so a verbose error can't flood job events. */
+export function shorten(message: string): string {
+  return message.length > MAX_MESSAGE ? `${message.slice(0, MAX_MESSAGE)}…` : message;
 }
 
 /** JSON.parse that returns null instead of throwing. */

@@ -1,6 +1,6 @@
 import { FetchError } from "../fetch-error";
 import type { CollectContext, Collector, CollectorResult, Observation } from "../types";
-import { readGoogleError } from "./google-api";
+import { type GoogleError, readGoogleError, shorten } from "./google-api";
 import { type GscCredentials, readGscCredentials } from "./gsc-credentials";
 import {
   GSC_REPORTS,
@@ -35,16 +35,27 @@ function account(credentials: GscCredentials): string {
     : "the Google account that authorised the OAuth client";
 }
 
-function httpFailure(status: number, body: string, property: string, who: string): Error {
-  const google = readGoogleError(body);
-  if (status === 401 || status === 403) {
-    const said = google ? ` Google said: ${google.message}` : "";
+/** The Cloud project behind the credential has the API switched off (not a sharing problem). */
+const DISABLED_REASONS = new Set(["accessNotConfigured", "SERVICE_DISABLED"]);
+
+function accessFailure(status: number, google: GoogleError | null, property: string, who: string) {
+  const said = google ? ` Google said: ${shorten(google.message)}` : "";
+  if (google?.reasons.some((r) => DISABLED_REASONS.has(r))) {
     return new Error(
-      `Search Console refused access to ${property} (HTTP ${status}): check the property is ` +
-        `shared with the credential's account (${who}).${said}`,
+      `Search Console API is not enabled (HTTP ${status}): enable the Google Search Console API ` +
+        `in the credential's Google Cloud project.${said}`,
     );
   }
-  const detail = google ? `: ${google.message}` : ".";
+  return new Error(
+    `Search Console refused access to ${property} (HTTP ${status}): check the property is ` +
+      `shared with the credential's account (${who}).${said}`,
+  );
+}
+
+function httpFailure(status: number, body: string, property: string, who: string): Error {
+  const google = readGoogleError(body);
+  if (status === 401 || status === 403) return accessFailure(status, google, property, who);
+  const detail = google ? `: ${shorten(google.message)}` : ".";
   if (status === 429 || google?.quota) {
     return new Error(
       `Search Console quota exceeded (HTTP ${status})${detail} Wait for tomorrow's scan.`,

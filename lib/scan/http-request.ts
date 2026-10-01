@@ -98,8 +98,9 @@ async function toResponse(url: URL, message: IncomingMessage): Promise<RawRespon
 }
 
 /**
- * One GET (or a POST of `body`) without following redirects. We use node:http rather than fetch because fetch joins
- * repeated headers (e.g. two X-Robots-Tag lines) into one value, losing what each one scoped.
+ * One GET (or a POST of `body`) without following redirects. We use node:http rather than
+ * fetch because fetch joins repeated headers (e.g. two X-Robots-Tag lines) into one value,
+ * losing what each one scoped.
  * `lookup` decides which addresses the socket may connect to.
  */
 export function sendRequest(

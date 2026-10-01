@@ -270,9 +270,10 @@ rate and average position for the last 28 days (ending 3 days ago, because Googl
 plus the top 250 queries and top 100 pages. The worker asks for read-only access and talks only
 to Google.
 
-Harbour reads one credentials file, of either kind:
+Harbour reads one credentials file, of either kind. Use a service account unless you have a
+reason not to: it can only read the properties you share with it.
 
-- **A service account** (simplest for an always-on server). In the
+- **A service account** (recommended). In the
   [Google Cloud console](https://console.cloud.google.com/):
   1. Pick or create a project, and under **APIs & Services → Library** enable the
      **Google Search Console API**.
@@ -289,9 +290,13 @@ Harbour reads one credentials file, of either kind:
      user; then under **Credentials → Create credentials → OAuth client ID** create a
      **Desktop app** client and download its JSON.
   3. Turn it into an authorized-user file with a refresh token, for example with the
-     [gcloud CLI](https://cloud.google.com/sdk/docs/install):
-     `gcloud auth application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/webmasters.readonly`,
-     which writes `application_default_credentials.json` (`"type": "authorized_user"`).
+     [gcloud CLI](https://cloud.google.com/sdk/docs/install), which insists on the
+     `cloud-platform` scope alongside the one Harbour needs:
+     `gcloud auth application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/webmasters.readonly,https://www.googleapis.com/auth/cloud-platform`.
+     It writes `application_default_credentials.json` (`"type": "authorized_user"`). Trade-off:
+     that refresh token can then reach all of Google Cloud as you, not just Search Console
+     (Harbour itself only ever asks for read-only Search Console access), so guard the file
+     closely; this is why the service account is the better choice.
      While the consent screen's publishing status is *Testing*, Google expires the refresh
      token after 7 days; publish the app, or use a service account, for a lasting connection.
 
@@ -309,8 +314,16 @@ Then, on the Harbour machine:
    `"searchConsoleProperty": "sc-domain:example.com"` for a domain property, or
    `"searchConsoleProperty": "https://www.example.com/"` for a URL-prefix property.
 4. Restart the worker (`systemctl --user restart harbour-worker`). The next scan's job events
-   show "Search Console: 28 days, … queries, … pages", or say what is still missing. HTTP 401 or
-   403 means the property is not shared with the credential's account.
+   show, for each product, either `Search Console: 27 days, 250 queries, 100 pages (2026-09-01
+   to 2026-09-28)` followed by `Search Console: 378 observations`, or
+   `Search Console: not connected — …` saying what is still missing, or
+   `Search Console: failed — …` with the reason. "Search Console refused access" (HTTP 401 or
+   403) means the property is not shared with the credential's account; "Search Console API is
+   not enabled" means the Google Cloud project the credential belongs to has not enabled the
+   Google Search Console API.
+
+Never set `GOOGLE_SDK_NODE_LOGGING` for the worker: it makes Google's auth library log its
+requests and responses, access tokens included.
 
 ## Deployment
 
