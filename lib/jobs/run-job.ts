@@ -15,7 +15,7 @@ import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import type { Product } from "@/lib/products/catalog";
 import { gatedPaths, JobFailure, recordTouched } from "./agent-gate";
-import { checkRequiredOutputs, importAgentOutput } from "./agent-output";
+import { checkRequiredOutputs, importAfterCommit, readAgentOutput } from "./agent-output";
 import { brainRootError, finish, recoveryBlock, saveOwnerNotes } from "./git-jobs";
 import { newestOwnerChange } from "./housekeeping";
 import { addEvent, deferJob, type EventKind, isCancelRequested, type Job } from "./queue";
@@ -136,10 +136,11 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     );
   };
   try {
-    const spec = specOrFail(deps, job);
     const blocked = brainRootError(root) ?? recoveryBlock(deps.quarantineRoot);
     if (blocked) throw new JobFailure(blocked);
     if (deferWhileEditing(deps, job)) return { pushed: null };
+    // After the deferral: a waiting job never builds the weekly export, which is dated now.
+    const spec = specOrFail(deps, job);
     const token = checkPreconditions(deps, spec);
     const saved = saveOwnerNotes(root);
     if (saved > 0) event("status", `Saved ${saved} note file(s) before starting`);
@@ -192,21 +193,17 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
 
     const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
     checkRequiredOutputs(spec, paths); // a half-done run is discarded, never committed
-    // Import and commit together: invalid output or a failed commit leaves no rows behind.
+    // Validated before the commit: invalid output is discarded with the run, never imported.
+    const output = readAgentOutput(root, spec, deps.products);
     const message = `agent(${spec.kind}): ${spec.label.replace(/^[^:]+:\s*/, "")}`;
-    const { imported, sha } = db.transaction(
-      () => {
-        const imported = importAgentOutput(db, root, spec, job, deps.products, deps.now());
-        return { imported, sha: commitChanges(root, paths, message) };
-      },
-      { behavior: "immediate" },
-    );
+    const sha = commitChanges(root, paths, message);
     snapshot = undefined; // committed: nothing left to discard
-    removeRunMarker(deps.quarantineRoot, job.id);
+    // Recorded first: a run with a commit and no import is what the import retry looks for.
     setRun({ filesChanged: paths, commitSha: sha });
+    removeRunMarker(deps.quarantineRoot, job.id);
     event("status", `Committed ${paths.length} file(s)`);
 
-    if (imported) event("status", imported);
+    if (output) importAfterCommit(db, output, job, deps.now(), event);
 
     const push = pushBrain(root);
     setRun({ pushed: push.ok });

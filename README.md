@@ -154,7 +154,9 @@ git gate and Claude subscription as the other agents (no paid API calls).
   improved, what got worse, top opportunities, competitors seen and data gaps) and
   `reports/weekly/<week>.proposals.json` (at most 10 suggested actions). Anything else fails the
   run, and a run that skips either file or writes an invalid proposals file is discarded with
-  nothing imported.
+  nothing imported. If importing fails after the files are committed (or the worker stops in
+  between), the worker imports them from that commit automatically, at most 3 attempts in all,
+  and never twice; each failure is listed on the run's activity page.
 - **Where suggestions appear** — on the **Actions** board as **Suggested** (`/actions`), labelled
   as coming from the weekly analyst; accept or reject each one. An action the product already
   has (suggested, open, in progress, snoozed or rejected) is not suggested again.

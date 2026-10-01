@@ -46,6 +46,7 @@ describe("weeklyAnalystPrompt", () => {
     expect(prompt).toContain("do not repeat an action already in the data's `actions` list");
     expect(prompt).toContain("every action cites evidence from the data or a source you fetched");
     expect(prompt).toContain('"productId": "acme-docs"');
+    expect(prompt).toContain('"evidence" has 1 to 10 items');
   });
 
   it("fences the export as data, then the shared rules", () => {

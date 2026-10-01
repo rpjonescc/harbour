@@ -74,6 +74,7 @@ describe("parseWeeklyProposals", () => {
       "more than 10 evidence items",
       file([proposed({ evidence: Array.from({ length: 11 }, () => ({ note: "n" })) })]),
     ],
+    ["an action without evidence", file([proposed({ evidence: [] })])],
     ["a long evidence note", file([proposed({ evidence: [{ note: "n".repeat(301) }] })])],
     [
       "a non-http evidence URL",

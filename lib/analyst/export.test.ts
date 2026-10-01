@@ -6,9 +6,9 @@ import type { Observation } from "@/lib/scan/types";
 import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { seedScan } from "@/tests/helpers/scan-views";
-import { ACME_SCAN, ALL_OK } from "@/tests/helpers/scoring";
+import { ACME_SCAN, ALL_OK, crawlSite, htmlPage } from "@/tests/helpers/scoring";
 import { buildWeeklyExport } from "./export";
-import { scrub } from "./export-product";
+import { scrub } from "./scrub";
 
 const NOW = new Date("2026-10-04T19:00:00Z"); // Sunday 20:00 in London
 const TZ = "Europe/London";
@@ -225,6 +225,20 @@ describe("buildWeeklyExport", () => {
     expect(scrub("token at https://user:secret@example.com/x")).toBe(
       "token at https://***@example.com/x",
     );
+  });
+
+  it("scrubs secrets from issue examples", () => {
+    const db = openTestDb();
+    const page = htmlPage("/p?token=abc123", { titleLength: 0, title: "" });
+    const { collector: _, ...observation } = page;
+    const { collector: __, ...site } = crawlSite({ brokenInternalLinks: [] });
+    seedScan(db, {
+      productId: "acme-docs",
+      at: at("2026-10-03T06:00:00Z"),
+      runs: [{ collector: "crawler", status: "ok", observations: [observation, site] }],
+    });
+    const issue = build(db, [acme]).products[0]?.issues.find((i) => i.id === "missing-title");
+    expect(issue?.examples).toEqual(["https://docs.example.com/p?token=[redacted]"]);
   });
 
   it("lists the owner's active and suggested actions and what was resolved this week", () => {

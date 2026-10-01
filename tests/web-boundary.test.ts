@@ -8,7 +8,7 @@ const FORBIDDEN_FILES = [
   /^lib\/scan\/collectors\//,
   /^lib\/actions\/rule-sync-store\.ts$/,
   /^lib\/analyst\/(export|export-product)\.ts$/,
-  /^lib\/jobs\/agent-output\.ts$/,
+  /^lib\/jobs\/(agent-output|import-retry)\.ts$/,
   /^lib\/scan\/(registry|run-scan|scan-bounds|worker-deps|fetch|http-request|robots-gate)\.ts$/,
 ];
 const FORBIDDEN_PACKAGES = ["google-auth-library", "node:http", "node:https", "node-html-parser"];

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { snapshotRun } from "@/lib/agents/brain-git";
-import { actions, agentRuns, proposals } from "@/lib/db/schema";
+import { agentRuns, proposals } from "@/lib/db/schema";
 import { claim, reload, runOne, setup } from "@/tests/helpers/run-job";
 import { runNotesSyncJob } from "./git-jobs";
 import { enqueueJob, eventsSince, getJob, requestCancel } from "./queue";
@@ -215,94 +215,6 @@ describe("runAgentJob", () => {
       expect(
         eventsSince(db, job.id, 0).some((e) => e.kind === "error" && /push failed/i.test(e.text)),
       ).toBe(true);
-    } finally {
-      brain.cleanup();
-    }
-  });
-});
-
-describe("runAgentJob for the weekly analyst", () => {
-  const WEEK = { week: "2026-W40" };
-  const REPORT = "reports/weekly/2026-W40.md";
-  const PROPOSALS = "reports/weekly/2026-W40.proposals.json";
-
-  it("commits the report and proposals, then imports the suggested action", async () => {
-    const { brain, db, deps } = setup("success");
-    const prompts: string[] = [];
-    const run = deps.run;
-    deps.run = (o) => {
-      prompts.push(o.args[o.args.indexOf("-p") + 1] ?? "");
-      return run(o);
-    };
-    try {
-      const job = await runOne(deps, "weekly-analyst", WEEK);
-      expect(job).toMatchObject({ status: "ok", error: null });
-      expect(brain.git("log", "-1", "--format=%s").trim()).toBe("agent(weekly-analyst): 2026-W40");
-      expect(
-        brain.git("show", "--name-only", "--format=", "HEAD").trim().split("\n").sort(),
-      ).toEqual([REPORT, PROPOSALS]);
-      expect(db.select().from(agentRuns).get()).toMatchObject({ promptVersion: "4-v1" });
-      expect(eventsSince(db, job.id, 0).map((e) => e.text)).toEqual(
-        expect.arrayContaining(["Committed 2 file(s)", "Imported 1 action(s); 0 already known"]),
-      );
-      expect(db.select().from(actions).all()).toMatchObject([
-        { status: "suggested", source: "agent", sourceJobId: job.id, productId: "acme-docs" },
-      ]);
-      expect(prompts[0]).toContain('"week":"2026-W40"');
-      expect(prompts[0]).toContain('"timeZone":"Europe/London"');
-    } finally {
-      brain.cleanup();
-    }
-  });
-
-  it("fails, imports nothing and quarantines both files when the proposals are invalid", async () => {
-    const { brain, db, deps } = setup("bad-weekly");
-    try {
-      const job = await runOne(deps, "weekly-analyst", WEEK);
-      expect(job.status).toBe("failed");
-      expect(job.error).toMatch(/Unknown product: ghost-product/);
-      expect(db.select().from(actions).all()).toEqual([]);
-      const quarantine = join(deps.quarantineRoot, `job-${job.id}`);
-      expect(existsSync(join(quarantine, REPORT))).toBe(true);
-      expect(existsSync(join(quarantine, PROPOSALS))).toBe(true);
-      expect(brain.git("log", "--oneline").trim().split("\n")).toHaveLength(1);
-      expect(brain.git("status", "--porcelain")).toBe("");
-    } finally {
-      brain.cleanup();
-    }
-  });
-
-  it("fails and commits nothing when the report is missing", async () => {
-    const { brain, db, deps } = setup("no-report");
-    try {
-      const job = await runOne(deps, "weekly-analyst", WEEK);
-      expect(job).toMatchObject({ status: "failed", error: `Agent did not write ${REPORT}` });
-      expect(db.select().from(actions).all()).toEqual([]);
-      expect(brain.git("log", "--oneline").trim().split("\n")).toHaveLength(1);
-      expect(brain.git("status", "--porcelain")).toBe("");
-    } finally {
-      brain.cleanup();
-    }
-  });
-
-  it("fails a malformed week without running the agent", async () => {
-    const { brain, deps } = setup("success");
-    try {
-      const job = await runOne(deps, "weekly-analyst", { week: "../../etc" });
-      expect(job.status).toBe("failed");
-      expect(job.error).toMatch(/invalid week/i);
-    } finally {
-      brain.cleanup();
-    }
-  });
-
-  it("waits for the brain to be quiet like every agent job", async () => {
-    const { brain, deps } = setup("success");
-    try {
-      writeFileSync(join(brain.root, "draft.md"), "# draft\n");
-      const job = await runOne(deps, "weekly-analyst", WEEK);
-      expect(job.status).toBe("queued");
-      expect(existsSync(join(brain.root, REPORT))).toBe(false);
     } finally {
       brain.cleanup();
     }

@@ -1,5 +1,4 @@
 import { and, asc, eq, inArray, lte } from "drizzle-orm";
-import { redactCredentials } from "@/lib/agents/brain-git";
 import type { Db } from "@/lib/db/client";
 import { proposals, type ScoreBreakdownEntry, scanRuns, scores } from "@/lib/db/schema";
 import { isoDateIn } from "@/lib/format/date";
@@ -10,21 +9,9 @@ import { searchSummary } from "@/lib/scan/search-summary";
 import type { ScanObservation } from "@/lib/scan/types";
 import { gscRows } from "@/lib/scan/view-shapes";
 import type { ProductExport } from "./export";
+import { scrub } from "./scrub";
 
 const MAX_EXAMPLES = 5;
-const MAX_ERROR = 300;
-
-/**
- * Collector errors are written by Harbour, but some quote a credential's account email or a
- * file path. Neither belongs in a prompt: emails and absolute paths are replaced.
- */
-export function scrub(text: string): string {
-  return redactCredentials(text)
-    .replace(/[^\s"'()<>@:/*]+@[^\s"'()<>@]+\.[a-z]{2,}/gi, "[email]")
-    .replace(/(^|[\s"'(])(~|\/)[^\s"')]*\/[^\s"')]*/g, "$1[path]")
-    .slice(0, MAX_ERROR);
-}
-
 type ScoreRow = {
   scanId: number;
   computedAt: Date;
@@ -150,7 +137,7 @@ export function productExport(
       title: issue.title,
       impact: issue.impact,
       total: issue.total,
-      examples: issue.locations.slice(0, MAX_EXAMPLES).map(redactCredentials),
+      examples: issue.locations.slice(0, MAX_EXAMPLES).map(scrub),
     })),
     collectors: runs.map(({ collector, status, error }) => ({
       collector,

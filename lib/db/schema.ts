@@ -109,6 +109,9 @@ export const agentRuns = sqliteTable("agent_runs", {
   pushed: integer("pushed", { mode: "boolean" }),
   stdoutTail: text("stdout_tail"),
   stderrTail: text("stderr_tail"),
+  // Import of the run's output file: when it happened (null = still due) and attempts so far.
+  importedAt: timestamp("imported_at"),
+  importAttempts: integer("import_attempts").notNull().default(0),
 });
 
 export const agentRunEvents = sqliteTable(

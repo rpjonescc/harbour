@@ -22,6 +22,7 @@ const proposedAction = z
     effort: z.enum(["small", "medium", "large"]),
     evidence: z
       .array(z.object({ url: httpUrl.optional(), note: text(MAX_EVIDENCE_TEXT) }).strict())
+      .min(1, "every action cites at least one piece of evidence")
       .max(MAX_EVIDENCE),
     docs: docsSchema,
   })

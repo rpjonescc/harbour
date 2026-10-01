@@ -28,6 +28,17 @@ export type SpecContext = {
   weeklyExport?: (week: string) => string;
 };
 
+/** Where a job's structured output lives, from its params alone (also used to re-import it). */
+export function outputForJob(kind: AgentKind, params: Record<string, string>): AgentOutput {
+  if (kind === "discovery") {
+    return { kind: "discovery", path: `products/${params.productId ?? ""}/proposals.json` };
+  }
+  if (kind === "weekly-analyst") {
+    return { kind: "weekly", path: weeklyPaths(params.week ?? "").proposals };
+  }
+  return null;
+}
+
 function researchSpec(params: Record<string, string>, context: SpecContext): AgentSpec {
   const topic = RESEARCH_TOPICS.find((t) => t.id === params.topic);
   if (!topic) throw new Error(`Unknown research topic: ${params.topic ?? "(none)"}`);
@@ -49,13 +60,14 @@ function discoverySpec(params: Record<string, string>, context: SpecContext): Ag
   const dir = `products/${product.id}`;
   const proposals = `${dir}/proposals.json`;
   const targets = [`${dir}/discovery.md`, proposals];
+  const output = outputForJob("discovery", { productId: product.id });
   return {
     kind: "discovery",
     label: `Discovery: ${product.name}`,
     prompt: discoveryPrompt(product, context.today),
     allowed: { prefixes: [], exact: [...targets] },
     targets,
-    output: { kind: "discovery", path: proposals },
+    output,
     requiredFiles: [`${dir}/notes.md`],
     requiredOutputs: [proposals],
   };
@@ -77,7 +89,7 @@ function weeklySpec(params: Record<string, string>, context: SpecContext): Agent
     }),
     allowed: { prefixes: [], exact: [...targets] },
     targets,
-    output: { kind: "weekly", path: paths.proposals },
+    output: outputForJob("weekly-analyst", { week }),
     requiredFiles: [],
     requiredOutputs: [...targets],
   };

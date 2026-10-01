@@ -7,6 +7,7 @@ import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
 import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
 import { keepAlive } from "@/lib/jobs/heartbeat";
+import { makeImportRetry } from "@/lib/jobs/import-retry";
 import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
 import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
@@ -44,6 +45,12 @@ async function main() {
     enabled: config.HARBOUR_SCHEDULED_SCANS === "on",
     clock: Date.now,
     productIds: () => getProducts().map((p) => p.id),
+  });
+  const imports = makeImportRetry({
+    db,
+    root,
+    products: getProducts,
+    clock: Date.now,
   });
   scheduler.startup();
   failInterruptedScans(db); // their jobs were just failed by startup()
@@ -95,6 +102,8 @@ async function main() {
   while (!stopping) {
     scheduler.tick(); // between jobs only: never during a run
     logQueued("daily", scans.tick());
+    const reimported = imports.tick(); // committed agent output whose import failed
+    if (reimported > 0) console.log(`re-imported the output of ${reimported} agent run(s)`);
     const job = claimNextJob(db);
     if (!job) {
       await sleep(IDLE_MS);
