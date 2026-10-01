@@ -79,8 +79,11 @@ retries unpushed commits. It queues the weekly analyst itself every Sunday at 20
 5. Once, after the first deploy, queue the whole first run (all research topics, then discovery
    for every product): `pnpm agents:initial-run`. It is safe to repeat; jobs already queued or
    running are not duplicated.
-6. After a deploy that brings the weekly analyst you usually need to do nothing: on start the
-   worker catches up and queues last Sunday's report itself when a product has a scored scan in
+6. The deploy that brings the Actions board: actions are created by scans, so before restarting
+   the services run `pnpm scan:now` (after `pnpm build`). It applies the new migrations and
+   queues a scan of every product ahead of the weekly report's catch-up run, so Today and the
+   board fill in first and the report sees the actions. Then restart as usual. After that deploy
+   you usually need to do nothing for the weekly analyst: on start the worker catches up and queues last Sunday's report itself when a product has a scored scan in
    the last 7 days. Check **Agents → Recent runs** for a "Weekly report" run. Only if there is
    none and the worker log (`journalctl --user -u harbour-worker`) says "weekly analyst skipped",
    fix the cause it names (the Claude token, or no recent scan), then run `pnpm analyst:now`. It
