@@ -162,6 +162,45 @@ describe("runAgentJob", () => {
     }
   });
 
+  it("labels a run the stopping worker killed as cancelled, not failed", async () => {
+    let stopping = false;
+    const { brain, db, deps } = setup("fail");
+    const run = deps.run;
+    // systemd stops the whole group: the agent dies before the worker's own poll notices.
+    deps.run = async (o) => {
+      const outcome = await run(o);
+      stopping = true;
+      return outcome;
+    };
+    deps.stopping = () => stopping;
+    try {
+      const job = await runOne(deps, "research", { topic: "glossary" });
+      expect(job).toMatchObject({
+        status: "cancelled",
+        error: "Cancelled — the worker was stopped",
+      });
+      expect(eventsSince(db, job.id, 0).at(-1)?.text).toBe("Cancelled — the worker was stopped");
+      expect(brain.git("status", "--porcelain")).toBe("");
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("reports whether the agent's commit was pushed", async () => {
+    const { brain, db, deps } = setup("success");
+    try {
+      enqueueJob(db, "research", { topic: "glossary" }, null);
+      expect(await runAgentJob(deps, claim(deps))).toEqual({ pushed: true });
+      brain.git("remote", "set-url", "origin", "/nonexistent/remote.git");
+      enqueueJob(db, "research", { topic: "local-seo" }, null);
+      expect(await runAgentJob(deps, claim(deps))).toEqual({ pushed: false });
+      enqueueJob(db, "research", { topic: "nope" }, null);
+      expect(await runAgentJob(deps, claim(deps))).toEqual({ pushed: null });
+    } finally {
+      brain.cleanup();
+    }
+  });
+
   it("keeps the commit and reports when the push fails", async () => {
     const { brain, db, deps } = setup("success");
     try {

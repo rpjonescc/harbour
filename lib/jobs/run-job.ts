@@ -124,8 +124,13 @@ function readProposals(root: string, spec: AgentSpec, paths: string[]): Proposal
   }
 }
 
-/** Runs one research/discovery job end to end; always finishes the job row. */
-export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
+const STOPPED = "Cancelled — the worker was stopped";
+
+/**
+ * Runs one research/discovery job end to end; always finishes the job row. `pushed` is whether
+ * the agent's commit reached the remote (null when nothing was committed), for the push backoff.
+ */
+export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: boolean | null }> {
   const { db, root } = deps;
   const event = (kind: EventKind, text: string) => addEvent(db, job.id, kind, text, deps.now());
   const setRun = (values: Partial<typeof agentRuns.$inferInsert>) =>
@@ -178,15 +183,19 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
       stdoutTail: outcome.stdoutTail,
       stderrTail: outcome.stderrTail,
     });
-    if (outcome.cancelled) {
+    // A stopping worker's agent may die of the group SIGTERM before the cancel poll sees it;
+    // an agent that finished cleanly is still committed.
+    const succeeded = outcome.exitCode === 0 && !outcome.timedOut && !result?.isError;
+    if (outcome.cancelled || (deps.stopping() && !succeeded)) {
       try {
         discard("Cancelled");
       } catch (discardError) {
         discardFailed(discardError); // the marker stays, so recovery retries
       }
-      event("status", deps.stopping() ? "Cancelled: the worker is stopping" : "Cancelled");
-      finish(db, job.id, "cancelled", null, deps.now());
-      return;
+      const stopped = deps.stopping();
+      event("status", stopped ? STOPPED : "Cancelled");
+      finish(db, job.id, "cancelled", stopped ? STOPPED : null, deps.now());
+      return { pushed: null };
     }
     checkOutcome(deps, outcome, result);
 
@@ -214,6 +223,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
     else
       event("error", `Push failed — commit kept locally, will retry automatically: ${push.error}`);
     finish(db, job.id, "ok", null, deps.now());
+    return { pushed: push.ok };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!(error instanceof JobFailure)) console.error(`job ${job.id} crashed`, error);
@@ -224,5 +234,6 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
     }
     event("error", message);
     finish(db, job.id, "failed", message, deps.now());
+    return { pushed: null };
   }
 }

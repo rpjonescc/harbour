@@ -53,7 +53,7 @@ export function BrainSyncBanner({
             {plural(unsaved, "note file", "note files")}{" "}
             {paused
               ? "not saved yet — autosave resumes once recovery finishes"
-              : "will be saved automatically in about 2 minutes"}
+              : "will be saved automatically when the brain is quiet (before the next agent run at the latest)"}
           </span>
           {!paused && (
             <Button variant="ghost" onClick={saveNow} disabled={busy}>
