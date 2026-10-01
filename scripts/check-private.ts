@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { findPrivateData, type PrivateFinding, parseTerms } from "./checks/private-data";
+import { readStagedFiles } from "./checks/staged-files";
 
 const TERMS_FILE = ".private-terms";
 
@@ -18,12 +19,12 @@ function hasRef(ref: string): boolean {
 }
 
 function scanFiles(terms: string[]): PrivateFinding[] {
-  return git(["ls-files", "--cached", "--others", "--exclude-standard"])
+  const worktreeFiles = git(["ls-files", "--cached", "--others", "--exclude-standard"])
     .split("\n")
     .filter((path) => path.length > 0 && existsSync(path) && statSync(path).isFile())
     .map((path) => ({ path, content: readFileSync(path, "utf8") }))
-    .filter((file) => !file.content.includes("\0"))
-    .flatMap((file) => findPrivateData(file, terms));
+    .filter((file) => !file.content.includes("\0"));
+  return [...readStagedFiles(), ...worktreeFiles].flatMap((file) => findPrivateData(file, terms));
 }
 
 function scanUnpushedCommits(terms: string[]): PrivateFinding[] {

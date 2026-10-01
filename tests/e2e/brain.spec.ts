@@ -70,6 +70,18 @@ test("path traversal and non-markdown paths are not found", async ({ page }) => 
   }
 });
 
+test("encoded document names open the intended file", async ({ page }) => {
+  for (const [url, title] of [
+    ["/brain/percent%2520.md", "Literal percent twenty"],
+    ["/brain/percent%252F.md", "Literal percent slash"],
+    ["/brain/space%20name.md", "Space name"],
+    ["/brain/caf%C3%A9.md", "Café"],
+  ] as const) {
+    await page.goto(url);
+    await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+  }
+});
+
 test("sidebar links to the Second Brain", async ({ page }) => {
   await page.goto("/");
   await page

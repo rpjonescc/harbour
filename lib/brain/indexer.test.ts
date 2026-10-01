@@ -63,4 +63,19 @@ describe("reindexAll", () => {
       brain.cleanup();
     }
   });
+
+  it("keeps the existing index when the bounded tree is truncated", () => {
+    const brain = makeBrain({ "a.md": "# A", "b.md": "# B" });
+    const db = openTestDb();
+    try {
+      reindexAll(db, brain.root);
+      writeFileSync(join(brain.root, "0.txt"), "x");
+      writeFileSync(join(brain.root, "1.txt"), "x");
+      writeFileSync(join(brain.root, "2.txt"), "x");
+      expect(() => reindexAll(db, brain.root, 2)).toThrow("Brain tree truncated");
+      expect(db.select().from(brainDocs).all()).toHaveLength(2);
+    } finally {
+      brain.cleanup();
+    }
+  });
 });

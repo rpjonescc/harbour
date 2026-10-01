@@ -1,3 +1,9 @@
+import type { Text } from "mdast";
+import remarkGfm from "remark-gfm";
+import remarkParse from "remark-parse";
+import { unified } from "unified";
+import { visit } from "unist-util-visit";
+
 /** `[[target]]` or `[[target|label]]`. Create a new RegExp from `.source` before stateful use. */
 export const WIKI_LINK = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/g;
 
@@ -34,11 +40,18 @@ export function resolveWikiLink(
   return path ? { path, alternatives } : null;
 }
 
-/** Raw link targets in a body, in order. */
+const wikiParser = unified().use(remarkParse).use(remarkGfm);
+
+/** Raw link targets in Markdown text nodes, excluding code examples. */
 export function extractWikiTargets(body: string): string[] {
-  return [...body.matchAll(new RegExp(WIKI_LINK.source, "g"))]
-    .map((match) => match[1]?.trim() ?? "")
-    .filter((target) => target.length > 0);
+  const targets: string[] = [];
+  visit(wikiParser.parse(body), "text", (node: Text) => {
+    for (const match of node.value.matchAll(new RegExp(WIKI_LINK.source, "g"))) {
+      const target = match[1]?.trim();
+      if (target) targets.push(target);
+    }
+  });
+  return targets;
 }
 
 /** URL of a document in the viewer. */

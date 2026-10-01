@@ -20,7 +20,7 @@ The secure shell, design system, and Second Brain viewer are built. The roadmap 
   and which device you are using, or remove a lost one. Reused device names get a number.
 - **Second Brain** — read Markdown notes with a document tree, frontmatter, links and backlinks.
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
-  a living reference at `/design`.
+  a living reference and Second Brain examples at `/design`.
 - **Accessible by default** — keyboard paths, visible focus, accessible names, rem-based type.
 
 ## Second Brain

@@ -6,7 +6,7 @@ import type { Db } from "@/lib/db/client";
 import { brainDocs, brainLinks } from "@/lib/db/schema";
 import { titleFor } from "./docs";
 import { splitFrontmatter } from "./frontmatter";
-import { filePaths, listTree } from "./tree";
+import { filePaths, listTree, TREE_LIMIT } from "./tree";
 import { buildLinkIndex, extractWikiTargets, type LinkIndex, resolveWikiLink } from "./wikilinks";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -28,8 +28,14 @@ function replaceLinks(tx: Tx, path: string, body: string, linkIndex: LinkIndex) 
  * Unchanged files (same content hash) are skipped, except that links are re-resolved
  * for every document when files were added or removed.
  */
-export function reindexAll(db: Db, root: string): { indexed: number; removed: number } {
-  const paths = filePaths(listTree(root).nodes);
+export function reindexAll(
+  db: Db,
+  root: string,
+  limit = TREE_LIMIT,
+): { indexed: number; removed: number } {
+  const tree = listTree(root, limit);
+  if (tree.truncated) throw new Error("Brain tree truncated; index unchanged");
+  const paths = filePaths(tree.nodes);
   const present = new Set(paths);
   const linkIndex = buildLinkIndex(paths);
   const existing = new Map(

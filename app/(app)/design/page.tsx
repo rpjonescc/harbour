@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { BrainExamples } from "@/components/design/BrainExamples";
 import { TokenSwatches } from "@/components/design/TokenSwatches";
 import { Button } from "@/components/ui/Button";
 import { Delta } from "@/components/ui/Delta";
@@ -59,6 +60,9 @@ export default async function DesignPage() {
           </span>
           <Sparkline values={[10, 14, 12, 18, 21, 25]} label="Example rising trend" />
         </div>
+      </Section>
+      <Section title="Second Brain examples">
+        <BrainExamples />
       </Section>
     </div>
   );

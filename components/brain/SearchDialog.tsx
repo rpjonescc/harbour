@@ -33,6 +33,11 @@ export function SearchDialog() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !hits[active]) return;
+    document.getElementById(`${listId}-${active}`)?.scrollIntoView?.({ block: "nearest" });
+  }, [open, hits, active, listId]);
+
   function close() {
     setOpen(false);
     setQuery("");

@@ -166,3 +166,11 @@ test("devices page marks this device", async ({ page }) => {
   await expect(page.getByText("E2E browser")).toBeVisible();
   await expect(page.getByText("This device")).toBeVisible();
 });
+
+test("design page includes Second Brain component examples", async ({ page }) => {
+  await page.goto("/design");
+  await expect(page.getByRole("heading", { name: "Second Brain examples" })).toBeVisible();
+  await expect(page.getByText("Stale — review was due 2026-02-01")).toBeVisible();
+  await expect(page.getByText(/Frontmatter invalid/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Search/ })).toBeVisible();
+});

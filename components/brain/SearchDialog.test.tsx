@@ -68,6 +68,34 @@ describe("SearchDialog", () => {
     expect(push).toHaveBeenCalledWith("/brain/research/other.md");
   });
 
+  it("scrolls the active result into view during keyboard navigation", async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    stubFetch(
+      Response.json({
+        hits: Array.from({ length: 10 }, (_, i) => ({
+          ...hit,
+          path: `research/result-${i}.md`,
+          title: `Result ${i}`,
+        })),
+      }),
+    );
+    render(<SearchDialog />);
+    fireEvent.click(screen.getByRole("button", { name: /Search/ }));
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "result" } });
+    await screen.findByRole("option", { name: /Result 9/ });
+    scroll.mockClear();
+    for (let i = 0; i < 9; i += 1) fireEvent.keyDown(input, { key: "ArrowDown" });
+    await waitFor(() =>
+      expect(screen.getByRole("option", { name: /Result 9/ })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      ),
+    );
+    expect(scroll).toHaveBeenCalledWith({ block: "nearest" });
+  });
+
   it("closes when the backdrop is clicked", () => {
     stubFetch(Response.json({ hits: [] }));
     render(<SearchDialog />);

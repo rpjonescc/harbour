@@ -12,20 +12,24 @@ export type BrainStatus =
   | { available: true; root: string; watchError: string | null }
   | { available: false; root: string; reason: "missing" | "not-directory" | "unreadable" };
 
-type Runtime = { watcher: FSWatcher | null; error: string | null; reindex: () => boolean };
+export type Runtime = { watcher: FSWatcher | null; error: string | null; reindex: () => boolean };
 
 const WATCH_DEBOUNCE_MS = 1000;
 let runtime: Runtime | undefined;
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-function start(root: string): Runtime {
-  const db = getDb();
-  reindexAll(db, root); // synchronous first pass so the first page has data
+/** Starts the index and watcher, retaining an error so the viewer can offer recovery. */
+export function createBrainRuntime(root: string, index: () => void): Runtime {
   const state: Runtime = { watcher: null, error: null, reindex: () => false };
+  try {
+    index(); // synchronous first pass so the first page has data
+  } catch (error) {
+    state.error = `Reindex failed: ${message(error)}`;
+  }
   const runner = createSingleFlight(
     () => {
-      reindexAll(db, root);
+      index();
     },
     (error) => {
       state.error = `Reindex failed: ${message(error)}`;
@@ -46,6 +50,11 @@ function start(root: string): Runtime {
     state.error = `File watcher unavailable: ${message(error)}`;
   }
   return state;
+}
+
+function start(root: string): Runtime {
+  const db = getDb();
+  return createBrainRuntime(root, () => reindexAll(db, root));
 }
 
 /** Brain availability; indexes and starts watching on first successful call. */

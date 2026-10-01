@@ -44,4 +44,32 @@ describe("listTree", () => {
       brain.cleanup();
     }
   });
+
+  it("bounds directory-heavy trees even when they contain no Markdown", () => {
+    const brain = makeBrain({
+      "a/one.txt": "",
+      "b/two.txt": "",
+      "c/three.txt": "",
+      "d/four.txt": "",
+    });
+    try {
+      const result = listTree(brain.root, 5000, 3);
+      expect(result.nodes).toEqual([]);
+      expect(result.truncated).toBe(true);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("bounds nesting depth", () => {
+    const nested = `${Array.from({ length: 70 }, (_, i) => `d${i}`).join("/")}/note.md`;
+    const brain = makeBrain({ [nested]: "# Deep" });
+    try {
+      const result = listTree(brain.root);
+      expect(result.truncated).toBe(true);
+      expect(filePaths(result.nodes)).toEqual([]);
+    } finally {
+      brain.cleanup();
+    }
+  });
 });

@@ -37,6 +37,12 @@ describe("extractWikiTargets", () => {
       "geo/x",
     ]);
   });
+
+  it("ignores wiki examples in fenced and inline code", () => {
+    expect(extractWikiTargets("`[[inline]]`\n\n```md\n[[fenced]]\n```\n\nSee [[real]].")).toEqual([
+      "real",
+    ]);
+  });
 });
 
 describe("brainHref", () => {
