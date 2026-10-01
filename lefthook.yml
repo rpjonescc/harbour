@@ -10,10 +10,12 @@ pre-commit:
     private:
       run: pnpm check:private --require-terms
 pre-push:
-  commands:
-    private:
-      run: pnpm check:private --commits
+  # Scripts (in .lefthook/pre-push/) rather than commands: lefthook skips pre-push commands
+  # when the pushed tree matches the remote, which would let add-then-remove leaks through.
+  scripts:
+    "private.sh":
+      runner: sh
       # git passes the refs being pushed on stdin; the scan derives its commit ranges from them.
       use_stdin: true
-    check:
-      run: pnpm check
+    "check.sh":
+      runner: sh

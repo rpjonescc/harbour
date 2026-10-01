@@ -175,10 +175,14 @@ pnpm test:e2e    # production build + Playwright, light and dark
 `pnpm check:private` scans staged and working files for secrets (API keys, tokens, private
 keys), real tailnet hostnames and home-directory paths, plus any words you list in a
 gitignored `.private-terms` file (copy `.private-terms.example`). It runs on every commit,
-and on every push it also scans the full content of the commits being pushed — author,
-message and every added line, so a value added and later removed is still caught. The
-hooks require `.private-terms`; set `HARBOUR_ALLOW_NO_PRIVATE_TERMS=1` to skip that
-deliberately. A plain `pnpm check:private` only warns when the file is missing.
+and on every push — including pushes that change no files, and pushes of a branch you do not
+have checked out — it also scans the full content of the commits being pushed: author,
+message and every added line, so a value added and later removed is still caught. The push
+checks run as lefthook scripts in `.lefthook/pre-push/` because lefthook skips pre-push
+commands when no files differ; `scripts/test-pre-push.sh` proves this against a scratch
+clone (it runs as part of `pnpm test`). The hooks require `.private-terms`; set
+`HARBOUR_ALLOW_NO_PRIVATE_TERMS=1` to skip that deliberately. A plain `pnpm check:private`
+only warns when the file is missing.
 
 Before the first e2e run, install the browser once: `pnpm exec playwright install chromium`.
 
