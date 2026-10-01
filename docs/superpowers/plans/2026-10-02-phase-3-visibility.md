@@ -14,7 +14,7 @@
 
 - Public repo: fictional data only in code/tests/docs (`example.com`, "Acme Docs"). Real properties live only in the gitignored `harbour.config.json`.
 - Web never runs collectors; it enqueues `scan` jobs. Worker code must not import `server-only` modules.
-- Outbound HTTP: only to configured product origins (and, for PageSpeed/Search Console, Google's API hosts). Per request: 15 s timeout, max 3 redirects (same registrable domain only for crawling), response body cap 2 MiB (HTML) / 512 KiB (robots, llms.txt, sitemaps up to 5 MiB), identify as `HarbourBot/0.1 (+https://github.com/rpjonescc/harbour)`, honour robots.txt `Disallow` for `HarbourBot` and `*`, concurrency 2 per site, ≥ 500 ms between requests to the same host.
+- Outbound HTTP: only to configured product origins (and, for PageSpeed/Search Console, Google's API hosts). Per request: 15 s timeout (deliberate exception: PageSpeed Insights calls use a 90 s per-call `timeoutMs`, because the API runs Lighthouse for 15–40 s before answering; only Google API calls may override it), max 3 redirects (same registrable domain only for crawling), response body cap 2 MiB (HTML) / 512 KiB (robots, llms.txt, sitemaps up to 5 MiB), identify as `HarbourBot/0.1 (+https://github.com/rpjonescc/harbour)`, honour robots.txt `Disallow` for `HarbourBot` and `*`, concurrency 2 per site, ≥ 500 ms between requests to the same host.
 - Crawl cap 200 pages per product per scan (configurable `HARBOUR_CRAWL_MAX_PAGES`, 1–500).
 - Missing data is a gap, never a zero: a collector that fails or isn't configured produces no score input, and the affected score is marked `incomplete` with the reason.
 - Scoring is pure and versioned (`formulaVersion: "v1"`); stored score rows never change after insert.
@@ -104,6 +104,8 @@ Readiness (`site`-level observations, kind `readiness`): robots.txt present/vali
 PageSpeed (weekly): PSI API v5 `runPagespeed?url=<product url>&strategy=mobile&category=performance` (optional `HARBOUR_PAGESPEED_API_KEY`), observation `cwv`: `{ performanceScore, lcpMs, inpMs (field) | null, cls, fcpMs, tbtMs, fieldDataAvailable }`. Quota/429 → failed with readable error.
 
 Tests: fixture site + recorded PSI JSON fixture (no live calls).
+
+**As built — PageSpeed** (`lib/scan/collectors/pagespeed.ts`, cadence `weekly`; runScan skips it while its last ok run is under 7 days old, less 12 h of slack): `GET https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=<product url>&strategy=mobile&category=performance[&key=…]` with `ignoreRobots`, a 90 s `timeoutMs` and a 10 MiB cap; the response is validated with zod (`pagespeed-response.ts`). One `cwv` observation (subject: normalised product URL): `performanceScore` (Lighthouse 0–100, `null` if none), lab `lcpMs`, `cls`, `fcpMs`, `tbtMs` (`null` when an audit is missing), field `inpMs` (CrUX p75 for the URL or its origin, `null` without field data) and `fieldDataAvailable`. HTTP 429 or a Google quota reason → failed with "PageSpeed Insights quota exceeded …"; other non-2xx → failed with Google's message; a Lighthouse `runtimeError` → failed. The request URL (with the key) never appears in observations or errors, and the key is redacted from Google's messages.
 
 ### Task 5: Search Console collector
 

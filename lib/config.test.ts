@@ -140,3 +140,13 @@ describe("crawl settings", () => {
     );
   });
 });
+
+describe("PageSpeed settings", () => {
+  it("runs without an API key by default and accepts one", () => {
+    expect(parseConfig(base).HARBOUR_PAGESPEED_API_KEY).toBeUndefined();
+    const key = "test-pagespeed-key";
+    expect(parseConfig({ ...base, HARBOUR_PAGESPEED_API_KEY: key }).HARBOUR_PAGESPEED_API_KEY).toBe(
+      key,
+    );
+  });
+});

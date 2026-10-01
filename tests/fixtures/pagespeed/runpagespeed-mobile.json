@@ -1,0 +1,361 @@
+{
+  "captchaResult": "CAPTCHA_NOT_NEEDED",
+  "kind": "pagespeedonline#result",
+  "id": "https://docs.example.com/",
+  "loadingExperience": {
+    "id": "https://docs.example.com/",
+    "metrics": {
+      "CUMULATIVE_LAYOUT_SHIFT_SCORE": {
+        "percentile": 4,
+        "distributions": [
+          {
+            "min": 0,
+            "max": 10,
+            "proportion": 0.81
+          },
+          {
+            "min": 10,
+            "max": 25,
+            "proportion": 0.12
+          },
+          {
+            "min": 25,
+            "proportion": 0.07
+          }
+        ],
+        "category": "FAST"
+      },
+      "EXPERIMENTAL_TIME_TO_FIRST_BYTE": {
+        "percentile": 640,
+        "distributions": [
+          {
+            "min": 0,
+            "max": 800,
+            "proportion": 0.81
+          },
+          {
+            "min": 800,
+            "max": 1800,
+            "proportion": 0.12
+          },
+          {
+            "min": 1800,
+            "proportion": 0.07
+          }
+        ],
+        "category": "FAST"
+      },
+      "FIRST_CONTENTFUL_PAINT_MS": {
+        "percentile": 1490,
+        "distributions": [
+          {
+            "min": 0,
+            "max": 1800,
+            "proportion": 0.81
+          },
+          {
+            "min": 1800,
+            "max": 3000,
+            "proportion": 0.12
+          },
+          {
+            "min": 3000,
+            "proportion": 0.07
+          }
+        ],
+        "category": "FAST"
+      },
+      "INTERACTION_TO_NEXT_PAINT": {
+        "percentile": 142,
+        "distributions": [
+          {
+            "min": 0,
+            "max": 200,
+            "proportion": 0.81
+          },
+          {
+            "min": 200,
+            "max": 500,
+            "proportion": 0.12
+          },
+          {
+            "min": 500,
+            "proportion": 0.07
+          }
+        ],
+        "category": "FAST"
+      },
+      "LARGEST_CONTENTFUL_PAINT_MS": {
+        "percentile": 2104,
+        "distributions": [
+          {
+            "min": 0,
+            "max": 2500,
+            "proportion": 0.81
+          },
+          {
+            "min": 2500,
+            "max": 4000,
+            "proportion": 0.12
+          },
+          {
+            "min": 4000,
+            "proportion": 0.07
+          }
+        ],
+        "category": "FAST"
+      }
+    },
+    "overall_category": "FAST",
+    "initial_url": "https://docs.example.com/"
+  },
+  "originLoadingExperience": {
+    "id": "https://docs.example.com",
+    "metrics": {
+      "CUMULATIVE_LAYOUT_SHIFT_SCORE": {
+        "percentile": 4,
+        "distributions": [
+          {
+            "min": 0,
+            "max": 10,
+            "proportion": 0.81
+          },
+          {
+            "min": 10,
+            "max": 25,
+            "proportion": 0.12
+          },
+          {
+            "min": 25,
+            "proportion": 0.07
+          }
+        ],
+        "category": "FAST"
+      },
+      "EXPERIMENTAL_TIME_TO_FIRST_BYTE": {
+        "percentile": 640,
+        "distributions": [
+          {
+            "min": 0,
+            "max": 800,
+            "proportion": 0.81
+          },
+          {
+            "min": 800,
+            "max": 1800,
+            "proportion": 0.12
+          },
+          {
+            "min": 1800,
+            "proportion": 0.07
+          }
+        ],
+        "category": "FAST"
+      },
+      "FIRST_CONTENTFUL_PAINT_MS": {
+        "percentile": 1490,
+        "distributions": [
+          {
+            "min": 0,
+            "max": 1800,
+            "proportion": 0.81
+          },
+          {
+            "min": 1800,
+            "max": 3000,
+            "proportion": 0.12
+          },
+          {
+            "min": 3000,
+            "proportion": 0.07
+          }
+        ],
+        "category": "FAST"
+      },
+      "INTERACTION_TO_NEXT_PAINT": {
+        "percentile": 142,
+        "distributions": [
+          {
+            "min": 0,
+            "max": 200,
+            "proportion": 0.81
+          },
+          {
+            "min": 200,
+            "max": 500,
+            "proportion": 0.12
+          },
+          {
+            "min": 500,
+            "proportion": 0.07
+          }
+        ],
+        "category": "FAST"
+      },
+      "LARGEST_CONTENTFUL_PAINT_MS": {
+        "percentile": 2104,
+        "distributions": [
+          {
+            "min": 0,
+            "max": 2500,
+            "proportion": 0.81
+          },
+          {
+            "min": 2500,
+            "max": 4000,
+            "proportion": 0.12
+          },
+          {
+            "min": 4000,
+            "proportion": 0.07
+          }
+        ],
+        "category": "FAST"
+      }
+    },
+    "overall_category": "FAST",
+    "initial_url": "https://docs.example.com/"
+  },
+  "lighthouseResult": {
+    "requestedUrl": "https://docs.example.com/",
+    "finalUrl": "https://docs.example.com/",
+    "mainDocumentUrl": "https://docs.example.com/",
+    "finalDisplayedUrl": "https://docs.example.com/",
+    "lighthouseVersion": "12.8.2",
+    "userAgent": "Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36 Chrome-Lighthouse",
+    "fetchTime": "2026-09-28T06:01:02.417Z",
+    "environment": {
+      "networkUserAgent": "Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36 Chrome-Lighthouse",
+      "hostUserAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36",
+      "benchmarkIndex": 1987,
+      "credits": {
+        "axe-core": "4.10.3"
+      }
+    },
+    "runWarnings": [],
+    "configSettings": {
+      "emulatedFormFactor": "mobile",
+      "formFactor": "mobile",
+      "locale": "en-US",
+      "onlyCategories": ["performance"],
+      "channel": "lr"
+    },
+    "audits": {
+      "first-contentful-paint": {
+        "id": "first-contentful-paint",
+        "title": "First Contentful Paint",
+        "description": "First Contentful Paint. [Learn more](https://developer.chrome.com/docs/lighthouse/).",
+        "score": 0.82,
+        "scoreDisplayMode": "numeric",
+        "displayValue": "1.8 s",
+        "numericValue": 1834.512,
+        "numericUnit": "millisecond"
+      },
+      "largest-contentful-paint": {
+        "id": "largest-contentful-paint",
+        "title": "Largest Contentful Paint",
+        "description": "Largest Contentful Paint. [Learn more](https://developer.chrome.com/docs/lighthouse/).",
+        "score": 0.79,
+        "scoreDisplayMode": "numeric",
+        "displayValue": "3.0 s",
+        "numericValue": 2950.236,
+        "numericUnit": "millisecond"
+      },
+      "total-blocking-time": {
+        "id": "total-blocking-time",
+        "title": "Total Blocking Time",
+        "description": "Total Blocking Time. [Learn more](https://developer.chrome.com/docs/lighthouse/).",
+        "score": 0.91,
+        "scoreDisplayMode": "numeric",
+        "displayValue": "180 ms",
+        "numericValue": 180.5,
+        "numericUnit": "millisecond"
+      },
+      "cumulative-layout-shift": {
+        "id": "cumulative-layout-shift",
+        "title": "Cumulative Layout Shift",
+        "description": "Cumulative Layout Shift. [Learn more](https://developer.chrome.com/docs/lighthouse/).",
+        "score": 0.99,
+        "scoreDisplayMode": "numeric",
+        "displayValue": "0.042",
+        "numericValue": 0.0421,
+        "numericUnit": "unitless"
+      },
+      "speed-index": {
+        "id": "speed-index",
+        "title": "Speed Index",
+        "description": "Speed Index. [Learn more](https://developer.chrome.com/docs/lighthouse/).",
+        "score": 0.88,
+        "scoreDisplayMode": "numeric",
+        "displayValue": "3.0 s",
+        "numericValue": 3012.7,
+        "numericUnit": "millisecond"
+      },
+      "interactive": {
+        "id": "interactive",
+        "title": "Time to Interactive",
+        "description": "Time to Interactive. [Learn more](https://developer.chrome.com/docs/lighthouse/).",
+        "score": 0.86,
+        "scoreDisplayMode": "numeric",
+        "displayValue": "4.1 s",
+        "numericValue": 4120.9,
+        "numericUnit": "millisecond"
+      }
+    },
+    "categories": {
+      "performance": {
+        "id": "performance",
+        "title": "Performance",
+        "score": 0.87,
+        "auditRefs": [
+          {
+            "id": "first-contentful-paint",
+            "weight": 10,
+            "group": "metrics",
+            "acronym": "FCP"
+          },
+          {
+            "id": "largest-contentful-paint",
+            "weight": 25,
+            "group": "metrics",
+            "acronym": "LCP"
+          },
+          {
+            "id": "total-blocking-time",
+            "weight": 30,
+            "group": "metrics",
+            "acronym": "TBT"
+          },
+          {
+            "id": "cumulative-layout-shift",
+            "weight": 25,
+            "group": "metrics",
+            "acronym": "CLS"
+          },
+          {
+            "id": "speed-index",
+            "weight": 10,
+            "group": "metrics",
+            "acronym": "SI"
+          }
+        ]
+      }
+    },
+    "categoryGroups": {
+      "metrics": {
+        "title": "Metrics"
+      }
+    },
+    "timing": {
+      "total": 14211.7
+    },
+    "i18n": {
+      "rendererFormattedStrings": {}
+    }
+  },
+  "analysisUTCTimestamp": "2026-09-28T06:01:02.417Z",
+  "version": {
+    "major": 1,
+    "minor": 15
+  }
+}
