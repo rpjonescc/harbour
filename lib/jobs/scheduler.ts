@@ -37,9 +37,9 @@ export function makeScheduler(deps: SchedulerDeps) {
   let notesRetryAt = 0;
   let nextRecoveryAt = 0;
 
-  const jobEvent = (jobId: string, text: string) => {
+  const jobEvent = (jobId: string, text: string, kind: "status" | "error" = "status") => {
     try {
-      addEvent(db, Number(jobId), "status", text);
+      addEvent(db, Number(jobId), kind, text);
     } catch {
       // the job row may be gone (database reset); the log line below still records it
     }
@@ -53,7 +53,14 @@ export function makeScheduler(deps: SchedulerDeps) {
       console.log(`job ${r.jobId}: ${text}`);
       jobEvent(r.jobId, text);
     }
-    for (const f of result.failed) console.error(`job ${f.jobId}: recovery failed: ${f.error}`);
+    for (const c of result.corrupt) {
+      console.error(`job ${c.jobId}: ${c.error}; moved to ${c.movedTo}`);
+      jobEvent(c.jobId, `Recovery record was unreadable and was set aside (${c.movedTo})`, "error");
+    }
+    for (const f of result.failed) {
+      console.error(`job ${f.jobId}: recovery failed: ${f.error}`);
+      jobEvent(f.jobId, `Recovery failed — retrying in 10 minutes: ${f.error}`, "error");
+    }
     nextRecoveryAt = result.failed.length > 0 ? now + RETRY_MS : 0;
   };
 
@@ -73,7 +80,7 @@ export function makeScheduler(deps: SchedulerDeps) {
       for (const id of orphaned) {
         if (pending.has(String(id))) jobEvent(String(id), "Worker restarted: recovering this run");
       }
-      if (pending.size > 0) recoverNow();
+      recoverNow(); // also clears a stale recovery error when nothing is pending
     },
     tick() {
       const now = clock();
@@ -95,6 +102,7 @@ export function makeScheduler(deps: SchedulerDeps) {
     notesSynced(outcome: { committed: boolean; pushed: boolean }) {
       notesRetryAt = outcome.committed ? 0 : clock() + RETRY_MS;
       if (outcome.pushed) pushed(true);
+      else if (outcome.committed) pushed(false); // the push was attempted and failed
     },
   };
 }

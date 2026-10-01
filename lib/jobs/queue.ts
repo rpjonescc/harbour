@@ -136,11 +136,14 @@ export function recoverStaleJobs(db: Db, now = new Date(), staleMs = STALE_MS): 
  * heartbeat says. Returns their ids so their partial changes can be recovered.
  */
 export function recoverRunningJobs(db: Db, now = new Date()): number[] {
-  return failRunning(
+  const agentKinds: JobKind[] = ["research", "discovery"];
+  const agent = failRunning(
     db,
     now,
-    "Worker stopped during run — partial changes are moved to quarantine automatically",
+    "Worker stopped during run — partial changes moved to quarantine",
+    inArray(jobs.kind, agentKinds),
   );
+  return [...agent, ...failRunning(db, now, "Worker stopped")].sort((a, b) => a - b);
 }
 
 function failRunning(db: Db, now: Date, error: string, extra?: SQL): number[] {

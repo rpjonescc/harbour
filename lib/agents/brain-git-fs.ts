@@ -72,7 +72,7 @@ export function gitMetaHashes(root: string): Map<string, string> {
 }
 
 export function isRestorable(path: string): boolean {
-  return path === ".git/config" || path.startsWith(".git/info/");
+  return path === ".git/HEAD" || path === ".git/config" || path.startsWith(".git/info/");
 }
 
 /** Nested `.git` entries under `starts`, found by an lstat walk (never follows symlinks). */

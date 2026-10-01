@@ -76,15 +76,18 @@ describe("job queue", () => {
 
   it("recovers every running job at worker start, even with a fresh heartbeat", () => {
     const db = openTestDb();
-    const running = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
+    const agent = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
+    const sync = enqueueJob(db, "notes-sync", {}, null, t0).id;
     const queued = enqueueJob(db, "research", { topic: "b" }, null, t0).id;
     claimNextJob(db, t0);
-    heartbeat(db, running, at(1000));
-    expect(recoverRunningJobs(db, at(1001))).toEqual([running]);
-    expect(getJob(db, running)).toMatchObject({
+    claimNextJob(db, t0);
+    heartbeat(db, agent, at(1000));
+    expect(recoverRunningJobs(db, at(1001))).toEqual([agent, sync]);
+    expect(getJob(db, agent)).toMatchObject({
       status: "failed",
-      error: expect.stringMatching(/worker stopped/i),
+      error: "Worker stopped during run — partial changes moved to quarantine",
     });
+    expect(getJob(db, sync)).toMatchObject({ status: "failed", error: "Worker stopped" });
     expect(getJob(db, queued)?.status).toBe("queued");
     expect(recoverRunningJobs(db, at(2000))).toEqual([]);
   });

@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { appendFileSync, lstatSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { posix, resolve } from "node:path";
 import {
@@ -11,13 +10,14 @@ import {
   restoreGitMetadata,
   statOf,
 } from "./brain-git-fs";
+import { git } from "./git-command";
 
 /** `pair` links both halves of a rename; `ignored` marks a new ignored file (never allowed). */
 export type Change = { path: string; untracked: boolean; pair?: string; ignored?: true };
 export type AllowedPaths = { prefixes: string[]; exact: string[] };
 /**
  * What existed before an agent run and belongs to the owner: ignored files, nested `.git`
- * entries, hashes of git metadata, and the bytes of `.git/config` and `.git/info/*`.
+ * entries, hashes of git metadata, and the bytes of `.git/HEAD`, `.git/config` and `.git/info/*`.
  */
 export type RunSnapshot = {
   ignored: Map<string, FileStat>;
@@ -27,44 +27,7 @@ export type RunSnapshot = {
 };
 const MAX_RESTORE_BYTES = 1024 * 1024;
 
-const GIT_TIMEOUT_MS = 60_000;
-const MAX_BUFFER = 16 * 1024 * 1024;
 const MAX_DISCARD_ROUNDS = 3;
-
-function gitEnv(): Record<string, string> {
-  return {
-    PATH: process.env.PATH ?? "",
-    HOME: process.env.HOME ?? "",
-    GIT_CONFIG_NOSYSTEM: "1",
-    GIT_TERMINAL_PROMPT: "0",
-  };
-}
-
-/**
- * Every gate git call is hardened: literal pathspecs (file names are never magic), no fsmonitor
- * or hook execution from repo config, no system config, no prompts.
- */
-function git(root: string, args: string[]): string {
-  return execFileSync(
-    "git",
-    [
-      "--literal-pathspecs",
-      "-c",
-      "core.fsmonitor=false",
-      "-c",
-      "core.hooksPath=/dev/null",
-      ...args,
-    ],
-    {
-      cwd: root,
-      encoding: "utf8",
-      timeout: GIT_TIMEOUT_MS,
-      maxBuffer: MAX_BUFFER,
-      env: gitEnv() as NodeJS.ProcessEnv,
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
-}
 
 /**
  * Throws unless `root` is the top level of its own git repository. Git run in a subfolder of
@@ -75,7 +38,8 @@ export function assertBrainRepoRoot(root: string): void {
   const prefix = "HARBOUR_BRAIN_DIR must be the root of its own git repository";
   let toplevel: string;
   try {
-    toplevel = git(root, ["rev-parse", "--show-toplevel"]).trim();
+    // Unpinned and read-only on purpose: discovery reveals an enclosing repository to name it.
+    toplevel = git(root, ["rev-parse", "--show-toplevel"], false).trim();
   } catch {
     throw new Error(`${prefix} (${root} is not a git repository)`);
   }
@@ -189,7 +153,15 @@ export function inspectRun(
   snapshot: RunSnapshot,
   allowed: AllowedPaths,
 ): { allowed: Change[]; rejected: Change[]; tampered: string[]; gitTampered: string[] } {
-  const changes = statusChanges(root);
+  const gitTampered = gitTamperedPaths(root, snapshot);
+  let changes: Change[];
+  try {
+    changes = statusChanges(root);
+  } catch (error) {
+    // Tampered metadata (e.g. a broken HEAD) can stop git itself; report the tampering.
+    if (gitTampered.length > 0) return { allowed: [], rejected: [], tampered: [], gitTampered };
+    throw error;
+  }
   const seen = new Set(changes.map((c) => c.path));
   changes.push(...newIgnored(root, snapshot, seen));
   for (const path of newNestedGit(
@@ -220,7 +192,7 @@ export function inspectRun(
     allowed: changes.filter(ok),
     rejected: changes.filter((c) => !ok(c)),
     tampered,
-    gitTampered: gitTamperedPaths(root, snapshot),
+    gitTampered,
   };
 }
 
@@ -283,6 +255,9 @@ export function discardRun(
     appendFileSync(resolve(dirAbs, "MANIFEST.txt"), `${notes.join("\n")}\n`);
     notes.length = 0;
   };
+  // Git metadata first, so the git commands below run against the owner's repository.
+  restoreGitMetadata(root, snapshot.gitMeta, snapshot.gitRestore, notes);
+  flush();
   let pending = runChanges(root, snapshot);
   for (let round = 0; round < MAX_DISCARD_ROUNDS; round++) {
     quarantine(root, dirAbs, pending, notes, done);

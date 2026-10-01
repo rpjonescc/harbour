@@ -62,6 +62,7 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
     if (scenario === "escape") write("outside.md", "# Not allowed\n");
     // Claude Code's permissions would refuse this; the fake does it to exercise the git gate.
     if (scenario === "tamper-git") appendFileSync(".git/config", "[core]\n\tpager = evil\n");
+    if (scenario === "tamper-head") writeFileSync(".git/HEAD", "garbage\n");
   }
   out({ type: "result", subtype: "success", is_error: false, result: "done" });
 }

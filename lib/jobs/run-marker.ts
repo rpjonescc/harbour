@@ -10,11 +10,17 @@ import {
   renameSync,
   rmSync,
   statSync,
+  writeFileSync,
   writeSync,
 } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
-import { assertBrainRepoRoot, discardRun, type RunSnapshot } from "@/lib/agents/brain-git";
+import {
+  assertBrainRepoRoot,
+  discardRun,
+  ownerChanges,
+  type RunSnapshot,
+} from "@/lib/agents/brain-git";
 
 /**
  * A run marker is the durable copy of an agent run's snapshot, written before the agent starts
@@ -111,28 +117,97 @@ export function freshQuarantineDir(quarantineRoot: string, jobId: number | strin
 export type RecoveryResult = {
   recovered: { jobId: string; dir: string; quarantined: string[] }[];
   failed: { jobId: string; error: string }[];
+  /** Unreadable markers set aside (the brain was clean, so nothing was left to discard). */
+  corrupt: { jobId: string; error: string; movedTo: string }[];
 };
 
-/** Discards every interrupted run's changes into quarantine; markers are removed only on success. */
+const errorFile = (quarantineRoot: string) => join(activeDir(quarantineRoot), "recovery-error.txt");
+
+/** Pending recoveries and the last recovery problem, for the UI. */
+export function recoveryStatus(quarantineRoot: string): {
+  pending: string[];
+  lastError: string | null;
+} {
+  let lastError: string | null = null;
+  try {
+    lastError = readFileSync(errorFile(quarantineRoot), "utf8").trim() || null;
+  } catch {
+    // no recorded problem
+  }
+  return { pending: pendingRecovery(quarantineRoot), lastError };
+}
+
+function recordOutcome(quarantineRoot: string, result: RecoveryResult): void {
+  const problems = [
+    ...result.failed.map((f) => `job ${f.jobId}: ${f.error}`),
+    ...result.corrupt.map(
+      (c) => `job ${c.jobId}: run marker unreadable, moved to ${c.movedTo} (${c.error})`,
+    ),
+  ];
+  if (problems.length === 0) {
+    rmSync(errorFile(quarantineRoot), { force: true });
+    return;
+  }
+  mkdirSync(activeDir(quarantineRoot), { recursive: true, mode: 0o700 });
+  writeFileSync(errorFile(quarantineRoot), `${problems.join("\n")}\n`, { mode: 0o600 });
+}
+
+function brainIsClean(root: string): boolean {
+  try {
+    return ownerChanges(root).length === 0;
+  } catch {
+    return false;
+  }
+}
+
+function setAside(quarantineRoot: string, jobId: string): string {
+  const dir = join(quarantineRoot, "corrupt");
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  let target = join(dir, `job-${jobId}.json`);
+  for (let n = 2; existsSync(target); n++) target = join(dir, `job-${jobId}-${n}.json`);
+  renameSync(markerPath(quarantineRoot, jobId), target);
+  return target;
+}
+
+function recoverOne(root: string, quarantineRoot: string, jobId: string, result: RecoveryResult) {
+  let snapshot: RunSnapshot;
+  try {
+    snapshot = readRunMarker(quarantineRoot, jobId);
+  } catch (error) {
+    const reason = `run marker unreadable: ${(error as Error).message.split("\n")[0]}`;
+    // Without the snapshot nothing can be discarded safely: stay blocked while changes remain.
+    if (!brainIsClean(root)) {
+      result.failed.push({ jobId, error: `${reason}; the brain has uncommitted changes` });
+      return;
+    }
+    result.corrupt.push({ jobId, error: reason, movedTo: setAside(quarantineRoot, jobId) });
+    return;
+  }
+  const dir = freshQuarantineDir(quarantineRoot, jobId);
+  const { quarantined } = discardRun(root, snapshot, dir);
+  removeRunMarker(quarantineRoot, jobId);
+  result.recovered.push({ jobId, dir, quarantined });
+}
+
+/**
+ * Discards every interrupted run's changes into quarantine; markers are removed only on success.
+ * The outcome is recorded for `recoveryStatus` (and cleared by a pass without problems).
+ */
 export function recoverRuns(root: string, quarantineRoot: string): RecoveryResult {
-  const result: RecoveryResult = { recovered: [], failed: [] };
+  const result: RecoveryResult = { recovered: [], failed: [], corrupt: [] };
   const pending = pendingRecovery(quarantineRoot);
   try {
     if (pending.length > 0) assertBrainRepoRoot(root);
+    for (const jobId of pending) {
+      try {
+        recoverOne(root, quarantineRoot, jobId, result);
+      } catch (error) {
+        result.failed.push({ jobId, error: (error as Error).message });
+      }
+    }
   } catch (error) {
     result.failed = pending.map((jobId) => ({ jobId, error: (error as Error).message }));
-    return result;
   }
-  for (const jobId of pending) {
-    try {
-      const snapshot = readRunMarker(quarantineRoot, jobId);
-      const dir = freshQuarantineDir(quarantineRoot, jobId);
-      const { quarantined } = discardRun(root, snapshot, dir);
-      removeRunMarker(quarantineRoot, jobId);
-      result.recovered.push({ jobId, dir, quarantined });
-    } catch (error) {
-      result.failed.push({ jobId, error: (error as Error).message });
-    }
-  }
+  recordOutcome(quarantineRoot, result);
   return result;
 }

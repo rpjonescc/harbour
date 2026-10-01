@@ -83,6 +83,25 @@ describe("makeScheduler", () => {
     }
   });
 
+  it("applies push backoff after a notes-sync push failure", () => {
+    const h = harness((due) => (due ? "brain-push" : null));
+    try {
+      h.at(0);
+      h.settle(true);
+      h.scheduler.pushed(true);
+      h.at(MIN);
+      h.scheduler.notesSynced({ committed: true, pushed: false });
+      h.at(2 * MIN);
+      h.scheduler.notesSynced({ committed: true, pushed: false });
+      h.at(21 * MIN);
+      expect(h.kinds()).toEqual(["brain-push"]);
+      h.at(22 * MIN);
+      expect(h.kinds()).toEqual(["brain-push", "brain-push"]);
+    } finally {
+      h.cleanup();
+    }
+  });
+
   it("delays autosave only after a failed commit, not after a failed push", () => {
     const h = harness(() => "notes-sync");
     try {
@@ -125,17 +144,22 @@ describe("makeScheduler", () => {
     }
   });
 
-  it("retries a failed recovery every 10 minutes", () => {
+  it("retries a failed recovery every 10 minutes and reports it on the job", () => {
     const db = openTestDb();
     const quarantineRoot = mkdtempSync(join(tmpdir(), "harbour-quarantine-"));
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     let now = 0;
     const recover = vi.fn(
-      (): RecoveryResult => ({ recovered: [], failed: [{ jobId: "3", error: "boom" }] }),
+      (): RecoveryResult => ({
+        recovered: [],
+        failed: [{ jobId: "1", error: "boom" }],
+        corrupt: [],
+      }),
     );
     try {
+      const id = enqueueJob(db, "research", { topic: "glossary" }, null).id;
       const brain = makeGitBrain({});
-      writeRunMarker(quarantineRoot, 3, snapshotRun(brain.root));
+      writeRunMarker(quarantineRoot, id, snapshotRun(brain.root));
       brain.cleanup();
       const scheduler = makeScheduler({
         db,
@@ -152,6 +176,11 @@ describe("makeScheduler", () => {
       now = 10 * MIN;
       scheduler.tick();
       expect(recover).toHaveBeenCalledTimes(2);
+      const failures = eventsSince(db, id, 0).filter((e) => e.kind === "error");
+      expect(failures.map((e) => e.text)).toEqual([
+        expect.stringMatching(/Recovery failed.*boom/),
+        expect.stringMatching(/Recovery failed.*boom/),
+      ]);
       expect(db.select().from(jobs).where(eq(jobs.kind, "notes-sync")).all()).toEqual([]);
     } finally {
       errors.mockRestore();

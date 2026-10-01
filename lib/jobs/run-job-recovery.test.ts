@@ -102,29 +102,33 @@ describe("runAgentJob stopping", () => {
     }
   });
 
-  it("still finishes as cancelled, keeping the marker, when the discard fails", async () => {
-    const s = setup("slow");
-    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    s.deps.run = (o) => {
-      writeFileSync(join(o.cwd, "partial.md"), "# partial\n");
-      chmodSync(s.deps.quarantineRoot, 0o500); // no quarantine folder can be created
-      return runProcess({ ...o, env: { ...o.env, FAKE_CLAUDE_SCENARIO: "slow" }, pollMs: 50 });
-    };
-    try {
-      enqueueJob(s.db, "research", { topic: "glossary" }, null);
-      const job = claim(s.deps);
-      setTimeout(() => requestCancel(s.db, job.id), 150);
-      await runAgentJob(s.deps, job);
-      expect(reload(s.deps, job.id).status).toBe("cancelled");
-      const errorsLogged = eventsSince(s.db, job.id, 0).filter((e) => e.kind === "error");
-      expect(errorsLogged.some((e) => /could not discard/i.test(e.text))).toBe(true);
-      expect(pendingRecovery(s.deps.quarantineRoot)).toEqual([String(job.id)]);
-    } finally {
-      chmodSync(s.deps.quarantineRoot, 0o700);
-      errors.mockRestore();
-      s.brain.cleanup();
-    }
-  });
+  // Root ignores directory permissions, so the forced discard failure cannot be staged.
+  it.skipIf(process.getuid?.() === 0)(
+    "still finishes as cancelled, keeping the marker, when the discard fails",
+    async () => {
+      const s = setup("slow");
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+      s.deps.run = (o) => {
+        writeFileSync(join(o.cwd, "partial.md"), "# partial\n");
+        chmodSync(s.deps.quarantineRoot, 0o500); // no quarantine folder can be created
+        return runProcess({ ...o, env: { ...o.env, FAKE_CLAUDE_SCENARIO: "slow" }, pollMs: 50 });
+      };
+      try {
+        enqueueJob(s.db, "research", { topic: "glossary" }, null);
+        const job = claim(s.deps);
+        setTimeout(() => requestCancel(s.db, job.id), 150);
+        await runAgentJob(s.deps, job);
+        expect(reload(s.deps, job.id).status).toBe("cancelled");
+        const errorsLogged = eventsSince(s.db, job.id, 0).filter((e) => e.kind === "error");
+        expect(errorsLogged.some((e) => /could not discard/i.test(e.text))).toBe(true);
+        expect(pendingRecovery(s.deps.quarantineRoot)).toEqual([String(job.id)]);
+      } finally {
+        chmodSync(s.deps.quarantineRoot, 0o700);
+        errors.mockRestore();
+        s.brain.cleanup();
+      }
+    },
+  );
 
   it("warns when the job was already finished elsewhere", async () => {
     const s = setup("success");

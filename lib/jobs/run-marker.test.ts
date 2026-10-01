@@ -16,6 +16,7 @@ import {
   freshQuarantineDir,
   pendingRecovery,
   recoverRuns,
+  recoveryStatus,
   removeRunMarker,
   writeRunMarker,
 } from "./run-marker";
@@ -93,14 +94,62 @@ describe("run markers", () => {
     }
   });
 
-  it("keeps a marker that cannot be read", () => {
+  it("keeps a marker that cannot be read while the brain has uncommitted changes", () => {
+    const { brain, quarantineRoot, cleanup } = setup();
+    try {
+      writeRunMarker(quarantineRoot, 5, snapshotRun(brain.root));
+      writeFileSync(join(quarantineRoot, "active", "job-5.json"), "{ nope");
+      writeFileSync(join(brain.root, "partial.md"), "# partial\n");
+      const result = recoverRuns(brain.root, quarantineRoot);
+      expect(result.failed).toMatchObject([
+        { jobId: "5", error: expect.stringMatching(/unreadable/) },
+      ]);
+      expect(recoveryStatus(quarantineRoot)).toEqual({
+        pending: ["5"],
+        lastError: expect.stringMatching(/job 5: .*unreadable/),
+      });
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("sets an unreadable marker aside when the brain is clean, and proceeds", () => {
     const { brain, quarantineRoot, cleanup } = setup();
     try {
       writeRunMarker(quarantineRoot, 5, snapshotRun(brain.root));
       writeFileSync(join(quarantineRoot, "active", "job-5.json"), "{ nope");
       const result = recoverRuns(brain.root, quarantineRoot);
-      expect(result.failed).toMatchObject([{ jobId: "5" }]);
-      expect(pendingRecovery(quarantineRoot)).toEqual(["5"]);
+      expect(result.failed).toEqual([]);
+      expect(result.corrupt).toEqual([
+        {
+          jobId: "5",
+          error: expect.any(String),
+          movedTo: join(quarantineRoot, "corrupt", "job-5.json"),
+        },
+      ]);
+      expect(readFileSync(join(quarantineRoot, "corrupt", "job-5.json"), "utf8")).toBe("{ nope");
+      expect(recoveryStatus(quarantineRoot)).toEqual({
+        pending: [],
+        lastError: expect.stringMatching(/job 5: .*unreadable.*corrupt/),
+      });
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("records the last recovery error and clears it once recovery succeeds", () => {
+    const { brain, quarantineRoot, cleanup } = setup();
+    try {
+      expect(recoveryStatus(quarantineRoot)).toEqual({ pending: [], lastError: null });
+      writeRunMarker(quarantineRoot, 8, snapshotRun(brain.root));
+      writeFileSync(join(brain.root, "partial.md"), "# partial\n");
+      recoverRuns(join(brain.root, "notes"), quarantineRoot);
+      expect(recoveryStatus(quarantineRoot)).toEqual({
+        pending: ["8"],
+        lastError: expect.stringMatching(/job 8: HARBOUR_BRAIN_DIR must be the root/),
+      });
+      expect(recoverRuns(brain.root, quarantineRoot).failed).toEqual([]);
+      expect(recoveryStatus(quarantineRoot)).toEqual({ pending: [], lastError: null });
     } finally {
       cleanup();
     }
