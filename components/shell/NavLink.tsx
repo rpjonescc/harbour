@@ -1,0 +1,31 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
+
+const BASE = "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm";
+
+/** Sidebar link with active state, or a disabled "soon" placeholder. */
+export function NavLink({ href, children }: { href?: string; children: ReactNode }) {
+  const pathname = usePathname();
+  if (!href) {
+    return (
+      <span aria-disabled="true" className={`${BASE} cursor-default text-ink-muted opacity-60`}>
+        {children}
+        <span className="ml-auto text-2xs">soon</span>
+      </span>
+    );
+  }
+  const active =
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`${BASE} ${active ? "bg-surface text-ink shadow-[var(--shadow-hairline)]" : "text-ink-muted hover:text-ink"}`}
+    >
+      {children}
+    </Link>
+  );
+}

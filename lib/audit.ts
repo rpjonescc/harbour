@@ -1,0 +1,22 @@
+import type { Db } from "./db/client";
+import { auditLog } from "./db/schema";
+
+export type AuditEvent =
+  | "login"
+  | "login_failed"
+  | "logout"
+  | "passkey_registered"
+  | "passkey_removed"
+  | "setup_token_issued"
+  | "setup_token_rejected";
+
+/** Appends a security-relevant event to the audit log. */
+export function audit(
+  db: Db,
+  entry: { login: string | null; event: AuditEvent; detail?: Record<string, unknown> },
+  now: Date = new Date(),
+): void {
+  db.insert(auditLog)
+    .values({ at: now, login: entry.login, event: entry.event, detail: entry.detail ?? null })
+    .run();
+}

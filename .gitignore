@@ -1,0 +1,13 @@
+node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+.superpowers/
+data/
+test-results/
+playwright-report/
+.env
+.env.*
+!.env.example
+harbour.config.json
+brain/

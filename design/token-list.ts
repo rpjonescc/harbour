@@ -1,0 +1,23 @@
+/** Semantic tokens shown on the /design page. Keep in sync with design/tokens.css. */
+export const SEMANTIC_TOKENS = [
+  { name: "--bg", role: "Page background" },
+  { name: "--surface", role: "Raised panels and cards" },
+  { name: "--surface-sunk", role: "Sidebar and recessed areas" },
+  { name: "--line", role: "Borders and dividers" },
+  { name: "--ink", role: "Primary text" },
+  { name: "--ink-muted", role: "Secondary text" },
+  { name: "--accent", role: "Primary actions and links" },
+  { name: "--accent-soft", role: "Accent backgrounds" },
+  { name: "--accent-ink", role: "Text on accent" },
+  { name: "--focus", role: "Focus ring" },
+  { name: "--good", role: "Improvement" },
+  { name: "--warn", role: "Needs attention" },
+  { name: "--warn-soft", role: "Attention backgrounds" },
+  { name: "--bad", role: "Regression or failure" },
+  { name: "--hue-amber", role: "Product hue: amber" },
+  { name: "--hue-violet", role: "Product hue: violet" },
+  { name: "--hue-blue", role: "Product hue: blue" },
+  { name: "--hue-green", role: "Product hue: green" },
+  { name: "--hue-rose", role: "Product hue: rose" },
+  { name: "--hue-teal", role: "Product hue: teal" },
+] as const;

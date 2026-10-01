@@ -1,0 +1,135 @@
+/* Harbour design tokens — "Paper & Tide".
+ * Layer 1: primitives (raw values). Layer 2: semantic tokens (what components use).
+ * Components must only reference semantic tokens. */
+
+:root {
+  /* Primitives: paper */
+  --paper-50: #fffdf8;
+  --paper-100: #f6f2ea;
+  --paper-200: #efe9dd;
+  --paper-300: #e2dacb;
+  --paper-500: #6e685d; /* WCAG AA (>=4.5:1) as text on bg, surface and surface-sunk */
+  --paper-900: #2b2a27;
+  /* Primitives: night (dark surfaces) */
+  --night-950: #121416;
+  --night-900: #16181a;
+  --night-800: #1d2023;
+  --night-700: #2a2e32;
+  --night-400: #8d887e;
+  --night-100: #e8e2d6;
+  /* Primitives: tide (accent) */
+  --tide-100: #dcebe5;
+  --tide-300: #6fbfa8;
+  --tide-700: #1f6b5a;
+  --tide-900: #1d3a33;
+  /* Primitives: signal colours */
+  --amber-100: #f4e5cf;
+  --amber-300: #e0a35c;
+  --amber-700: #a8641c;
+  --amber-900: #3a2d1c;
+  --clay-300: #e07a6e;
+  --clay-700: #a63d32;
+  --fern-300: #86c493;
+  --fern-700: #3d7a4a;
+  /* Primitives: product hues (300 on dark surfaces, 600 on light) */
+  --hue-amber-300: #e8b26a;
+  --hue-amber-600: #c9822e;
+  --hue-violet-300: #a98bd4;
+  --hue-violet-600: #7b5ea7;
+  --hue-blue-300: #7fb3d6;
+  --hue-blue-600: #3f7fa8;
+  --hue-green-300: #8cc49a;
+  --hue-green-600: #4a8a5a;
+  --hue-rose-300: #e597a8;
+  --hue-rose-600: #b8536b;
+  --hue-teal-300: #6fc2bd;
+  --hue-teal-600: #2f8a85;
+
+  /* Non-colour primitives */
+  /* Radii are exposed to Tailwind as --radius-* in app/globals.css (rounded-sm/md/lg). */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --shadow-hairline: 0 1px 0 var(--line);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+}
+
+/* Semantic: light (default) */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: var(--paper-100);
+  --surface: var(--paper-50);
+  --surface-sunk: var(--paper-200);
+  --line: var(--paper-300);
+  --ink: var(--paper-900);
+  --ink-muted: var(--paper-500);
+  --accent: var(--tide-700);
+  --accent-soft: var(--tide-100);
+  --accent-ink: var(--paper-50);
+  --good: var(--fern-700);
+  --warn: var(--amber-700);
+  --warn-soft: var(--amber-100);
+  --bad: var(--clay-700);
+  --focus: var(--tide-700);
+  --hue-amber: var(--hue-amber-600);
+  --hue-violet: var(--hue-violet-600);
+  --hue-blue: var(--hue-blue-600);
+  --hue-green: var(--hue-green-600);
+  --hue-rose: var(--hue-rose-600);
+  --hue-teal: var(--hue-teal-600);
+}
+
+/* Semantic: dark — "lamp-lit paper" */
+@media (prefers-color-scheme: dark) {
+  /* Keep in sync with the [data-theme="dark"] block below. */
+  [data-theme="system"] {
+    color-scheme: dark;
+    --bg: var(--night-900);
+    --surface: var(--night-800);
+    --surface-sunk: var(--night-950);
+    --line: var(--night-700);
+    --ink: var(--night-100);
+    --ink-muted: var(--night-400);
+    --accent: var(--tide-300);
+    --accent-soft: var(--tide-900);
+    --accent-ink: var(--night-950);
+    --good: var(--fern-300);
+    --warn: var(--amber-300);
+    --warn-soft: var(--amber-900);
+    --bad: var(--clay-300);
+    --focus: var(--tide-300);
+    --hue-amber: var(--hue-amber-300);
+    --hue-violet: var(--hue-violet-300);
+    --hue-blue: var(--hue-blue-300);
+    --hue-green: var(--hue-green-300);
+    --hue-rose: var(--hue-rose-300);
+    --hue-teal: var(--hue-teal-300);
+  }
+}
+
+/* Keep in sync with the [data-theme="system"] dark block above. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--night-900);
+  --surface: var(--night-800);
+  --surface-sunk: var(--night-950);
+  --line: var(--night-700);
+  --ink: var(--night-100);
+  --ink-muted: var(--night-400);
+  --accent: var(--tide-300);
+  --accent-soft: var(--tide-900);
+  --accent-ink: var(--night-950);
+  --good: var(--fern-300);
+  --warn: var(--amber-300);
+  --warn-soft: var(--amber-900);
+  --bad: var(--clay-300);
+  --focus: var(--tide-300);
+  --hue-amber: var(--hue-amber-300);
+  --hue-violet: var(--hue-violet-300);
+  --hue-blue: var(--hue-blue-300);
+  --hue-green: var(--hue-green-300);
+  --hue-rose: var(--hue-rose-300);
+  --hue-teal: var(--hue-teal-300);
+}

@@ -1,0 +1,18 @@
+[Unit]
+Description=Harbour web (Next.js on 127.0.0.1:3400)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__REPO__
+Environment=NODE_ENV=production
+Environment=PATH=__NODE_BIN__:/usr/bin:/bin
+ExecStart=__NODE_BIN__/pnpm start
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

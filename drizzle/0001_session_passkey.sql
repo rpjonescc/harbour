@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` ADD `passkey_id` text;

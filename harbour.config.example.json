@@ -1,0 +1,17 @@
+{
+  "products": [
+    { "id": "acme-docs", "name": "Acme Docs", "url": "https://docs.example.com", "hue": "amber" },
+    {
+      "id": "lighthouse-cafe",
+      "name": "Lighthouse Café",
+      "url": "https://lighthouse-cafe.example.com",
+      "hue": "blue"
+    },
+    {
+      "id": "fern-and-field",
+      "name": "Fern & Field",
+      "url": "https://fernandfield.example.com",
+      "hue": "green"
+    }
+  ]
+}
