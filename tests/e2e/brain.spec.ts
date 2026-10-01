@@ -48,6 +48,9 @@ test("invalid frontmatter is reported but the document still renders", async ({ 
 
 test("search with Ctrl+K opens the chosen document", async ({ page }) => {
   await page.goto("/brain");
+  // The shortcut hint renders only after hydration, once the Ctrl+K listener is attached;
+  // pressing earlier is lost.
+  await expect(page.getByText("Ctrl K", { exact: true })).toBeVisible();
   await page.keyboard.press("Control+k");
   const input = page.getByRole("combobox", { name: "Search the Second Brain" });
   await expect(input).toBeFocused();
