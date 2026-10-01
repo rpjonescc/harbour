@@ -241,6 +241,11 @@ only warns when the file is missing.
 
 Before the first e2e run, install the browser once: `pnpm exec playwright install chromium`.
 
+`pnpm test:e2e` first recreates a git-backed copy of the fixture brain (`data/e2e-brain`, with a
+bare remote) and a fresh database under `data/e2e/`, then starts the web server on port 3401 and
+the agent worker. The worker runs a fake Claude CLI (`tests/fixtures/fake-claude.mjs`), so agent
+runs, commits, pushes and discovery approvals are tested end to end without a real token.
+
 ## Project structure
 
 ```
