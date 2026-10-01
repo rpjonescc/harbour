@@ -3,6 +3,13 @@ import { HostLimiter } from "./host-limiter";
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe("HostLimiter", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("never runs more than `concurrency` tasks per host at once", async () => {
     const limiter = new HostLimiter({ concurrency: 2, spacingMs: 0 });
     let active = 0;
@@ -13,28 +20,30 @@ describe("HostLimiter", () => {
       await sleep(20);
       active--;
     };
-    await Promise.all(Array.from({ length: 5 }, () => limiter.run("example.com", undefined, task)));
+    const all = Promise.all(
+      Array.from({ length: 5 }, () => limiter.run("example.com", undefined, task)),
+    );
+    await vi.runAllTimersAsync();
+    await all;
     expect(peak).toBe(2);
   });
 
   it("spaces task starts on one host but not across hosts", async () => {
-    const limiter = new HostLimiter({ concurrency: 2, spacingMs: 100 });
-    const starts = { a: [] as number[], b: [] as number[] };
-    const record = (host: "a" | "b") => async () => {
-      starts[host].push(performance.now());
+    const limiter = new HostLimiter({ concurrency: 2, spacingMs: 500 });
+    const starts: string[] = [];
+    const record = (label: string) => async () => {
+      starts.push(`${label}@${Date.now() - t0}`);
     };
-    await Promise.all([
-      limiter.run("a.example.com", undefined, record("a")),
-      limiter.run("a.example.com", undefined, record("a")),
-      limiter.run("a.example.com", undefined, record("a")),
-      limiter.run("b.example.com", undefined, record("b")),
+    const t0 = Date.now();
+    const all = Promise.all([
+      limiter.run("a.example.com", undefined, record("a1")),
+      limiter.run("a.example.com", undefined, record("a2")),
+      limiter.run("a.example.com", undefined, record("a3")),
+      limiter.run("b.example.com", undefined, record("b1")),
     ]);
-    const [first = 0, second = 0, third = 0] = starts.a;
-    const [other = Number.POSITIVE_INFINITY] = starts.b;
-    expect(starts.a).toHaveLength(3);
-    expect(second - first).toBeGreaterThanOrEqual(95);
-    expect(third - second).toBeGreaterThanOrEqual(95);
-    expect(other - first).toBeLessThan(80);
+    await vi.runAllTimersAsync();
+    await all;
+    expect(starts).toEqual(["a1@0", "b1@0", "a2@500", "a3@1000"]);
   });
 
   it("rejects a queued task on abort without running it or leaking its slot", async () => {

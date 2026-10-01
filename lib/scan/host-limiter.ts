@@ -3,6 +3,8 @@ type HostState = { active: number; nextStart: number; waiters: Array<() => void>
 export type HostLimits = { concurrency: number; spacingMs: number };
 
 function sleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
+  // An abort that landed before the listener exists must not wait out the whole delay.
+  if (signal?.aborted) return Promise.reject(signal.reason);
   return new Promise((resolve, reject) => {
     const onAbort = () => {
       clearTimeout(timer);
