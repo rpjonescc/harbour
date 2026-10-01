@@ -101,7 +101,8 @@ function summarise(line: string, root: string): LineSummary {
   try {
     parsed = JSON.parse(line);
   } catch {
-    return { events: [], touched: [] };
+    // An unreadable line may still announce a write: its target is unknown.
+    return { events: [], touched: line.includes('"tool_use"') ? [UNKNOWN_TOUCH] : [] };
   }
   if (!isObject(parsed)) return { events: [], touched: [] };
   const event = parsed as StreamEvent;

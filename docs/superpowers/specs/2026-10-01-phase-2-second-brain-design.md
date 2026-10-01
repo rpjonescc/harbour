@@ -174,8 +174,10 @@ Phase 2 ships in two parts with separate implementation plans:
   Changes to untouched paths are the owner's: never gated, committed or discarded — they
   are left in place for autosave. New ignored files, nested `.git` and git metadata are
   always the agent's responsibility. When the touched list is unknown (unsealed after a
-  crash, over its cap, or a write with no readable target), every change counts as the
-  agent's, as before.
+  crash, over its cap, or a write whose target is missing, not absolute, not NFC-normalised
+  or a symlink), every change counts as the agent's, as before. An attempted write outside
+  the brain (which Claude Code denies) fails the run, names the path, and leaves the
+  sidecar unsealed.
 - **Commit and push:** allowed changes are committed (`agent(<kind>): <summary>`) with
   the configured git identity and pushed. Push failure leaves the commit local, marks
   `pushed = false`, and shows "Brain not synced — Retry" in the header; retry is a job.

@@ -66,4 +66,19 @@ describe("runAgentJob with the owner editing during the run", () => {
       brain.cleanup();
     }
   });
+
+  it("fails a run whose agent tried to write outside the brain, naming the path", async () => {
+    const { brain, deps } = withOwnerEditing("outside-attempt");
+    try {
+      const job = await runOne(deps, "research", { topic: "glossary" });
+      expect(job.status).toBe("failed");
+      expect(job.error).toBe(
+        "Agent changed files outside its area: <outside the brain>: /etc/harbour-denied.md",
+      );
+      expect(existsSync(join(brain.root, "research/glossary.md"))).toBe(false);
+      ownerIntact(brain.root);
+    } finally {
+      brain.cleanup();
+    }
+  });
 });

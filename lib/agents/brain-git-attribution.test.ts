@@ -63,8 +63,9 @@ describe("inspectRun with agent attribution", () => {
   it("rejects a write the agent aimed outside the brain", () => {
     const { b, snap } = concurrentRun("research/geo/a.md");
     try {
-      const touched = new Set(["research/geo/a.md", OUTSIDE_BRAIN]);
-      expect(paths(inspectRun(b.root, snap, research, touched).rejected)).toEqual([OUTSIDE_BRAIN]);
+      const attempt = `${OUTSIDE_BRAIN}: /etc/x.md`;
+      const touched = new Set(["research/geo/a.md", attempt]);
+      expect(paths(inspectRun(b.root, snap, research, touched).rejected)).toEqual([attempt]);
     } finally {
       b.cleanup();
     }

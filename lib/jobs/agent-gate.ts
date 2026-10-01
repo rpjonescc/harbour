@@ -1,12 +1,12 @@
 import {
   brainRelativePath,
-  OUTSIDE_BRAIN,
+  isOutsideBrain,
   type Touched,
   UNKNOWN_TOUCH,
 } from "@/lib/agents/attribution";
 import { inspectRun, type RunSnapshot } from "@/lib/agents/brain-git";
 import type { AgentSpec } from "@/lib/agents/specs";
-import type { TouchedLog } from "./run-marker";
+import type { TouchedLog } from "./touched-log";
 
 /** An expected, owner-readable failure (as opposed to a crash, which is also logged). */
 export class JobFailure extends Error {}
@@ -64,6 +64,6 @@ export function recordTouched(
     console.error(`could not resolve agent write target ${raw}`, error);
     path = UNKNOWN_TOUCH;
   }
-  if (path === OUTSIDE_BRAIN) note(`Agent tried to write outside the brain: ${raw}`);
+  if (isOutsideBrain(path)) note(`Agent tried to write outside the brain: ${path}`);
   log.record(path);
 }

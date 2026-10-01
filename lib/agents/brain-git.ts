@@ -1,6 +1,6 @@
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
 import { posix } from "node:path";
-import { isAgentChange, OUTSIDE_BRAIN, type Touched } from "./attribution";
+import { isAgentChange, isOutsideBrain, type Touched } from "./attribution";
 import { type FileStat, gitMetaHashes, isRestorable, nestedGitDirs, statOf } from "./brain-git-fs";
 import { git } from "./git-command";
 
@@ -165,8 +165,8 @@ export function inspectRun(
   }
   const changes = status.filter((c) => isAgentChange(c, touched));
   const owner = status.filter((c) => !isAgentChange(c, touched));
-  if (touched !== "all" && touched.has(OUTSIDE_BRAIN)) {
-    changes.push({ path: OUTSIDE_BRAIN, untracked: true });
+  if (touched !== "all") {
+    for (const path of touched) if (isOutsideBrain(path)) changes.push({ path, untracked: true });
   }
   const seen = new Set(status.map((c) => c.path));
   changes.push(...newIgnored(root, snapshot, seen));

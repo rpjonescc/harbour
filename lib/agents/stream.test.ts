@@ -107,6 +107,8 @@ describe("summariseLine", () => {
       summariseLine(assistant([{ type: "tool_use", name: "Edit", input: "str" }]), root).touched,
     ).toEqual(["*"]);
     expect(summariseLine("not json", root).touched).toEqual([]);
+    const broken = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write"';
+    expect(summariseLine(broken, root).touched).toEqual(["*"]);
   });
 
   it("extracts text from array tool-result content", () => {

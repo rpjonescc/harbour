@@ -10,19 +10,19 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { OUTSIDE_BRAIN } from "@/lib/agents/attribution";
 import { snapshotRun } from "@/lib/agents/brain-git";
 import { makeGitBrain } from "@/tests/helpers/git-brain";
 import { housekeepingAction } from "./housekeeping";
 import {
   freshQuarantineDir,
   pendingRecovery,
-  readTouched,
   recoverRuns,
   recoveryStatus,
   removeRunMarker,
-  touchedLog,
   writeRunMarker,
 } from "./run-marker";
+import { readTouched, touchedLog } from "./touched-log";
 
 function setup() {
   const brain = makeGitBrain({ "notes/a.md": "# A\n" });
@@ -215,6 +215,12 @@ describe("touched-path sidecar", () => {
       expect(readFileSync(sidecar(quarantineRoot, 2), "utf8").split("\n").length).toBeLessThan(
         10_003,
       );
+
+      const outside = touchedLog(quarantineRoot, 4);
+      outside.record("research/a.md");
+      outside.record(`${OUTSIDE_BRAIN}: /etc/x.md`);
+      outside.seal();
+      expect(readTouched(quarantineRoot, 4)).toBe("all");
 
       const damaged = touchedLog(quarantineRoot, 3);
       damaged.record("research/a.md");

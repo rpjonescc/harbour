@@ -16,13 +16,8 @@ import { gatedPaths, JobFailure, recordTouched } from "./agent-gate";
 import { brainRootError, finish, recoveryBlock, saveOwnerNotes } from "./git-jobs";
 import { newestOwnerChange } from "./housekeeping";
 import { addEvent, deferJob, type EventKind, isCancelRequested, type Job } from "./queue";
-import {
-  freshQuarantineDir,
-  removeRunMarker,
-  type TouchedLog,
-  touchedLog,
-  writeRunMarker,
-} from "./run-marker";
+import { freshQuarantineDir, removeRunMarker, writeRunMarker } from "./run-marker";
+import { type TouchedLog, touchedLog } from "./touched-log";
 
 export type RunDeps = {
   db: Db;
