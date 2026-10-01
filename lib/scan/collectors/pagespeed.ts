@@ -1,6 +1,7 @@
 import { FetchError } from "../fetch-error";
 import type { CollectContext, Collector, CollectorResult } from "../types";
-import { readCoreWebVitals, readGoogleError } from "./pagespeed-response";
+import { readGoogleError } from "./google-api";
+import { readCoreWebVitals } from "./pagespeed-response";
 
 const ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
 /** PSI runs Lighthouse before answering (15–40 s): a deliberate exception to the 15 s limit. */
