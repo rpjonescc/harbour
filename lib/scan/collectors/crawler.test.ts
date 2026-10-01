@@ -16,7 +16,10 @@ describe("crawler on a recorded site", () => {
       value: { status: 200, finalUrl: `${origin}${path}`, ms, truncated: false, ...value },
     });
     const none = { robotsMeta: null, noindex: false, canonical: null, images: 0 };
-    const noNews = { articleDatePublished: null, preferredSourcesLink: false };
+    const noNews = {
+      ...{ articleDatePublished: null, preferredSourcesLink: false },
+      ...{ questionHeadings: 0, conciseAnswers: 0 },
+    };
     expect(pages).toEqual([
       page("/", {
         ...noNews,
@@ -39,6 +42,7 @@ describe("crawler on a recorded site", () => {
         ...{ metaDescription: "Answers to common questions.", descriptionLength: 28 },
         ...{ jsonLdTypes: ["FAQPage"], invalidJsonLd: 1, hasFaqMarkup: true, wordCount: 11 },
         ...{ internalLinks: 1, externalLinks: 0, imagesMissingAlt: 0 },
+        ...{ questionHeadings: 1, conciseAnswers: 1 },
       }),
       {
         kind: "page",
@@ -70,6 +74,7 @@ describe("crawler on a recorded site", () => {
       robotsTxt: "ok",
       sitemapsRead: 3,
       sitemapErrors: [],
+      sitemapPages: { crawled: 4, ok: 4 },
       blockedByRobots: 1,
       fetchErrors: [],
       limitReached: null,

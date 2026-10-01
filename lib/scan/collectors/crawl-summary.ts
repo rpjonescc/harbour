@@ -2,6 +2,8 @@ import type { CrawledPage } from "./crawl-page";
 
 export type BrokenLink = { from: string; to: string; status: number };
 export type DuplicateTitle = { title: string; urls: string[] };
+/** Of the sitemap's page URLs, how many were crawled and how many of those answered 2xx. */
+export type SitemapPages = { crawled: number; ok: number };
 
 const MAX_BROKEN_LINKS = 100;
 const MAX_DUPLICATE_TITLES = 50;
@@ -55,4 +57,15 @@ export function summarisePages(
     // No pages means no timing: a gap, not zero.
     avgMs: times.length > 0 ? Math.round(times.reduce((a, b) => a + b, 0) / times.length) : null,
   };
+}
+
+/** How the sitemap's URLs fared in the crawl; null without sitemap URLs to check. */
+export function sitemapPages(
+  listed: readonly string[] | null,
+  pages: ReadonlyMap<string, CrawledPage>,
+): SitemapPages | null {
+  if (!listed || listed.length === 0) return null;
+  const crawled = listed.flatMap((url) => pages.get(url) ?? []);
+  const ok = crawled.filter((page) => page.status >= 200 && page.status < 300).length;
+  return { crawled: crawled.length, ok };
 }

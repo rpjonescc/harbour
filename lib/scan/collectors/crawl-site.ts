@@ -1,7 +1,7 @@
 import type { FetchErrorKind } from "../fetch-error";
 import type { RobotsTxtState } from "./crawl-seeds";
 import type { SitemapError, SitemapLastmods } from "./crawl-sitemaps";
-import type { BrokenLink, DuplicateTitle } from "./crawl-summary";
+import type { BrokenLink, DuplicateTitle, SitemapPages } from "./crawl-summary";
 
 /** The crawler's one `site` observation per scan (subject: the normalised product URL). */
 export type CrawlSite = {
@@ -25,6 +25,11 @@ export type CrawlSite = {
   sitemapsRead: number;
   /** Sitemaps that could not be read, at most 5 (a 4xx on the default /sitemap.xml is absence). */
   sitemapErrors: SitemapError[];
+  /**
+   * The sitemap's page URLs this crawl visited, and how many answered 2xx (robots-blocked and
+   * uncrawled ones, e.g. past the page cap, are left out); null without sitemap URLs.
+   */
+  sitemapPages: SitemapPages | null;
   /** URLs robots.txt kept the crawler from requesting. */
   blockedByRobots: number;
   /** URLs that produced no response (timeouts, network errors, off-site redirects), at most 50. */

@@ -1,5 +1,5 @@
 import type { CrawledPage } from "./crawl-page";
-import { summarisePages } from "./crawl-summary";
+import { sitemapPages, summarisePages } from "./crawl-summary";
 
 const origin = "https://docs.example.com";
 const pad = (n: number) => String(n).padStart(3, "0");
@@ -29,6 +29,8 @@ function page(path: string, status: number, title: string | null, ms = 10): Craw
     hasFaqMarkup: null,
     articleDatePublished: null,
     preferredSourcesLink: null,
+    questionHeadings: null,
+    conciseAnswers: null,
   };
 }
 
@@ -80,5 +82,19 @@ describe("summarisePages", () => {
 
   it("has no average time without pages", () => {
     expect(summarisePages(new Map(), noReferrers).avgMs).toBeNull();
+  });
+});
+
+describe("sitemapPages", () => {
+  const pages = pagesOf([page("/a", 200, "A"), page("/b", 404, null), page("/c", 301, null)]);
+
+  it("counts the listed URLs that were crawled and those that answered 2xx", () => {
+    const listed = ["/a", "/b", "/c", "/never-crawled"].map((path) => `${origin}${path}`);
+    expect(sitemapPages(listed, pages)).toEqual({ crawled: 3, ok: 1 });
+  });
+
+  it("is null without sitemap URLs", () => {
+    expect(sitemapPages(null, pages)).toBeNull();
+    expect(sitemapPages([], pages)).toBeNull();
   });
 });

@@ -66,4 +66,6 @@ export const NO_HTML = {
   hasFaqMarkup: null,
   articleDatePublished: null,
   preferredSourcesLink: null,
+  questionHeadings: null,
+  conciseAnswers: null,
 };

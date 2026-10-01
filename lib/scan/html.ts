@@ -1,8 +1,9 @@
 import { type HTMLElement, parse } from "node-html-parser";
 import { summariseJsonLd } from "./json-ld";
+import { type QuestionFacts, questionFacts } from "./questions";
 
 /** What one HTML page says about itself, as the crawler records it. */
-export type PageFacts = {
+export type PageFacts = QuestionFacts & {
   /** The document <title>, whitespace collapsed; null when missing or empty. */
   title: string | null;
   /** Characters in the title; 0 when there is none. */
@@ -188,6 +189,7 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
     images: images.length,
     imagesMissingAlt: images.filter((img) => !img.hasAttribute("alt")).length,
     links,
+    ...questionFacts(root),
     wordCount: visibleWordCount(root),
   };
 }

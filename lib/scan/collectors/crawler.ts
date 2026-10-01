@@ -4,7 +4,7 @@ import { Frontier } from "./crawl-frontier";
 import { type CrawledPage, pageFromResponse } from "./crawl-page";
 import { discoverSeeds } from "./crawl-seeds";
 import type { CrawlSite } from "./crawl-site";
-import { summarisePages } from "./crawl-summary";
+import { sitemapPages, summarisePages } from "./crawl-summary";
 
 export type CrawlLimits = {
   /** Total HTML bytes one crawl reads before it stops. */
@@ -140,6 +140,7 @@ async function collect(ctx: CollectContext, limits: CrawlLimits): Promise<Collec
     robotsTxt: seeds.robotsTxt,
     sitemapsRead: seeds.sitemapsRead,
     sitemapErrors: seeds.sitemapErrors,
+    sitemapPages: sitemapPages(seeds.urls, crawl.pages),
     blockedByRobots: crawl.blockedByRobots,
     fetchErrors: crawl.fetchErrors,
     limitReached: limitReached(crawl, frontier),
