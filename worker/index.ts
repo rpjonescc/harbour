@@ -1,6 +1,6 @@
 // Harbour worker: runs queued agent jobs one at a time. Started by systemd (`pnpm worker`).
 // Must not import any module that imports "server-only".
-import { dirname, join } from "node:path";
+import { quarantineRootFor } from "@/lib/agents/brain-status";
 import { runProcess } from "@/lib/agents/process";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
@@ -27,7 +27,7 @@ async function main() {
   const config = getConfig();
   const db = getDb();
   const root = config.HARBOUR_BRAIN_DIR;
-  const quarantineRoot = join(dirname(config.HARBOUR_DB_PATH), "quarantine");
+  const quarantineRoot = quarantineRootFor(config.HARBOUR_DB_PATH);
   const scheduler = makeScheduler({ db, root, quarantineRoot, clock: Date.now });
   scheduler.startup();
   console.log("harbour-worker ready");

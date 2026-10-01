@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql } from "drizzle-orm";
 import { migrateDb, openDb } from "@/lib/db/client";
+import { agentRuns } from "@/lib/db/schema";
 import { openTestDb } from "@/tests/helpers/db";
 import {
   addEvent,
@@ -10,6 +11,7 @@ import {
   enqueueJob,
   eventsSince,
   finishJob,
+  getAgentRun,
   getJob,
   heartbeat,
   isCancelRequested,
@@ -163,5 +165,17 @@ describe("job queue transitions", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("getAgentRun", () => {
+  it("returns the run record of an agent job, or undefined", () => {
+    const db = openTestDb();
+    const { id } = enqueueJob(db, "research", { topic: "glossary" }, null, t0);
+    expect(getAgentRun(db, id)).toBeUndefined();
+    db.insert(agentRuns)
+      .values({ jobId: id, promptVersion: "v1", commitSha: "abc", filesChanged: ["a.md"] })
+      .run();
+    expect(getAgentRun(db, id)).toMatchObject({ commitSha: "abc", filesChanged: ["a.md"] });
   });
 });

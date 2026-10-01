@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, gt, inArray, isNull, lt, or, type SQL } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
-import { agentRunEvents, jobs } from "@/lib/db/schema";
+import { agentRunEvents, agentRuns, jobs } from "@/lib/db/schema";
 
 export type JobKind = "research" | "discovery" | "brain-push" | "notes-sync";
 export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";
@@ -162,6 +162,11 @@ export function listJobs(db: Db, limit = 30): Job[] {
 
 export function getJob(db: Db, id: number): Job | undefined {
   return db.select().from(jobs).where(eq(jobs.id, id)).get();
+}
+
+/** The agent run record (commit, files changed) of a research or discovery job. */
+export function getAgentRun(db: Db, jobId: number): typeof agentRuns.$inferSelect | undefined {
+  return db.select().from(agentRuns).where(eq(agentRuns.jobId, jobId)).get();
 }
 
 /** Appends an activity line, keeping at most MAX_EVENTS plus one "limit reached" note. */

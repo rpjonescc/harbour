@@ -19,6 +19,8 @@ The secure shell, design system, and Second Brain viewer are built. The roadmap 
 - **Devices** — add a passkey to a new device with a one-time link, see local sign-in times
   and which device you are using, or remove a lost one. Reused device names get a number.
 - **Second Brain** — read Markdown notes with a document tree, frontmatter, links and backlinks.
+- **Agents** — research and discovery agents that write into the Second Brain, one at a time,
+  with live activity, cancel, and automatic save and sync.
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
   a living reference and Second Brain examples at `/design`.
 - **Accessible by default** — keyboard paths, visible focus, accessible names, rem-based type.
@@ -52,6 +54,32 @@ sources: [https://example.com/article]
 
 Set `HARBOUR_EDITOR_URL_TEMPLATE` to a URL containing `{path}` to open a document in an editor.
 Its default is `vscode://file/{path}`; an empty value hides the link.
+
+## Agents
+
+Open **Agents** in the sidebar (`/agents`) to run research and discovery agents that write into
+your Second Brain:
+
+- **Research** — one run per topic (SEO, GEO, AEO, a glossary, a start-here guide and a scoring
+  rationale), or **Run all research topics** to queue them all. Each writes one document under
+  `research/` (or `00-start-here.md`).
+- **Discovery** — one run per product; it reads your `products/<id>/notes.md` and writes
+  `products/<id>/discovery.md` and `products/<id>/proposals.json`.
+
+Agents run Claude Code on the Harbour PC with your Claude subscription. Run
+`claude setup-token` there, add `HARBOUR_CLAUDE_OAUTH_TOKEN=…` to `.env`, then restart the
+worker; until then the run buttons are disabled. Agents only have web research (search and
+fetch) and file tools limited to the brain directory: no shell, no hooks, no MCP servers.
+
+The **git gate** checks every run: a run may change only its own target files (Markdown, plus
+`proposals.json` for discovery). Any other change fails the run, and everything it changed is
+moved to quarantine and restored from git. Only one agent runs at a time; queued runs wait their turn. Each run has
+a live activity page with a **Cancel** button, and lists the files it changed.
+
+Saving and syncing need no action. The Agents page and the Second Brain show unsaved notes
+("saved automatically in about 2 minutes") and commits waiting to sync to GitHub ("retrying
+automatically"); **Save now** and **Retry now** are optional shortcuts. While an interrupted run
+is being recovered, a banner says so and autosave is paused.
 
 ### Install as an app
 

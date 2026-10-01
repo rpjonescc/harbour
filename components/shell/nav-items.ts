@@ -5,7 +5,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Today", href: "/" },
   { label: "Actions", soon: true },
   { label: "Second Brain", href: "/brain", badge: "brain-new" },
-  { label: "Agents", soon: true },
+  { label: "Agents", href: "/agents" },
   { label: "Devices", href: "/settings/devices" },
   { label: "Design system", href: "/design" },
 ];
