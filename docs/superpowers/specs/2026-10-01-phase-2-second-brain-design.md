@@ -163,10 +163,19 @@ Phase 2 ships in two parts with separate implementation plans:
   worker's own status and error lines are always recorded).
 - Stream events are summarised into `agent_run_events`: tool use ("Searching: …",
   "Reading: …", "Wrote: research/geo/…"), assistant milestones, errors.
-- **Post-run gate:** the worker diffs the brain working tree. Every changed path must be
-  inside the job kind's allowed area (research → `research/`; discovery →
+- **Post-run gate:** the worker diffs the brain working tree. Every path the agent changed
+  must be inside the job kind's allowed area (research → `research/`; discovery →
   `products/<id>/`). Any change outside fails the run, and the worker restores those
   paths from git rather than committing them.
+- **Attribution:** the owner may edit the brain while an agent runs. The agent writes only
+  through Claude Code's file tools, and each call appears in the stream before it runs, so
+  the worker records the brain paths it touched (resolved through symlinks) in a sidecar
+  next to the run marker (`active/job-<id>.touched`, sealed once the stream is fully read).
+  Changes to untouched paths are the owner's: never gated, committed or discarded — they
+  are left in place for autosave. New ignored files, nested `.git` and git metadata are
+  always the agent's responsibility. When the touched list is unknown (unsealed after a
+  crash, over its cap, or a write with no readable target), every change counts as the
+  agent's, as before.
 - **Commit and push:** allowed changes are committed (`agent(<kind>): <summary>`) with
   the configured git identity and pushed. Push failure leaves the commit local, marks
   `pushed = false`, and shows "Brain not synced — Retry" in the header; retry is a job.

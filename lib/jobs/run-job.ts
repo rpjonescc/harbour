@@ -2,6 +2,12 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import {
+  brainRelativePath,
+  OUTSIDE_BRAIN,
+  type Touched,
+  UNKNOWN_TOUCH,
+} from "@/lib/agents/attribution";
+import {
   commitChanges,
   discardRun,
   inspectRun,
@@ -21,7 +27,13 @@ import type { Product } from "@/lib/products/catalog";
 import { brainRootError, finish, recoveryBlock, saveOwnerNotes } from "./git-jobs";
 import { newestOwnerChange } from "./housekeeping";
 import { addEvent, deferJob, type EventKind, isCancelRequested, type Job } from "./queue";
-import { freshQuarantineDir, removeRunMarker, writeRunMarker } from "./run-marker";
+import {
+  freshQuarantineDir,
+  removeRunMarker,
+  type TouchedLog,
+  touchedLog,
+  writeRunMarker,
+} from "./run-marker";
 
 export type RunDeps = {
   db: Db;
@@ -109,9 +121,27 @@ function checkOutcome(deps: RunDeps, outcome: RunOutcome, result: StreamResult |
   }
 }
 
-/** The git gate: returns the paths to commit, or throws when the run touched anything else. */
-function gatedPaths(root: string, snapshot: RunSnapshot, spec: AgentSpec): string[] {
-  const inspection = inspectRun(root, snapshot, spec.allowed);
+const listed = (paths: string[], max = 10) =>
+  paths.length > max
+    ? `${paths.slice(0, max).join(", ")} and ${paths.length - max} more`
+    : paths.join(", ");
+
+/**
+ * The git gate: returns the paths to commit, or throws when the agent touched anything else.
+ * Changes the agent did not write are the owner's: left in place, uncommitted, and noted.
+ */
+function gatedPaths(
+  root: string,
+  snapshot: RunSnapshot,
+  spec: AgentSpec,
+  touched: Touched,
+  note: (text: string) => void,
+): string[] {
+  const inspection = inspectRun(root, snapshot, spec.allowed, touched);
+  if (inspection.owner.length > 0) {
+    const owner = inspection.owner.map((c) => c.path).sort();
+    note(`Left ${owner.length} owner change(s) in place: ${listed(owner)}`);
+  }
   if (inspection.gitTampered.length > 0) {
     throw new JobFailure(`Agent changed git metadata: ${inspection.gitTampered.join(", ")}`);
   }
@@ -146,6 +176,19 @@ function readProposals(root: string, spec: AgentSpec, paths: string[]): Proposal
 
 const STOPPED = "Cancelled — the worker was stopped";
 
+/** Records the brain path of each file the agent is about to write; unresolvable → unknown. */
+function recordTouched(root: string, log: TouchedLog, raw: string, note: (text: string) => void) {
+  let path: string;
+  try {
+    path = raw === UNKNOWN_TOUCH ? UNKNOWN_TOUCH : brainRelativePath(root, raw);
+  } catch (error) {
+    console.error(`could not resolve agent write target ${raw}`, error);
+    path = UNKNOWN_TOUCH;
+  }
+  if (path === OUTSIDE_BRAIN) note(`Agent tried to write outside the brain: ${raw}`);
+  log.record(path);
+}
+
 /**
  * Runs one research/discovery job end to end; always finishes the job row. `pushed` is whether
  * the agent's commit reached the remote (null when nothing was committed), for the push backoff.
@@ -156,10 +199,11 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
   const setRun = (values: Partial<typeof agentRuns.$inferInsert>) =>
     db.update(agentRuns).set(values).where(eq(agentRuns.jobId, job.id)).run();
   let snapshot: RunSnapshot | undefined;
+  let touched: TouchedLog | undefined;
   const discard = (reason: string) => {
     if (!snapshot) return;
     const dir = freshQuarantineDir(deps.quarantineRoot, job.id);
-    const { quarantined } = discardRun(root, snapshot, dir);
+    const { quarantined } = discardRun(root, snapshot, dir, touched?.touched() ?? "all");
     snapshot = undefined;
     removeRunMarker(deps.quarantineRoot, job.id);
     if (quarantined.length > 0) {
@@ -184,6 +228,8 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     snapshot = snapshotRun(root);
     // Durable before the agent starts: if the worker dies mid-run, startup recovery discards.
     writeRunMarker(deps.quarantineRoot, job.id, snapshot);
+    const log = touchedLog(deps.quarantineRoot, job.id);
+    touched = log;
 
     db.insert(agentRuns).values({ jobId: job.id, promptVersion: PROMPT_VERSION }).run();
     event("status", `Started ${spec.label}`);
@@ -196,11 +242,14 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
       timeoutMs: deps.timeoutMs,
       onLine: (line) => {
         const summary = summariseLine(line, root);
+        for (const raw of summary.touched)
+          recordTouched(root, log, raw, (text) => event("error", text));
         for (const e of summary.events) event(e.kind, e.text);
         if (summary.result) result = summary.result;
       },
       shouldCancel: () => deps.stopping() || isCancelRequested(db, job.id),
     });
+    log.seal(); // every output line has been read: the touched list is complete
     setRun({
       exitCode: outcome.exitCode,
       stdoutTail: outcome.stdoutTail,
@@ -222,7 +271,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     }
     checkOutcome(deps, outcome, result);
 
-    const paths = gatedPaths(root, snapshot, spec);
+    const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
     const parsed = readProposals(root, spec, paths);
     const sha = commitChanges(
       root,

@@ -1,4 +1,5 @@
 import {
+  appendFileSync,
   chmodSync,
   closeSync,
   existsSync,
@@ -15,6 +16,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
+import { type Touched, UNKNOWN_TOUCH } from "@/lib/agents/attribution";
 import {
   assertBrainRepoRoot,
   discardRun,
@@ -75,8 +77,89 @@ export function writeRunMarker(quarantineRoot: string, jobId: number, snapshot: 
   }
 }
 
+/** Removes a run's marker and its touched-path sidecar. */
 export function removeRunMarker(quarantineRoot: string, jobId: number | string): void {
+  rmSync(touchedPath(quarantineRoot, jobId), { force: true });
   rmSync(markerPath(quarantineRoot, jobId), { force: true });
+}
+
+/*
+ * The touched-path sidecar (`job-<id>.touched`, next to the marker) lists the brain paths the
+ * agent wrote, one JSON string per line, so recovery can leave the owner's own edits alone.
+ * It is trusted only once sealed after the agent's output was fully read: a worker that died
+ * mid-run may have missed the last writes. `"*"`, a damaged file or no seal means "unknown".
+ */
+const touchedPath = (quarantineRoot: string, jobId: number | string) =>
+  join(activeDir(quarantineRoot), `job-${jobId}.touched`);
+const SEAL = JSON.stringify({ sealed: true });
+const MAX_TOUCHED_PATHS = 10_000;
+const MAX_TOUCHED_BYTES = 2 * 1024 * 1024;
+
+export type TouchedLog = {
+  /** Adds a brain-relative path (or UNKNOWN_TOUCH) the agent is about to write. */
+  record: (path: string) => void;
+  /** Marks the list complete; call only once the agent's output has been fully read. */
+  seal: () => void;
+  /** What the agent wrote so far, or "all" once that is unknown. */
+  touched: () => Touched;
+};
+
+/** The touched-path sidecar of a running job (its marker must already exist). */
+export function touchedLog(quarantineRoot: string, jobId: number): TouchedLog {
+  const file = touchedPath(quarantineRoot, jobId);
+  const paths = new Set<string>();
+  let bytes = 0;
+  let unknown = false;
+  let broken = false; // a line may be missing on disk: never seal
+  const append = (line: string) => {
+    try {
+      appendFileSync(file, `${line}\n`, { mode: 0o600 });
+    } catch (error) {
+      broken = true;
+      console.error(`job ${jobId}: could not record a touched path`, error);
+    }
+  };
+  return {
+    record: (path) => {
+      if (unknown || paths.has(path)) return;
+      const line = JSON.stringify(path);
+      bytes += line.length + 1;
+      if (path === UNKNOWN_TOUCH || paths.size >= MAX_TOUCHED_PATHS || bytes > MAX_TOUCHED_BYTES) {
+        unknown = true;
+        append(JSON.stringify(UNKNOWN_TOUCH));
+        return;
+      }
+      paths.add(path);
+      append(line);
+    },
+    seal: () => {
+      if (!unknown && !broken) append(SEAL);
+    },
+    touched: () => (unknown ? "all" : paths),
+  };
+}
+
+/** The sealed touched paths of a run, or "all" when they are missing, unsealed or unknown. */
+export function readTouched(quarantineRoot: string, jobId: number | string): Touched {
+  let lines: string[];
+  try {
+    lines = readFileSync(touchedPath(quarantineRoot, jobId), "utf8").split("\n").filter(Boolean);
+  } catch {
+    return "all";
+  }
+  if (lines.at(-1) !== SEAL) return "all";
+  const paths = new Set<string>();
+  for (const line of lines.slice(0, -1)) {
+    let path: unknown;
+    try {
+      path = JSON.parse(line);
+    } catch {
+      return "all";
+    }
+    if (typeof path !== "string" || path === UNKNOWN_TOUCH) return "all";
+    paths.add(path);
+  }
+  return paths;
 }
 
 /** Ids of jobs whose changes still need recovering, oldest first. Empty when there are none. */
@@ -166,6 +249,7 @@ function setAside(quarantineRoot: string, jobId: string): string {
   let target = join(dir, `job-${jobId}.json`);
   for (let n = 2; existsSync(target); n++) target = join(dir, `job-${jobId}-${n}.json`);
   renameSync(markerPath(quarantineRoot, jobId), target);
+  rmSync(touchedPath(quarantineRoot, jobId), { force: true });
   return target;
 }
 
@@ -184,7 +268,7 @@ function recoverOne(root: string, quarantineRoot: string, jobId: string, result:
     return;
   }
   const dir = freshQuarantineDir(quarantineRoot, jobId);
-  const { quarantined } = discardRun(root, snapshot, dir);
+  const { quarantined } = discardRun(root, snapshot, dir, readTouched(quarantineRoot, jobId));
   removeRunMarker(quarantineRoot, jobId);
   result.recovered.push({ jobId, dir, quarantined });
 }

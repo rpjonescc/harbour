@@ -1,5 +1,6 @@
 import { appendFileSync, lstatSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { posix, resolve } from "node:path";
+import { isAgentChange, OUTSIDE_BRAIN, type Touched } from "./attribution";
 import {
   type FileStat,
   gitMetaHashes,
@@ -145,24 +146,39 @@ function gitTamperedPaths(root: string, snapshot: RunSnapshot): string[] {
 }
 
 /**
- * Everything the run changed, split into allowed and rejected (symlinks rejected; a rename is
+ * Everything the agent changed, split into allowed and rejected (symlinks rejected; a rename is
  * allowed only when both halves are), plus pre-existing ignored files that were edited or deleted.
+ * Status changes the agent did not touch are the owner's: reported, never gated. New ignored
+ * files, nested repos and git metadata are always checked.
  */
 export function inspectRun(
   root: string,
   snapshot: RunSnapshot,
   allowed: AllowedPaths,
-): { allowed: Change[]; rejected: Change[]; tampered: string[]; gitTampered: string[] } {
+  touched: Touched,
+): {
+  allowed: Change[];
+  rejected: Change[];
+  owner: Change[];
+  tampered: string[];
+  gitTampered: string[];
+} {
   const gitTampered = gitTamperedPaths(root, snapshot);
-  let changes: Change[];
+  let status: Change[];
   try {
-    changes = statusChanges(root);
+    status = statusChanges(root);
   } catch (error) {
     // Tampered metadata (e.g. a broken HEAD) can stop git itself; report the tampering.
-    if (gitTampered.length > 0) return { allowed: [], rejected: [], tampered: [], gitTampered };
+    if (gitTampered.length > 0)
+      return { allowed: [], rejected: [], owner: [], tampered: [], gitTampered };
     throw error;
   }
-  const seen = new Set(changes.map((c) => c.path));
+  const changes = status.filter((c) => isAgentChange(c, touched));
+  const owner = status.filter((c) => !isAgentChange(c, touched));
+  if (touched !== "all" && touched.has(OUTSIDE_BRAIN)) {
+    changes.push({ path: OUTSIDE_BRAIN, untracked: true });
+  }
+  const seen = new Set(status.map((c) => c.path));
   changes.push(...newIgnored(root, snapshot, seen));
   for (const path of newNestedGit(
     root,
@@ -176,6 +192,17 @@ export function inspectRun(
     isAllowedChange(c.path, allowed) &&
     (c.pair === undefined || isAllowedChange(c.pair, allowed)) &&
     !isSymlink(root, c.path);
+  return {
+    allowed: changes.filter(ok),
+    rejected: changes.filter((c) => !ok(c)),
+    owner,
+    tampered: tamperedIgnored(root, snapshot),
+    gitTampered,
+  };
+}
+
+/** Pre-existing ignored files that were edited or deleted since the snapshot. */
+function tamperedIgnored(root: string, snapshot: RunSnapshot): string[] {
   const tampered: string[] = [];
   for (const [path, before] of snapshot.ignored) {
     const now = statOf(root, path);
@@ -188,12 +215,7 @@ export function inspectRun(
       tampered.push(path);
     }
   }
-  return {
-    allowed: changes.filter(ok),
-    rejected: changes.filter((c) => !ok(c)),
-    tampered,
-    gitTampered,
-  };
+  return tampered;
 }
 
 function inHead(root: string, path: string): boolean {
@@ -216,14 +238,18 @@ function revert(root: string, changes: Change[]): void {
   }
 }
 
-function runChanges(root: string, snapshot: RunSnapshot): Change[] {
-  const changes = statusChanges(root).filter((c) => !snapshot.ignored.has(c.path));
+/** The agent's changes still in the brain: touched status changes and new ignored files. */
+function runChanges(root: string, snapshot: RunSnapshot, touched: Touched): Change[] {
+  const changes = statusChanges(root).filter(
+    (c) => !snapshot.ignored.has(c.path) && isAgentChange(c, touched),
+  );
   const seen = new Set(changes.map((c) => c.path));
   return [...changes, ...newIgnored(root, snapshot, seen)];
 }
 
 /**
- * Throws the run away: tracked changes back to HEAD, unstaged, untracked and new ignored files
+ * Throws the agent's changes away (all changes when `touched` is "all"; the owner's are left
+ * as they are): tracked changes back to HEAD, unstaged, untracked and new ignored files
  * deleted, `.git/config` and `.git/info/*` restored. Before anything is touched, every changed
  * file's current content is copied to `quarantineDir` (outside the brain) with a MANIFEST.txt.
  * Snapshot entries are never deleted. Re-scans and throws if anything remains.
@@ -232,6 +258,7 @@ export function discardRun(
   root: string,
   snapshot: RunSnapshot,
   quarantineDir: string,
+  touched: Touched,
 ): { quarantined: string[] } {
   const dirAbs = prepareQuarantineDir(root, quarantineDir);
   const done = new Set<string>();
@@ -258,7 +285,7 @@ export function discardRun(
   // Git metadata first, so the git commands below run against the owner's repository.
   restoreGitMetadata(root, snapshot.gitMeta, snapshot.gitRestore, notes);
   flush();
-  let pending = runChanges(root, snapshot);
+  let pending = runChanges(root, snapshot, touched);
   for (let round = 0; round < MAX_DISCARD_ROUNDS; round++) {
     quarantine(root, dirAbs, pending, notes, done);
     flush();
@@ -266,7 +293,7 @@ export function discardRun(
     restoreGitMetadata(root, snapshot.gitMeta, snapshot.gitRestore, notes);
     flush();
     if (pending.length) revert(root, pending);
-    pending = runChanges(root, snapshot);
+    pending = runChanges(root, snapshot, touched);
     if (!pending.length && !newNestedGit(root, snapshot, [""]).length)
       return { quarantined: [...done] };
   }

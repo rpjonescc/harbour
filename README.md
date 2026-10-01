@@ -74,8 +74,11 @@ run buttons disabled until it is. Agents only have web research (search and
 fetch) and file tools limited to the brain directory: no shell, no hooks, no MCP servers.
 
 The **git gate** checks every run: a run may change only its own target files (Markdown, plus
-`proposals.json` for discovery). Any other change fails the run, and everything it changed is
-moved to quarantine and restored from git. Only one agent runs at a time; queued runs wait
+`proposals.json` for discovery). Any other change fails the run, and everything the agent changed
+is moved to quarantine and restored from git. The gate knows which files the agent wrote (every
+write it makes is listed in its output), so you can keep editing the brain while a run is going:
+your edits are never committed with the agent's work or discarded with it — they stay in place
+and are saved automatically as usual. A file both of you edited counts as the agent's. Only one agent runs at a time; queued runs wait
 their turn. Each run has a live activity page with a **Cancel** button, and lists the files it
 changed. Without a Claude token the server refuses new agent runs.
 
