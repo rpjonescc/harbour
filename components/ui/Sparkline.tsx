@@ -1,20 +1,27 @@
 import { sparklinePoints } from "./sparkline-points";
 
-const WIDTH = 60;
-const HEIGHT = 18;
-
 /** Tiny trend line; `label` describes the trend for screen readers. */
-export function Sparkline({ values, label }: { values: number[]; label: string }) {
+export function Sparkline({
+  values,
+  label,
+  width = 60,
+  height = 18,
+}: {
+  values: number[];
+  label: string;
+  width?: number;
+  height?: number;
+}) {
   return (
     <svg
       role="img"
       aria-label={label}
-      width={WIDTH}
-      height={HEIGHT}
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
     >
       <polyline
-        points={sparklinePoints(values, WIDTH, HEIGHT)}
+        points={sparklinePoints(values, width, height)}
         fill="none"
         stroke="var(--accent)"
         strokeWidth={1.5}

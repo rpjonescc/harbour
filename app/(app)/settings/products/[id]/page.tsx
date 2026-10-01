@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProposalList } from "@/components/proposals/ProposalList";
 import { listProposals, type ProposalType } from "@/lib/agents/proposals";
@@ -25,7 +26,12 @@ export default async function ProductProposalsPage({
     <div className="flex max-w-3xl flex-col gap-6">
       <header>
         <h1 className="font-serif text-3xl">{product.name} — research targets</h1>
-        <p className="mt-1 text-sm text-ink-muted">{product.url}</p>
+        <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-ink-muted">
+          {product.url}
+          <Link href={`/products/${product.id}`} className="text-accent hover:underline">
+            Scores and issues
+          </Link>
+        </p>
       </header>
       {SECTIONS.map(({ type, title }) => (
         <section key={type} aria-labelledby={`${type}-heading`} className="flex flex-col gap-3">

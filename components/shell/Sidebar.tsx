@@ -39,7 +39,7 @@ export function Sidebar({ theme }: { theme: ThemePreference }) {
         <ul className="flex flex-col gap-0.5">
           {products.map((product) => (
             <li key={product.id}>
-              <NavLink href={`/settings/products/${product.id}`}>
+              <NavLink href={`/products/${product.id}`}>
                 <ProductDot product={product} />
                 {product.name}
               </NavLink>

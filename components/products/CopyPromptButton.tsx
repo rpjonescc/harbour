@@ -1,0 +1,46 @@
+"use client";
+
+import { ClipboardCopy } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+
+/**
+ * "Hand to Claude": copies a ready-made prompt for one issue. If the clipboard is refused
+ * (e.g. an insecure context), the prompt is shown to copy by hand instead.
+ */
+export function CopyPromptButton({ prompt, issueTitle }: { prompt: string; issueTitle: string }) {
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setState("copied");
+    } catch {
+      setState("failed");
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" onClick={copy} aria-label={`Hand to Claude: ${issueTitle}`}>
+          <ClipboardCopy aria-hidden="true" className="size-3.5" />
+          Hand to Claude
+        </Button>
+        <p role="status" className="text-xs text-ink-muted">
+          {state === "copied" && "Copied — paste it into Claude"}
+          {state === "failed" && "Couldn't copy — select the prompt below instead."}
+        </p>
+      </div>
+      {state === "failed" && (
+        <textarea
+          readOnly
+          aria-label="Prompt for Claude"
+          value={prompt}
+          rows={8}
+          className="w-full rounded-sm border border-line bg-surface-sunk p-2 font-mono text-xs text-ink"
+        />
+      )}
+    </div>
+  );
+}
