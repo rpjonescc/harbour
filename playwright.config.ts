@@ -27,6 +27,8 @@ export default defineConfig({
       HARBOUR_ORIGIN: E2E_ORIGIN,
       HARBOUR_RP_ID: "localhost",
       HARBOUR_DB_PATH: E2E_DB,
+      HARBOUR_BRAIN_DIR: "./tests/fixtures/brain",
+      HARBOUR_EDITOR_URL_TEMPLATE: "",
       // Pinned to the example so e2e never depends on a local harbour.config.json.
       HARBOUR_CONFIG_PATH: "./harbour.config.example.json",
     },

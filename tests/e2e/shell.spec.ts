@@ -160,3 +160,9 @@ test("serves a nonce-based CSP", async ({ page }) => {
   const csp = response?.headers()["content-security-policy"] ?? "";
   expect(csp).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
 });
+
+test("devices page marks this device", async ({ page }) => {
+  await page.goto("/settings/devices");
+  await expect(page.getByText("E2E browser")).toBeVisible();
+  await expect(page.getByText("This device")).toBeVisible();
+});

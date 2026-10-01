@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 import type { TreeNode } from "@/lib/brain/tree";
 import { brainHref } from "@/lib/brain/wikilinks";
 
@@ -58,6 +59,16 @@ export function BrainTree({
   truncated: boolean;
 }) {
   const current = usePathname();
+  const router = useRouter();
+  const refreshedPath = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Layouts persist across client navigation; refresh after the page records the view.
+    if (refreshedPath.current === current) return;
+    refreshedPath.current = current;
+    router.refresh();
+  }, [current, router]);
+
   return (
     <div className="-ml-2">
       <Nodes nodes={nodes} current={current} fresh={new Set(freshPaths)} />
