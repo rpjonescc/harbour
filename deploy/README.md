@@ -87,6 +87,22 @@ Optional. To add PageSpeed (Core Web Vitals), follow
 `HARBOUR_PAGESPEED_API_KEY=`, then `systemctl --user restart harbour-worker`. The next scan's
 job events say "PageSpeed: not connected — …" until the key is set.
 
+To add Search Console, follow [Connect Search Console](../README.md#connect-search-console):
+create a service account (or an OAuth desktop client), add the service account's email as a
+**Restricted** user on each Search Console property, then on this machine:
+
+```bash
+mkdir -p ~/harbour-data
+mv path/to/downloaded.json ~/harbour-data/gsc.json
+chmod 600 ~/harbour-data/gsc.json
+```
+
+Set `HARBOUR_GSC_CREDENTIALS` in `.env` to that file's absolute path (the output of
+`echo ~/harbour-data/gsc.json`; `.env` does not expand `~`), add
+`"searchConsoleProperty"` to each product in `harbour.config.json` (`"sc-domain:example.com"`
+or a URL prefix like `"https://www.example.com/"`), and
+`systemctl --user restart harbour-worker`. Only the worker reads the file.
+
 ## Logs
 
 `journalctl --user -u harbour-web -f`

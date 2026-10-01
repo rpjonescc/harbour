@@ -1,0 +1,20 @@
+{
+  "rows": [
+    { "keys": ["acme docs"], "clicks": 96, "impressions": 640, "ctr": 0.15, "position": 1.4 },
+    {
+      "keys": ["how to write api docs"],
+      "clicks": 31,
+      "impressions": 2210,
+      "ctr": 0.014027149321266969,
+      "position": 8.9
+    },
+    {
+      "keys": ["docs site generator"],
+      "clicks": 4,
+      "impressions": 1175,
+      "ctr": 0.003404255319148936,
+      "position": 23.6
+    }
+  ],
+  "responseAggregationType": "byProperty"
+}

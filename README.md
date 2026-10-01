@@ -214,6 +214,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_AGENT_TIMEOUT_MINUTES` | no | `30` | Maximum agent run length, 1 to 120 minutes. |
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility scan's crawler fetches per product per scan, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
 | `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
+| `HARBOUR_GSC_CREDENTIALS` | for Search Console | unset | Absolute path to a Google credentials JSON file — a service account key or an OAuth authorized-user file (see [Connect Search Console](#connect-search-console)). Keep it outside the repo with mode 600; Harbour warns in the scan if other users can read it. Read by the worker only; its contents and the access tokens are never logged, shown or stored. Restart the worker after changing it. |
 | `HARBOUR_HTTPS_PORT` | no | `8444` | Shell variable for `deploy/install.sh` (Tailscale Serve HTTPS port); the app itself does not read it. |
 
 `harbour.config.json` lists 1–12 products:
@@ -238,7 +239,7 @@ All settings are environment variables, validated at startup.
 Optionally, `searchConsoleProperty` names the product's Google Search Console property, in
 either form Search Console uses: a domain property (`"sc-domain:example.com"`) or a URL-prefix
 property (`"https://www.example.com/"`, ending in `/`). Without it, Search Console data for that
-product shows as not connected.
+product shows as not connected; see [Connect Search Console](#connect-search-console).
 
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.
@@ -261,6 +262,55 @@ Google gives requests without an API key no quota, so it needs a free key:
    the key and, under **API restrictions**, restrict it to the PageSpeed Insights API.
 4. Put it in `.env` as `HARBOUR_PAGESPEED_API_KEY=` and restart the worker
    (`systemctl --user restart harbour-worker`).
+
+### Connect Search Console
+
+Search Console adds what Google actually shows: each day's clicks, impressions, click-through
+rate and average position for the last 28 days (ending 3 days ago, because Google's data lags),
+plus the top 250 queries and top 100 pages. The worker asks for read-only access and talks only
+to Google.
+
+Harbour reads one credentials file, of either kind:
+
+- **A service account** (simplest for an always-on server). In the
+  [Google Cloud console](https://console.cloud.google.com/):
+  1. Pick or create a project, and under **APIs & Services → Library** enable the
+     **Google Search Console API**.
+  2. Under **IAM & Admin → Service accounts**, create a service account (it needs no roles).
+     Open it, then **Keys → Add key → Create new key → JSON** downloads its key file.
+  3. In [Search Console](https://search.google.com/search-console), for each property open
+     **Settings → Users and permissions → Add user**, enter the service account's email
+     (`client_email` in the key file, e.g. `harbour@your-project.iam.gserviceaccount.com`)
+     and choose **Restricted** permission.
+- **An OAuth desktop client** (uses your own Google account, which already sees your
+  properties):
+  1. Enable the **Google Search Console API** as above.
+  2. Under **APIs & Services → OAuth consent screen**, configure the app and add yourself as a
+     user; then under **Credentials → Create credentials → OAuth client ID** create a
+     **Desktop app** client and download its JSON.
+  3. Turn it into an authorized-user file with a refresh token, for example with the
+     [gcloud CLI](https://cloud.google.com/sdk/docs/install):
+     `gcloud auth application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/webmasters.readonly`,
+     which writes `application_default_credentials.json` (`"type": "authorized_user"`).
+     While the consent screen's publishing status is *Testing*, Google expires the refresh
+     token after 7 days; publish the app, or use a service account, for a lasting connection.
+
+Then, on the Harbour machine:
+
+1. Store the file outside the repo, readable only by you:
+   ```bash
+   mkdir -p ~/harbour-data
+   mv path/to/downloaded.json ~/harbour-data/gsc.json
+   chmod 600 ~/harbour-data/gsc.json
+   ```
+2. In `.env`, set `HARBOUR_GSC_CREDENTIALS` to the file's absolute path; `.env` does not
+   expand `~`, so use what `echo ~/harbour-data/gsc.json` prints.
+3. In `harbour.config.json`, give each product its property as Search Console names it:
+   `"searchConsoleProperty": "sc-domain:example.com"` for a domain property, or
+   `"searchConsoleProperty": "https://www.example.com/"` for a URL-prefix property.
+4. Restart the worker (`systemctl --user restart harbour-worker`). The next scan's job events
+   show "Search Console: 28 days, … queries, … pages", or say what is still missing. HTTP 401 or
+   403 means the property is not shared with the credential's account.
 
 ## Deployment
 

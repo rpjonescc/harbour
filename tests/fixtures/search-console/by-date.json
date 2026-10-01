@@ -1,0 +1,33 @@
+{
+  "rows": [
+    {
+      "keys": ["2026-09-01"],
+      "clicks": 14,
+      "impressions": 412,
+      "ctr": 0.03398058252427184,
+      "position": 18.3
+    },
+    {
+      "keys": ["2026-09-02"],
+      "clicks": 9,
+      "impressions": 388,
+      "ctr": 0.023195876288659795,
+      "position": 19.1
+    },
+    {
+      "keys": ["2026-09-27"],
+      "clicks": 21,
+      "impressions": 503,
+      "ctr": 0.041749502982107355,
+      "position": 16.8
+    },
+    {
+      "keys": ["2026-09-28"],
+      "clicks": 17,
+      "impressions": 467,
+      "ctr": 0.03640256959314775,
+      "position": 17.2
+    }
+  ],
+  "responseAggregationType": "byProperty"
+}

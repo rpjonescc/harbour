@@ -142,11 +142,22 @@ describe("crawl settings", () => {
 });
 
 describe("PageSpeed settings", () => {
-  it("runs without an API key by default and accepts one", () => {
+  it("has no API key by default and accepts one", () => {
     expect(parseConfig(base).HARBOUR_PAGESPEED_API_KEY).toBeUndefined();
     const key = "test-pagespeed-key";
     expect(parseConfig({ ...base, HARBOUR_PAGESPEED_API_KEY: key }).HARBOUR_PAGESPEED_API_KEY).toBe(
       key,
     );
+  });
+});
+
+describe("Search Console settings", () => {
+  it("has no credentials file by default and accepts a path", () => {
+    expect(parseConfig(base).HARBOUR_GSC_CREDENTIALS).toBeUndefined();
+    const path = "/srv/harbour-data/gsc.json";
+    expect(parseConfig({ ...base, HARBOUR_GSC_CREDENTIALS: path }).HARBOUR_GSC_CREDENTIALS).toBe(
+      path,
+    );
+    expect(() => parseConfig({ ...base, HARBOUR_GSC_CREDENTIALS: "" })).toThrow();
   });
 });

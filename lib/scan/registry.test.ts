@@ -1,8 +1,13 @@
 import { COLLECTORS } from "./registry";
 
 describe("COLLECTORS", () => {
-  it("runs the crawler first, then readiness (which reads it), then PageSpeed", () => {
-    expect(COLLECTORS.map((c) => c.id)).toEqual(["crawler", "readiness", "pagespeed"]);
+  it("runs the crawler first, then readiness (which reads it), PageSpeed and Search Console", () => {
+    expect(COLLECTORS.map((c) => c.id)).toEqual([
+      "crawler",
+      "readiness",
+      "pagespeed",
+      "search-console",
+    ]);
   });
 
   it("runs every collector after each collector it depends on", () => {

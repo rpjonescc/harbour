@@ -70,8 +70,10 @@ const schema = z
     HARBOUR_AGENT_TIMEOUT_MINUTES: z.coerce.number().int().min(1).max(120).default(30),
     // Most pages the crawler fetches per product per scan.
     HARBOUR_CRAWL_MAX_PAGES: z.coerce.number().int().min(1).max(500).default(200),
-    // Secret: Google API key for PageSpeed Insights (optional; raises the quota). Worker only.
+    // Secret: Google API key for PageSpeed Insights; without one it is not connected. Worker only.
     HARBOUR_PAGESPEED_API_KEY: z.string().min(1).optional(),
+    // Path to a Google credentials JSON file for Search Console (secret, mode 600). Worker only.
+    HARBOUR_GSC_CREDENTIALS: z.string().min(1).optional(),
   })
   .refine((c) => rpIdMatchesOrigin(c.HARBOUR_RP_ID, c.HARBOUR_ORIGIN), {
     message: "HARBOUR_RP_ID must equal HARBOUR_ORIGIN's hostname or be a parent domain of it",

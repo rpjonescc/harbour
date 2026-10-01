@@ -1,0 +1,19 @@
+{
+  "rows": [
+    {
+      "keys": ["https://docs.example.com/"],
+      "clicks": 118,
+      "impressions": 2950,
+      "ctr": 0.04,
+      "position": 6.2
+    },
+    {
+      "keys": ["https://docs.example.com/guides/api-docs"],
+      "clicks": 27,
+      "impressions": 3804,
+      "ctr": 0.007097791798107256,
+      "position": 11.5
+    }
+  ],
+  "responseAggregationType": "byPage"
+}
