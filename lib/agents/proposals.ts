@@ -11,9 +11,16 @@ const keyword = z.object({
   why,
 });
 const question = z.object({ text: z.string().trim().min(1).max(300), why });
+const competitorUrl = z
+  .url({ protocol: /^https?$/ })
+  .max(2048)
+  .refine((v) => {
+    const u = new URL(v);
+    return !u.username && !u.password;
+  }, "URL must not contain credentials");
 const competitor = z.object({
   name: z.string().trim().min(1).max(120),
-  url: z.url({ protocol: /^https?$/ }),
+  url: competitorUrl,
   why,
 });
 
@@ -33,19 +40,36 @@ const VALUE_SCHEMAS = {
   competitor: competitor.omit({ why: true }),
 } as const;
 
+function norm(s: string): string {
+  return s.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Normalised identity used to dedupe. Keys are JSON arrays so separators in
+ * the data can't collide. Competitors are keyed by lower-case host without a
+ * leading "www." plus the normalised (case-insensitive) path without trailing
+ * slashes, so example.com/a and example.com/b stay distinct.
+ */
 function keyFor(type: ProposalType, value: Record<string, string | undefined>): string {
-  if (type === "keyword") return `${value.term ?? ""}|${value.location ?? ""}`.toLowerCase().trim();
-  if (type === "question") return (value.text ?? "").toLowerCase().replace(/\s+/g, " ").trim();
-  return URL.canParse(value.url ?? "")
-    ? new URL(value.url ?? "").hostname.replace(/^www\./, "")
-    : (value.name ?? "").toLowerCase();
+  if (type === "keyword")
+    return JSON.stringify(["kw", norm(value.term ?? ""), norm(value.location ?? "")]);
+  if (type === "question") return JSON.stringify(["q", norm(value.text ?? "")]);
+  if (URL.canParse(value.url ?? "")) {
+    const u = new URL(value.url ?? "");
+    return JSON.stringify([
+      "c",
+      u.hostname.toLowerCase().replace(/^www\./, ""),
+      norm(u.pathname).replace(/\/+$/, ""),
+    ]);
+  }
+  return JSON.stringify(["c", norm(value.name ?? ""), ""]);
 }
 
 /** Parses an agent's proposals.json; throws with a readable reason. */
 export function parseProposals(text: string): Proposals {
   let raw: unknown;
   try {
-    raw = JSON.parse(text);
+    raw = JSON.parse(text.replace(/^\uFEFF/, ""));
   } catch {
     throw new Error("proposals.json is not valid JSON");
   }
@@ -131,29 +155,28 @@ export function decideProposal(
   );
 }
 
-export function editProposal(
-  db: Db,
-  productId: string,
-  id: number,
-  value: Record<string, string>,
-  now = new Date(),
-) {
+export function editProposal(db: Db, productId: string, id: number, value: Record<string, string>) {
   const row = db
     .select()
     .from(proposals)
     .where(and(eq(proposals.id, id), eq(proposals.productId, productId)))
     .get();
   if (!row) return { ok: false as const, error: "not_found" };
+  if (row.status === "rejected")
+    return { ok: false as const, error: "rejected items can't be edited" };
   const parsed = VALUE_SCHEMAS[row.type].safeParse(value);
   if (!parsed.success) return { ok: false as const, error: z.prettifyError(parsed.error) };
   const clean = parsed.data as Record<string, string>;
   try {
     db.update(proposals)
-      .set({ value: clean, key: keyFor(row.type, clean), edited: true, decidedAt: now })
+      .set({ value: clean, key: keyFor(row.type, clean), edited: true })
       .where(eq(proposals.id, id))
       .run();
-  } catch {
-    return { ok: false as const, error: "An item with that value already exists" };
+  } catch (error) {
+    if ((error as { code?: string } | null)?.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      return { ok: false as const, error: "An item with that value already exists" };
+    }
+    throw error;
   }
   return { ok: true as const };
 }
