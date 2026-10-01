@@ -7,22 +7,32 @@ const words = (n: number) => Array.from({ length: n }, (_, i) => `w${i}`).join("
 
 describe("isQuestion", () => {
   it.each([
-    "How do I install Acme Docs?",
-    "What is a docs site",
-    "why bother",
-    "Can I self-host it",
+    "How do I book?",
+    "What is a pet passport",
+    "How much does it cost",
+    "How long does delivery take",
+    "When should I renew",
     "Is it free?",
     "Pricing?",
   ])("treats %j as a question", (text) => {
     expect(isQuestion(text)).toBe(true);
   });
 
-  it.each(["Installation", "Whatever you need", "Howl at the moon", "", "   "])(
-    "does not treat %j as a question",
-    (text) => {
-      expect(isQuestion(text)).toBe(false);
-    },
-  );
+  it.each([
+    "Who we are",
+    "What we do",
+    "Why choose us",
+    "Why choose us?",
+    "How-to guides",
+    "Our story",
+    "How it works",
+    "Installation",
+    "Whatever you need",
+    "",
+    "   ",
+  ])("does not treat %j as a question", (text) => {
+    expect(isQuestion(text)).toBe(false);
+  });
 });
 
 describe("extractPage question headings", () => {

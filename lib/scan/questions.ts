@@ -2,7 +2,7 @@ import type { HTMLElement } from "node-html-parser";
 
 /** Question-style headings on a page, and how many a short paragraph answers right below. */
 export type QuestionFacts = {
-  /** h1–h6 headings phrased as a question (see `isQuestion`). */
+  /** Visible h1–h6 headings phrased as a reader's question (see `isQuestion`). */
   questionHeadings: number;
   /** Those whose next element is a paragraph of 1–60 words: an answer engines can lift. */
   conciseAnswers: number;
@@ -10,15 +10,25 @@ export type QuestionFacts = {
 
 /** Answer engines quote short answers; 60 words is the common featured-snippet guidance. */
 const MAX_ANSWER_WORDS = 60;
+/**
+ * A question word followed by an auxiliary or a quantity ("How do…", "What is…", "How much…"):
+ * a bare question word opens plenty of labels too ("How it works", "Who we are").
+ */
 const QUESTION_START =
-  /^(what|how|why|when|where|who|which|can|could|does|do|did|is|are|should|will|would)\b/i;
+  /^(how|what|why|when|where|who|which|can|do|does|is|are|should|will)\s+(do|does|did|is|are|was|were|can|could|should|will|would|to|much|many|long|often)\b/i;
+/** "Why choose us?" and "What we do" are about the business, not a reader's question. */
+const FIRST_PERSON = /\b(we|us|our)\b/i;
 const HIDDEN = "script, style, noscript, template";
 
 const wordsIn = (text: string) => text.split(/\s+/).filter((word) => word.length > 0).length;
 
-/** A heading ending in "?" or opening with a question word ("How do I…", "What is…"). */
+/**
+ * A heading ending in "?" or opening like a question ("How do I…", "What is…", "How much…"),
+ * unless it speaks in the first person plural.
+ */
 export function isQuestion(text: string): boolean {
   const value = text.replace(/\s+/g, " ").trim();
+  if (FIRST_PERSON.test(value)) return false;
   return value.endsWith("?") || QUESTION_START.test(value);
 }
 
