@@ -38,6 +38,8 @@ continues with:
   with live activity, cancel, and automatic save and sync.
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
   a living reference at `/design` showing every component in its main states.
+- **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14
+  kept, with retries and a catch-up after downtime (see [Backups and restore](#backups-and-restore)).
 - **Accessible by default** — keyboard paths, visible focus, accessible names, rem-based type.
 
 ### Pages
@@ -238,6 +240,7 @@ pnpm worker         # runs queued jobs (agents, scans), one at a time (reads .en
 pnpm agents:initial-run  # once: queues every research topic, then discovery per product
 pnpm scan:now       # queues a visibility scan of every product now (or: pnpm scan:now <productId>)
 pnpm analyst:now    # queues the weekly analyst report for the current week now
+pnpm backup:now     # queues a backup of the database now (see "Backups and restore")
 ```
 
 A deployed install runs the worker as the `harbour-worker` systemd user service (see
@@ -276,7 +279,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_RP_ID` | yes | — | WebAuthn relying-party id: the origin's hostname or a parent domain. |
 | `HARBOUR_DB_PATH` | no | `./data/harbour.db` | SQLite database file. |
 | `HARBOUR_CONFIG_PATH` | no | unset | Product config file; must exist if set. Unset reads `./harbour.config.json` and shows the example (demo) only if that file does not exist. |
-| `HARBOUR_TIMEZONE` | no | server's zone | IANA timezone for dates, the daily scan at 06:00 and the weekly analyst on Sundays at 20:00 local time (daylight saving included). |
+| `HARBOUR_TIMEZONE` | no | server's zone | IANA timezone for dates, the nightly backup at 03:15, the daily scan at 06:00 and the weekly analyst on Sundays at 20:00 local time (daylight saving included). |
 | `HARBOUR_LOCALE` | no | `en-US` | BCP 47 locale for dates. |
 | `HARBOUR_BRAIN_DIR` | no | `./brain` | Second Brain directory — point it at a separate private repo. The worker refuses all git work unless it is the root of its own git repository. |
 | `HARBOUR_EDITOR_URL_TEMPLATE` | no | `vscode://file/{path}` | Editor link for brain documents; `{path}` is the encoded absolute file path. Empty hides the link. |
@@ -288,6 +291,8 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility scan's crawler fetches per product per scan, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
 | `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing scans by itself (the daily 06:00 scan and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Run weekly report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
+| `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Refused if it is inside `HARBOUR_BRAIN_DIR`, because the brain is pushed to a remote. Restart the worker after changing it. |
+| `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
 | `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
 | `HARBOUR_GSC_CREDENTIALS` | for Search Console | unset | Absolute path to a Google credentials JSON file — a service account key or an OAuth authorized-user file (see [Connect Search Console](#connect-search-console)). Keep it outside the repo with mode 600; Harbour warns in the scan if other users can read it. Read by the worker only; its contents and the access tokens are never logged, shown or stored. Restart the worker after changing it. |
 | `HARBOUR_TEST_MODE` | tests only | `0` | `1` marks the end-to-end test environment (`pnpm test:e2e` sets it). Refused unless `HARBOUR_ORIGIN` is a loopback origin (`http://localhost`, `127.0.0.1` or `[::1]`), so a deployed Harbour cannot turn it on. Never set it yourself. |
@@ -322,6 +327,17 @@ Your product config and Second Brain are personal data: both are gitignored, and
 belongs in its own private repository.
 
 ## When things run
+
+### Nightly backup
+
+The worker backs up the database each night at 03:15 in `HARBOUR_TIMEZONE` (see
+[Backups and restore](#backups-and-restore)). Like the scans it is worked out from the job
+history: a restart never queues it twice, and a worker that was down at 03:15 queues that
+night's backup at its first check; one that was down for several nights queues only the latest
+night's, never one per missed night. A failed backup is tried again 10 minutes later, then 40
+minutes after that; after three failures the worker waits for the next night. A backup you
+queue by hand (`pnpm backup:now`) counts as that day's. Set `HARBOUR_SCHEDULED_BACKUP=off` to
+back up only by hand. The worker's start-up line says when the next backup is due.
 
 ### Daily scans
 
@@ -360,6 +376,36 @@ run it only by hand. Like every agent run it waits for the brain to be quiet fir
 
 Every 30 seconds between jobs the worker reopens snoozed actions whose date has come (in
 `HARBOUR_TIMEZONE`), with the note "Snooze ended".
+
+## Backups and restore
+
+Each backup is a full copy of the SQLite database, taken while Harbour keeps running (SQLite's
+online backup: the web stays usable throughout). Before it is kept, the copy is switched to a
+single self-contained file and checked with SQLite's `integrity_check`; a copy that fails is
+thrown away and the job fails with the reason (see **Agents**). Details:
+
+- **Where:** `HARBOUR_BACKUP_DIR`, by default a `backups` folder next to the database
+  (`data/backups`, inside the gitignored data folder). Files are named by local day,
+  `harbour-YYYY-MM-DD.db`; a second backup on the same day replaces the first.
+- **How many:** the newest 14 are kept. Pruning only ever deletes files named exactly like a
+  backup; anything else you put in the folder is left alone.
+- **Private:** backups are written with mode 600 in a folder with mode 700. They hold session
+  hashes and the audit log, so **treat them like `.env`**: Harbour never sends them anywhere.
+  Copying them off the machine (an encrypted disk, another host) is up to you, and is what
+  protects you from losing the disk.
+- **Now:** `pnpm backup:now` queues a backup of today; the worker runs it next. The Agents page
+  shows it as "Nightly backup: YYYY-MM-DD" with the size and how many backups are kept.
+- **Bounded:** a backup gives up after 10 minutes.
+
+To restore one:
+
+1. Stop both services: `systemctl --user stop harbour-worker harbour-web`.
+2. Copy the chosen `harbour-YYYY-MM-DD.db` over the database file (`HARBOUR_DB_PATH`, by default
+   `data/harbour.db`).
+3. Delete the old `harbour.db-wal` and `harbour.db-shm` files next to it, if they exist: they
+   belong to the database you replaced.
+4. Start the web, then the worker: `systemctl --user start harbour-web`, then
+   `systemctl --user start harbour-worker`.
 
 ## Reading the results
 
@@ -578,11 +624,11 @@ suggestion, the second finds it already known.
 app/          routes (thin: parse input, call lib/, render)
 components/   UI components built on semantic tokens
 design/       tokens.css (primitives + semantic) and the token list for /design
-lib/          auth, agents, brain, config, db, jobs, products, security, formatting — logic + tests
-worker/       the job worker (`pnpm worker`): agent runs, scans, autosave and push retries
+lib/          auth, agents, brain, config, db, jobs, ops (backups), products, security, formatting — logic + tests
+worker/       the job worker (`pnpm worker`): agent runs, scans, backups, autosave and push retries
 deploy/       systemd unit template, install script, deployment guide
 drizzle/      SQL migrations
-scripts/      repo checks and the setup-token, initial-run and scan-now CLIs
+scripts/      repo checks and the setup-token, initial-run, scan-now, analyst-now and backup-now CLIs
 tests/        e2e specs and test helpers
 docs/         design spec and implementation plans
 ```

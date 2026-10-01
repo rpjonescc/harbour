@@ -1,4 +1,4 @@
-// Harbour worker: runs queued jobs (agents, git sync, scans) one at a time. Started by systemd (`pnpm worker`).
+// Harbour worker: runs queued jobs (agents, git sync, scans, backups) one at a time. Started by systemd (`pnpm worker`).
 // Must not import any module that imports "server-only".
 
 import { makeSnoozeWaker } from "@/lib/actions/store";
@@ -15,6 +15,8 @@ import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
 import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
 import { makeScheduler } from "@/lib/jobs/scheduler";
+import { runBackupJob } from "@/lib/ops/backup-job";
+import { describeNextBackup, makeBackupSchedule } from "@/lib/ops/backup-schedule";
 import { getProducts } from "@/lib/products/catalog";
 import { runScan } from "@/lib/scan/run-scan";
 import { failInterruptedScans } from "@/lib/scan/store";
@@ -57,6 +59,16 @@ async function main() {
     clock: Date.now,
     productIds: () => getProducts().map((p) => p.id),
   });
+  const backupsOn = config.HARBOUR_SCHEDULED_BACKUP === "on";
+  const backups = makeBackupSchedule({
+    db,
+    timeZone: config.HARBOUR_TIMEZONE,
+    enabled: backupsOn,
+    clock: Date.now,
+  });
+  const logBackup = (why: string, queued: { jobId: number; day: string } | null) => {
+    if (queued) console.log(`${why}: queued backup #${queued.jobId} for ${queued.day}`);
+  };
   const snoozes = makeSnoozeWaker({ db, timeZone: config.HARBOUR_TIMEZONE, clock: Date.now });
   const logAnalyst = (why: string, queued: { jobId: number; week: string } | null) => {
     if (queued) console.log(`${why}: queued weekly analyst #${queued.jobId} for ${queued.week}`);
@@ -71,7 +83,10 @@ async function main() {
   failInterruptedScans(db); // their jobs were just failed by startup()
   logQueued("catch-up", scans.catchUp());
   logAnalyst("catch-up", analyst.tick());
-  console.log("harbour-worker ready");
+  logBackup("catch-up", backups.tick());
+  console.log(
+    `harbour-worker ready; ${describeNextBackup(new Date(), config.HARBOUR_TIMEZONE, backupsOn)}`,
+  );
 
   const runJob = async (job: Job) => {
     const now = () => new Date();
@@ -89,6 +104,18 @@ async function main() {
         stopping: () => stopping,
       });
       await runScan(deps, job);
+    } else if (job.kind === "backup") {
+      // Before the agent fallback below, which every other kind reaches.
+      await runBackupJob(
+        {
+          db,
+          config,
+          productIds: () => getProducts().map((p) => p.id),
+          now,
+          stopping: () => stopping,
+        },
+        job,
+      );
     } else {
       const { pushed } = await runAgentJob(
         {
@@ -119,6 +146,7 @@ async function main() {
     scheduler.tick(); // between jobs only: never during a run
     logQueued("daily", scans.tick());
     logAnalyst("weekly", analyst.tick());
+    logBackup("nightly", backups.tick());
     const woken = snoozes.tick();
     if (woken > 0) console.log(`woke ${woken} snoozed action(s)`);
     const reimported = imports.tick(); // committed agent output whose import failed

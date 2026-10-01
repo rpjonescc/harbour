@@ -14,6 +14,8 @@ export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly P
     return `${job.kind === "scan" ? "Scan" : "Discovery"}: ${name}`;
   }
   if (job.kind === "weekly-analyst") return `Weekly report: ${job.params.week ?? ""}`;
+  if (job.kind === "backup") return `Nightly backup: ${job.params.day ?? ""}`;
+  if (job.kind === "retention") return `Retention: ${job.params.day ?? ""}`;
   if (job.kind === "notes-sync") return "Save notes to GitHub";
   return "Sync brain to GitHub";
 }

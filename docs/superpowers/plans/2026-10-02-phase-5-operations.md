@@ -146,7 +146,8 @@ export function makeBackupSchedule(deps: { db: Db; timeZone: string; enabled: bo
 - [ ] **Step 6: Docs**: README Configuration (`HARBOUR_BACKUP_DIR`, `HARBOUR_SCHEDULED_BACKUP`), "When things run" → "Nightly backup", a new "Backups and restore" section (where files go, 14 kept, verified, mode 600, treat like `.env`, copy them off the machine yourself, `pnpm backup:now`, and the restore steps: stop both services, copy the chosen `harbour-YYYY-MM-DD.db` over `HARBOUR_DB_PATH`, delete the old `-wal`/`-shm` files, start web then worker); `.env.example`; `deploy/README.md` "Backups" (restore, and that `data/backups` is inside the gitignored data dir). Spec §11 backups (see "Spec changes").
 - [ ] **Step 7: Commit** `feat(ops): nightly verified SQLite backup with catch-up and retries`.
 
-**As built:** _(implementer)_
+**As built:** as specified, with these additions. `zonedInstant` was rewritten (not only moved) to meet its documented gap/overlap rule: it tries the zone offsets a day either side of the wall time, keeps the earlier valid instant, and reads a gap time on the pre-gap clock. `lib/db/client.ts` gains `connectionOf(db)` (the raw better-sqlite3 connection, refused for a transaction, which `Db` also types) because `Db` does not expose `$client`. `runBackup`'s `verify` seam returns the copy's `integrity_check` rows (the default also switches the copy to `journal_mode = DELETE`); the error names at most 3 rows joined by "; ". `describeNextBackup` (backup-schedule) formats the worker's ready line; `describeBackup` (backup-job) formats the verified event, with ", N removed (…)" only when something was pruned; sizes are decimal MB. A cancelled backup counts as an ended attempt for the retry rule. Live-run timings: recorded in Task 6.
+
 
 ---
 

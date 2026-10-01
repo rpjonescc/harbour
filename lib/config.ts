@@ -1,3 +1,4 @@
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 
 /** WebAuthn requires the RP id to be the origin's host or a registrable suffix of it. */
@@ -13,6 +14,12 @@ function isLoopbackOrigin(origin: string): boolean {
   if (!URL.canParse(origin)) return false;
   const { protocol, hostname } = new URL(origin);
   return protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
+}
+
+/** Whether `path` is `dir` or inside it, compared as resolved absolute paths. */
+function isInside(path: string, dir: string): boolean {
+  const rel = relative(resolve(dir), resolve(path));
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
 }
 
 const flag = z
@@ -86,6 +93,10 @@ const schema = z
     HARBOUR_SCHEDULED_SCANS: z.enum(["on", "off"]).default("on"),
     // "off" stops the worker queueing the weekly analyst run (Run now and `pnpm analyst:now` still work).
     HARBOUR_SCHEDULED_ANALYST: z.enum(["on", "off"]).default("on"),
+    // Where nightly backups go; default `<folder of HARBOUR_DB_PATH>/backups`. Never in the brain.
+    HARBOUR_BACKUP_DIR: z.string().min(1).optional(),
+    // "off" stops the worker queueing the nightly backup (`pnpm backup:now` still works).
+    HARBOUR_SCHEDULED_BACKUP: z.enum(["on", "off"]).default("on"),
     // Secret: Google API key for PageSpeed Insights; without one it is not connected. Worker only.
     HARBOUR_PAGESPEED_API_KEY: z.string().min(1).optional(),
     // Path to a Google credentials JSON file for Search Console (secret, mode 600). Worker only.
@@ -107,6 +118,12 @@ const schema = z
   .refine((c) => !c.HARBOUR_SCAN_ALLOW_LOOPBACK || c.HARBOUR_TEST_MODE, {
     message: "HARBOUR_SCAN_ALLOW_LOOPBACK is for tests only: it needs HARBOUR_TEST_MODE=1",
     path: ["HARBOUR_SCAN_ALLOW_LOOPBACK"],
+  })
+  // The brain is pushed to a remote; backups hold session hashes and the audit log.
+  .refine((c) => !c.HARBOUR_BACKUP_DIR || !isInside(c.HARBOUR_BACKUP_DIR, c.HARBOUR_BRAIN_DIR), {
+    message:
+      "HARBOUR_BACKUP_DIR must not be inside HARBOUR_BRAIN_DIR (the brain is pushed to a remote)",
+    path: ["HARBOUR_BACKUP_DIR"],
   })
   .refine((c) => !(c.NODE_ENV === "production" && c.HARBOUR_DEV_IDENTITY), {
     message: "HARBOUR_DEV_IDENTITY must not be set in production",

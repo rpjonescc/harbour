@@ -16,6 +16,12 @@ describe("jobLabel", () => {
       "Discovery: Acme Docs",
     );
     expect(jobLabel({ kind: "brain-push", params: {} }, products)).toBe("Sync brain to GitHub");
+    expect(jobLabel({ kind: "backup", params: { day: "2026-10-02" } }, products)).toBe(
+      "Nightly backup: 2026-10-02",
+    );
+    expect(jobLabel({ kind: "retention", params: { day: "2026-10-02" } }, products)).toBe(
+      "Retention: 2026-10-02",
+    );
     expect(jobLabel({ kind: "notes-sync", params: {} }, products)).toBe("Save notes to GitHub");
     expect(jobLabel({ kind: "scan", params: { productId: "acme-docs" } }, products)).toBe(
       "Scan: Acme Docs",

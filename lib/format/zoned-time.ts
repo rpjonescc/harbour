@@ -39,16 +39,52 @@ export function addDays(day: string, days: number): string {
   return toDay(parseDay(day) + days * DAY_MS);
 }
 
+/** Minutes the zone's clock is ahead of UTC at `ms`. */
+function offsetAt(ms: number, timeZone: string): number {
+  const local = localTime(timeZone, new Date(ms));
+  return Math.round((parseDay(local.day) + local.minute * 60_000 - ms) / 60_000);
+}
+
 /**
- * The instant that is `minute` minutes into local `day` in `timeZone`. Adjusts for the zone's
- * offset twice, so a clock change between the guess and the answer is followed.
+ * The instant `minute` minutes into local `day`. In a fall-back overlap: the earlier instant.
+ * In a spring-forward gap: the same wall-clock distance after the gap (03:15 → 04:15).
  */
 export function zonedInstant(day: string, minute: number, timeZone: string): Date {
-  const target = parseDay(day) + minute * 60_000;
-  let at = target;
-  for (let i = 0; i < 2; i++) {
-    const local = localTime(timeZone, new Date(at));
-    at += target - (parseDay(local.day) + local.minute * 60_000);
-  }
-  return new Date(at);
+  const wall = parseDay(day) + minute * 60_000;
+  // Clock changes are months apart, so a day either side gives the offsets around this one.
+  const before = offsetAt(wall - DAY_MS, timeZone);
+  const after = offsetAt(wall + DAY_MS, timeZone);
+  const valid = [before, after]
+    .map((offset) => wall - offset * 60_000)
+    .filter((at) => offsetAt(at, timeZone) * 60_000 === wall - at);
+  // No valid instant: the wall time falls in a gap, so read it on the clock from before the gap.
+  return new Date(valid.length > 0 ? Math.min(...valid) : wall - before * 60_000);
+}
+
+/** The local day whose `minute` slot is the latest at or before `now` (today, else yesterday). */
+export function latestDailySlotDay(now: Date, timeZone: string, minute: number): string {
+  const local = localTime(timeZone, now);
+  return local.minute >= minute ? local.day : addDays(local.day, -1);
+}
+
+/** The first `minute` slot strictly after `now`. */
+export function nextDailySlot(now: Date, timeZone: string, minute: number): Date {
+  const day = localTime(timeZone, now).day;
+  const today = zonedInstant(day, minute, timeZone);
+  return today.getTime() > now.getTime() ? today : zonedInstant(addDays(day, 1), minute, timeZone);
+}
+
+/** The local calendar month containing `now`: { label: "2026-10", start, end } (start inclusive, end exclusive). */
+export function monthWindow(
+  now: Date,
+  timeZone: string,
+): { label: string; start: Date; end: Date } {
+  const label = localTime(timeZone, now).day.slice(0, 7);
+  const next = new Date(parseDay(`${label}-01`));
+  next.setUTCMonth(next.getUTCMonth() + 1);
+  return {
+    label,
+    start: zonedInstant(`${label}-01`, 0, timeZone),
+    end: zonedInstant(toDay(next.getTime()), 0, timeZone),
+  };
 }

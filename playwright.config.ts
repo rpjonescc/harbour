@@ -29,6 +29,8 @@ const env = {
   HARBOUR_SCHEDULED_SCANS: "off",
   // No scheduled weekly analyst either: it would queue ahead of the runs under test.
   HARBOUR_SCHEDULED_ANALYST: "off",
+  // No nightly backup: the runs under test own the queue.
+  HARBOUR_SCHEDULED_BACKUP: "off",
   // Fictional token: the agent CLI is the fake below, so nothing is ever sent anywhere.
   HARBOUR_CLAUDE_OAUTH_TOKEN: "e2e-fake-token",
 };

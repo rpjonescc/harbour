@@ -23,7 +23,9 @@ export type JobKind =
   | "brain-push"
   | "notes-sync"
   | "scan"
-  | "weekly-analyst";
+  | "weekly-analyst"
+  | "backup"
+  | "retention";
 export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";
 export type Job = typeof jobs.$inferSelect;
 export type EventKind = "status" | "tool" | "text" | "error";

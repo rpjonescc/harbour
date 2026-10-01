@@ -9,6 +9,16 @@ import * as schema from "./schema";
 
 export type Db = BetterSQLite3Database<typeof schema>;
 
+/**
+ * The raw better-sqlite3 connection behind a database from `openDb` (the online backup needs
+ * it). `Db` also types transactions, which have none, hence the check.
+ */
+export function connectionOf(db: Db): Database.Database {
+  const client: unknown = "$client" in db ? db.$client : undefined;
+  if (!(client instanceof Database)) throw new Error("Not a top-level database connection");
+  return client;
+}
+
 /** Opens a SQLite database with Harbour's pragmas. Use ":memory:" in tests. */
 export function openDb(path: string): Db {
   if (path !== ":memory:") {

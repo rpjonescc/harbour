@@ -215,3 +215,38 @@ describe("test-only loopback scans", () => {
     expect(() => parseConfig({ ...e2e, HARBOUR_TEST_MODE: "yes" })).toThrow();
   });
 });
+
+describe("backup settings", () => {
+  it("backs up nightly by default into the default folder", () => {
+    const config = parseConfig(base);
+    expect(config.HARBOUR_SCHEDULED_BACKUP).toBe("on");
+    expect(config.HARBOUR_BACKUP_DIR).toBeUndefined();
+  });
+
+  it("accepts on or off for the nightly backup", () => {
+    expect(parseConfig({ ...base, HARBOUR_SCHEDULED_BACKUP: "off" }).HARBOUR_SCHEDULED_BACKUP).toBe(
+      "off",
+    );
+    expect(() => parseConfig({ ...base, HARBOUR_SCHEDULED_BACKUP: "no" })).toThrow();
+  });
+
+  it("accepts a backup folder outside the brain", () => {
+    const dir = "/srv/harbour-example/backups";
+    expect(parseConfig({ ...base, HARBOUR_BACKUP_DIR: dir }).HARBOUR_BACKUP_DIR).toBe(dir);
+    expect(
+      parseConfig({
+        ...base,
+        HARBOUR_BRAIN_DIR: "/srv/harbour-example/brain",
+        HARBOUR_BACKUP_DIR: "/srv/harbour-example/brain-backups",
+      }).HARBOUR_BACKUP_DIR,
+    ).toBe("/srv/harbour-example/brain-backups");
+  });
+
+  it("refuses a backup folder inside the brain, which is pushed to a remote", () => {
+    for (const dir of ["./brain/backups", "brain", `${process.cwd()}/brain/../brain/b`]) {
+      expect(() =>
+        parseConfig({ ...base, HARBOUR_BRAIN_DIR: "./brain", HARBOUR_BACKUP_DIR: dir }),
+      ).toThrow(/HARBOUR_BACKUP_DIR/);
+    }
+  });
+});

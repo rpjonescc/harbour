@@ -6,7 +6,16 @@ export const jobs = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     kind: text("kind", {
-      enum: ["research", "discovery", "brain-push", "notes-sync", "scan", "weekly-analyst"],
+      enum: [
+        "research",
+        "discovery",
+        "brain-push",
+        "notes-sync",
+        "scan",
+        "weekly-analyst",
+        "backup",
+        "retention",
+      ],
     }).notNull(),
     params: text("params", { mode: "json" }).$type<Record<string, string>>().notNull(),
     // Stable identity of the request, used to avoid queueing the same job twice.

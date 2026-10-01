@@ -396,8 +396,15 @@ stand, what improved, what got worse, top opportunities, and new competitors see
 - **Data gaps** are stored and charted as gaps, never zeros.
 - **Bounded resources**: crawler page cap and per-request timeouts; agent
   timeouts and turn caps; captured agent output truncated to a fixed size.
-- **Backups**: nightly SQLite backup (`.backup`) to a dated file, 14 kept;
-  the brain directory is its own git repo.
+- **Backups**: the worker takes a nightly backup at 03:15 `HARBOUR_TIMEZONE` with
+  better-sqlite3's online backup API (the `.backup` mechanism) into `HARBOUR_BACKUP_DIR`
+  (default `<db dir>/backups`; never inside the brain) as `harbour-YYYY-MM-DD.db`. Each copy
+  is switched to a single self-contained file (journal mode DELETE), verified with
+  `integrity_check` and only then renamed into place, mode 600 in a mode-700 folder; 14 kept
+  (pruning deletes only regular files named exactly like a backup). Up to 3 attempts per night
+  (10 and 40 minutes apart), then a Today notice; one catch-up for the latest missed night
+  only, never one per missed night; each backup is bounded to 10 minutes. The brain directory
+  is its own git repo.
 
 ## 12. Cost control
 

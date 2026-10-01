@@ -1,7 +1,8 @@
 import { mkdirSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openDb } from "./client";
+import Database from "better-sqlite3";
+import { connectionOf, openDb } from "./client";
 
 describe("openDb", () => {
   it("creates parent directory with mode 0o700 and DB file with mode 0o600", () => {
@@ -29,5 +30,15 @@ describe("openDb", () => {
 
     expect(statSync(dataDir).mode & 0o777).toBe(0o700);
     rmSync(tempDir, { recursive: true, force: true });
+  });
+});
+
+describe("connectionOf", () => {
+  it("returns the raw connection of a database, and refuses a transaction", () => {
+    const db = openDb(":memory:");
+    expect(connectionOf(db)).toBeInstanceOf(Database);
+    db.transaction((tx) => {
+      expect(() => connectionOf(tx)).toThrow("Not a top-level database connection");
+    });
   });
 });
