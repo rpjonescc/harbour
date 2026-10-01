@@ -11,7 +11,8 @@ export type AuditEvent =
   | "setup_token_rejected"
   | "agent_run_requested"
   | "agent_run_cancelled"
-  | "proposal_decided";
+  | "proposal_decided"
+  | "scan_requested";
 
 /** Appends a security-relevant event to the audit log. */
 export function audit(
