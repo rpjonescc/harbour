@@ -23,18 +23,23 @@ function brokenLinks(
   return broken.slice(0, MAX_BROKEN_LINKS);
 }
 
-/** Titles shared by two or more successful pages, sorted and capped. */
+/**
+ * Titles shared by two or more distinct successful pages, sorted and capped. Pages are told
+ * apart by final URL, so a redirect and its target are one page.
+ */
 function duplicateTitles(pages: ReadonlyMap<string, CrawledPage>): DuplicateTitle[] {
-  const byTitle = new Map<string, string[]>();
-  for (const [url, page] of pages) {
+  const byTitle = new Map<string, Set<string>>();
+  for (const page of pages.values()) {
     if (page.title === null || page.status < 200 || page.status >= 300) continue;
-    byTitle.set(page.title, [...(byTitle.get(page.title) ?? []), url]);
+    const urls = byTitle.get(page.title) ?? new Set<string>();
+    urls.add(page.finalUrl);
+    byTitle.set(page.title, urls);
   }
   return [...byTitle]
-    .filter(([, urls]) => urls.length > 1)
+    .filter(([, urls]) => urls.size > 1)
     .sort(([a], [b]) => byText(a, b))
     .slice(0, MAX_DUPLICATE_TITLES)
-    .map(([title, urls]) => ({ title, urls: urls.sort(byText).slice(0, MAX_URLS_PER_TITLE) }));
+    .map(([title, urls]) => ({ title, urls: [...urls].sort(byText).slice(0, MAX_URLS_PER_TITLE) }));
 }
 
 /** Site-level findings over the crawled pages (keyed by requested URL). */

@@ -150,7 +150,52 @@ describe("crawler pages", () => {
   });
 });
 
+describe("crawler redirect aliases", () => {
+  const titled = (title: string, body = "") =>
+    text(`<!doctype html><html><head><title>${title}</title></head><body>${body}</body></html>`, {
+      "content-type": "text/html",
+    });
+
+  it("does not report a page reached through a redirect as a duplicate title", async () => {
+    const { origin } = await site({
+      "/": html('<a href="/a">A</a><a href="/b">B</a>'),
+      "/a": redirect("/b"),
+      "/b": titled("Bee"),
+    });
+    const { site: summary } = await crawl(context(`${origin}/`));
+    expect(summary).toMatchObject({ duplicateTitles: [] });
+  });
+
+  it("does not fetch a redirect's target again", async () => {
+    const { origin, hits } = await site({
+      "/": html('<a href="/a">A</a>'),
+      "/a": redirect("/b"),
+      "/b": titled("Bee", '<a href="/b">Self</a>'),
+    });
+    await crawl(context(`${origin}/`));
+    expect(hits.filter((path) => path === "/b")).toHaveLength(1);
+  });
+
+  it("uses the normalised product URL as the subject of its page and the site", async () => {
+    const { origin } = await site({ "/": html("Home") });
+    const result = await crawl(context(origin));
+    expect(result.pages.map((p) => p.subject)).toEqual([`${origin}/`]);
+    expect(result.subject).toBe(`${origin}/`);
+  });
+});
+
 describe("crawler bounds", () => {
+  it("does not count robots-blocked pages against the page cap", async () => {
+    const { origin } = await site({
+      "/robots.txt": text("User-agent: *\nDisallow: /private/\n"),
+      "/": html('<a href="/private/x">X</a><a href="/ok">OK</a>'),
+      "/ok": html("OK"),
+    });
+    const { pages, site: summary } = await crawl(context(`${origin}/`, {}, 2));
+    expect(pages.map((p) => p.subject)).toEqual([`${origin}/`, `${origin}/ok`]);
+    expect(summary).toMatchObject({ blockedByRobots: 1, limitReached: null });
+  });
+
   it("reads at most 5 sitemaps", async () => {
     const lines = Array.from({ length: 8 }, (_, i) => `Sitemap: /s${i}.xml`).join("\n");
     const { origin, hits } = await site({ "/robots.txt": text(lines), "/": html("Home") });

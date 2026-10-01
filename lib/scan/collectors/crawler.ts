@@ -43,17 +43,20 @@ async function fetchPage(crawl: Crawl, url: string) {
   return { finalUrl: response.finalUrl, links };
 }
 
-/** Visits one page; a fetch failure is recorded (not thrown) and yields no links. */
-async function visit(crawl: Crawl, url: string): Promise<string[]> {
+/** Visits one page; a fetch failure is recorded (not thrown) and yields null. */
+async function visit(crawl: Crawl, url: string) {
   try {
-    return (await fetchPage(crawl, url)).links;
+    return await fetchPage(crawl, url);
   } catch (error) {
     if (crawl.ctx.signal.aborted || !(error instanceof FetchError)) throw error;
-    if (error.kind === "blocked_by_robots") crawl.blockedByRobots++;
-    else if (crawl.fetchErrors.length < MAX_FETCH_ERRORS) {
+    if (error.kind === "blocked_by_robots") {
+      crawl.blockedByRobots++;
+      // robots.txt refused it before any request: it doesn't use up the page cap.
+      crawl.started--;
+    } else if (crawl.fetchErrors.length < MAX_FETCH_ERRORS) {
       crawl.fetchErrors.push({ url, kind: error.kind });
     }
-    return [];
+    return null;
   }
 }
 
@@ -64,15 +67,18 @@ function hasBudget(crawl: Crawl): boolean {
 /** Breadth-first over the frontier, two pages in flight, until it empties or a cap is hit. */
 async function crawlFrontier(crawl: Crawl, frontier: Frontier): Promise<void> {
   const inFlight = new Set<Promise<void>>();
-  // Bounded: every pass starts a page (counted against maxPages) or waits for one to finish.
+  // Bounded: every pass takes a URL off the bounded frontier or waits for a visit to finish.
   while (true) {
     crawl.ctx.signal.throwIfAborted();
     while (inFlight.size < CONCURRENCY && hasBudget(crawl)) {
       const url = frontier.next();
       if (url === undefined) break;
       crawl.started++;
-      const task = visit(crawl, url).then((links) => {
-        for (const link of links) frontier.add(link, url);
+      const task = visit(crawl, url).then((visited) => {
+        if (!visited) return;
+        // A redirect's target is the same page: don't fetch it again under its own URL.
+        frontier.markKnown(visited.finalUrl);
+        for (const link of visited.links) frontier.add(link, url);
       });
       inFlight.add(task);
       // Rejections surface through the race below; this only marks them handled.
@@ -143,7 +149,7 @@ async function collect(ctx: CollectContext, limits: CrawlLimits): Promise<Collec
     subject,
     value,
   }));
-  observations.push({ kind: "site", subject: ctx.product.url, value: site });
+  observations.push({ kind: "site", subject: start, value: site });
   return { status: "ok", observations };
 }
 
