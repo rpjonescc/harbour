@@ -16,9 +16,22 @@ const RULES = `Rules:
 - Cite every factual claim inline with a Markdown link to its source. Never invent sources, numbers or quotes; say what is uncertain.
 - Write in plain English for a beginner. Explain jargon on first use.`;
 
+/** Collapses whitespace so interpolated values cannot start new prompt lines. */
+function oneLine(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function assertDate(today: string): void {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(today))
+    throw new Error(`Invalid date (expected YYYY-MM-DD): ${oneLine(today)}`);
+}
+
 function productContext(products: readonly Product[]): string {
   return products
-    .map((p) => `- ${p.name} (${p.url}) — read products/${p.id}/notes.md first if it exists.`)
+    .map(
+      (p) =>
+        `- ${oneLine(p.name)} (${oneLine(p.url)}) — read products/${p.id}/notes.md first if it exists.`,
+    )
     .join("\n");
 }
 
@@ -28,6 +41,7 @@ export function researchPrompt(
   products: readonly Product[],
   today: string,
 ): string {
+  assertDate(today);
   return `TARGET_FILES: ${topic.path}
 
 You are a careful research analyst writing one document for a small business owner's private knowledge base.
@@ -39,12 +53,15 @@ Today's date: ${today}
 Write the file ${topic.path} in Markdown, starting with this YAML frontmatter:
 ---
 title: ${topic.title}
-tags: [${topic.path.split("/")[1]?.replace(".md", "") ?? "guide"}]
+tags: [${topic.tags.join(", ")}]
 researched: ${today}
-confidence: low | medium | high   (choose one, based on the quality of evidence)
+confidence: medium
 review_by: ${addDays(today, 90)}
-sources: [list every source URL you cite]
+sources: []
 ---
+
+Set confidence to low, medium or high based on evidence quality. Replace sources with the list of
+every http(s) URL you cite, as YAML strings. Keep the frontmatter valid YAML.
 
 Structure: a short summary first, then sections with ## headings, then a section titled
 "## What this means for our products" with specific, practical implications for each product:
@@ -58,12 +75,13 @@ ${RULES}`;
 
 /** Prompt for one product's discovery: keywords, AI questions and competitors. */
 export function discoveryPrompt(product: Product, today: string): string {
+  assertDate(today);
   const dir = `products/${product.id}`;
   return `TARGET_FILES: ${dir}/discovery.md, ${dir}/proposals.json
 
 You are an SEO and AI-visibility strategist doing discovery for one product.
 
-Product: ${product.name} (${product.url})
+Product: ${oneLine(product.name)} (${oneLine(product.url)})
 Owner's notes: ${dir}/notes.md (read this first — audience, market, positioning).
 Today's date: ${today}
 

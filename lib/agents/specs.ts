@@ -41,7 +41,7 @@ export function specForJob(
     kind,
     label: `Discovery: ${product.name}`,
     prompt: discoveryPrompt(product, today),
-    allowed: { prefixes: [], exact: targets },
+    allowed: { prefixes: [], exact: [...targets] },
     targets,
     proposalsPath: `${dir}/proposals.json`,
     requiredFiles: [`${dir}/notes.md`],

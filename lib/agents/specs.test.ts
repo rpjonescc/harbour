@@ -1,3 +1,4 @@
+import { isAllowedChange } from "./brain-git";
 import { specForJob } from "./specs";
 
 const products = [
@@ -38,5 +39,13 @@ describe("specForJob", () => {
     expect(() => specForJob("discovery", { productId: "nope" }, products, "2026-10-01")).toThrow(
       /unknown product/i,
     );
+  });
+
+  it("accepts exactly the spec's paths and rejects siblings", () => {
+    const spec = specForJob("discovery", { productId: "acme-docs" }, products, "2026-10-01");
+    expect(spec.allowed.exact).not.toBe(spec.targets);
+    for (const path of spec.targets) expect(isAllowedChange(path, spec.allowed)).toBe(true);
+    expect(isAllowedChange("products/acme-docs/notes.md", spec.allowed)).toBe(false);
+    expect(isAllowedChange("products/acme-docs/other.json", spec.allowed)).toBe(false);
   });
 });
