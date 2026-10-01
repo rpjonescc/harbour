@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, lte, notInArray } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { actionEvents, actions } from "@/lib/db/schema";
-import type { ActionActor, ActionStatus, NewAction } from "./types";
+import type { ActionActor, ActionFields, ActionStatus, NewAction } from "./types";
 
 /** Events kept per action; older ones are pruned on insert. */
 export const MAX_ACTION_EVENTS = 50;
@@ -60,6 +60,18 @@ export function insertAction(
     },
     { behavior: "immediate" },
   );
+}
+
+/** Content an existing action may have rewritten (by the scan that raised it), never its status. */
+export type ActionContent = Partial<ActionFields> & { issuePresent?: boolean };
+
+/** Rewrites an action's content, keeping the title key in step with the title. */
+export function updateActionContent(tx: Db, id: number, content: ActionContent, now: Date): void {
+  const titleKey = content.title === undefined ? {} : { titleKey: normaliseTitle(content.title) };
+  tx.update(actions)
+    .set({ ...content, ...titleKey, updatedAt: now })
+    .where(eq(actions.id, id))
+    .run();
 }
 
 /** Changes status with an event; returns false when the row is not in `from` any more (race). */

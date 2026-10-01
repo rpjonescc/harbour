@@ -315,6 +315,17 @@ product was last scanned and will be next.
   problem, a suggested fix and an acceptance check, to paste into Claude Code in the site's
   repository; it contains only the product's name and URL and the scan's findings. The
   **Pages** table lists the 50 crawled pages with the most problems.
+- **Actions** follow every scan that is not failed: each issue becomes one tracked action per
+  product and rule (the Actions page that shows them is on the roadmap). The next scan that no
+  longer finds the issue marks its action done, with a dated note; if the issue comes back, or
+  you marked an action done while the scan still finds it, the action reopens. A dismissed
+  action stays dismissed while the issue persists and reopens only if the issue clears and
+  later returns. A snoozed action stays snoozed until its date even while the issue persists,
+  and is marked done if the issue clears. When a rule could not judge a scan (its collector
+  failed, or the crawl was partial), its action is left exactly as it was: missing data never
+  creates, resolves or reopens an action. The scan's job log ends with how many actions were
+  new, resolved and reopened; if this step fails the job is marked failed with the reason, the
+  scan and its scores are kept, and the next scan tries again.
 - **Sources** (`/settings/sources`) shows each collector's latest run per product (ok, failed,
   not connected or skipped) with its reason, and whether PageSpeed and Search Console are
   connected — as connected or not, never the key or the credentials.

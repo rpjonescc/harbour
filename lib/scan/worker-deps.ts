@@ -1,10 +1,24 @@
+import { syncRuleActions } from "@/lib/actions/rule-sync-store";
+import { isoDateIn } from "@/lib/format/date";
 import { createSafeFetch } from "./fetch";
+import { evaluateRules } from "./issues";
 import { outboundHosts } from "./outbound-hosts";
 import { COLLECTORS } from "./registry";
-import type { ScanDeps } from "./run-scan";
+import type { AfterScoreInput, ScanDeps } from "./run-scan";
 import { scoreScan } from "./score";
+import { scanObservations } from "./store";
 
 type WorkerContext = Pick<ScanDeps, "db" | "config" | "products" | "now" | "stopping">;
+
+/** Brings the product's rule actions in line with a scored scan; returns the job event text. */
+function syncActions(context: WorkerContext, { scanId, product, statuses }: AfterScoreInput) {
+  const { db, now } = context;
+  const outcomes = evaluateRules(scanObservations(db, scanId), statuses);
+  const at = now();
+  const scanDate = isoDateIn(context.config.HARBOUR_TIMEZONE, at);
+  const counts = syncRuleActions(db, { productId: product.id, outcomes, scanDate, now: at });
+  return `Actions: ${counts.created} new, ${counts.resolved} resolved, ${counts.reopened} reopened`;
+}
 
 /** The scan dependencies the worker runs with in production. */
 export function workerScanDeps(context: WorkerContext): ScanDeps {
@@ -18,5 +32,6 @@ export function workerScanDeps(context: WorkerContext): ScanDeps {
       allowLoopback: context.config.HARBOUR_SCAN_ALLOW_LOOPBACK,
     }),
     scoreScan,
+    afterScore: (input) => syncActions(context, input),
   };
 }

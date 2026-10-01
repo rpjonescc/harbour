@@ -226,6 +226,16 @@ title", "AI crawler blocked in robots.txt", "sitemap 404", "keyword dropped >5
 positions"). Each rule has a stable id so the same issue is not duplicated; it
 auto-resolves when the condition clears.
 
+v1's rules are the eight issue rules: `missing-title`, `missing-description`,
+`broken-links`, `noindex`, `ai-crawlers-blocked`, `no-faq-schema`, `no-llms-txt` and
+`no-preferred-sources`. "Keyword dropped > 5 positions" waits for the rankings
+collector; "sitemap 404" is part of the `seo.indexability` score, not a separate rule
+yet. Each rule judges a scan as present, clear or unknown; auto-resolve happens only
+when the rule's collectors ran ok (unknown never creates, resolves or reopens an
+action). Dismissed actions stay dismissed while the issue persists and reopen if it
+clears and comes back; snoozed actions whose issue clears are marked done; an action
+the owner marked done reopens if the next scan still finds the issue.
+
 ## 6. Second Brain
 
 ### 6.1 Storage

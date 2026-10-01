@@ -11,5 +11,10 @@ export type NewAction = Omit<
   typeof actions.$inferInsert,
   "id" | "createdAt" | "updatedAt" | "statusChangedAt" | "titleKey"
 >;
+/** What an action says: its content, apart from where it came from and its status. */
+export type ActionFields = Pick<
+  NewAction,
+  "area" | "title" | "why" | "fix" | "check" | "impact" | "effort" | "evidence" | "docs"
+>;
 /** Statuses the owner is actively working on. */
 export const ACTIVE: readonly ActionStatus[] = ["open", "in_progress"];

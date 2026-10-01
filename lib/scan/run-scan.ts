@@ -34,6 +34,17 @@ export type ScanDeps = {
   pollMs?: number;
   /** Most observations one collector may store per scan. */
   maxObservations?: number;
+  /**
+   * Runs once a scan that is not failed has been scored (the worker syncs rule actions); its
+   * result, if any, becomes a job event. A throw fails the job but keeps the scan and scores.
+   */
+  afterScore?: (input: AfterScoreInput) => string | null;
+};
+
+export type AfterScoreInput = {
+  scanId: number;
+  product: Product;
+  statuses: Record<string, CollectorStatus>;
 };
 
 // A weekly collector is due 7 days after its last ok run, less 12 h of slack so a daily scan
@@ -177,8 +188,17 @@ function scoreAndFinish(scan: Scan, statuses: Record<string, CollectorStatus>) {
     finish(deps, job, "failed", `Scoring failed: ${message(error)}`);
     return;
   }
-  if (status === "failed") finish(deps, job, "failed", "All collectors failed");
-  else finish(deps, job, "ok");
+  if (status === "failed") return finish(deps, job, "failed", "All collectors failed");
+  try {
+    const summary = deps.afterScore?.({ scanId, product: scan.product, statuses });
+    if (summary) scan.event("status", summary);
+  } catch (error) {
+    // The scan and its scores stand; the next scan syncs again.
+    console.error(`job ${job.id}: action sync failed`, error);
+    scan.event("error", `Action sync failed: ${message(error)}`);
+    return finish(deps, job, "failed", `Action sync failed: ${message(error)}`);
+  }
+  finish(deps, job, "ok");
 }
 
 /** Runs every registered collector for the job's product, then scores the scan. */
