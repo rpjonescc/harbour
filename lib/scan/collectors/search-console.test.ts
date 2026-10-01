@@ -23,13 +23,17 @@ const BY_DIMENSION: Record<string, string> = {
   page: recorded("by-page.json"),
 };
 
+const BY_DATE_PRIOR = recorded("by-date-prior.json");
+const PRIOR_WINDOW = { startDate: "2026-08-04", endDate: "2026-08-31" };
+
 /** A fake Search Console answering each report from its recorded response. */
 function searchConsoleApi(status = 200, body?: string) {
   const calls: Call[] = [];
   const fetch: SafeFetch = async (url, options) => {
     calls.push({ url, options });
-    const json = options.post?.json as { dimensions: string[] };
-    const answer = body ?? BY_DIMENSION[json.dimensions[0] ?? ""] ?? "";
+    const json = options.post?.json as { dimensions: string[]; startDate: string };
+    const prior = json.startDate === PRIOR_WINDOW.startDate;
+    const answer = body ?? (prior ? BY_DATE_PRIOR : BY_DIMENSION[json.dimensions[0] ?? ""]) ?? "";
     const base = { url, finalUrl: url, redirects: [], status, headers: {}, headerLines: [] };
     return { ...base, body: answer, truncated: false, ms: 300 };
   };
@@ -117,7 +121,7 @@ describe("search-console collector: not configured", () => {
 });
 
 describe("search-console collector", () => {
-  it("records 28 days by date, the top queries and pages from recorded responses", async () => {
+  it("records 28 days by date, the top queries and pages, and the 28 days before", async () => {
     const api = searchConsoleApi();
     const { result, asked, log } = run({
       path: credentialsFile(AUTHORIZED_USER),
@@ -125,12 +129,13 @@ describe("search-console collector", () => {
     });
     const outcome = await result;
     expect(asked).toEqual([expect.objectContaining({ type: "authorized_user" })]);
-    expect(api.calls.map((c) => c.url)).toEqual([ENDPOINT, ENDPOINT, ENDPOINT]);
+    expect(api.calls.map((c) => c.url)).toEqual([ENDPOINT, ENDPOINT, ENDPOINT, ENDPOINT]);
     const window = { startDate: "2026-09-01", endDate: "2026-09-28", type: "web" };
     expect(api.calls.map((c) => c.options.post?.json)).toEqual([
       { ...window, dimensions: ["date"], rowLimit: 28 },
       { ...window, dimensions: ["query"], rowLimit: 250 },
       { ...window, dimensions: ["page"], rowLimit: 100 },
+      { ...PRIOR_WINDOW, type: "web", dimensions: ["date"], rowLimit: 28 },
     ]);
     for (const { options } of api.calls) {
       expect(options).toMatchObject({
@@ -156,6 +161,14 @@ describe("search-console collector", () => {
       ctr: 0.03398058252427184,
       position: 18.3,
     });
+    expect(of("gsc_prior_daily")).toEqual([
+      {
+        kind: "gsc_prior_daily",
+        subject: "2026-08-04",
+        value: { clicks: 11, impressions: 360, ctr: 0.030555555555555555, position: 19.4 },
+      },
+      expect.objectContaining({ subject: "2026-08-31" }),
+    ]);
     expect(of("gsc_query").map((o) => o.subject)).toEqual([
       "acme docs",
       "how to write api docs",
@@ -176,11 +189,16 @@ describe("search-console collector", () => {
           days: 4,
           queries: 3,
           pages: 2,
+          priorStartDate: "2026-08-04",
+          priorEndDate: "2026-08-31",
+          priorDays: 2,
           warning: null,
         },
       },
     ]);
-    expect(log).toEqual(["4 days, 3 queries, 2 pages (2026-09-01 to 2026-09-28)"]);
+    expect(log).toEqual([
+      "4 days, 3 queries, 2 pages (2026-09-01 to 2026-09-28); 2 days in the 28 before",
+    ]);
     expect(JSON.stringify(outcome)).not.toContain(TOKEN);
   });
 

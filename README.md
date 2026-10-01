@@ -267,7 +267,8 @@ Google gives requests without an API key no quota, so it needs a free key:
 
 Search Console adds what Google actually shows: each day's clicks, impressions, click-through
 rate and average position for the last 28 days (ending 3 days ago, because Google's data lags),
-plus the top 250 queries and top 100 pages. The worker asks for read-only access and talks only
+plus the top 250 queries and top 100 pages, and daily totals for the 28 days before that so the
+score can show whether impressions are rising or falling. The worker asks for read-only access and talks only
 to Google.
 
 Harbour reads one credentials file, of either kind. Use a service account unless you have a

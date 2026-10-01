@@ -5,10 +5,11 @@ import { type GscCredentials, readGscCredentials } from "./gsc-credentials";
 import {
   GSC_REPORTS,
   type GscReport,
+  type ReportWindow,
   readReport,
   reportRequest,
   reportUrl,
-  reportWindow,
+  reportWindows,
 } from "./gsc-report";
 import { type AccessTokenSource, googleAccessToken } from "./gsc-token";
 
@@ -74,11 +75,7 @@ function fetchFailure(error: FetchError): Error {
 
 type Query = { ctx: CollectContext; property: string; token: string; who: string };
 
-async function fetchReport(
-  query: Query,
-  report: GscReport,
-  window: ReturnType<typeof reportWindow>,
-) {
+async function fetchReport(query: Query, report: GscReport, window: ReportWindow) {
   const { ctx, property, token, who } = query;
   let response: Awaited<ReturnType<CollectContext["fetch"]>>;
   try {
@@ -116,17 +113,30 @@ async function collectWith(
   if (file.warning) ctx.log(file.warning);
   const token = await accessToken(file.credentials, ctx.signal);
   const query = { ctx, property, token, who: account(file.credentials) };
-  const window = reportWindow(ctx.now);
+  const windows = reportWindows(ctx.now);
   const observations: Observation[] = [];
-  // One at a time: three small requests, and the shared limiter spaces them anyway.
-  for (const report of GSC_REPORTS)
-    observations.push(...(await fetchReport(query, report, window)));
+  // One at a time: four small requests, and the shared limiter spaces them anyway.
+  for (const report of GSC_REPORTS) {
+    observations.push(...(await fetchReport(query, report, windows[report.period])));
+  }
   const count = (kind: string) => observations.filter((o) => o.kind === kind).length;
   const [days, queries, pages] = [count("gsc_daily"), count("gsc_query"), count("gsc_page")];
+  const priorDays = count("gsc_prior_daily");
+  const { current, prior } = windows;
   ctx.log(
-    `${days} days, ${queries} queries, ${pages} pages (${window.startDate} to ${window.endDate})`,
+    `${days} days, ${queries} queries, ${pages} pages (${current.startDate} to ` +
+      `${current.endDate}); ${priorDays} days in the 28 before`,
   );
-  const summary = { ...window, days, queries, pages, warning: file.warning };
+  const summary = {
+    ...current,
+    days,
+    queries,
+    pages,
+    priorStartDate: prior.startDate,
+    priorEndDate: prior.endDate,
+    priorDays,
+    warning: file.warning,
+  };
   observations.push({ kind: "gsc_summary", subject: property, value: summary });
   return { status: "ok", observations };
 }
