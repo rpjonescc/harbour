@@ -188,22 +188,56 @@ const gscDay = (kind: string, date: string, impressions: number): ScanObservatio
   value: { clicks: 10, impressions, ctr: 10 / impressions, position: 18 },
 });
 
-/** Daily impressions this window and the 28 days before. */
-export function searchConsole(current: number[], prior: number[]): ScanObservation[] {
+const WINDOW = { startDate: "2026-09-01", endDate: "2026-09-28" };
+const PRIOR = { priorStartDate: "2026-08-04", priorEndDate: "2026-08-31" };
+
+/** The date `offset` days after `start` (YYYY-MM-DD). */
+function dayAfter(start: string, offset: number): string {
+  return new Date(Date.parse(`${start}T00:00:00Z`) + offset * 24 * 60 * 60_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/** Rows per day from the window's first day; null is a day Search Console returned no row for. */
+const rows = (kind: string, start: string, days: (number | null)[]) =>
+  days.flatMap((n, i) => (n === null ? [] : [gscDay(kind, dayAfter(start, i), n)]));
+
+/** Daily impressions this window and the 28 days before (from their first days), and the summary. */
+export function searchConsole(
+  current: (number | null)[],
+  prior: (number | null)[],
+): ScanObservation[] {
+  const summary = {
+    ...WINDOW,
+    ...PRIOR,
+    days: 0,
+    queries: 0,
+    pages: 0,
+    priorDays: 0,
+    warning: null,
+  };
   return [
-    ...current.map((n, i) => gscDay("gsc_daily", `2026-09-${String(i + 1).padStart(2, "0")}`, n)),
-    ...prior.map((n, i) =>
-      gscDay("gsc_prior_daily", `2026-08-${String(i + 4).padStart(2, "0")}`, n),
-    ),
+    ...rows("gsc_daily", WINDOW.startDate, current),
+    ...rows("gsc_prior_daily", PRIOR.priorStartDate, prior),
+    {
+      collector: "search-console",
+      kind: "gsc_summary",
+      subject: "sc-domain:docs.example.com",
+      value: summary,
+    },
   ];
 }
+
+/** `n` days of `value` impressions each. */
+export const daysOf = (n: number, value: number | null): (number | null)[] =>
+  Array.from({ length: n }, () => value);
 
 /** Acme Docs' full scan: every collector ok. */
 export const ACME_SCAN: ScanObservation[] = [
   ...ACME_CRAWL,
   readiness(),
   cwv(),
-  ...searchConsole([412, 388, 503, 467], [400, 350, 380, 370]),
+  ...searchConsole(daysOf(28, 59), daysOf(28, 50)),
 ];
 
 export const ALL_OK: Record<string, CollectorStatus> = {

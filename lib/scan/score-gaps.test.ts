@@ -66,6 +66,30 @@ describe("scoreScan with a sitemap it could not check", () => {
     expect(result?.complete.seo).toBe(false);
   });
 
+  it("scores a listed sitemap that answers 404 as a defect, not a gap", () => {
+    const errors = [{ url: "https://docs.example.com/sitemap-docs.xml", status: 404 }];
+    const result = score(withSitemap({ errors }));
+    expect(entry(result, "seo.indexability")).toMatchObject({
+      score: 50,
+      evidence:
+        "Sitemap listed but answers HTTP 404 (https://docs.example.com/sitemap-docs.xml); " +
+        "Googlebot allowed (some paths disallowed).",
+    });
+    expect(result?.complete.seo).toBe(true);
+  });
+
+  it("treats a sitemap answering 429 as unknown", () => {
+    const errors = [{ url: "https://docs.example.com/sitemap.xml", status: 429 }];
+    const result = score(withSitemap({ errors }));
+    expect(entry(result, "seo.indexability")?.score).toBe(100);
+    expect(result?.complete.seo).toBe(false);
+  });
+
+  it("counts one sitemap URL in the singular", () => {
+    const result = score(withSitemap({ valid: true, sitemapsRead: 1, urlCount: 1 }));
+    expect(entry(result, "seo.indexability")?.evidence).toMatch(/^Sitemap valid \(1 URL\);/);
+  });
+
   it("names a fetch failure by its kind", () => {
     const errors = [{ url: "https://docs.example.com/sitemap.xml", kind: "timeout" }];
     expect(entry(score(withSitemap({ errors })), "seo.indexability")?.evidence).toContain(

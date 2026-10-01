@@ -1,4 +1,13 @@
-import { errorPage, htmlPage, readiness as readinessObservation } from "@/tests/helpers/scoring";
+import {
+  ACME_CRAWL,
+  daysOf,
+  entryOf,
+  errorPage,
+  htmlPage,
+  readiness as readinessObservation,
+  scoreOf,
+  searchConsole,
+} from "@/tests/helpers/scoring";
 import type { ScanObservation } from "../types";
 import { conciseAnswers, preferredSources, qaCoverage } from "./aeo";
 import { aiCrawlerAccess, citationReady, entitySchema, llmsTxt } from "./geo";
@@ -6,7 +15,6 @@ import type { Crawl, CrawledPage, Readiness, Vitals } from "./inputs";
 import { coreWebVitals } from "./seo";
 import { indexability } from "./seo-indexability";
 import { technicalHealth } from "./seo-technical";
-import { searchTrend } from "./seo-trend";
 import { toScore } from "./sub-score";
 
 const crawlOf = (pages: ScanObservation[], site: Record<string, unknown> = {}): Crawl => ({
@@ -145,49 +153,84 @@ describe("Core Web Vitals", () => {
 });
 
 describe("search impressions trend", () => {
-  const trend = (impressions: number, days: number, priorImpressions: number, priorDays: number) =>
-    searchTrend({ impressions, days, priorImpressions, priorDays });
+  const trend = (current: (number | null)[], prior: (number | null)[]) =>
+    entryOf(scoreOf([...ACME_CRAWL, ...searchConsole(current, prior)]), "seo.searchTrend");
 
-  it.each([
-    [2800, 28, 2600, 26, 75], // same daily mean over day counts within 3: flat
-    [800, 28, 1000, 28, 60],
-    [1500, 28, 1000, 28, 100],
-    [0, 0, 1000, 28, 0],
-  ])("scores %d impressions over %d days after %d over %d as %d", (...args) => {
-    const [now, days, before, priorDays, expected] = args;
-    expect(trend(now, days, before, priorDays).score).toBe(expected);
-  });
-
-  it("explains a drop by daily means", () => {
-    expect(trend(800, 28, 1000, 25).evidence).toBe(
-      "28.6 impressions a day over 28 days in the last 28 days vs 40 a day over 25 days in the " +
-        "28 days before (−28.6%).",
-    );
-  });
-
-  it("explains impressions that stopped", () => {
-    expect(trend(0, 0, 1000, 28).evidence).toBe(
-      "No impressions in the last 28 days vs 1000 in the 28 days before.",
-    );
-  });
-
-  it("does not compare windows whose day counts differ by more than 3", () => {
-    expect(trend(1000, 28, 1000, 20)).toMatchObject({
-      score: null,
+  it("treats days without a row inside a finished window as zero impressions", () => {
+    const patchy = [...daysOf(20, 10), ...daysOf(7, null), 10];
+    // 210 over 28 days now, 200 over 28 before: +5%
+    expect(trend(patchy, [...daysOf(20, 10), ...daysOf(8, null)])).toMatchObject({
+      score: 79,
       evidence:
-        "Not comparable: impressions on 28 days in the last 28 days but 20 in the 28 days before",
+        "7.5 impressions a day over 28 days in the last 28 days vs 7.1 a day over 28 days in " +
+        "the 28 days before (+5.0%).",
     });
   });
 
+  it("does not count missing days at the end of the window, which may still be in lag", () => {
+    expect(trend([...daysOf(27, 50), null], daysOf(28, 50))?.score).toBe(75);
+  });
+
+  it("trims at most 3 missing days at the end", () => {
+    // 23 × 50 over 25 days = 46 a day vs 50: −8% → 69
+    expect(trend([...daysOf(23, 50), ...daysOf(5, null)], daysOf(28, 50))?.score).toBe(69);
+  });
+
+  it("counts a day without a row mid-window as a zero that lowers the mean", () => {
+    const gap = [...daysOf(13, 50), null, ...daysOf(14, 50)];
+    // 27 × 50 over 28 days: −3.6% → 72.3
+    expect(trend(gap, daysOf(28, 50))?.score).toBe(72);
+  });
+
+  it.each([
+    [daysOf(28, 80), daysOf(28, 100), 60],
+    [daysOf(28, 150), daysOf(28, 100), 100],
+  ])("scores a change in daily impressions", (current, prior, expected) => {
+    expect(trend(current, prior)?.score).toBe(expected);
+  });
+
+  it("scores impressions that stopped as zero", () => {
+    expect(trend([], daysOf(28, 50))).toMatchObject({
+      score: 0,
+      evidence: "No impressions in the last 28 days vs 1400 in the 28 days before.",
+    });
+  });
+
+  it("has no baseline when earlier data starts late but this window's starts on time", () => {
+    const late = [...daysOf(10, null), ...daysOf(18, 50)];
+    expect(trend(daysOf(28, 50), late)).toMatchObject({
+      score: null,
+      status: "missing",
+      evidence:
+        "No full baseline: earlier data starts on 2026-08-14, 10 days into the 28 days before " +
+        "(the property may be newer)",
+    });
+  });
+
+  it("compares windows that both start late, as for a seasonal site", () => {
+    const late = [...daysOf(10, null), ...daysOf(18, 50)];
+    // 900 over 28 days both times: flat
+    expect(trend(late, late)?.score).toBe(75);
+  });
+
+  it("is missing without the Search Console summary that dates the windows", () => {
+    const observations = searchConsole(daysOf(28, 50), daysOf(28, 50)).filter(
+      (o) => o.kind !== "gsc_summary",
+    );
+    expect(entryOf(scoreOf([...ACME_CRAWL, ...observations]), "seo.searchTrend")?.evidence).toBe(
+      "Search Console stored no single gsc_summary result",
+    );
+  });
+
   it("has no trend for a new property without earlier impressions", () => {
-    expect(trend(120, 10, 0, 0)).toMatchObject({
+    expect(trend(daysOf(10, 12), [])).toMatchObject({
       score: null,
       evidence: "No earlier data to compare: no impressions in the 28 days before",
     });
   });
 
   it("has no trend on too little earlier volume", () => {
-    expect(trend(500, 28, 80, 27)).toMatchObject({
+    expect(trend(daysOf(28, 20), [...daysOf(8, 10), ...daysOf(20, null)])).toMatchObject({
       score: null,
       evidence:
         "Too little volume to judge a trend: 80 impressions in the 28 days before (needs 100)",

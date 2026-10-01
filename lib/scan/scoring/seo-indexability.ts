@@ -10,9 +10,22 @@ type Part = { value: number | null; note: string | null; gaps: string[] };
 const describe = (e: SitemapError) =>
   `${e.url}: ${e.status !== undefined ? `HTTP ${e.status}` : (e.kind ?? "error")}`;
 
-/** Same-origin sitemaps that could not be fetched: unknown, never "invalid". */
-const unfetched = (sitemap: Sitemap) =>
-  sitemap.errors.filter((e) => e.kind !== "invalid" && e.kind !== "off_origin");
+/** A listed sitemap answering a 4xx other than 429: a defect on the site, not an unknown. */
+const isDefect = (e: SitemapError) =>
+  e.status !== undefined && e.status >= 400 && e.status < 500 && e.status !== 429;
+
+/** Unknown: a 5xx, a 429 or no response (a fetch error kind) — never "invalid". */
+const isUnknown = (e: SitemapError) =>
+  e.kind !== "invalid" && e.kind !== "off_origin" && !isDefect(e);
+
+function unknownGap(unknown: readonly SitemapError[], read: number): string {
+  const list = unknown.map(describe).join(", ");
+  if (read === 0) return `sitemap could not be fetched (${list})`;
+  return (
+    `sitemap partial: ${unknown.length} same-origin ${plural(unknown.length, "sitemap")} ` +
+    `could not be read (${list}), so the URL count covers only the ${read} read`
+  );
+}
 
 /** "Sitemap on another origin, not checked (…)"; `also` for when one was read as well. */
 function offOriginNote(sitemap: Sitemap, also = false): string | null {
@@ -25,33 +38,31 @@ function offOriginNote(sitemap: Sitemap, also = false): string | null {
 }
 
 /**
- * The sitemap part: 1 when every same-origin sitemap read parsed, 0 when one did not parse or
- * none is listed. Unfetchable sitemaps are a gap, and a sitemap only on another origin (Google
- * accepts those when robots.txt lists them) is left out with a note.
+ * The sitemap part: 1 when the same-origin sitemaps read all parsed; 0 when one did not parse,
+ * a listed one answers a 4xx (not 429), or none is listed (the crawler treats a 4xx on the
+ * default /sitemap.xml as absence). A sitemap that answered 5xx, 429 or nothing is unknown: a
+ * gap, left out when none was read. One only on another origin (Google accepts those when
+ * robots.txt lists them) is left out with a note.
  */
 function sitemapPart(sitemap: Sitemap): Part {
-  const failed = unfetched(sitemap);
+  const unknown = sitemap.errors.filter(isUnknown);
+  const gaps = unknown.length > 0 ? [unknownGap(unknown, sitemap.sitemapsRead)] : [];
   if (sitemap.valid === false) {
     const bad = sitemap.errors.filter((e) => e.kind === "invalid").length;
-    return { value: 0, note: `Sitemap invalid (${bad} did not parse)`, gaps: [] };
+    return { value: 0, note: `Sitemap invalid (${bad} did not parse)`, gaps };
   }
-  if (sitemap.valid === true) {
+  const defects = sitemap.errors.filter(isDefect);
+  if (defects.length > 0) {
+    const answers = defects.map((e) => `HTTP ${e.status} (${e.url})`).join(", ");
+    return { value: 0, note: `Sitemap listed but answers ${answers}`, gaps };
+  }
+  if (sitemap.sitemapsRead > 0) {
     const urls = sitemap.urlCount ?? 0;
-    const note = `Sitemap valid (${sitemap.partial ? "at least " : ""}${urls} URLs)`;
-    const gaps = sitemap.partial
-      ? [
-          `sitemap partial: ${failed.length} same-origin ${plural(failed.length, "sitemap")} ` +
-            `could not be read (${failed.map(describe).join(", ")}), so the URL count covers ` +
-            `only the ${sitemap.sitemapsRead} read`,
-        ]
-      : [];
+    const count = `${unknown.length > 0 ? "at least " : ""}${urls} ${plural(urls, "URL")}`;
     const also = offOriginNote(sitemap, true);
-    return { value: 1, note: also ? `${note}; ${also}` : note, gaps };
+    return { value: 1, note: `Sitemap valid (${count})${also ? `; ${also}` : ""}`, gaps };
   }
-  if (failed.length > 0) {
-    const gap = `sitemap could not be fetched (${failed.map(describe).join(", ")})`;
-    return { value: null, note: null, gaps: [gap] };
-  }
+  if (unknown.length > 0) return { value: null, note: null, gaps };
   const offOrigin = offOriginNote(sitemap);
   if (offOrigin) return { value: null, note: offOrigin, gaps: [] };
   return { value: 0, note: "No sitemap found on the site's origin", gaps: [] };

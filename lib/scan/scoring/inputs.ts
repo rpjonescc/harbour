@@ -75,19 +75,27 @@ const cwv = z.object({
   fieldDataAvailable: z.boolean(),
 });
 
-const gscDay = z.object({ impressions: z.number().nonnegative() });
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const gscDay = z.object({ date: isoDay, impressions: z.number().nonnegative() });
+const gscSummary = z.object({
+  startDate: isoDay,
+  endDate: isoDay,
+  priorStartDate: isoDay,
+  priorEndDate: isoDay,
+});
 
 export type CrawledPage = z.infer<typeof crawledPage>;
 export type Crawl = { pages: CrawledPage[]; site: z.infer<typeof crawlSite> };
 export type Readiness = z.infer<typeof readiness>;
 /** Core Web Vitals and, when carried over from an earlier scan, the date it was measured. */
 export type Vitals = z.infer<typeof cwv> & { measuredOn: string | null };
-/** Impressions summed, and the days with data, over the 28-day window and the 28 days before. */
+/** One day's impressions (Search Console returns no row for a day without any). */
+export type GscDay = z.infer<typeof gscDay>;
+/** Daily impressions for the scan's 28-day window and the 28 days before, with both windows. */
 export type SearchConsole = {
-  impressions: number;
-  days: number;
-  priorImpressions: number;
-  priorDays: number;
+  window: z.infer<typeof gscSummary>;
+  days: GscDay[];
+  priorDays: GscDay[];
 };
 
 /** Everything the formula reads, each part available or missing with a reason. */
@@ -172,24 +180,20 @@ function withDate(source: Source<z.infer<typeof cwv>>, measuredOn: string | null
 }
 
 function readSearchConsole(of: Of): Source<SearchConsole> {
+  const window = single(of, "search-console", "gsc_summary", gscSummary);
+  if (!window.ok) return window;
+  // The date is the observation's subject; the metrics are its value.
   const daysOf = (kind: string) =>
     parse(
       "search-console",
       z.array(gscDay),
-      of(kind).map((o) => o.value),
+      of(kind).map((o) => ({ ...o.value, date: o.subject })),
     );
   const days = daysOf("gsc_daily");
   if (!days.ok) return days;
   const prior = daysOf("gsc_prior_daily");
   if (!prior.ok) return prior;
-  const sum = (list: { impressions: number }[]) => list.reduce((n, d) => n + d.impressions, 0);
-  const value = {
-    impressions: sum(days.value),
-    days: days.value.length,
-    priorImpressions: sum(prior.value),
-    priorDays: prior.value.length,
-  };
-  return { ok: true, value };
+  return { ok: true, value: { window: window.value, days: days.value, priorDays: prior.value } };
 }
 
 /** Reads and validates the scan's observations; a collector that did not end ok is a gap. */

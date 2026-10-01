@@ -3,6 +3,7 @@ import {
   ACME_SCAN,
   ALL_OK,
   cwv,
+  daysOf,
   entryOf as entry,
   NOW,
   readiness,
@@ -58,8 +59,8 @@ describe("scoreScan on a full scan", () => {
           weight: 0.2,
           status: "ok",
           evidence:
-            "442.5 impressions a day over 4 days in the last 28 days vs 375 a day over 4 days " +
-            "in the 28 days before (+18.0%).",
+            "59 impressions a day over 28 days in the last 28 days vs 50 a day over 28 days in " +
+            "the 28 days before (+18.0%).",
         },
         {
           key: "geo.aiCrawlers",
@@ -198,11 +199,7 @@ describe("scoreScan with collectors that did not end ok", () => {
 
   it("scores what it can when the crawl failed and readiness had no crawl to read", () => {
     const blind = readiness({ sitemap: null, schema: null, preferredSources: null });
-    const observations = [
-      blind,
-      cwv(),
-      ...searchConsole([412, 388, 503, 467], [400, 350, 380, 370]),
-    ];
+    const observations = [blind, cwv(), ...searchConsole(daysOf(28, 59), daysOf(28, 50))];
     const result = score(observations, { ...ALL_OK, crawler: "failed" });
     // SEO: (0.2 × 76 + 0.2 × 89) / 0.4 = 82.5; GEO: (0.3 × 94 + 0.15 × 100) / 0.45 = 96
     expect(result).toMatchObject({ seo: 83, geo: 96, aeo: null });
