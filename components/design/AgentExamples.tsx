@@ -27,12 +27,18 @@ export function AgentExamples() {
     <div className="flex flex-col gap-6">
       <WeeklyAnalystPanel
         view={{
-          nextRun: "Sunday 11 Oct, 20:00",
+          schedule: "Next scheduled run: Sunday 11 Oct, 20:00",
           latestReport: { week: "2026-W40", href: "/brain/reports/weekly/2026-W40.md" },
           tokenSet: true,
         }}
       />
-      <WeeklyAnalystPanel view={{ nextRun: null, latestReport: null, tokenSet: false }} />
+      <WeeklyAnalystPanel
+        view={{
+          schedule: "Scheduled runs need a Claude token",
+          latestReport: null,
+          tokenSet: false,
+        }}
+      />
       <JobList
         jobs={[GIVEN_UP]}
         products={[]}

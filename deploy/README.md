@@ -79,10 +79,13 @@ retries unpushed commits. It queues the weekly analyst itself every Sunday at 20
 5. Once, after the first deploy, queue the whole first run (all research topics, then discovery
    for every product): `pnpm agents:initial-run`. It is safe to repeat; jobs already queued or
    running are not duplicated.
-6. After a deploy that brings the weekly analyst, queue a first report straight away instead of
-   waiting for Sunday (it needs at least one scored scan in the last 7 days to say anything):
-   `pnpm analyst:now`. It prints the job id; a report already queued for this week is not
-   duplicated.
+6. After a deploy that brings the weekly analyst you usually need to do nothing: on start the
+   worker catches up and queues last Sunday's report itself when a product has a scored scan in
+   the last 7 days. Check **Agents → Recent runs** for a "Weekly report" run. Only if there is
+   none and the worker log (`journalctl --user -u harbour-worker`) says "weekly analyst skipped",
+   fix the cause it names (the Claude token, or no recent scan), then run `pnpm analyst:now`. It
+   prints the job id. Running it while the catch-up run exists would add a second, partial-week
+   report for the current week.
 
 Edit the brain only on the Harbour PC: the worker commits and pushes but never pulls. Give the
 brain a `.gitignore` for editor and OS files (`.DS_Store`, `*.swp`, `*~`,

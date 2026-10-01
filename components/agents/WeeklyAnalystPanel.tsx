@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import type { WeeklyPanelView } from "@/lib/analyst/panel-view";
@@ -13,6 +13,7 @@ export function WeeklyAnalystPanel({ view }: { view: WeeklyPanelView }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const whyDisabledId = useId();
 
   async function runNow() {
     setBusy(true);
@@ -32,13 +33,20 @@ export function WeeklyAnalystPanel({ view }: { view: WeeklyPanelView }) {
     <Panel className="flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-serif text-xl">Weekly report</h2>
-        <Button onClick={runNow} disabled={busy || !view.tokenSet}>
+        <Button
+          onClick={runNow}
+          disabled={busy || !view.tokenSet}
+          aria-describedby={view.tokenSet ? undefined : whyDisabledId}
+        >
           Run weekly report now
         </Button>
       </div>
-      <p className="text-sm text-ink-muted">
-        {view.nextRun ? `Next scheduled run: ${view.nextRun}` : "Scheduled runs are off"}
-      </p>
+      {!view.tokenSet && (
+        <p id={whyDisabledId} className="text-sm text-ink-muted">
+          Run now needs a Claude token (HARBOUR_CLAUDE_OAUTH_TOKEN).
+        </p>
+      )}
+      <p className="text-sm text-ink-muted">{view.schedule}</p>
       {view.latestReport ? (
         <p className="text-sm">
           <Link href={view.latestReport.href} className="rounded-sm text-accent hover:underline">

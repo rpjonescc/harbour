@@ -160,7 +160,8 @@ git gate and Claude subscription as the other agents (no paid API calls).
   has (suggested, open, in progress, snoozed or rejected) is not suggested again.
 - **When it runs** — every Sunday at 20:00 in `HARBOUR_TIMEZONE`, for that week (see
   [When things run](#when-things-run)). The **Weekly report** panel on **Agents** shows the next
-  scheduled run and links the latest report; **Run weekly report now** (or `pnpm analyst:now`)
+  scheduled run (or that a run is queued or running, that a catch-up is due, or that scheduled
+  runs are off or need a Claude token) and links the latest report; **Run weekly report now** (or `pnpm analyst:now`)
   queues a run for the current week straight away. A run whose suggestions could not be imported
   after 3 attempts says "Suggestions not imported — run the agent again" in **Recent runs**.
 

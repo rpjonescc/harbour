@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => nav }));
 vi.mock("@/lib/auth/client-api", () => api);
 
 const view: WeeklyPanelView = {
-  nextRun: "Sunday 4 Oct, 20:00",
+  schedule: "Next scheduled run: Sunday 4 Oct, 20:00",
   latestReport: { week: "2026-W39", href: "/brain/reports/weekly/2026-W39.md" },
   tokenSet: true,
 };
@@ -21,16 +21,15 @@ describe("WeeklyAnalystPanel", () => {
   it("shows the next scheduled run and links the latest report", () => {
     render(<WeeklyAnalystPanel view={view} />);
     expect(screen.getByRole("heading", { name: "Weekly report" })).toBeInTheDocument();
-    expect(screen.getByText(/Next scheduled run: Sunday 4 Oct, 20:00/)).toBeInTheDocument();
+    expect(screen.getByText("Next scheduled run: Sunday 4 Oct, 20:00")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Latest report: 2026-W39" })).toHaveAttribute(
       "href",
       "/brain/reports/weekly/2026-W39.md",
     );
   });
 
-  it("says when scheduled runs are off and there is no report yet", () => {
-    render(<WeeklyAnalystPanel view={{ ...view, nextRun: null, latestReport: null }} />);
-    expect(screen.getByText("Scheduled runs are off")).toBeInTheDocument();
+  it("says when there is no report yet", () => {
+    render(<WeeklyAnalystPanel view={{ ...view, latestReport: null }} />);
     expect(screen.getByText("No weekly report yet.")).toBeInTheDocument();
     expect(screen.queryByRole("link")).toBeNull();
   });
@@ -52,8 +51,11 @@ describe("WeeklyAnalystPanel", () => {
     expect(nav.push).not.toHaveBeenCalled();
   });
 
-  it("disables the button without a token", () => {
+  it("disables the button without a token, saying why", () => {
     render(<WeeklyAnalystPanel view={{ ...view, tokenSet: false }} />);
     expect(button()).toBeDisabled();
+    expect(button()).toHaveAccessibleDescription(
+      "Run now needs a Claude token (HARBOUR_CLAUDE_OAUTH_TOKEN).",
+    );
   });
 });

@@ -36,6 +36,16 @@ export function nextWeeklyRun(now: Date, timeZone: string, enabled: boolean): Da
   return enabled ? nextWeeklySlot(now, timeZone) : null;
 }
 
+/** The latest Sunday 20:00 slot when no weekly-analyst job was created since it (its run is due). */
+export function pendingWeeklySlot(
+  db: Db,
+  now: Date,
+  timeZone: string,
+): { at: Date; week: string } | null {
+  const slot = latestWeeklySlot(now, timeZone);
+  return jobsCreatedSince(db, "weekly-analyst", slot.at).length === 0 ? slot : null;
+}
+
 function hasRecentScores(db: Db, productIds: readonly string[], now: Date): boolean {
   if (productIds.length === 0) return false;
   const since = new Date(now.getTime() - SCAN_WINDOW_MS);
@@ -59,12 +69,6 @@ export function makeAnalystSchedule(deps: AnalystScheduleDeps) {
   let toldNoToken = false;
   let toldNoScans: string | null = null; // the week last skipped for want of scans
 
-  /** The slot's run is still to queue: nothing was created since that slot's time. */
-  const due = (now: Date) => {
-    const slot = latestWeeklySlot(now, timeZone);
-    return jobsCreatedSince(db, "weekly-analyst", slot.at).length === 0 ? slot : null;
-  };
-
   return {
     /** Queues the latest slot's run if none was created since that slot. Called on start and every 30 s. */
     tick(): { jobId: number; week: string } | null {
@@ -72,7 +76,7 @@ export function makeAnalystSchedule(deps: AnalystScheduleDeps) {
       const nowMs = clock();
       if (!checkDue(nowMs)) return null;
       const now = new Date(nowMs);
-      const slot = due(now);
+      const slot = pendingWeeklySlot(db, now, timeZone);
       if (!slot) return null;
       if (!tokenSet) {
         if (!toldNoToken) console.log("weekly analyst skipped: no Claude token");

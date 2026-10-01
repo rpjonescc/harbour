@@ -1,9 +1,9 @@
-import { desc, like } from "drizzle-orm";
+import { and, desc, eq, inArray, like } from "drizzle-orm";
 import { brainHref } from "@/lib/brain/wikilinks";
 import type { Db } from "@/lib/db/client";
-import { brainDocs } from "@/lib/db/schema";
+import { brainDocs, jobs } from "@/lib/db/schema";
 import { formatWeekdayTime } from "@/lib/format/date";
-import { nextWeeklyRun } from "./schedule";
+import { nextWeeklyRun, pendingWeeklySlot } from "./schedule";
 import { isWeekLabel } from "./week";
 
 const REPORT_DIR = "reports/weekly/";
@@ -17,8 +17,8 @@ export type WeeklyPanelSettings = {
 };
 
 export type WeeklyPanelView = {
-  /** When the schedule next queues a run, formatted; null when scheduled runs are off. */
-  nextRun: string | null;
+  /** One line on the schedule: off, blocked, a run queued or running, a catch-up due, or the next run. */
+  schedule: string;
   latestReport: { week: string; href: string } | null;
   tokenSet: boolean;
 };
@@ -38,13 +38,35 @@ function latestReport(db: Db): WeeklyPanelView["latestReport"] {
   return null;
 }
 
-/** What the Agents page shows about the weekly analyst report. */
-export function weeklyPanelView(db: Db, settings: WeeklyPanelSettings, now: Date): WeeklyPanelView {
+function activeRunStatus(db: Db): string | null {
+  const row = db
+    .select({ status: jobs.status })
+    .from(jobs)
+    .where(and(eq(jobs.kind, "weekly-analyst"), inArray(jobs.status, ["queued", "running"])))
+    .orderBy(desc(jobs.id))
+    .get();
+  return row?.status ?? null;
+}
+
+function scheduleLine(db: Db, settings: WeeklyPanelSettings, now: Date): string {
   const { timeZone, locale, enabled, tokenSet } = settings;
   const next = nextWeeklyRun(now, timeZone, enabled);
+  if (!next) return "Scheduled runs are off";
+  if (!tokenSet) return "Scheduled runs need a Claude token";
+  const active = activeRunStatus(db);
+  if (active) return `A weekly report run is ${active}`;
+  const pending = pendingWeeklySlot(db, now, timeZone);
+  if (pending) {
+    return `Catch-up due: the worker queues the ${pending.week} report at its next check, if a product was scanned in the last 7 days`;
+  }
+  return `Next scheduled run: ${formatWeekdayTime(next, timeZone, locale)}`;
+}
+
+/** What the Agents page shows about the weekly analyst report. */
+export function weeklyPanelView(db: Db, settings: WeeklyPanelSettings, now: Date): WeeklyPanelView {
   return {
-    nextRun: next ? formatWeekdayTime(next, timeZone, locale) : null,
+    schedule: scheduleLine(db, settings, now),
     latestReport: latestReport(db),
-    tokenSet,
+    tokenSet: settings.tokenSet,
   };
 }

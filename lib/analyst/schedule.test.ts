@@ -117,6 +117,26 @@ describe("weekly analyst schedule", () => {
     expect(h.weeks()).toEqual(["2026-W40"]);
   });
 
+  it("defers the slot's run while a run of the same week is queued or running", () => {
+    const h = harness();
+    enqueueWeeklyAnalyst(h.db, "2026-W39", null, new Date("2026-09-27T10:00:00Z"));
+    h.settleAll();
+    scanned(h.db, "2026-10-02T20:00:00Z");
+    const manual = enqueueWeeklyAnalyst(
+      h.db,
+      "2026-W40",
+      "owner",
+      new Date("2026-10-04T09:00:00Z"),
+    );
+    expect(h.at("2026-10-04T10:00:00Z")).toBeNull(); // 20:00, the 19:00 run is still queued
+    expect(enqueueWeeklyAnalyst(h.db, "2026-W40", null)).toEqual({ id: manual.id, created: false });
+    claimNextJob(h.db);
+    expect(h.at("2026-10-04T10:00:30Z")).toBeNull(); // still running
+    finishJob(h.db, manual.id, "ok", null);
+    expect(h.at("2026-10-04T10:01:00Z")).toEqual({ jobId: expect.any(Number), week: "2026-W40" });
+    expect(h.weeks()).toEqual(["2026-W39", "2026-W40", "2026-W40"]);
+  });
+
   it("checks at most every 30 seconds", () => {
     const h = harness();
     enqueueWeeklyAnalyst(h.db, "2026-W39", null, new Date("2026-09-27T10:00:00Z"));
