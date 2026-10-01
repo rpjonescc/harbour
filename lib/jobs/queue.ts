@@ -16,7 +16,13 @@ import {
 import type { Db } from "@/lib/db/client";
 import { agentRunEvents, agentRuns, jobs } from "@/lib/db/schema";
 
-export type JobKind = "research" | "discovery" | "brain-push" | "notes-sync" | "scan";
+export type JobKind =
+  | "research"
+  | "discovery"
+  | "brain-push"
+  | "notes-sync"
+  | "scan"
+  | "weekly-analyst";
 export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";
 export type Job = typeof jobs.$inferSelect;
 export type EventKind = "status" | "tool" | "text" | "error";
@@ -170,7 +176,7 @@ export function recoverStaleJobs(db: Db, now = new Date(), staleMs = STALE_MS): 
  * heartbeat says. Returns their ids so their partial changes can be recovered.
  */
 export function recoverRunningJobs(db: Db, now = new Date()): number[] {
-  const agentKinds: JobKind[] = ["research", "discovery"];
+  const agentKinds: JobKind[] = ["research", "discovery", "weekly-analyst"];
   const agent = failRunning(
     db,
     now,

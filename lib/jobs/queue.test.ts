@@ -96,6 +96,17 @@ describe("job queue", () => {
     expect(recoverRunningJobs(db, at(2000))).toEqual([]);
   });
 
+  it("quarantines an interrupted weekly analyst run like any agent run", () => {
+    const db = openTestDb();
+    const analyst = enqueueJob(db, "weekly-analyst", { week: "2026-W40" }, null, t0).id;
+    claimNextJob(db, t0);
+    expect(recoverRunningJobs(db, at(1))).toEqual([analyst]);
+    expect(getJob(db, analyst)).toMatchObject({
+      status: "failed",
+      error: "Worker stopped during run — partial changes moved to quarantine",
+    });
+  });
+
   it("caps the agent's own steps with one note, but keeps recording worker status", () => {
     const db = openTestDb();
     const id = enqueueJob(db, "research", { topic: "a" }, null, t0).id;

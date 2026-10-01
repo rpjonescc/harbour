@@ -57,6 +57,13 @@
       "when": 1790852604122,
       "tag": "0007_scans",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790866585164,
+      "tag": "0008_actions",
+      "breakpoints": true
     }
   ]
 }

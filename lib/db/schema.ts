@@ -9,6 +9,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import type { Evidence } from "@/lib/actions/types";
 
 const timestamp = (name: string) => integer(name, { mode: "timestamp_ms" });
 
@@ -78,7 +79,7 @@ export const jobs = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     kind: text("kind", {
-      enum: ["research", "discovery", "brain-push", "notes-sync", "scan"],
+      enum: ["research", "discovery", "brain-push", "notes-sync", "scan", "weekly-analyst"],
     }).notNull(),
     params: text("params", { mode: "json" }).$type<Record<string, string>>().notNull(),
     // Stable identity of the request, used to avoid queueing the same job twice.
@@ -232,4 +233,65 @@ export const scores = sqliteTable(
     check("scores_geo_range", sql`${t.geo} IS NULL OR ${t.geo} BETWEEN 0 AND 100`),
     check("scores_aeo_range", sql`${t.aeo} IS NULL OR ${t.aeo} BETWEEN 0 AND 100`),
   ],
+);
+
+export const actions = sqliteTable(
+  "actions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    productId: text("product_id").notNull(),
+    area: text("area", { enum: ["SEO", "GEO", "AEO"] }).notNull(),
+    title: text("title").notNull(),
+    why: text("why").notNull(),
+    fix: text("fix").notNull(),
+    // The acceptance check: how the owner knows the action is done.
+    check: text("check").notNull(),
+    impact: text("impact", { enum: ["high", "medium", "low"] }).notNull(),
+    effort: text("effort", { enum: ["small", "medium", "large"] }).notNull(),
+    evidence: text("evidence", { mode: "json" }).$type<Evidence>().notNull(),
+    docs: text("docs", { mode: "json" }).$type<string[]>().notNull(),
+    source: text("source", { enum: ["rule", "agent"] }).notNull(),
+    // The rule id; set iff source = rule.
+    ruleKey: text("rule_key"),
+    // The agent job that suggested it.
+    sourceJobId: integer("source_job_id").references(() => jobs.id),
+    // Normalised title, so agent re-runs don't suggest the same action twice.
+    titleKey: text("title_key").notNull(),
+    status: text("status", {
+      enum: ["suggested", "open", "in_progress", "done", "snoozed", "dismissed"],
+    }).notNull(),
+    // YYYY-MM-DD in HARBOUR_TIMEZONE; set iff snoozed.
+    snoozedUntil: text("snoozed_until"),
+    // Rule actions: whether the last judged scan found the issue.
+    issuePresent: integer("issue_present", { mode: "boolean" }),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+    statusChangedAt: timestamp("status_changed_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("actions_product_rule")
+      .on(t.productId, t.ruleKey)
+      .where(sql`${t.ruleKey} IS NOT NULL`),
+    index("actions_status").on(t.status, t.productId),
+    index("actions_product_title").on(t.productId, t.titleKey),
+    check("actions_rule_source", sql`(${t.source} = 'rule') = (${t.ruleKey} IS NOT NULL)`),
+    check("actions_snooze", sql`(${t.status} = 'snoozed') = (${t.snoozedUntil} IS NOT NULL)`),
+  ],
+);
+
+export const actionEvents = sqliteTable(
+  "action_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    actionId: integer("action_id")
+      .notNull()
+      .references(() => actions.id),
+    at: timestamp("at").notNull(),
+    actor: text("actor", { enum: ["owner", "scan", "agent", "system"] }).notNull(),
+    // Null on creation.
+    from: text("from_status"),
+    to: text("to_status").notNull(),
+    note: text("note"),
+  },
+  (t) => [index("action_events_action").on(t.actionId, t.id)],
 );

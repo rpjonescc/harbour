@@ -12,7 +12,8 @@ export type AuditEvent =
   | "agent_run_requested"
   | "agent_run_cancelled"
   | "proposal_decided"
-  | "scan_requested";
+  | "scan_requested"
+  | "action_status_changed";
 
 /** Appends a security-relevant event to the audit log. */
 export function audit(
