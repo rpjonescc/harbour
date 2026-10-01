@@ -253,7 +253,7 @@ export const actions = sqliteTable(
     source: text("source", { enum: ["rule", "agent"] }).notNull(),
     // The rule id; set iff source = rule.
     ruleKey: text("rule_key"),
-    // The agent job that suggested it.
+    // The agent job that suggested it; set iff source = agent.
     sourceJobId: integer("source_job_id").references(() => jobs.id),
     // Normalised title, so agent re-runs don't suggest the same action twice.
     titleKey: text("title_key").notNull(),
@@ -276,6 +276,8 @@ export const actions = sqliteTable(
     index("actions_product_title").on(t.productId, t.titleKey),
     check("actions_rule_source", sql`(${t.source} = 'rule') = (${t.ruleKey} IS NOT NULL)`),
     check("actions_snooze", sql`(${t.status} = 'snoozed') = (${t.snoozedUntil} IS NOT NULL)`),
+    check("actions_agent_job", sql`(${t.source} = 'agent') = (${t.sourceJobId} IS NOT NULL)`),
+    check("actions_issue_present", sql`${t.source} = 'rule' OR ${t.issuePresent} IS NULL`),
   ],
 );
 

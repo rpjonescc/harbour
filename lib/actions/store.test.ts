@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { actionEvents, actions, jobs } from "@/lib/db/schema";
 import { openTestDb } from "@/tests/helpers/db";
 import {
   actionEventsFor,
+  actionHistory,
   addActionEvent,
   insertAction,
   MAX_ACTION_EVENTS,
@@ -41,8 +42,40 @@ function ruleAction(over: Partial<NewAction> = {}): NewAction {
   };
 }
 
-function agentAction(title: string, over: Partial<NewAction> = {}): NewAction {
-  return ruleAction({ source: "agent", ruleKey: null, status: "suggested", title, ...over });
+function analystJob(db: Db): number {
+  return db
+    .insert(jobs)
+    .values({
+      kind: "weekly-analyst",
+      params: {},
+      dedupeKey: "weekly-analyst:[]",
+      status: "ok",
+      requestedBy: null,
+      createdAt: t0,
+    })
+    .returning({ id: jobs.id })
+    .get().id;
+}
+
+function agentAction(sourceJobId: number, title: string, over: Partial<NewAction> = {}): NewAction {
+  return ruleAction({
+    source: "agent",
+    ruleKey: null,
+    sourceJobId,
+    issuePresent: null,
+    status: "suggested",
+    title,
+    ...over,
+  });
+}
+
+/** Makes every action_events insert fail, so a write's second half errors. */
+function failEventInserts(db: Db): void {
+  db.run(
+    sql.raw(
+      "CREATE TRIGGER fail_events BEFORE INSERT ON action_events BEGIN SELECT RAISE(ABORT, 'event write failed'); END;",
+    ),
+  );
 }
 
 function rowOf(db: Db, id: number) {
@@ -58,6 +91,8 @@ describe("normaliseTitle", () => {
     ["Fix titles!?…", "fix titles"],
     ["Ｆｕｌｌwidth ｔｉｔｌｅ", "fullwidth title"],
     ["Keep v2.0 inside", "keep v2.0 inside"],
+    ["\u201cAdd FAQ schema\u201d", "add faq schema"],
+    ["\u200bAdd\u200b FAQ\u200b", "add faq"],
   ])("%j → %j", (input, expected) => {
     expect(normaliseTitle(input)).toBe(expected);
   });
@@ -96,10 +131,11 @@ describe("insertAction", () => {
     expect(() => insertAction(db, ruleAction({ ruleKey: null }), "scan", null, t0)).toThrow(
       /CHECK constraint/,
     );
+    const job = analystJob(db);
     expect(() =>
       insertAction(
         db,
-        agentAction("x", { ruleKey: "missing-meta-description" }),
+        agentAction(job, "x", { ruleKey: "missing-meta-description" }),
         "agent",
         null,
         t0,
@@ -122,33 +158,38 @@ describe("insertAction", () => {
     insertAction(db, ruleAction(), "scan", null, t0);
     expect(() => insertAction(db, ruleAction(), "scan", null, t0)).toThrow(/UNIQUE constraint/);
     insertAction(db, ruleAction({ productId: "acme-blog" }), "scan", null, t0);
-    insertAction(db, agentAction("Write a glossary"), "agent", null, t0);
-    insertAction(db, agentAction("Write a glossary"), "agent", null, t0);
+    const job = analystJob(db);
+    insertAction(db, agentAction(job, "Write a glossary"), "agent", null, t0);
+    insertAction(db, agentAction(job, "Write a glossary"), "agent", null, t0);
     expect(db.select().from(actions).all()).toHaveLength(4);
   });
 
-  it("links an agent action to its job", () => {
+  it("links an agent action to its job, and only agent actions", () => {
     const db = openTestDb();
-    const job = db
-      .insert(jobs)
-      .values({
-        kind: "weekly-analyst",
-        params: {},
-        dedupeKey: "weekly-analyst:[]",
-        status: "ok",
-        requestedBy: null,
-        createdAt: t0,
-      })
-      .returning({ id: jobs.id })
-      .get();
-    const id = insertAction(
-      db,
-      agentAction("Write a glossary", { sourceJobId: job.id }),
-      "agent",
-      null,
-      t0,
+    const job = analystJob(db);
+    const id = insertAction(db, agentAction(job, "Write a glossary"), "agent", null, t0);
+    expect(rowOf(db, id).sourceJobId).toBe(job);
+    expect(() =>
+      insertAction(db, agentAction(job, "x", { sourceJobId: null }), "agent", null, t0),
+    ).toThrow(/CHECK constraint/);
+    expect(() => insertAction(db, ruleAction({ sourceJobId: job }), "scan", null, t0)).toThrow(
+      /CHECK constraint/,
     );
-    expect(rowOf(db, id).sourceJobId).toBe(job.id);
+  });
+
+  it("keeps issuePresent for rule actions only", () => {
+    const db = openTestDb();
+    const job = analystJob(db);
+    expect(() =>
+      insertAction(db, agentAction(job, "x", { issuePresent: false }), "agent", null, t0),
+    ).toThrow(/CHECK constraint/);
+  });
+
+  it("stores nothing when the creation event cannot be written", () => {
+    const db = openTestDb();
+    failEventInserts(db);
+    expect(() => insertAction(db, ruleAction(), "scan", null, t0)).toThrow(/event write failed/);
+    expect(db.select().from(actions).all()).toEqual([]);
   });
 });
 
@@ -184,6 +225,31 @@ describe("setStatus", () => {
     expect(rowOf(db, id)).toMatchObject({ status: "open", snoozedUntil: null });
   });
 
+  it("leaves the status unchanged when its event cannot be written", () => {
+    const db = openTestDb();
+    const id = insertAction(db, ruleAction(), "scan", null, t0);
+    failEventInserts(db);
+    expect(() => setStatus(db, id, "open", "done", { actor: "owner", now: at(1) })).toThrow(
+      /event write failed/,
+    );
+    expect(rowOf(db, id)).toMatchObject({ status: "open", statusChangedAt: t0 });
+  });
+
+  it("rolls back only its own change inside a caller's transaction", () => {
+    const db = openTestDb();
+    const a = insertAction(db, ruleAction(), "scan", null, t0);
+    const b = insertAction(db, ruleAction({ ruleKey: "noindex" }), "scan", null, t0);
+    db.transaction((tx) => {
+      setStatus(tx, a, "open", "done", { actor: "owner", now: at(1) });
+      expect(() => setStatus(tx, b, "open", "snoozed", { actor: "owner", now: at(1) })).toThrow(
+        /CHECK constraint/,
+      );
+    });
+    expect(rowOf(db, a).status).toBe("done");
+    expect(rowOf(db, b).status).toBe("open");
+    expect(actionEventsFor(db, b)).toHaveLength(1);
+  });
+
   it("refuses to snooze without a date (check constraint)", () => {
     const db = openTestDb();
     const id = insertAction(db, ruleAction(), "scan", null, t0);
@@ -215,6 +281,33 @@ describe("addActionEvent", () => {
     expect(events.at(-1)?.note).toBe("n59");
     expect(actionEventsFor(db, other)).toHaveLength(1);
     expect(db.select().from(actionEvents).all()).toHaveLength(MAX_ACTION_EVENTS + 1);
+  });
+
+  it("reports a history as truncated once its creation event was pruned", () => {
+    const db = openTestDb();
+    const id = insertAction(db, ruleAction(), "scan", null, t0);
+    for (let i = 1; i < MAX_ACTION_EVENTS; i++) {
+      addActionEvent(db, {
+        actionId: id,
+        at: at(i),
+        actor: "system",
+        from: "open",
+        to: "open",
+        note: null,
+      });
+    }
+    expect(actionHistory(db, id)).toMatchObject({ truncated: false });
+    expect(actionHistory(db, id).events).toHaveLength(MAX_ACTION_EVENTS);
+    addActionEvent(db, {
+      actionId: id,
+      at: at(99),
+      actor: "system",
+      from: "open",
+      to: "open",
+      note: null,
+    });
+    expect(actionHistory(db, id)).toMatchObject({ truncated: true });
+    expect(actionHistory(db, id).events).toHaveLength(MAX_ACTION_EVENTS);
   });
 });
 

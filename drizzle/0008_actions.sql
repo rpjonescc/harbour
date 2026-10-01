@@ -34,7 +34,9 @@ CREATE TABLE `actions` (
 	`status_changed_at` integer NOT NULL,
 	FOREIGN KEY (`source_job_id`) REFERENCES `jobs`(`id`) ON UPDATE no action ON DELETE no action,
 	CONSTRAINT "actions_rule_source" CHECK(("actions"."source" = 'rule') = ("actions"."rule_key" IS NOT NULL)),
-	CONSTRAINT "actions_snooze" CHECK(("actions"."status" = 'snoozed') = ("actions"."snoozed_until" IS NOT NULL))
+	CONSTRAINT "actions_snooze" CHECK(("actions"."status" = 'snoozed') = ("actions"."snoozed_until" IS NOT NULL)),
+	CONSTRAINT "actions_agent_job" CHECK(("actions"."source" = 'agent') = ("actions"."source_job_id" IS NOT NULL)),
+	CONSTRAINT "actions_issue_present" CHECK("actions"."source" = 'rule' OR "actions"."issue_present" IS NULL)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `actions_product_rule` ON `actions` (`product_id`,`rule_key`) WHERE "actions"."rule_key" IS NOT NULL;--> statement-breakpoint

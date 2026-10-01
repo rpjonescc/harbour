@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fcae5107-a899-4a99-8b72-7737cdeab9dc",
+  "id": "cd59a1ee-1fdb-4461-8001-35cf3b16ee42",
   "prevId": "617afc24-54a2-45ea-b842-ac0821fa509d",
   "tables": {
     "action_events": {
@@ -289,6 +289,14 @@
         "actions_snooze": {
           "name": "actions_snooze",
           "value": "(\"actions\".\"status\" = 'snoozed') = (\"actions\".\"snoozed_until\" IS NOT NULL)"
+        },
+        "actions_agent_job": {
+          "name": "actions_agent_job",
+          "value": "(\"actions\".\"source\" = 'agent') = (\"actions\".\"source_job_id\" IS NOT NULL)"
+        },
+        "actions_issue_present": {
+          "name": "actions_issue_present",
+          "value": "\"actions\".\"source\" = 'rule' OR \"actions\".\"issue_present\" IS NULL"
         }
       }
     },
