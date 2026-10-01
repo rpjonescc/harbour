@@ -1,7 +1,8 @@
 import { getConfig } from "@/lib/config";
 import { openTestDb } from "@/tests/helpers/db";
 import { fetchError } from "@/tests/helpers/http-site";
-import { COLLECTORS, noScoring } from "./registry";
+import { COLLECTORS } from "./registry";
+import { scoreScan } from "./score";
 import { workerScanDeps } from "./worker-deps";
 
 const deps = () =>
@@ -14,10 +15,9 @@ const deps = () =>
   });
 
 describe("workerScanDeps", () => {
-  // Fails on purpose when Task 6 wires in the real scorer: update it then.
-  it("runs the registered collectors with the stand-in scorer", () => {
+  it("runs the registered collectors and scores with formula v1", () => {
     expect(deps().collectors).toBe(COLLECTORS);
-    expect(deps().scoreScan).toBe(noScoring);
+    expect(deps().scoreScan).toBe(scoreScan);
   });
 
   it("only lets the fetch reach configured product hosts", async () => {

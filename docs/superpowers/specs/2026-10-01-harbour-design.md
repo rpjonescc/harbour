@@ -213,6 +213,12 @@ Initial sub-scores (weights tuned after the research sprint, documented in
 - **AEO**: AI Overview citation rate, featured snippet ownership, PAA coverage,
   answer-ready content (FAQ/HowTo schema, concise answer blocks).
 
+Formula v1 (Phase 3) scores only what the free sources measure: the crawl, readiness checks,
+PageSpeed and Search Console. Sub-scores that need paid APIs (engine mentions and citations,
+rankings, featured snippets, share of voice) appear as "not connected" notes until a later
+formula version adds them. The v1 sub-scores, weights and rounding are recorded in the Phase 3
+plan's "As built — scoring" notes.
+
 ### 5.4 Rule-based quick actions
 
 After scoring, deterministic rules raise actions immediately (e.g. "page lost its

@@ -1,7 +1,13 @@
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { collectorRuns, jobs, observations, scanRuns, scores } from "@/lib/db/schema";
-import type { CollectorStatus, Observation, ScanObservation, ScanScores } from "./types";
+import type {
+  CollectorStatus,
+  Observation,
+  ScanObservation,
+  ScanScores,
+  ScoreContext,
+} from "./types";
 
 export type ScanStatus = "ok" | "partial" | "failed";
 
@@ -123,15 +129,19 @@ export function scanObservations(db: Db, scanId: number): ScanObservation[] {
     .all();
 }
 
-/** Stores a scan's scores; a scan is scored once and the row never changes. */
+/**
+ * Stores a scan's scores; a scan is scored once and the row never changes: scoring it again
+ * stores nothing and returns false.
+ */
 export function storeScores(
   db: Db,
   scanId: number,
   productId: string,
   result: ScanScores,
   now: Date,
-): void {
-  db.insert(scores)
+): boolean {
+  const inserted = db
+    .insert(scores)
     .values({
       scanId,
       productId,
@@ -143,7 +153,27 @@ export function storeScores(
       complete: result.complete,
       breakdown: result.breakdown,
     })
-    .run();
+    .onConflictDoNothing({ target: scores.scanId })
+    .returning({ id: scores.id })
+    .all();
+  return inserted.length > 0;
+}
+
+/**
+ * What scoring reads besides the scan's observations: the time, and PageSpeed's last ok result
+ * when this scan skipped it for its weekly cadence (the scorer judges its age).
+ */
+export function scoreContext(
+  db: Db,
+  productId: string,
+  statuses: Readonly<Record<string, CollectorStatus>>,
+  now: Date,
+): ScoreContext {
+  const skipped = statuses.pagespeed === "skipped";
+  return {
+    now,
+    previousPagespeed: skipped ? latestOkObservations(db, productId, "pagespeed") : null,
+  };
 }
 
 /**

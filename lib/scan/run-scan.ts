@@ -11,6 +11,7 @@ import {
   recordCollectorRun,
   type ScanStatus,
   scanObservations,
+  scoreContext,
   startScan,
   storeScores,
 } from "./store";
@@ -218,7 +219,8 @@ function scoreAndFinish(scan: Scan, statuses: Record<string, CollectorStatus>) {
   finishScan(deps.db, scanId, status, deps.now());
   scan.event("status", `Scan ${status}`);
   try {
-    const scores = deps.scoreScan(scanObservations(deps.db, scanId), statuses);
+    const context = scoreContext(deps.db, scan.product.id, statuses, deps.now());
+    const scores = deps.scoreScan(scanObservations(deps.db, scanId), statuses, context);
     if (scores) storeScores(deps.db, scanId, scan.product.id, scores, deps.now());
   } catch (error) {
     scan.event("error", `Scoring failed: ${message(error)}`);

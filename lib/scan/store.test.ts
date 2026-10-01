@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { scanRuns } from "@/lib/db/schema";
+import { scanRuns, scores } from "@/lib/db/schema";
 import { claimNextJob, enqueueJob, finishJob, type Job } from "@/lib/jobs/queue";
 import { openTestDb } from "@/tests/helpers/db";
 import {
@@ -8,8 +8,9 @@ import {
   latestOkObservations,
   recordCollectorRun,
   startScan,
+  storeScores,
 } from "./store";
-import type { CollectorStatus } from "./types";
+import type { CollectorStatus, ScanScores } from "./types";
 
 const t0 = new Date("2026-10-01T06:00:00Z");
 const day = (n: number) => new Date(t0.getTime() + n * 24 * 60 * 60_000);
@@ -92,5 +93,26 @@ describe("failInterruptedScans", () => {
     expect(failInterruptedScans(db, day(1))).toBe(1);
     const row = db.select().from(scanRuns).where(eq(scanRuns.id, scanId)).get();
     expect(row).toMatchObject({ status: "failed", finishedAt: day(1) });
+  });
+});
+
+describe("storeScores", () => {
+  const result = (seo: number): ScanScores => ({
+    formulaVersion: "v1",
+    seo,
+    geo: null,
+    aeo: 50,
+    complete: { seo: true, geo: false, aeo: true },
+    breakdown: [],
+  });
+
+  it("stores a scan's scores once: scoring it again neither duplicates nor changes the row", () => {
+    const { db, job } = setup();
+    const scanId = startScan(db, "acme-docs", job().id, t0);
+    expect(storeScores(db, scanId, "acme-docs", result(70), t0)).toBe(true);
+    expect(storeScores(db, scanId, "acme-docs", result(10), day(1))).toBe(false);
+    expect(db.select().from(scores).all()).toEqual([
+      expect.objectContaining({ scanId, seo: 70, computedAt: t0 }),
+    ]);
   });
 });

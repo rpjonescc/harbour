@@ -127,6 +127,26 @@ Pure `scoreScan(observations, collectorStatuses): { seo, geo, aeo, complete, bre
 - **AEO:** FAQ/HowTo/Q&A coverage, concise answer blocks (paragraph ≤ 60 words directly under a question heading), Preferred Sources readiness (button/deeplink + fresh content), featured-snippet data not connected.
 Breakdown entries `{ key, label, score, weight, evidence: string, status: "ok"|"missing" }` so the UI can explain every number. Tests: fixture observation sets → exact scores; incomplete paths; weights sum; idempotent.
 
+**As built — scoring** (`lib/scan/score.ts` entry, sub-scores in `lib/scan/scoring/{inputs,pages,sub-score,seo,seo-technical,geo,aeo}.ts`; `formulaVersion: "v1"`): `scoreScan(observations, statuses, context)`, where `context = {now, previousPagespeed}` is gathered by runScan (`scoreContext` in `store.ts`: PageSpeed's latest ok run when this scan skipped it). Each collector's observations are validated with zod (only the fields read); a collector that did not end ok, or whose data does not parse, makes every sub-score that needs it `missing` with the reason ("PageSpeed is not connected", "Crawler failed in this scan", "Readiness data has an unexpected shape (robotsTxt: …)"). Pages count once by final URL; "HTML pages" are distinct 2xx pages with HTML facts.
+
+| Key | Weight | Needs | Formula |
+|---|---|---|---|
+| `seo.technical` | 0.35 | crawler | mean of: 2xx share of pages; over HTML pages, shares with title 10–60 chars, description 50–160, exactly one h1, a canonical, and (over indexable pages: canonical absent or self) not noindex; × 100, less 5 per distinct broken internal link target (max 25) |
+| `seo.indexability` | 0.25 | crawler, readiness | mean of: sitemap valid (1, else 0 incl. none found); Googlebot may reach "/" (blocked 0, allowed or partial 1; unknown → gap); share of crawled sitemap URLs that answered 2xx (left out without any) |
+| `seo.cwv` | 0.2 | pagespeed (or carried over ≤ 14 days when skipped) | Lighthouse mobile performance, averaged with field INP rated 100 at ≤ 200 ms, linear to 0 at ≥ 500 ms, when field data exists |
+| `seo.visibility` | 0.2 | search-console | 75 + 75 × (impressions − prior) / prior over the 28-day window vs the 28 days before; prior 0 → 100 (0 if both 0) |
+| `geo.aiCrawlers` | 0.3 | readiness | share of the 9 AI crawlers not blocked from "/" (partial counts as allowed) |
+| `geo.llmsTxt` | 0.15 | readiness | llms.txt present 100, absent 0, unknown missing |
+| `geo.entities` | 0.25 | crawler, readiness | 60 if any page has Organization (LocalBusiness counts) + 40 if any has WebSite |
+| `geo.citations` | 0.3 | crawler | share of HTML pages with FAQ/HowTo/Article-family schema, FAQ microdata or a question heading, ÷ 0.5, capped at 100 |
+| `geo.aiEngines` | 0 | — | note: "AI engine mention checks not connected" |
+| `aeo.qaCoverage` | 0.4 | crawler | share of HTML pages with FAQPage/HowTo-family/QAPage schema or FAQ microdata, ÷ 0.25, capped at 100 |
+| `aeo.conciseAnswers` | 0.35 | crawler | concise answers ÷ question headings (0 when there are none) |
+| `aeo.preferredSources` | 0.25 | crawler, readiness | 50 for a Preferred Sources button/deeplink + 50 for fresh content (readiness: ≥ 3 URLs in 30 days) |
+| `aeo.snippets` | 0 | — | note: "Featured-snippet data not connected" |
+
+Rounding: a sub-score is rounded half up to an integer and clamped to 0–100 (`toScore`; floating-point noise is cut at 6 decimals first, so 88.4999999 meaning 88.5 rounds to 89); a total is the weighted mean of its integer sub-scores that have a score, rounded the same way, or null when none has. A total is complete only when every weighted sub-score scored with no gaps; gaps (partial sitemap, robots.txt unreadable) keep the sub-score but add "Incomplete: …" to its evidence. Weight-0 notes never affect totals or completeness. Scores are stored once per scan (`storeScores` ignores a second insert for the same scan). Raw facts added to collectors for this task: crawler `questionHeadings`/`conciseAnswers` per page and `sitemapPages` on `site`; readiness `robotsTxt.googlebot`; Search Console `gsc_prior_daily`.
+
 ### Task 7: Scheduling
 
 **Files:** `lib/jobs/scheduler.ts` (+ tests), `worker/index.ts`, `scripts/scan-now.ts`.

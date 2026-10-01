@@ -102,8 +102,20 @@ export type ScanScores = {
   breakdown: ScoreBreakdownEntry[];
 };
 
-/** Pure scoring of one scan; null when there is no formula to apply yet. */
+/** What scoring reads besides the scan's own observations; runScan gathers it. */
+export type ScoreContext = {
+  /** When the scan is scored: a carried-over result is judged by its age at this time. */
+  now: Date;
+  /**
+   * PageSpeed's latest ok run for the product when this scan skipped it (weekly cadence);
+   * null when it was not skipped or never ran ok.
+   */
+  previousPagespeed: { observations: Observation[]; finishedAt: Date } | null;
+};
+
+/** Pure scoring of one scan; null when there is no formula to apply. */
 export type ScoreScan = (
   observations: readonly ScanObservation[],
   statuses: Readonly<Record<string, CollectorStatus>>,
+  context: ScoreContext,
 ) => ScanScores | null;
