@@ -7,7 +7,15 @@ export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";
 export type Job = typeof jobs.$inferSelect;
 export type EventKind = "status" | "tool" | "text" | "error";
 
-export const MAX_EVENTS = 200;
+/** Ceiling on every event of a job. */
+export const MAX_EVENTS = 220;
+/**
+ * The agent's own steps (tool/text) stop at this, leaving room under MAX_EVENTS for the
+ * worker's status and error lines (commit, push, failure) that the owner must always see.
+ */
+export const MAX_STREAM_EVENTS = 180;
+const LIMIT_NOTE = "Activity limit reached — further agent steps not recorded";
+const STREAM_KINDS: EventKind[] = ["tool", "text"];
 const STALE_MS = 60_000;
 
 function dedupeKeyFor(kind: JobKind, params: Record<string, string>): string {
@@ -169,7 +177,20 @@ export function getAgentRun(db: Db, jobId: number): typeof agentRuns.$inferSelec
   return db.select().from(agentRuns).where(eq(agentRuns.jobId, jobId)).get();
 }
 
-/** Appends an activity line, keeping at most MAX_EVENTS plus one "limit reached" note. */
+function countEvents(db: Db, jobId: number, extra?: SQL): number {
+  return (
+    db
+      .select({ n: count() })
+      .from(agentRunEvents)
+      .where(and(eq(agentRunEvents.jobId, jobId), extra))
+      .get()?.n ?? 0
+  );
+}
+
+/**
+ * Appends an activity line. The agent's steps stop at MAX_STREAM_EVENTS with one "limit reached"
+ * note; worker status and errors are recorded up to MAX_EVENTS in total.
+ */
 export function addEvent(
   db: Db,
   jobId: number,
@@ -177,19 +198,15 @@ export function addEvent(
   text: string,
   now = new Date(),
 ): void {
-  const n =
-    db.select({ n: count() }).from(agentRunEvents).where(eq(agentRunEvents.jobId, jobId)).get()
-      ?.n ?? 0;
-  if (n > MAX_EVENTS) return;
-  const value =
-    n === MAX_EVENTS
-      ? {
-          jobId,
-          at: now,
-          kind: "status" as const,
-          text: "Activity limit reached — further steps not recorded",
-        }
-      : { jobId, at: now, kind, text: text.slice(0, 500) };
+  if (countEvents(db, jobId) >= MAX_EVENTS) return;
+  let value = { jobId, at: now, kind, text: text.slice(0, 500) };
+  if (STREAM_KINDS.includes(kind)) {
+    const steps = countEvents(db, jobId, inArray(agentRunEvents.kind, STREAM_KINDS));
+    if (steps >= MAX_STREAM_EVENTS) {
+      if (countEvents(db, jobId, eq(agentRunEvents.text, LIMIT_NOTE)) > 0) return;
+      value = { jobId, at: now, kind: "status", text: LIMIT_NOTE };
+    }
+  }
   db.insert(agentRunEvents).values(value).run();
 }
 

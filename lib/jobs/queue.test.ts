@@ -17,6 +17,7 @@ import {
   isCancelRequested,
   listJobs,
   MAX_EVENTS,
+  MAX_STREAM_EVENTS,
   recoverRunningJobs,
   recoverStaleJobs,
   requestCancel,
@@ -94,16 +95,32 @@ describe("job queue", () => {
     expect(recoverRunningJobs(db, at(2000))).toEqual([]);
   });
 
-  it("caps events per job with one final note", () => {
+  it("caps the agent's own steps with one note, but keeps recording worker status", () => {
     const db = openTestDb();
     const id = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
-    for (let i = 0; i < MAX_EVENTS + 20; i++) addEvent(db, id, "tool", `e${i}`, t0);
-    const events = eventsSince(db, id, 0);
-    expect(events).toHaveLength(MAX_EVENTS + 1);
-    expect(events.at(-1)?.text).toMatch(/limit/i);
-    const tenth = events[9];
+    for (let i = 0; i < MAX_STREAM_EVENTS + 20; i++) {
+      addEvent(db, id, i % 2 ? "tool" : "text", `e${i}`, t0);
+    }
+    const capped = eventsSince(db, id, 0);
+    expect(capped).toHaveLength(MAX_STREAM_EVENTS + 1);
+    expect(capped.at(-1)).toMatchObject({ kind: "status", text: expect.stringMatching(/limit/i) });
+    addEvent(db, id, "status", "Committed 1 file(s)", t0);
+    addEvent(db, id, "error", "Push failed", t0);
+    expect(
+      eventsSince(db, id, 0)
+        .slice(-2)
+        .map((e) => e.text),
+    ).toEqual(["Committed 1 file(s)", "Push failed"]);
+    const tenth = capped[9];
     if (!tenth) throw new Error("expected at least ten events");
-    expect(eventsSince(db, id, tenth.id)).toHaveLength(MAX_EVENTS + 1 - 10);
+    expect(eventsSince(db, id, tenth.id)).toHaveLength(MAX_STREAM_EVENTS + 1 - 10 + 2);
+  });
+
+  it("never records more than MAX_EVENTS in total", () => {
+    const db = openTestDb();
+    const id = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
+    for (let i = 0; i < MAX_EVENTS + 20; i++) addEvent(db, id, "status", `s${i}`, t0);
+    expect(eventsSince(db, id, 0)).toHaveLength(MAX_EVENTS);
   });
 
   it("lists newest first", () => {
