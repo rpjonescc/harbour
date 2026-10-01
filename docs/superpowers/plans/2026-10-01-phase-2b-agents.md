@@ -18,6 +18,7 @@
 - `HARBOUR_CLAUDE_OAUTH_TOKEN` is a secret: server/worker only, never rendered, logged, audited or stored in the DB. UI shows only "set / not set".
 - One agent job at a time. Heartbeat 10 s; stale after 60 s. Cancel/timeout: SIGTERM to the process group, SIGKILL after 10 s. Default timeout 30 min (`HARBOUR_AGENT_TIMEOUT_MINUTES`, 1–120). Stdout/stderr tails capped at 16 KiB each; at most 200 events per job.
 - Automation (owner requirement — no manual commits or terminal commands): the worker autosaves the owner's brain edits (commit + push) once they have been quiet for 2 minutes, saves them automatically before any agent run, and retries unpushed commits automatically every 10 minutes. Manual buttons are optional extras, never required.
+- Gate API (final, from Task 4): `ownerChanges`, `snapshotRun` (throws on a dirty brain — save owner notes first), `inspectRun` → `{ allowed, rejected, tampered, gitTampered }`, `discardRun(root, snapshot, quarantineDir)` (copies everything to a fresh per-job quarantine folder before reverting; quarantine lives under `dirname(HARBOUR_DB_PATH)/quarantine/job-<id>`, outside the brain), `commitChanges`, `pushBrain`, `unpushedCount`. Never commit or push while `gitTampered` or non-benign `tampered` is non-empty. The worker runs housekeeping (autosave, push retry) only between jobs, never during a run.
 - Git gate: a run may only change files under its allowed paths with extensions `.md` (and `.json` only for `products/<id>/proposals.json`). Any other change fails the run and is restored from git. Before a run starts, any uncommitted owner changes are committed as owner notes (never mixed into the agent commit).
 - Every page calls `requireSession()`; every API route checks `getSession()` (401); mutating routes call `rejectCrossSite()` first. Audit agent run requests, cancels and proposal decisions.
 - Semantic tokens only; rem text sizes; file-size limits (`.tsx` 300, `.ts` 400, tests 600). README updated in the same task as settings/commands/features.
@@ -1543,7 +1544,7 @@ git commit -m "feat(agents): validated discovery proposals with import and decis
 
 **Interfaces:**
 - Consumes: Tasks 1–6; `getConfig`, `getDb`, `getProducts` (verify `lib/products/catalog.ts` has no `server-only` import), `checkBrainRoot`, `isoDateIn`.
-- Also produces `housekeepingAction(root: string, now: Date, opts: { quietMs: number; pushRetryDue: boolean }): "notes-sync" | "brain-push" | null` in `lib/jobs/housekeeping.ts`: returns `"notes-sync"` when the brain has uncommitted changes and the newest changed file's mtime is at least `quietMs` old (deleted files count as changed now → wait); else `"brain-push"` when `pushRetryDue` and `unpushedCount(root) > 0`; else null. Never throws: if the brain is missing or git fails, log once and return null. Tests (git temp brain, injected `now`): fresh edit → null; edit older than quietMs → "notes-sync"; clean brain with an unpushed commit and pushRetryDue → "brain-push"; pushRetryDue false → null; missing root → null.
+- Also produces `housekeepingAction(root: string, now: Date, opts: { quietMs: number; pushRetryDue: boolean }): "notes-sync" | "brain-push" | null` in `lib/jobs/housekeeping.ts`: returns `"notes-sync"` when `ownerChanges(root)` is non-empty and the newest changed file's mtime is at least `quietMs` old (deleted files count as changed now → wait); else `"brain-push"` when `pushRetryDue` and `unpushedCount(root) > 0`; else null. Never throws: if the brain is missing or git fails, log once and return null. Tests (git temp brain, injected `now`): fresh edit → null; edit older than quietMs → "notes-sync"; clean brain with an unpushed commit and pushRetryDue → "brain-push"; pushRetryDue false → null; missing root → null.
 - Also produces `runNotesSyncJob(deps, job): void` (commit all owner changes, then push). Add tests: with an uncommitted note it commits with message `notes: owner update (1 file(s))` and pushes; with no changes it finishes ok with "Nothing to save"; a later agent run is no longer blocked by "uncommitted changes".
 - Produces: `type RunDeps = { db: Db; root: string; bin: string; token: string | undefined; model: string; timeoutMs: number; products: readonly Product[]; today: string; home: string; path: string; run: typeof runProcess; now: () => Date }`; `runAgentJob(deps, job): Promise<void>`; `runPushJob(deps, job): void`; script `pnpm worker`.
 
@@ -1566,7 +1567,7 @@ function setup(scenario: string, files: Record<string, string> = {}, overrides: 
   const brain = makeGitBrain(files);
   const db = openTestDb();
   const deps: RunDeps = {
-    db, root: brain.root, bin: FAKE, token: "test-token", model: "sonnet", timeoutMs: 20_000,
+    db, root: brain.root, quarantineRoot: join(brain.remote, "..", "quarantine"), bin: FAKE, token: "test-token", model: "sonnet", timeoutMs: 20_000,
     products, today: "2026-10-01", home: brain.root, path: process.env.PATH ?? "",
     run: (o) => runProcess({ ...o, env: { ...o.env, FAKE_CLAUDE_SCENARIO: scenario }, pollMs: 50, killGraceMs: 500 }),
     now: () => new Date(), ...overrides,
@@ -1604,6 +1605,7 @@ describe("runAgentJob", () => {
       expect(job.status).toBe("failed");
       expect(job.error).toMatch(/outside.md/);
       expect(existsSync(join(brain.root, "outside.md"))).toBe(false);
+      expect(existsSync(join(brain.remote, "..", "quarantine", `job-${job.id}`, "outside.md"))).toBe(true);
       expect(existsSync(join(brain.root, "research/glossary.md"))).toBe(false);
       expect(brain.git("log", "--oneline").trim().split("\n")).toHaveLength(1);
     } finally {
@@ -1714,7 +1716,9 @@ Silence unused-import lint by removing `mkdirSync` if unused.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
-import { commitChanges, changedPaths, partitionChanges, pushBrain, restoreChanges } from "@/lib/agents/brain-git";
+import {
+  commitChanges, discardRun, inspectRun, ownerChanges, pushBrain, type RunSnapshot, snapshotRun,
+} from "@/lib/agents/brain-git";
 import { agentEnv, claudeArgs } from "@/lib/agents/claude-args";
 import type { runProcess } from "@/lib/agents/process";
 import { importProposals, parseProposals } from "@/lib/agents/proposals";
@@ -1729,6 +1733,8 @@ import { addEvent, finishJob, isCancelRequested, type Job } from "./queue";
 export type RunDeps = {
   db: Db;
   root: string;
+  /** Directory (outside the brain) that holds one quarantine folder per discarded run. */
+  quarantineRoot: string;
   bin: string;
   token: string | undefined;
   model: string;
@@ -1743,32 +1749,42 @@ export type RunDeps = {
 
 class JobFailure extends Error {}
 
-function discardAll(root: string) {
-  restoreChanges(root, changedPaths(root));
+// Ignored files editors rewrite on their own; changes to these never fail a run.
+const BENIGN_TAMPER = [/(^|\/)\.DS_Store$/, /^\.obsidian\/workspace(-mobile)?\.json$/];
+
+/** Commits the owner's own uncommitted edits so they are never mixed with agent work. */
+function saveOwnerNotes(root: string): number {
+  const changes = ownerChanges(root);
+  if (changes.length > 0) {
+    commitChanges(root, changes.map((c) => c.path), `notes: owner update (${changes.length} file(s))`);
+  }
+  return changes.length;
 }
 
 /** Runs one research/discovery job end to end; always finishes the job row. */
 export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
   const { db, root } = deps;
   const event = (kind: Parameters<typeof addEvent>[2], text: string) => addEvent(db, job.id, kind, text, deps.now());
-  let started = false;
+  let snapshot: RunSnapshot | undefined;
+  const discard = (reason: string) => {
+    if (!snapshot) return;
+    const dir = join(deps.quarantineRoot, `job-${job.id}`);
+    const { quarantined } = discardRun(root, snapshot, dir);
+    if (quarantined.length > 0) event("status", `${reason}: ${quarantined.length} file(s) moved to quarantine (${dir})`);
+  };
   try {
     if (job.kind !== "research" && job.kind !== "discovery") throw new JobFailure(`Not an agent job: ${job.kind}`);
     const spec = specForJob(job.kind, job.params, deps.products, deps.today);
     if (!deps.token) throw new JobFailure("HARBOUR_CLAUDE_OAUTH_TOKEN is not set — run `claude setup-token` and add it to .env");
-    const ownerChanges = changedPaths(root);
-    if (ownerChanges.length > 0) {
-      // Save the owner's edits first so they are never mixed into (or discarded with) agent work.
-      commitChanges(root, ownerChanges.map((c) => c.path), `notes: owner update (${ownerChanges.length} file(s))`);
-      event("status", `Saved ${ownerChanges.length} note file(s) before starting`);
-    }
     for (const file of spec.requiredFiles) {
       if (!existsSync(join(root, file))) throw new JobFailure(`Missing ${file} — write the owner's notes for this product first`);
     }
+    const saved = saveOwnerNotes(root);
+    if (saved > 0) event("status", `Saved ${saved} note file(s) before starting`);
+    snapshot = snapshotRun(root);
 
     db.insert(agentRuns).values({ jobId: job.id, promptVersion: PROMPT_VERSION }).run();
     event("status", `Started ${spec.label}`);
-    started = true;
     let result: StreamResult | undefined;
     const outcome = await deps.run({
       bin: deps.bin,
@@ -1787,8 +1803,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
       .where(eq(agentRuns.jobId, job.id)).run();
 
     if (outcome.cancelled) {
-      discardAll(root);
-      event("status", "Cancelled — partial work discarded");
+      discard("Cancelled");
       finishJob(db, job.id, "cancelled", null, deps.now());
       return;
     }
@@ -1797,13 +1812,20 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
       throw new JobFailure(`Agent failed: ${result?.text || outcome.stderrTail.slice(-300) || `exit ${outcome.exitCode}`}`);
     }
 
-    const { allowed, rejected } = partitionChanges(changedPaths(root), spec.allowed);
-    if (rejected.length > 0) throw new JobFailure(`Agent changed files outside its area: ${rejected.map((c) => c.path).join(", ")}`);
-    if (allowed.length === 0) throw new JobFailure("Agent finished without writing anything");
+    const inspection = inspectRun(root, snapshot, spec.allowed);
+    if (inspection.gitTampered.length > 0) {
+      throw new JobFailure(`Agent changed git metadata: ${inspection.gitTampered.join(", ")}`);
+    }
+    const tampered = inspection.tampered.filter((p) => !BENIGN_TAMPER.some((re) => re.test(p)));
+    if (tampered.length > 0) throw new JobFailure(`Agent changed ignored files: ${tampered.join(", ")}`);
+    if (inspection.rejected.length > 0) {
+      throw new JobFailure(`Agent changed files outside its area: ${inspection.rejected.map((c) => c.path).join(", ")}`);
+    }
+    if (inspection.allowed.length === 0) throw new JobFailure("Agent finished without writing anything");
 
     let parsed: ReturnType<typeof parseProposals> | null = null;
     if (spec.proposalsPath) {
-      if (!allowed.some((c) => c.path === spec.proposalsPath)) throw new JobFailure(`Agent did not write ${spec.proposalsPath}`);
+      if (!inspection.allowed.some((c) => c.path === spec.proposalsPath)) throw new JobFailure(`Agent did not write ${spec.proposalsPath}`);
       try {
         parsed = parseProposals(readFileSync(join(root, spec.proposalsPath), "utf8"));
       } catch (error) {
@@ -1811,8 +1833,9 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
       }
     }
 
-    const paths = allowed.map((c) => c.path);
+    const paths = inspection.allowed.map((c) => c.path);
     const sha = commitChanges(root, paths, `agent(${spec.kind}): ${spec.label.replace(/^[^:]+:\s*/, "")}`);
+    snapshot = undefined; // committed: nothing left to discard
     db.update(agentRuns).set({ filesChanged: paths, commitSha: sha }).where(eq(agentRuns.jobId, job.id)).run();
     event("status", `Committed ${paths.length} file(s)`);
 
@@ -1824,18 +1847,16 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
     const push = pushBrain(root);
     db.update(agentRuns).set({ pushed: push.ok }).where(eq(agentRuns.jobId, job.id)).run();
     if (push.ok) event("status", "Pushed to the brain repository");
-    else event("error", `Push failed — commit kept locally: ${push.error}`);
+    else event("error", `Push failed — commit kept locally, will retry automatically: ${push.error}`);
     finishJob(db, job.id, "ok", null, deps.now());
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!(error instanceof JobFailure)) console.error(`job ${job.id} crashed`, error);
-    if (started) {
-      try {
-        discardAll(root);
-      } catch (restoreError) {
-        console.error(`job ${job.id}: could not restore the brain`, restoreError);
-        event("error", "Could not discard the agent's changes — check the brain repo (git status)");
-      }
+    try {
+      discard("Discarded");
+    } catch (discardError) {
+      console.error(`job ${job.id}: could not discard the agent's changes`, discardError);
+      event("error", `Could not discard the agent's changes — check the brain repo: ${(discardError as Error).message}`);
     }
     event("error", message);
     finishJob(db, job.id, "failed", message, deps.now());
@@ -1843,29 +1864,24 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
 }
 
 /**
- * Saves the owner's own edits (queued from "Save & sync my notes"): commits every uncommitted
- * change in the brain and pushes. Runs in the worker, so it never overlaps an agent's git work.
+ * Saves the owner's own edits (autosave, or "Save now"): commits every uncommitted change in
+ * the brain and pushes. Runs in the worker, so it never overlaps an agent's git work.
  */
 export function runNotesSyncJob(deps: Pick<RunDeps, "db" | "root" | "now">, job: Job): void {
-  const changes = changedPaths(deps.root);
-  if (changes.length === 0) {
-    addEvent(deps.db, job.id, "status", "Nothing to save", deps.now());
-    finishJob(deps.db, job.id, "ok", null, deps.now());
-    return;
-  }
+  let saved: number;
   try {
-    commitChanges(deps.root, changes.map((c) => c.path), `notes: owner update (${changes.length} file(s))`);
+    saved = saveOwnerNotes(deps.root);
   } catch (error) {
     const message = `Could not commit notes: ${(error as Error).message}`;
     addEvent(deps.db, job.id, "error", message, deps.now());
     finishJob(deps.db, job.id, "failed", message, deps.now());
     return;
   }
-  addEvent(deps.db, job.id, "status", `Saved ${changes.length} file(s)`, deps.now());
+  addEvent(deps.db, job.id, "status", saved > 0 ? `Saved ${saved} file(s)` : "Nothing to save", deps.now());
   runPushJob(deps, job);
 }
 
-/** Retries pushing local brain commits (queued from the "not synced" banner). */
+/** Pushes local brain commits (automatic retry, or "Retry now"). */
 export function runPushJob(deps: Pick<RunDeps, "db" | "root" | "now">, job: Job): void {
   const push = pushBrain(deps.root);
   if (push.ok) {
@@ -1883,6 +1899,7 @@ export function runPushJob(deps: Pick<RunDeps, "db" | "root" | "now">, job: Job)
 ```ts
 // Harbour worker: runs queued agent jobs one at a time. Started by systemd (`pnpm worker`).
 // Must not import any module that imports "server-only".
+import { dirname, join } from "node:path";
 import { runProcess } from "@/lib/agents/process";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
@@ -1947,6 +1964,7 @@ async function main() {
           {
             db,
             root: config.HARBOUR_BRAIN_DIR,
+            quarantineRoot: join(dirname(config.HARBOUR_DB_PATH), "quarantine"),
             bin: config.HARBOUR_CLAUDE_BIN,
             token: config.HARBOUR_CLAUDE_OAUTH_TOKEN,
             model: config.HARBOUR_AGENT_MODEL,
@@ -2159,7 +2177,7 @@ export async function POST(request: Request) {
 
 `components/agents/RunActivity.tsx` — client component (props: initial job + events). Polls `GET /api/agents/[id]?after=<lastEventId>` every 2 s while status is `queued` or `running`, appends events, stops when finished. Renders status line (`aria-live="polite"`), elapsed time, an ordered list of events (error kind in `text-bad`, tool in `text-ink-muted`, status in `text-ink`), and a "Cancel" ghost button (POST cancel) while active. Shows `job.error` in a `role="alert"` box when failed.
 
-`components/agents/BrainSyncBanner.tsx` — client component (props `unpushed: number`, `unsaved: number`). When `unsaved > 0`: "N note file(s) will be saved automatically in about 2 minutes" + an optional "Save now" button → POST `/api/agents/notes-sync`, then `router.push("/agents/" + jobId)`. When `unpushed > 0`: "N brain commit(s) waiting to sync to GitHub — retrying automatically" + an optional "Retry now" → POST `/api/agents/brain-push`, then `router.refresh()`. When both are 0 render a quiet "Saved · synced" line in `text-ink-muted`. Also render this banner at the top of the Second Brain layout (`app/(app)/brain/layout.tsx`), computing the counts with `changedPaths`/`unpushedCount` (both are plain modules without "server-only").
+`components/agents/BrainSyncBanner.tsx` — client component (props `unpushed: number`, `unsaved: number`). When `unsaved > 0`: "N note file(s) will be saved automatically in about 2 minutes" + an optional "Save now" button → POST `/api/agents/notes-sync`, then `router.push("/agents/" + jobId)`. When `unpushed > 0`: "N brain commit(s) waiting to sync to GitHub — retrying automatically" + an optional "Retry now" → POST `/api/agents/brain-push`, then `router.refresh()`. When both are 0 render a quiet "Saved · synced" line in `text-ink-muted`. Also render this banner at the top of the Second Brain layout (`app/(app)/brain/layout.tsx`), computing the counts with `ownerChanges`/`unpushedCount` (both are plain modules without "server-only").
 
 Keep each file under 200 lines; use semantic tokens only.
 
@@ -2170,7 +2188,7 @@ Keep each file under 200 lines; use semantic tokens only.
 import { BrainSyncBanner } from "@/components/agents/BrainSyncBanner";
 import { JobList } from "@/components/agents/JobList";
 import { RunPanel } from "@/components/agents/RunPanel";
-import { changedPaths, unpushedCount } from "@/lib/agents/brain-git";
+import { ownerChanges, unpushedCount } from "@/lib/agents/brain-git";
 import { requireSession } from "@/lib/auth/guard";
 import { checkBrainRoot } from "@/lib/brain/docs";
 import { getConfig } from "@/lib/config";
@@ -2184,7 +2202,7 @@ export default async function AgentsPage() {
   const products = getProducts();
   const brainOk = checkBrainRoot(config.HARBOUR_BRAIN_DIR).ok;
   const unpushed = brainOk ? (unpushedCount(config.HARBOUR_BRAIN_DIR) ?? 0) : 0;
-  const unsaved = brainOk ? changedPaths(config.HARBOUR_BRAIN_DIR).length : 0;
+  const unsaved = brainOk ? ownerChanges(config.HARBOUR_BRAIN_DIR).length : 0;
   return (
     <div className="flex max-w-5xl flex-col gap-6">
       <header>
