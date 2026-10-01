@@ -3,7 +3,7 @@ import type { Product } from "@/lib/products/catalog";
 import { fenceFor } from "@/lib/text/fence";
 import { isWeekLabel } from "./week";
 
-export const ANALYST_PROMPT_VERSION = "4-v1";
+export const ANALYST_PROMPT_VERSION = "4-v2";
 
 /** The brain paths one weekly run writes: its report and its suggested actions. */
 export function weeklyPaths(week: string): { report: string; proposals: string } {
@@ -58,7 +58,7 @@ Today's date: ${today}
 Products:
 ${productContext(products)}
 
-Read the research in research/ (start with 00-start-here.md) and the previous report in reports/weekly/ if there is one; do not change them.
+Start with 00-start-here.md at the top of this folder, then read the research in research/ and the previous report in reports/weekly/ if there is one; do not change them.
 
 Then write two files:
 

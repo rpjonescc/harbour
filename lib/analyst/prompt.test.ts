@@ -34,7 +34,7 @@ describe("weeklyAnalystPrompt", () => {
       expect(prompt).toContain(heading);
     }
     expect(prompt).toContain(
-      "Read the research in research/ (start with 00-start-here.md) and the previous report in reports/weekly/ if there is one; do not change them",
+      "Start with 00-start-here.md at the top of this folder, then read the research in research/ and the previous report in reports/weekly/ if there is one; do not change them",
     );
     expect(prompt).toContain("Acme Docs (https://docs.example.com)");
     expect(prompt).toContain("products/acme-docs/notes.md");
@@ -101,6 +101,6 @@ describe("weeklyAnalystPrompt", () => {
   });
 
   it("is versioned", () => {
-    expect(ANALYST_PROMPT_VERSION).toBe("4-v1");
+    expect(ANALYST_PROMPT_VERSION).toBe("4-v2");
   });
 });

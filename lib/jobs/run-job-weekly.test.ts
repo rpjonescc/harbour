@@ -1,6 +1,7 @@
 import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sql } from "drizzle-orm";
+import { ANALYST_PROMPT_VERSION } from "@/lib/analyst/prompt";
 import { actions, agentRuns } from "@/lib/db/schema";
 import { runOne, setup } from "@/tests/helpers/run-job";
 import { retryPendingImports } from "./import-retry";
@@ -26,7 +27,9 @@ describe("runAgentJob for the weekly analyst", () => {
       expect(
         brain.git("show", "--name-only", "--format=", "HEAD").trim().split("\n").sort(),
       ).toEqual([REPORT, PROPOSALS]);
-      expect(db.select().from(agentRuns).get()).toMatchObject({ promptVersion: "4-v1" });
+      expect(db.select().from(agentRuns).get()).toMatchObject({
+        promptVersion: ANALYST_PROMPT_VERSION,
+      });
       expect(eventsSince(db, job.id, 0).map((e) => e.text)).toEqual(
         expect.arrayContaining(["Committed 2 file(s)", "Imported 1 action(s); 0 already known"]),
       );
