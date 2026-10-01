@@ -25,7 +25,7 @@
   /* Primitives: signal colours */
   --amber-100: #f4e5cf;
   --amber-300: #e0a35c;
-  --amber-700: #a8641c;
+  --amber-700: #8f5414; /* 4.9:1 on --warn-soft, 6:1 on --surface (WCAG AA) */
   --amber-900: #3a2d1c;
   --clay-300: #e07a6e;
   --clay-700: #a63d32;
