@@ -127,7 +127,8 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(page.getByRole("note")).toContainText("Sample data");
       const table = page.getByRole("table", { name: "Visibility scores by product" });
       await expect(table.getByRole("rowheader", { name: "Fern & Field" })).toBeVisible();
-      await expect(page.getByText("Demo config")).toBeVisible();
+      const products = page.getByRole("region", { name: "Products" });
+      await expect(products.getByRole("link", { name: "Acme Docs" })).toBeVisible();
       await expect(
         page.getByRole("heading", { name: "Worth your attention", exact: true }),
       ).toBeVisible();

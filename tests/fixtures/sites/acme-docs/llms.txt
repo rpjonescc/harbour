@@ -1,0 +1,6 @@
+# Acme Docs
+
+> Documentation for Acme, a fictional example product.
+
+- [FAQ](/guides/faq)
+- [About](/about)

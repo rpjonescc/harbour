@@ -14,8 +14,11 @@ export async function closeSites(): Promise<void> {
   }
 }
 
-/** A local site on 127.0.0.1 whose routes the test defines; records every request path. */
-export async function site(routes: Record<string, Handler>) {
+/**
+ * A local site on 127.0.0.1 whose routes the test defines; records every request path. Listens
+ * on a free port unless given one (the E2E fixture site needs a fixed address).
+ */
+export async function site(routes: Record<string, Handler>, port = 0) {
   const hits: string[] = [];
   const arrivals: number[] = [];
   const server = createServer((req, res) => {
@@ -26,9 +29,12 @@ export async function site(routes: Record<string, Handler>) {
     else res.writeHead(404).end("not found");
   });
   servers.push(server);
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const { port } = server.address() as AddressInfo;
-  return { origin: `http://127.0.0.1:${port}`, port, hits, arrivals };
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", resolve);
+  });
+  const address = server.address() as AddressInfo;
+  return { origin: `http://127.0.0.1:${address.port}`, port: address.port, hits, arrivals };
 }
 
 export const text =

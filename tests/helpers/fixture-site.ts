@@ -20,9 +20,10 @@ function routeOf(file: string): string {
 
 /**
  * Serves a recorded site from tests/fixtures/sites/<name> on 127.0.0.1, with `{{origin}}` in
- * files replaced by the server's origin; `extra` routes are added or override files.
+ * files replaced by the server's origin; `extra` routes are added or override files. Listens on
+ * a free port unless given one.
  */
-export async function fixtureSite(name: string, extra: Record<string, Handler> = {}) {
+export async function fixtureSite(name: string, extra: Record<string, Handler> = {}, port = 0) {
   const dir = join(SITES_DIR, name);
   const entries = await readdir(dir, { recursive: true, withFileTypes: true });
   let origin = "";
@@ -34,7 +35,7 @@ export async function fixtureSite(name: string, extra: Record<string, Handler> =
     routes[routeOf(file)] = (_req, res) =>
       res.writeHead(200, { "content-type": type }).end(content.replaceAll("{{origin}}", origin));
   }
-  const served = await site({ ...routes, ...extra });
+  const served = await site({ ...routes, ...extra }, port);
   origin = served.origin;
   return served;
 }

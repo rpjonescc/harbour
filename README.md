@@ -461,6 +461,13 @@ bare remote) and a fresh database under `data/e2e/`, then starts the web server 
 the agent worker. The worker runs a fake Claude CLI (`tests/fixtures/fake-claude.mjs`), so agent
 runs, commits, pushes and discovery approvals are tested end to end without a real token.
 
+It also serves the fictional Acme Docs fixture site (`tests/fixtures/sites/acme-docs`) on
+`http://127.0.0.1:3402` (keep ports 3401 and 3402 free), and the E2E product config
+(`tests/fixtures/harbour.config.e2e.json`) points Acme Docs at it. Scheduled scans are off;
+the scan specs choose **Scan now** and check the product page, Sources and Today on the real
+results. Only this environment may scan a loopback address (`HARBOUR_TEST_MODE` and
+`HARBOUR_SCAN_ALLOW_LOOPBACK`, both refused outside tests).
+
 ## Project structure
 
 ```
