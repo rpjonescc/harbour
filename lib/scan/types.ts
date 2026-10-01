@@ -48,6 +48,11 @@ export type SafeFetchOptions = {
    * Insights runs Lighthouse before answering, which takes 15–40 s. Ignored for other hosts.
    */
   timeoutMs?: number;
+  /**
+   * Sends `json` as a POST with the bearer token instead of a GET. Only Google API hosts take
+   * one, and a redirect is refused rather than followed, so the token goes nowhere else.
+   */
+  post?: { json: unknown; bearer: string };
 };
 
 /** Outbound HTTP for collectors: timeouts, redirect and size limits, robots, politeness. */

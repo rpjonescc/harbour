@@ -98,7 +98,7 @@ async function toResponse(url: URL, message: IncomingMessage): Promise<RawRespon
 }
 
 /**
- * One GET without following redirects. We use node:http rather than fetch because fetch joins
+ * One GET (or a POST of `body`) without following redirects. We use node:http rather than fetch because fetch joins
  * repeated headers (e.g. two X-Robots-Tag lines) into one value, losing what each one scoped.
  * `lookup` decides which addresses the socket may connect to.
  */
@@ -107,12 +107,14 @@ export function sendRequest(
   headers: Record<string, string>,
   signal: AbortSignal,
   lookup: LookupFunction,
+  body?: string,
 ): Promise<RawResponse> {
   const send = url.protocol === "https:" ? httpsRequest : httpRequest;
+  const length = body === undefined ? {} : { "content-length": String(Buffer.byteLength(body)) };
   return new Promise((resolve, reject) => {
     const options = {
-      method: "GET",
-      headers: { ...headers, "accept-encoding": ACCEPT_ENCODING },
+      method: body === undefined ? "GET" : "POST",
+      headers: { ...headers, ...length, "accept-encoding": ACCEPT_ENCODING },
       signal,
       lookup,
     };
@@ -127,6 +129,6 @@ export function sendRequest(
       });
     });
     request.on("error", reject);
-    request.end();
+    request.end(body);
   });
 }

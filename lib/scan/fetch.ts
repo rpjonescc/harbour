@@ -49,6 +49,15 @@ function parseHttpUrl(raw: string, base?: URL): URL | null {
   return url.protocol === "http:" || url.protocol === "https:" ? url : null;
 }
 
+/** Request headers, plus the JSON body and bearer token of a POST. */
+function outgoing(options: SafeFetchOptions): { headers: Record<string, string>; body?: string } {
+  const headers = { "user-agent": HARBOUR_USER_AGENT, accept: options.accept ?? "*/*" };
+  const { post } = options;
+  if (!post) return { headers };
+  const auth = { authorization: `Bearer ${post.bearer}`, "content-type": "application/json" };
+  return { headers: { ...headers, ...auth }, body: JSON.stringify(post.json) };
+}
+
 function tooLarge(url: URL, bytes: string, maxBytes: number): FetchError {
   return new FetchError("too_large", `${url} is ${bytes} bytes (cap ${maxBytes})`);
 }
@@ -87,12 +96,8 @@ export function createSafeFetch(
       : timeout.signal;
     const strict = options.onOverflow === "error";
     try {
-      const response = await sendRequest(
-        url,
-        { "user-agent": HARBOUR_USER_AGENT, accept: options.accept ?? "*/*" },
-        signal,
-        lookup,
-      );
+      const { headers: sent, body } = outgoing(options);
+      const response = await sendRequest(url, sent, signal, lookup, body);
       const { status, headers, headerLines } = response;
       const location = status >= 300 && status < 400 ? headers.location : undefined;
       const ms = () => performance.now() - started;
@@ -148,6 +153,10 @@ export function createSafeFetch(
     const start = parseHttpUrl(raw);
     if (!start) throw new FetchError("network", `Not an http(s) URL: ${raw}`);
     assertAllowedHost(start, "network");
+    if (options.post && !GOOGLE_API_HOSTS.includes(start.hostname)) {
+      const host = start.hostname;
+      throw new FetchError("network", `${host} is not a Google API host: only those take a POST`);
+    }
     let current = start;
     let ms = 0;
     const redirects: string[] = [];
@@ -159,6 +168,9 @@ export function createSafeFetch(
         const { status, headers, headerLines, body, truncated } = result;
         const finalUrl = current.href;
         return { url: raw, finalUrl, redirects, status, headers, headerLines, body, truncated, ms };
+      }
+      if (options.post) {
+        throw new FetchError("redirect", `${current} redirects a POST to ${result.location}`);
       }
       const next = parseHttpUrl(result.location, current);
       if (!next || !sameSite(start, next)) {
