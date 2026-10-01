@@ -59,7 +59,7 @@ tests/e2e/prepare.ts, tests/e2e/agents.spec.ts
 
 **Interfaces:**
 - Produces:
-  - config: `HARBOUR_CLAUDE_BIN: string` (default `"claude"`), `HARBOUR_CLAUDE_OAUTH_TOKEN?: string`, `HARBOUR_AGENT_MODEL: string` (default `"sonnet"`), `HARBOUR_AGENT_TIMEOUT_MINUTES: number` (default 30, int 1–120)
+  - config: `HARBOUR_CLAUDE_BIN: string` (default `"claude"`), `HARBOUR_CLAUDE_OAUTH_TOKEN?: string`, `HARBOUR_AGENT_MODEL: string` (default `"claude-sonnet-5-5"`), `HARBOUR_AGENT_TIMEOUT_MINUTES: number` (default 30, int 1–120)
   - `AuditEvent` adds `"agent_run_requested" | "agent_run_cancelled" | "proposal_decided"`
   - tables `jobs`, `agentRuns`, `agentRunEvents`, `proposals` (see Step 3)
   - `type JobKind = "research" | "discovery" | "brain-push"`; `type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled"`; `type Job = typeof jobs.$inferSelect`
@@ -77,7 +77,7 @@ describe("agent settings", () => {
   it("defaults the CLI, model and timeout, and leaves the token unset", () => {
     const c = parseConfig(base);
     expect(c.HARBOUR_CLAUDE_BIN).toBe("claude");
-    expect(c.HARBOUR_AGENT_MODEL).toBe("sonnet");
+    expect(c.HARBOUR_AGENT_MODEL).toBe("claude-sonnet-5-5");
     expect(c.HARBOUR_AGENT_TIMEOUT_MINUTES).toBe(30);
     expect(c.HARBOUR_CLAUDE_OAUTH_TOKEN).toBeUndefined();
   });
@@ -95,7 +95,8 @@ describe("agent settings", () => {
     HARBOUR_CLAUDE_BIN: z.string().min(1).default("claude"),
     // Secret: long-lived subscription token from `claude setup-token`. Worker only.
     HARBOUR_CLAUDE_OAUTH_TOKEN: z.string().min(1).optional(),
-    HARBOUR_AGENT_MODEL: z.string().min(1).default("sonnet"),
+    // Full model id (aliases like "sonnet" can resolve to an older model).
+    HARBOUR_AGENT_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
     HARBOUR_AGENT_TIMEOUT_MINUTES: z.coerce.number().int().min(1).max(120).default(30),
 ```
 Run: `pnpm vitest run lib/config.test.ts` → PASS.
@@ -386,7 +387,7 @@ Run: `pnpm vitest run lib/jobs lib/config.test.ts && pnpm check` → PASS. READM
 # Agents (Phase 2b). Token: run `claude setup-token` and paste the result. Never commit it.
 # HARBOUR_CLAUDE_OAUTH_TOKEN=
 # HARBOUR_CLAUDE_BIN=claude
-# HARBOUR_AGENT_MODEL=sonnet
+# HARBOUR_AGENT_MODEL=claude-sonnet-5-5
 # HARBOUR_AGENT_TIMEOUT_MINUTES=30
 ```
 ```bash
