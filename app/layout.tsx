@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Newsreader } from "next/font/google";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
+import { BRAND } from "@/design/brand";
 import { parseTheme, THEME_COOKIE } from "@/lib/theme";
 import "./globals.css";
 
@@ -11,9 +12,12 @@ const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrai
 
 export const metadata: Metadata = {
   title: "Harbour",
+  applicationName: BRAND.name,
   description: "Home control centre",
   robots: { index: false, follow: false },
 };
+
+export const viewport: Viewport = { themeColor: BRAND.theme };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);

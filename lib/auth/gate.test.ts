@@ -66,3 +66,25 @@ describe("decideGate", () => {
     });
   });
 });
+
+describe("app-install assets", () => {
+  it.each(["/manifest.webmanifest", "/icon", "/apple-icon", "/icons/192", "/icons/maskable-512"])(
+    "%s needs Tailscale identity but no session",
+    (pathname) => {
+      expect(decideGate({ headers: me, pathname, hasSessionCookie: false }, config).kind).toBe(
+        "next",
+      );
+      expect(
+        decideGate({ headers: new Headers(), pathname, hasSessionCookie: false }, config),
+      ).toEqual({
+        kind: "forbid",
+      });
+    },
+  );
+
+  it("does not open look-alike paths", () => {
+    expect(
+      decideGate({ headers: me, pathname: "/iconsx", hasSessionCookie: false }, config).kind,
+    ).not.toBe("next");
+  });
+});

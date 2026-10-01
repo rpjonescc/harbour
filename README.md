@@ -49,6 +49,13 @@ sources: [https://example.com/article]
 Set `HARBOUR_EDITOR_URL_TEMPLATE` to a URL containing `{path}` to open a document in an editor.
 Its default is `vscode://file/{path}`; an empty value hides the link.
 
+### Install as an app
+
+Harbour can be installed like an app, with its own window and icon. In Chrome or Edge, open
+Harbour and choose **Install Harbour** from the address bar or menu; on Android choose
+**Add to Home screen**; on iPhone and iPad use **Share → Add to Home Screen**. Harbour needs
+a live connection to your PC, so it has no offline mode.
+
 ## Security model
 
 Harbour is built to be safe to leave running:
