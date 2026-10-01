@@ -12,7 +12,7 @@ export function RecoveryBanner({
   return (
     <section
       aria-label="Agent run recovery"
-      className="flex flex-col gap-1 rounded-sm bg-warn-soft px-3 py-2 text-sm text-warn"
+      className="flex flex-col gap-1 rounded-sm bg-warn-soft px-3 py-2 text-sm text-ink"
     >
       <p>Recovering {runs} — notes autosave is paused</p>
       {lastError && (

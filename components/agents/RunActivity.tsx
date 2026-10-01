@@ -75,9 +75,12 @@ export function RunActivity({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p aria-live="polite" className="text-sm text-ink">
-          {STATUS_TEXT[job.status]}
-          {cancelState === "requested" && active && " — stopping…"}
+        <p className="text-sm text-ink">
+          {/* Only the status is announced; the ticking elapsed time would be read every second. */}
+          <span aria-live="polite">
+            {STATUS_TEXT[job.status]}
+            {cancelState === "requested" && active && " — stopping…"}
+          </span>
           <span className="text-ink-muted"> · {elapsed}</span>
         </p>
         {active && (

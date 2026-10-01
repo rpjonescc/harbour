@@ -15,12 +15,15 @@ const Body = z.discriminatedUnion("kind", [
 ]);
 
 export async function POST(request: Request) {
-  const blocked = rejectCrossSite(request, getConfig().HARBOUR_ORIGIN);
+  const config = getConfig();
+  const blocked = rejectCrossSite(request, config.HARBOUR_ORIGIN);
   if (blocked) return blocked;
   const session = await getSession();
   if (!session) return jsonError(401, "unauthenticated");
   const body = Body.safeParse(await request.json().catch(() => null));
   if (!body.success) return jsonError(400, "invalid_request");
+  // Both kinds are agent runs, which would only fail in the worker without a token.
+  if (!config.HARBOUR_CLAUDE_OAUTH_TOKEN) return jsonError(409, "token_missing");
 
   const db = getDb();
   const enqueue = (kind: "research" | "discovery", params: Record<string, string>) =>

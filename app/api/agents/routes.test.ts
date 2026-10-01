@@ -1,5 +1,5 @@
 import { auditLog } from "@/lib/db/schema";
-import { addEvent, enqueueJob, getJob } from "@/lib/jobs/queue";
+import { addEvent, claimNextJob, enqueueJob, getJob, listJobs } from "@/lib/jobs/queue";
 import { openTestDb } from "@/tests/helpers/db";
 import { POST as cancel } from "./[id]/cancel/route";
 import { GET as getRun } from "./[id]/route";
@@ -10,7 +10,15 @@ import { POST as run } from "./run/route";
 const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   db: undefined as unknown,
+  token: "test-token" as string | undefined,
 }));
+vi.mock("@/lib/config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/config")>();
+  return {
+    ...actual,
+    getConfig: () => ({ ...actual.getConfig(), HARBOUR_CLAUDE_OAUTH_TOKEN: mocks.token }),
+  };
+});
 vi.mock("@/lib/auth/guard", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/db/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/db/client")>()),
@@ -38,6 +46,7 @@ describe("agents API routes", () => {
   beforeEach(() => {
     mocks.db = openTestDb();
     mocks.getSession.mockResolvedValue({ login: "owner@example.com" });
+    mocks.token = "test-token";
   });
   afterEach(() => vi.resetAllMocks());
 
@@ -54,6 +63,21 @@ describe("agents API routes", () => {
         post("/api/agents/run", { kind: "research", topic: "all" }, "https://elsewhere.example"),
       );
       expect(response.status).toBe(403);
+      expect(listJobs(db())).toEqual([]);
+    });
+
+    it("refuses agent runs while the Claude token is not set", async () => {
+      mocks.token = undefined;
+      for (const body of [
+        { kind: "research", topic: "all" },
+        { kind: "discovery", productId: "acme-docs" },
+      ]) {
+        const response = await run(post("/api/agents/run", body));
+        expect(response.status).toBe(409);
+        expect(await response.json()).toEqual({ error: "token_missing" });
+      }
+      expect(listJobs(db())).toEqual([]);
+      expect(auditEvents()).toEqual([]);
     });
 
     it("rejects an unknown topic", async () => {
@@ -156,6 +180,22 @@ describe("agents API routes", () => {
       expect(auditEvents()).toMatchObject([
         { event: "agent_run_cancelled", detail: { jobId: id } },
       ]);
+    });
+
+    it("flags a running job for the worker and audits it", async () => {
+      const { id } = enqueueJob(db(), "research", { topic: "glossary" }, null);
+      claimNextJob(db());
+      const response = await cancel(post(`/api/agents/${id}/cancel`), idParams(id));
+      expect(await response.json()).toEqual({ result: "requested" });
+      expect(getJob(db(), id)?.cancelRequested).toBe(true);
+      expect(auditEvents()).toMatchObject([
+        { event: "agent_run_cancelled", detail: { jobId: id } },
+      ]);
+    });
+
+    it("returns 404 for a non-integer id", async () => {
+      expect((await cancel(post("/api/agents/1.5/cancel"), idParams("1.5"))).status).toBe(404);
+      expect((await cancel(post("/api/agents/abc/cancel"), idParams("abc"))).status).toBe(404);
     });
 
     it("reports an unknown job as not active", async () => {

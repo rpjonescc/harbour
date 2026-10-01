@@ -5,9 +5,23 @@ import { makeBrain } from "@/tests/helpers/brain";
 import { makeGitBrain } from "@/tests/helpers/git-brain";
 import { brainSyncStatus, quarantineRootFor } from "./brain-status";
 
+const gitMocks = vi.hoisted(() => ({ failOwnerChanges: false }));
+vi.mock("./brain-git", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./brain-git")>();
+  return {
+    ...actual,
+    ownerChanges: (root: string) => {
+      if (gitMocks.failOwnerChanges) throw new Error("git exploded");
+      return actual.ownerChanges(root);
+    },
+  };
+});
+
 const cleanups: (() => void)[] = [];
 afterEach(() => {
   for (const cleanup of cleanups.splice(0)) cleanup();
+  gitMocks.failOwnerChanges = false;
+  vi.restoreAllMocks();
 });
 const tempDir = () => {
   const dir = mkdtempSync(join(tmpdir(), "harbour-status-"));
@@ -33,11 +47,23 @@ describe("brainSyncStatus", () => {
     expect(status.recovery).toEqual({ pending: [], lastError: null });
   });
 
-  it("hides sync counts when the brain is not its own repository root", () => {
+  it("quietly hides sync counts when the brain is not its own repository root", () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const brain = makeBrain({ "a.md": "x\n" });
     cleanups.push(brain.cleanup);
     expect(brainSyncStatus(brain.root, tempDir()).sync).toBeNull();
     expect(brainSyncStatus(join(brain.root, "missing"), tempDir()).sync).toBeNull();
+    expect(logged).not.toHaveBeenCalled();
+  });
+
+  it("logs unexpected git failures and still hides the counts", () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const brain = makeGitBrain({ "notes.md": "a\n" });
+    cleanups.push(brain.cleanup);
+    gitMocks.failOwnerChanges = true;
+    expect(brainSyncStatus(brain.root, tempDir()).sync).toBeNull();
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0]?.join(" "))).toContain("git exploded");
   });
 
   it("reports pending recoveries and the last recovery error", () => {

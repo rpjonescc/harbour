@@ -73,8 +73,9 @@ fetch) and file tools limited to the brain directory: no shell, no hooks, no MCP
 
 The **git gate** checks every run: a run may change only its own target files (Markdown, plus
 `proposals.json` for discovery). Any other change fails the run, and everything it changed is
-moved to quarantine and restored from git. Only one agent runs at a time; queued runs wait their turn. Each run has
-a live activity page with a **Cancel** button, and lists the files it changed.
+moved to quarantine and restored from git. Only one agent runs at a time; queued runs wait
+their turn. Each run has a live activity page with a **Cancel** button, and lists the files it
+changed. Without a Claude token the server refuses new agent runs.
 
 Saving and syncing need no action. The Agents page and the Second Brain show unsaved notes
 ("saved automatically in about 2 minutes") and commits waiting to sync to GitHub ("retrying

@@ -17,9 +17,14 @@ export function quarantineRootFor(dbPath: string): string {
 function syncCounts(root: string): BrainSyncCounts | null {
   try {
     assertBrainRepoRoot(root);
-    return { unsaved: ownerChanges(root).length, unpushed: unpushedCount(root) ?? 0 };
   } catch {
-    // An unusable brain is reported elsewhere; the sync banner just stays hidden.
+    // Expected: the brain is missing or not its own repository; the worker reports that.
+    return null;
+  }
+  try {
+    return { unsaved: ownerChanges(root).length, unpushed: unpushedCount(root) ?? 0 };
+  } catch (error) {
+    console.error("brain sync status unavailable:", (error as Error).message);
     return null;
   }
 }
