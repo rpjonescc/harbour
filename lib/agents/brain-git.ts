@@ -1,13 +1,30 @@
 import { execFileSync } from "node:child_process";
-import { type Dirent, lstatSync, readdirSync, rmSync } from "node:fs";
-import { posix } from "node:path";
+import { appendFileSync, lstatSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { posix, resolve, sep } from "node:path";
+import {
+  type FileStat,
+  gitMetaHashes,
+  isRestorable,
+  nestedGitDirs,
+  quarantine,
+  restoreGitMetadata,
+  statOf,
+} from "./brain-git-fs";
 
-/** `pair` links both halves of a rename: the destination and the deleted source. */
-export type Change = { path: string; untracked: boolean; pair?: string };
+/** `pair` links both halves of a rename; `ignored` marks a new ignored file (never allowed). */
+export type Change = { path: string; untracked: boolean; pair?: string; ignored?: true };
 export type AllowedPaths = { prefixes: string[]; exact: string[] };
-type FileStat = { size: number; mtimeMs: number; ino: number };
-/** Ignored files that existed before an agent run; they belong to the owner. */
-export type RunSnapshot = { ignored: Map<string, FileStat> };
+/**
+ * What existed before an agent run and belongs to the owner: ignored files, nested `.git`
+ * entries, hashes of git metadata, and the bytes of `.git/config` and `.git/info/*`.
+ */
+export type RunSnapshot = {
+  ignored: Map<string, FileStat>;
+  nestedGit: Map<string, number>;
+  gitMeta: Map<string, string>;
+  gitRestore: Map<string, Buffer>;
+};
+const MAX_RESTORE_BYTES = 1024 * 1024;
 
 const GIT_TIMEOUT_MS = 60_000;
 const MAX_BUFFER = 16 * 1024 * 1024;
@@ -74,28 +91,35 @@ function ignoredFiles(root: string): string[] {
     .filter(Boolean);
 }
 
-function statOf(root: string, path: string): FileStat | null {
-  try {
-    const st = lstatSync(posix.join(root, path));
-    return { size: st.size, mtimeMs: st.mtimeMs, ino: st.ino };
-  } catch {
-    return null;
-  }
-}
-
 /** The owner's uncommitted changes (never ignored files), for owner-notes autosave. */
 export function ownerChanges(root: string): Change[] {
   return statusChanges(root);
 }
 
-/** Records the owner's ignored files before an agent run. */
+/** Records what the owner has before an agent run. Throws if the brain has uncommitted changes. */
 export function snapshotRun(root: string): RunSnapshot {
+  if (ownerChanges(root).length) throw new Error("brain has uncommitted changes");
   const ignored = new Map<string, FileStat>();
   for (const path of ignoredFiles(root)) {
     const stat = statOf(root, path);
     if (stat) ignored.set(path, stat);
   }
-  return { ignored };
+  const nestedGit = new Map<string, number>();
+  for (const path of nestedGitDirs(root, [""])) {
+    const stat = statOf(root, path);
+    if (stat) nestedGit.set(path, stat.ino);
+  }
+  const gitMeta = gitMetaHashes(root);
+  const gitRestore = new Map<string, Buffer>();
+  let total = 0;
+  for (const path of gitMeta.keys()) {
+    if (!isRestorable(path)) continue;
+    const data = readFileSync(posix.join(root, path));
+    total += data.length;
+    if (total > MAX_RESTORE_BYTES) throw new Error("git metadata too large to snapshot");
+    gitRestore.set(path, data);
+  }
+  return { ignored, nestedGit, gitMeta, gitRestore };
 }
 
 /** Inside an allowed prefix as markdown, or one of the exact allowed paths. */
@@ -117,31 +141,24 @@ function isSymlink(root: string, path: string): boolean {
   }
 }
 
-/** Nested `.git` entries under `starts`, found by an lstat walk (never follows symlinks). */
-function nestedGitDirs(root: string, starts: string[]): string[] {
-  const found: string[] = [];
-  const walk = (rel: string) => {
-    let entries: Dirent[];
-    try {
-      entries = readdirSync(posix.join(root, rel), { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const child = rel ? posix.join(rel, entry.name) : entry.name;
-      if (entry.name === ".git") {
-        if (rel) found.push(child);
-      } else if (entry.isDirectory()) walk(child);
-    }
-  };
-  for (const start of starts) walk(start);
-  return found;
-}
-
 function newIgnored(root: string, snapshot: RunSnapshot, seen: Set<string>): Change[] {
   return ignoredFiles(root)
     .filter((path) => !snapshot.ignored.has(path) && !seen.has(path))
-    .map((path) => ({ path, untracked: true }));
+    .map((path) => ({ path, untracked: true, ignored: true as const }));
+}
+
+/** Nested `.git` entries that were not there (with the same inode) before the run. */
+function newNestedGit(root: string, snapshot: RunSnapshot, starts: string[]): string[] {
+  return nestedGitDirs(root, starts).filter(
+    (path) => snapshot.nestedGit.get(path) !== statOf(root, path)?.ino,
+  );
+}
+
+/** Git metadata paths that were added, removed or changed since the snapshot. */
+function gitTamperedPaths(root: string, snapshot: RunSnapshot): string[] {
+  const now = gitMetaHashes(root);
+  const keys = new Set([...snapshot.gitMeta.keys(), ...now.keys()]);
+  return [...keys].filter((k) => snapshot.gitMeta.get(k) !== now.get(k)).sort();
 }
 
 /**
@@ -152,17 +169,19 @@ export function inspectRun(
   root: string,
   snapshot: RunSnapshot,
   allowed: AllowedPaths,
-): { allowed: Change[]; rejected: Change[]; tampered: string[] } {
+): { allowed: Change[]; rejected: Change[]; tampered: string[]; gitTampered: string[] } {
   const changes = statusChanges(root);
   const seen = new Set(changes.map((c) => c.path));
   changes.push(...newIgnored(root, snapshot, seen));
-  for (const path of nestedGitDirs(
+  for (const path of newNestedGit(
     root,
+    snapshot,
     allowed.prefixes.map((p) => p.slice(0, -1)),
   )) {
     if (!changes.some((c) => c.path === path)) changes.push({ path, untracked: true });
   }
   const ok = (c: Change) =>
+    !c.ignored &&
     isAllowedChange(c.path, allowed) &&
     (c.pair === undefined || isAllowedChange(c.pair, allowed)) &&
     !isSymlink(root, c.path);
@@ -182,6 +201,7 @@ export function inspectRun(
     allowed: changes.filter(ok),
     rejected: changes.filter((c) => !ok(c)),
     tampered,
+    gitTampered: gitTamperedPaths(root, snapshot),
   };
 }
 
@@ -213,20 +233,44 @@ function runChanges(root: string, snapshot: RunSnapshot): Change[] {
 
 /**
  * Throws the run away: tracked changes back to HEAD, unstaged, untracked and new ignored files
- * deleted. Files in the snapshot are never deleted. Re-scans and throws if anything remains.
+ * deleted, `.git/config` and `.git/info/*` restored. Before anything is touched, every changed
+ * file's current content is copied to `quarantineDir` (outside the brain) with a MANIFEST.txt.
+ * Snapshot entries are never deleted. Re-scans and throws if anything remains.
  */
-export function discardRun(root: string, snapshot: RunSnapshot): void {
+export function discardRun(
+  root: string,
+  snapshot: RunSnapshot,
+  quarantineDir: string,
+): { quarantined: string[] } {
+  const rootAbs = resolve(root);
+  const dirAbs = resolve(quarantineDir);
+  if (dirAbs === rootAbs || dirAbs.startsWith(rootAbs + sep)) {
+    throw new Error("quarantine directory must be outside the brain");
+  }
+  const quarantined: string[] = [];
+  const notes: string[] = [];
   const removeNestedGit = () => {
-    for (const path of nestedGitDirs(root, [""]))
+    for (const path of newNestedGit(root, snapshot, [""])) {
+      notes.push(`${path}: nested .git removed`);
       rmSync(posix.join(root, path), { recursive: true, force: true });
+    }
   };
-  removeNestedGit();
+  const flush = () => {
+    if (!notes.length) return;
+    mkdirSync(dirAbs, { recursive: true });
+    appendFileSync(resolve(dirAbs, "MANIFEST.txt"), `${notes.join("\n")}\n`);
+    notes.length = 0;
+  };
   let pending = runChanges(root, snapshot);
   for (let round = 0; round < MAX_DISCARD_ROUNDS; round++) {
-    if (pending.length) revert(root, pending);
+    const fresh = pending.filter((c) => !quarantined.includes(c.path));
+    quarantined.push(...quarantine(root, dirAbs, fresh, notes));
     removeNestedGit();
+    restoreGitMetadata(root, snapshot.gitMeta, snapshot.gitRestore, notes);
+    flush();
+    if (pending.length) revert(root, pending);
     pending = runChanges(root, snapshot);
-    if (!pending.length) return;
+    if (!pending.length && !newNestedGit(root, snapshot, [""]).length) return { quarantined };
   }
   throw new Error(`could not restore: ${pending.map((c) => c.path).join(", ")}`);
 }
@@ -241,7 +285,7 @@ export function commitChanges(root: string, paths: string[], message: string): s
 
 /** Removes `://user:pass@` credentials from text. */
 export function redactCredentials(text: string): string {
-  return text.replace(/:\/\/[^@\s/]*@/g, "://");
+  return text.replace(/:\/\/[^\s/]*@/g, "://***@");
 }
 
 export function pushBrain(root: string): { ok: true } | { ok: false; error: string } {
