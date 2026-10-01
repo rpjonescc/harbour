@@ -7,10 +7,9 @@ import type { ThemePreference } from "@/lib/theme";
 import { LogoutButton } from "./LogoutButton";
 import { NavLink } from "./NavLink";
 import { NAV_ITEMS } from "./nav-items";
+import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_HREFS = NAV_ITEMS.map((item) => item.href);
-
-import { ThemeToggle } from "./ThemeToggle";
 
 /** Left rail: brand, navigation, products, and device controls. */
 export function Sidebar({ theme }: { theme: ThemePreference }) {

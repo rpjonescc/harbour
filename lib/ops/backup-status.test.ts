@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
@@ -182,5 +182,73 @@ describe("backupStatus", () => {
   it("has no retention result before the first one", () => {
     expect(db.select().from(jobs).all()).toEqual([]);
     expect(backupStatus(db, config(), NOW).lastRetention).toBeNull();
+  });
+
+  it("is unreadable, with no count, when the backup folder cannot be listed", () => {
+    file("2026-10-02", 6);
+    const denied = () => {
+      throw Object.assign(new Error(`EACCES: permission denied, scandir '${dir}'`), {
+        code: "EACCES",
+      });
+    };
+    const status = backupStatus(db, config(), NOW, { list: denied });
+    expect(status).toMatchObject({ health: "unreadable", latest: null, count: null });
+    expect(JSON.stringify(status)).not.toContain(dir);
+  });
+
+  it.skipIf(process.getuid?.() === 0)(
+    "is unreadable when the folder's permissions forbid it",
+    () => {
+      chmodSync(dir, 0o000);
+      try {
+        expect(backupStatus(db, config(), NOW).health).toBe("unreadable");
+      } finally {
+        chmodSync(dir, 0o700);
+      }
+    },
+  );
+
+  it("is stale, not failed, when the last failure is over 48 hours old (worker down)", () => {
+    file("2026-09-28", 100);
+    backupJob("2026-09-29", "failed", 77);
+    backupJob("2026-09-29", "failed", 76.8);
+    backupJob("2026-09-29", "failed", 76);
+    const status = backupStatus(db, config(), NOW);
+    expect(status.health).toBe("stale");
+    expect(status.lastFailure).not.toBeNull();
+  });
+
+  it("stays failed for an old failure when the schedule is off: nothing will retry it", () => {
+    backupJob("2026-09-29", "failed", 76, { by: "owner@example.com" });
+    expect(backupStatus(db, config({ HARBOUR_SCHEDULED_BACKUP: "off" }), NOW).health).toBe(
+      "failed",
+    );
+  });
+
+  it("counts attempts cut short by a worker stop as failures", () => {
+    file("2026-10-01", 30);
+    for (const hoursAgo of [7, 6.8, 6]) {
+      backupJob("2026-10-02", "cancelled", hoursAgo, { error: "Worker stopped" });
+    }
+    const status = backupStatus(db, config(), NOW);
+    expect(status.health).toBe("failed");
+    expect(status.lastFailure).toMatchObject({ error: "Worker stopped", attemptsLeft: 0 });
+  });
+
+  it("does not count an owner's cancel as a failure", () => {
+    file("2026-10-02", 6);
+    backupJob("2026-10-02", "cancelled", 1, { by: "owner@example.com" });
+    expect(backupStatus(db, config(), NOW)).toMatchObject({ health: "ok", lastFailure: null });
+  });
+
+  it("names the backup folder instead of its path in a failure's error", () => {
+    backupJob("2026-10-02", "failed", 1, {
+      by: "owner@example.com",
+      error: `ENOSPC: no space left on device, write '${dir}/harbour-2026-10-02.db.partial'`,
+    });
+    const error = backupStatus(db, config(), NOW).lastFailure?.error;
+    expect(error).toBe(
+      "ENOSPC: no space left on device, write 'the backup folder/harbour-2026-10-02.db.partial'",
+    );
   });
 });

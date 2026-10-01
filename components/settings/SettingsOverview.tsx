@@ -32,16 +32,20 @@ export function SettingsOverview({
           Harbour. <DocsLink href={DOCS_LINKS.configuration}>Configuration</DocsLink>
         </p>
       </header>
-      <ProductsCard anchor="products" products={view.products} isDemoConfig={view.isDemoConfig} />
+      <ProductsCard
+        section={{ anchor: "products" }}
+        products={view.products}
+        isDemoConfig={view.isDemoConfig}
+      />
       <SchedulesCard
-        anchor="schedules"
+        section={{ anchor: "schedules" }}
         schedules={view.schedules}
         timeZone={timeZone}
         locale={locale}
       />
-      <KeyStatusCard anchor="keys" keys={view.keys} />
+      <KeyStatusCard section={{ anchor: "keys" }} keys={view.keys} />
       <BudgetCard
-        anchor="budget"
+        section={{ anchor: "budget" }}
         budget={view.budget}
         reservations={view.reservations}
         now={now}
@@ -49,7 +53,7 @@ export function SettingsOverview({
         locale={locale}
       />
       <BackupCard
-        anchor="backups"
+        section={{ anchor: "backups" }}
         backups={view.backups}
         backupDirSet={view.backupDirSet}
         timeZone={timeZone}

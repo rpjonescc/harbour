@@ -365,7 +365,9 @@ runs set to 90 days).
 
 - **Today** — date + scan status, one-line summary, score table per product with
   30-day sparklines and deltas, top 3 actions, failing-collector banner, cost meter, and a
-  backup notice when the last backup failed with no retry left or none succeeded in 48 hours.
+  backup notice when the last backup failed with no retry left (when it failed, and the next
+  try or "run Back up now" when nightly backups are off), none succeeded in 48 hours, or the
+  backup folder cannot be read (a gap, never "0 backups").
 - **Product page** (per product) — SEO/GEO/AEO tabs with score breakdowns,
   keyword table, AI question matrix (question × engine: mentioned/cited/competitor),
   technical issues, history charts.

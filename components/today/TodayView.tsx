@@ -24,7 +24,7 @@ export function TodayView({
   /** Real spend even on the sample Today: the ledger is never sample data. */
   costMeter: CostMeterView;
   /** Real backup health even on the sample Today: shown only when it needs a look. */
-  backup: Pick<BackupStatus, "health" | "lastFailure">;
+  backup: Pick<BackupStatus, "health" | "lastFailure" | "enabled" | "next">;
   now: Date;
   timeZone: string;
   locale: string;
@@ -42,7 +42,7 @@ export function TodayView({
         headline={today.headline}
       />
       <CostMeter view={costMeter} now={now} timeZone={timeZone} locale={locale} />
-      <BackupNotice backup={backup} />
+      <BackupNotice backup={backup} timeZone={timeZone} locale={locale} />
       {today.isSample && <SampleBanner />}
       <SourceFailures failures={today.failures} />
       <ScoreTable scores={today.scores} />

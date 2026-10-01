@@ -124,11 +124,14 @@ describe("TodayView", () => {
 
   it("warns about a failed or stale backup, and says nothing when backups are fine", () => {
     const { unmount } = renderToday(real, EXAMPLE_BACKUPS.failed);
-    expect(screen.getByText(/Last night's backup failed: No space left on device/)).toBeVisible();
+    expect(screen.getByText(/The backup on 2 Oct, 03:10 failed: No space left/)).toBeVisible();
     unmount();
     const stale = renderToday(real, EXAMPLE_BACKUPS.stale);
     expect(screen.getByText(/No backup in the last 2 days/)).toBeVisible();
     stale.unmount();
+    const unreadable = renderToday(real, EXAMPLE_BACKUPS.unreadable);
+    expect(screen.getByText(/can't read the backup folder/)).toBeVisible();
+    unreadable.unmount();
     renderToday(real);
     expect(screen.queryByText(/backup/i)).toBeNull();
   });

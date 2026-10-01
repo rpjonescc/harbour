@@ -44,8 +44,8 @@ continues with:
   a living reference at `/design` showing every component in its main states.
 - **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14
   kept, with retries and a catch-up after downtime (see [Backups and restore](#backups-and-restore)).
-  Today warns when the last backup failed with no retry left, or when there has been none for
-  2 days.
+  Today warns when the last backup failed with no retry left, when there has been none for
+  2 days, or when Harbour can't read the backup folder.
 - **Settings** — one read-only page showing what Harbour is set up to do: products, schedules
   and their next runs, whether each API key is set (never its value), the budget and this
   month's spend, backup health with **Back up now**, and links to the other settings pages.
@@ -465,9 +465,14 @@ thrown away and the job fails with the reason (see **Agents**). Details:
   worker runs it next. It works even when `HARBOUR_SCHEDULED_BACKUP=off`. The Agents page
   shows it as "Nightly backup: YYYY-MM-DD" with the size and how many backups are kept.
 - **Health:** the Backups section of **Settings** shows the last backup (time and size), how
-  many are kept, the last failure and what retention last removed. Today shows a notice when
-  the last backup failed and no retry is left (or it was a manual one), or when no backup is
-  newer than 48 hours (with none at all, once Harbour has been running for 48 hours).
+  many are kept, the last failure (an attempt cut short by stopping the worker counts) and what
+  retention last removed. Today shows a notice when the last backup failed and no retry is left
+  (or it was a manual one): it names when it failed and either when Harbour tries again or, with
+  nightly backups off, to run **Back up now**. It also warns when no backup is newer than 48
+  hours (with none at all, once Harbour has been running for 48 hours; a failure that old means
+  the worker is not running), and when Harbour can't read the backup folder (check its
+  permissions; the count is then unknown, not zero). Paths are never shown: an error names "the
+  backup folder" instead.
 - **Bounded:** a backup gives up after 10 minutes. **Cancel** on **Agents** stops one in progress
   and removes the unfinished copy.
 

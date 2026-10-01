@@ -1,6 +1,6 @@
 // Backup file naming and listing. Reads only, so the web may use it for status.
 
-import { lstatSync, readdirSync } from "node:fs";
+import { lstatSync, readdirSync, type Stats } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { Config } from "@/lib/config";
 import { parseDay } from "@/lib/format/zoned-time";
@@ -25,8 +25,20 @@ export function backupDirFor(
 
 export type BackupFile = { name: string; day: string; bytes: number; modifiedAt: Date };
 
-/** Regular files matching BACKUP_NAME, newest day first; [] when the directory does not exist. */
-export function listBackups(dir: string): BackupFile[] {
+function statOrGone(lstat: (path: string) => Stats, path: string): Stats | null {
+  try {
+    return lstat(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+/**
+ * Regular files matching BACKUP_NAME, newest day first; [] when the directory does not exist.
+ * A file pruned between the listing and its lstat is skipped; any other error is thrown.
+ */
+export function listBackups(dir: string, lstat: (path: string) => Stats = lstatSync): BackupFile[] {
   let names: string[];
   try {
     names = readdirSync(dir);
@@ -39,8 +51,8 @@ export function listBackups(dir: string): BackupFile[] {
       const day = BACKUP_NAME.exec(name)?.[1];
       if (!day) return [];
       // lstat: a symlink named like a backup is not one of ours, wherever it points.
-      const stat = lstatSync(join(dir, name));
-      return stat.isFile() ? [{ name, day, bytes: stat.size, modifiedAt: stat.mtime }] : [];
+      const stat = statOrGone(lstat, join(dir, name));
+      return stat?.isFile() ? [{ name, day, bytes: stat.size, modifiedAt: stat.mtime }] : [];
     })
     .sort((a, b) => b.day.localeCompare(a.day));
 }

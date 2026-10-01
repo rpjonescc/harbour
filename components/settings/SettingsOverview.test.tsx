@@ -123,6 +123,23 @@ describe("SettingsOverview", () => {
     expect(within(section("Backups")).getAllByText("No backup yet").length).toBeGreaterThan(0);
   });
 
+  it("says when the backup folder cannot be read, with no count", () => {
+    renderView({ ...EXAMPLE_SETTINGS, backups: EXAMPLE_BACKUPS.unreadable });
+    const backups = within(section("Backups"));
+    expect(
+      backups.getByText("Harbour can't read the backup folder — check its permissions"),
+    ).toBeInTheDocument();
+    expect(backups.queryByText(/of 14 kept/)).toBeNull();
+    expect(backups.queryByText("No backup yet")).toBeNull();
+  });
+
+  it("shows the budget cap once, leaving spend and projection to the meter", () => {
+    renderView();
+    const budget = within(section("Budget"));
+    expect(budget.queryByText("Spent this month")).toBeNull();
+    expect(budget.getByText(/A\$12\.40 of A\$60\.00 this month/)).toBeInTheDocument();
+  });
+
   it("links to the other settings pages", () => {
     renderView();
     const more = within(section("More settings"));

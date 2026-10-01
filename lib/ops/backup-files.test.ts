@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -64,6 +64,22 @@ describe("backupDirFor", () => {
 });
 
 describe("listBackups", () => {
+  it("skips a backup pruned between listing and lstat, and still reports other errors", () => {
+    writeFileSync(join(dir, "harbour-2026-10-01.db"), "a");
+    writeFileSync(join(dir, "harbour-2026-10-02.db"), "bb");
+    const gone = (path: string) => {
+      if (path.endsWith("harbour-2026-10-01.db")) {
+        throw Object.assign(new Error("ENOENT: no such file"), { code: "ENOENT" });
+      }
+      return lstatSync(path);
+    };
+    expect(listBackups(dir, gone).map((f) => f.name)).toEqual(["harbour-2026-10-02.db"]);
+    const denied = () => {
+      throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+    };
+    expect(() => listBackups(dir, denied)).toThrow("EACCES");
+  });
+
   it("is empty when the directory does not exist", () => {
     expect(listBackups(join(dir, "missing"))).toEqual([]);
   });

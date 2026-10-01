@@ -1,7 +1,7 @@
 import { Tag } from "@/components/ui/Tag";
 import { formatWeekdayTime } from "@/lib/format/date";
 import type { ScheduleRow } from "@/lib/settings/view";
-import { SettingsSection } from "./SettingsSection";
+import { type SectionPlacement, SettingsSection } from "./SettingsSection";
 
 const CELL = "py-2 pr-3";
 
@@ -10,15 +10,15 @@ export function SchedulesCard({
   schedules,
   timeZone,
   locale,
-  anchor,
+  section,
 }: {
-  anchor?: string;
+  section?: SectionPlacement;
   schedules: ScheduleRow[];
   timeZone: string;
   locale: string;
 }) {
   return (
-    <SettingsSection anchor={anchor} title="Schedules">
+    <SettingsSection {...section} title="Schedules">
       <p className="text-xs text-ink-muted">All times are in {timeZone}.</p>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">

@@ -5,24 +5,20 @@ import { formatAud, formatAudPrecise } from "@/lib/costs/budget";
 import { DOCS_LINKS } from "@/lib/docs-links";
 import { formatShortDateTime } from "@/lib/format/date";
 import type { SettingsView } from "@/lib/settings/view";
-import { SettingsSection } from "./SettingsSection";
+import { type SectionPlacement, SettingsSection } from "./SettingsSection";
 
 type Props = Pick<SettingsView, "budget" | "reservations"> & {
   now: Date;
   timeZone: string;
   locale: string;
-  anchor?: string;
+  section?: SectionPlacement;
 };
 
 /** The monthly cap on paid API calls, this month's spend and any unconfirmed reservations. */
-export function BudgetCard({ budget, reservations, now, timeZone, locale, anchor }: Props) {
+export function BudgetCard({ budget, reservations, now, timeZone, locale, section }: Props) {
   const aud = (micro: number) => formatAud(micro, locale);
-  const projection =
-    "projectedMicro" in budget && budget.projectedMicro !== null
-      ? aud(budget.projectedMicro)
-      : "Not enough spend yet";
   return (
-    <SettingsSection anchor={anchor} title="Budget">
+    <SettingsSection {...section} title="Budget">
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         <dt className="text-ink-muted">Monthly cap</dt>
         <dd>
@@ -31,13 +27,12 @@ export function BudgetCard({ budget, reservations, now, timeZone, locale, anchor
           </span>{" "}
           <code className="font-mono text-xs text-ink-muted">HARBOUR_MONTHLY_BUDGET_AUD</code>
         </dd>
-        <dt className="text-ink-muted">Spent this month</dt>
-        <dd>{aud(budget.spentMicro)}</dd>
-        <dt className="text-ink-muted">Projection</dt>
-        <dd>{projection}</dd>
       </dl>
+      {/* Spend, projection and state: the same meter as Today, so the two never disagree. */}
       <CostMeter view={budget} now={now} timeZone={timeZone} locale={locale} />
-      {reservations.length > 0 && <Reservations {...{ reservations, timeZone, locale }} />}
+      {reservations.length > 0 && (
+        <Reservations {...{ reservations, timeZone, locale }} level={section?.level ?? 2} />
+      )}
       <p className="text-xs text-ink-muted">
         <DocsLink href={DOCS_LINKS.costs}>How costs and the budget work</DocsLink>
       </p>
@@ -50,10 +45,13 @@ function Reservations({
   reservations,
   timeZone,
   locale,
-}: Pick<Props, "reservations" | "timeZone" | "locale">) {
+  level,
+}: Pick<Props, "reservations" | "timeZone" | "locale"> & { level: 2 | 3 }) {
+  // One level below the card's own heading.
+  const Heading = level === 2 ? "h3" : "h4";
   return (
     <div className="flex flex-col gap-1">
-      <h3 className="text-sm font-medium">Unconfirmed reservations</h3>
+      <Heading className="text-sm font-medium">Unconfirmed reservations</Heading>
       <p className="text-xs text-ink-muted">
         Each counts against the budget at its estimate until its call is settled.
       </p>

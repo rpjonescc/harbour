@@ -9,8 +9,12 @@ import { postJson } from "@/lib/auth/client-api";
 /** Queues a backup of today for the worker, then opens the job's page to follow it. */
 export function BackUpNowButton({
   demo = false,
+  label,
 }: {
-  /** /design example: never calls the API. */ demo?: boolean;
+  /** /design example: never calls the API. */
+  demo?: boolean;
+  /** Accessible name when the visible "Back up now" is not unique on the page. */
+  label?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -31,7 +35,7 @@ export function BackUpNowButton({
 
   return (
     <div className="flex flex-col items-start gap-1.5">
-      <Button onClick={backUp} disabled={busy} aria-busy={busy}>
+      <Button onClick={backUp} disabled={busy} aria-busy={busy} aria-label={label}>
         Back up now
       </Button>
       <p role="status" className="text-xs text-ink-muted">

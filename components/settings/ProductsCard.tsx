@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ProductDot } from "@/components/ui/ProductDot";
 import type { SettingsView } from "@/lib/settings/view";
-import { SettingsSection } from "./SettingsSection";
+import { type SectionPlacement, SettingsSection } from "./SettingsSection";
 
 const LINK = "rounded-sm text-accent hover:underline";
 
@@ -9,10 +9,10 @@ const LINK = "rounded-sm text-accent hover:underline";
 export function ProductsCard({
   products,
   isDemoConfig,
-  anchor,
-}: Pick<SettingsView, "products" | "isDemoConfig"> & { anchor?: string }) {
+  section,
+}: Pick<SettingsView, "products" | "isDemoConfig"> & { section?: SectionPlacement }) {
   return (
-    <SettingsSection anchor={anchor} title="Products">
+    <SettingsSection {...section} title="Products">
       {isDemoConfig && (
         <p className="rounded-sm bg-warn-soft px-3 py-2 text-xs text-ink">
           Demo config — add harbour.config.json to list your products.

@@ -1,6 +1,6 @@
 import { Tag } from "@/components/ui/Tag";
 import type { KeyRow, KeyStatus } from "@/lib/settings/key-status";
-import { SettingsSection } from "./SettingsSection";
+import { type SectionPlacement, SettingsSection } from "./SettingsSection";
 
 const STATUS: Record<KeyStatus, { text: string; tone: "accent" | "warn" | "neutral" }> = {
   present: { text: "Present", tone: "accent" },
@@ -10,9 +10,9 @@ const STATUS: Record<KeyStatus, { text: string; tone: "accent" | "warn" | "neutr
 const CELL = "py-2 pr-3 align-top";
 
 /** Whether each key is set in .env: status only, never a value, a length or a file path. */
-export function KeyStatusCard({ keys, anchor }: { keys: KeyRow[]; anchor?: string }) {
+export function KeyStatusCard({ keys, section }: { keys: KeyRow[]; section?: SectionPlacement }) {
   return (
-    <SettingsSection anchor={anchor} title="API keys">
+    <SettingsSection {...section} title="API keys">
       <p className="text-xs text-ink-muted">
         Keys live only in <code className="font-mono">.env</code> and are read by the worker. This
         page shows whether each one is set, never its value.

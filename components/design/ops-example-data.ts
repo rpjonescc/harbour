@@ -116,6 +116,7 @@ export const EXAMPLE_BACKUPS: Record<BackupHealth, BackupStatus> = {
     health: "stale",
   },
   off: { ...healthy, enabled: false, next: null, health: "off" },
+  unreadable: { ...healthy, latest: null, count: null, health: "unreadable" },
 };
 
 /** A Settings overview for two fictional products. */
