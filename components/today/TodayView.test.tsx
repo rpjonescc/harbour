@@ -15,6 +15,7 @@ const real: TodaySummary = {
   isSample: false,
   scannedAt: new Date("2026-10-01T06:04:00Z"),
   scanning: false,
+  lastFailedAt: null,
   headline: "One thing worth your attention.",
   scores: [
     {
@@ -46,6 +47,16 @@ describe("TodayView", () => {
     expect(
       screen.queryByRole("link", { name: /competitor for one of your target questions/ }),
     ).toBeNull();
+  });
+
+  it("says when the last scan failed before any scores exist", () => {
+    renderToday({
+      ...sampleToday(getProducts()),
+      lastFailedAt: new Date("2026-10-01T06:02:00Z"),
+      failures: [{ productId: "acme-docs", collector: "crawler", error: "Could not crawl" }],
+    });
+    expect(screen.getByText(/last scan failed 1 Oct 2026, 06:02/)).toBeInTheDocument();
+    expect(screen.getByText(/Crawler · Acme Docs/)).toHaveTextContent("Could not crawl");
   });
 
   it("says when the first scan is running", () => {

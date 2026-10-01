@@ -28,6 +28,23 @@ describe("todaySummary", () => {
     expect(todaySummary(db, products, T0)).toMatchObject({ isSample: true, scanning: true });
   });
 
+  it("before any scores, says the last scan failed and keeps its failing sources", () => {
+    const db = openTestDb();
+    seedScan(db, {
+      productId: "acme-docs",
+      at: daysAfter(-1),
+      status: "failed",
+      scored: false,
+      runs: [{ collector: "crawler", status: "failed", error: "Could not crawl" }],
+    });
+    expect(todaySummary(db, products, T0)).toMatchObject({
+      isSample: true,
+      scannedAt: null,
+      lastFailedAt: daysAfter(-1),
+      failures: [{ productId: "acme-docs", collector: "crawler", error: "Could not crawl" }],
+    });
+  });
+
   it("summarises real scores, the top issues and failing sources", () => {
     const db = openTestDb();
     seedScan(db, {

@@ -29,6 +29,11 @@ export type TodaySummary = {
   isSample: boolean;
   /** When the most recent scored scan finished; null before the first. */
   scannedAt: Date | null;
+  /**
+   * When the newest scan finished, if it failed and no scan has been scored yet (Today then says
+   * so rather than "no scan yet"); null otherwise.
+   */
+  lastFailedAt: Date | null;
   /** A scan is queued or running for some product. */
   scanning: boolean;
   headline: string;

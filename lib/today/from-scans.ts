@@ -33,6 +33,8 @@ type ProductToday = {
   row: ProductScores;
   scannedAt: Date | null;
   scanning: boolean;
+  /** When the product's last scan finished, if it failed. */
+  failedAt: Date | null;
   issues: (Issue & { productId: string })[];
   failures: SourceFailure[];
 };
@@ -51,6 +53,7 @@ function productToday(db: Db, productId: string, now: Date): ProductToday {
     },
     scannedAt: latest?.computedAt ?? null,
     scanning: scan.active !== null,
+    failedAt: scan.last?.status === "failed" ? (scan.last.finishedAt ?? scan.last.startedAt) : null,
     issues: issues.map((issue) => ({ ...issue, productId })),
     failures: (scan.last?.failedCollectors ?? []).map((f) => ({ productId, ...f })),
   };
@@ -67,22 +70,28 @@ const toAction = (issue: Issue & { productId: string }): ActionPreview => ({
 
 /**
  * Today from real scans, or the clearly flagged sample until some product has scores (still
- * saying whether the first scan is under way).
+ * saying whether a scan is under way, or that the last one failed and which sources failed).
  */
 export function todaySummary(db: Db, products: readonly Product[], now: Date): TodaySummary {
   const perProduct = products.map((p) => productToday(db, p.id, now));
   const scanning = perProduct.some((p) => p.scanning);
   const scanned = perProduct.flatMap((p) => (p.scannedAt ? [p.scannedAt] : []));
-  if (scanned.length === 0) return { ...sampleToday(products), scanning };
+  const failures = perProduct.flatMap((p) => p.failures);
+  if (scanned.length === 0) {
+    const failed = perProduct.flatMap((p) => (p.failedAt ? [p.failedAt.getTime()] : []));
+    const lastFailedAt = failed.length > 0 ? new Date(Math.max(...failed)) : null;
+    return { ...sampleToday(products), scanning, lastFailedAt, failures };
+  }
   // Stable sort: equal impact keeps product order, then each product's rule order.
   const issues = perProduct.flatMap((p) => p.issues).sort(byImpact);
   return {
     isSample: false,
     scannedAt: new Date(Math.max(...scanned.map((d) => d.getTime()))),
     scanning,
+    lastFailedAt: null,
     headline: headlineFor(issues),
     scores: perProduct.map((p) => p.row),
     actions: issues.slice(0, TOP_ACTIONS).map(toAction),
-    failures: perProduct.flatMap((p) => p.failures),
+    failures,
   };
 }

@@ -27,6 +27,7 @@ export function TodayView({
         locale={locale}
         scannedAt={today.scannedAt}
         scanning={today.scanning}
+        lastFailedAt={today.lastFailedAt}
         headline={today.headline}
       />
       {today.isSample && <SampleBanner />}

@@ -37,6 +37,7 @@ export function sampleToday(products: readonly Product[]): TodaySummary {
     isSample: true,
     scannedAt: null,
     scanning: false,
+    lastFailedAt: null,
     failures: [],
     headline: "Calm waters. Two things worth your attention.",
     scores: products.map((p) => sampleScores(p.id)),

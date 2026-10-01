@@ -7,6 +7,7 @@ export function TodayHeader({
   locale,
   scannedAt,
   scanning,
+  lastFailedAt,
   headline,
 }: {
   now: Date;
@@ -14,13 +15,16 @@ export function TodayHeader({
   locale: string;
   scannedAt: Date | null;
   scanning: boolean;
+  lastFailedAt: Date | null;
   headline: string;
 }) {
   const status = scanning
     ? "scan running"
     : scannedAt
       ? `last scan ${formatDateTime(scannedAt, timeZone, locale)}`
-      : "no scan yet";
+      : lastFailedAt
+        ? `last scan failed ${formatDateTime(lastFailedAt, timeZone, locale)}`
+        : "no scan yet";
   return (
     <header>
       <p className="text-sm text-ink-muted">
