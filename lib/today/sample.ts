@@ -1,32 +1,5 @@
 import type { Product, ProductId } from "@/lib/products/catalog";
-
-export type Area = "SEO" | "GEO" | "AEO";
-
-export type ProductScores = {
-  productId: ProductId;
-  seo: number;
-  geo: number;
-  aeo: number;
-  deltas: Record<Area, number>;
-  trend: number[];
-};
-
-export type ActionPreview = {
-  id: string;
-  productId: ProductId;
-  area: Area;
-  impact: "high" | "medium" | "low";
-  title: string;
-  effort: string;
-};
-
-export type TodaySummary = {
-  isSample: boolean;
-  scannedAt: Date | null;
-  headline: string;
-  scores: ProductScores[];
-  actions: ActionPreview[];
-};
+import type { ProductScores, TodaySummary } from "./types";
 
 /** Stable 32-bit FNV-1a hash, so sample numbers never change between runs. */
 function stableHash(text: string): number {
@@ -48,15 +21,14 @@ function sampleScores(productId: ProductId): ProductScores {
   const trend = Array.from({ length: 6 }, (_, i) => clamp(seo - (5 - i) * (byte(3) % 3)));
   return {
     productId,
-    seo,
-    geo: byte(1) % 30,
-    aeo: 5 + (byte(2) % 35),
-    deltas: { SEO: (byte(3) % 5) - 1, GEO: (byte(1) % 3) - 1, AEO: byte(2) % 2 },
+    totals: { seo, geo: byte(1) % 30, aeo: 5 + (byte(2) % 35) },
+    complete: { seo: true, geo: true, aeo: true },
+    deltas: { seo: (byte(3) % 5) - 1, geo: (byte(1) % 3) - 1, aeo: byte(2) % 2 },
     trend,
   };
 }
 
-/** Placeholder data for the configured products until the daily scan exists. Always flagged `isSample`. */
+/** Placeholder data for the configured products until a first scan is scored. Always flagged `isSample`. */
 export function sampleToday(products: readonly Product[]): TodaySummary {
   const first = products[0];
   if (!first) throw new Error("sampleToday needs at least one product");
@@ -64,6 +36,8 @@ export function sampleToday(products: readonly Product[]): TodaySummary {
   return {
     isSample: true,
     scannedAt: null,
+    scanning: false,
+    failures: [],
     headline: "Calm waters. Two things worth your attention.",
     scores: products.map((p) => sampleScores(p.id)),
     actions: [
@@ -73,7 +47,7 @@ export function sampleToday(products: readonly Product[]): TodaySummary {
         area: "GEO",
         impact: "high",
         title: "An AI assistant cites a competitor for one of your target questions",
-        effort: "~1 hr",
+        detail: "~1 hr",
       },
       {
         id: "sample-2",
@@ -81,7 +55,7 @@ export function sampleToday(products: readonly Product[]): TodaySummary {
         area: "AEO",
         impact: "medium",
         title: "Add FAQ structured data to your most-visited page",
-        effort: "~30 min",
+        detail: "~30 min",
       },
     ],
   };

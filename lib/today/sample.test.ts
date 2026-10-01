@@ -21,16 +21,16 @@ describe("sampleToday", () => {
 
   it("derives different scores for different products", () => {
     const [a, b] = sampleToday(products).scores;
-    expect([a?.seo, a?.geo, a?.aeo]).not.toEqual([b?.seo, b?.geo, b?.aeo]);
+    expect(a?.totals).not.toEqual(b?.totals);
   });
 
   it("keeps scores within 0–100 and ends the trend at today's SEO score", () => {
     for (const s of sampleToday(products).scores) {
-      for (const v of [s.seo, s.geo, s.aeo, ...s.trend]) {
+      for (const v of [s.totals.seo, s.totals.geo, s.totals.aeo, ...s.trend]) {
         expect(v).toBeGreaterThanOrEqual(0);
         expect(v).toBeLessThanOrEqual(100);
       }
-      expect(s.trend.at(-1)).toBe(s.seo);
+      expect(s.trend.at(-1)).toBe(s.totals.seo);
     }
   });
 

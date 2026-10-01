@@ -1,12 +1,14 @@
+import Link from "next/link";
 import { Panel } from "@/components/ui/Panel";
 import { Tag } from "@/components/ui/Tag";
 import { productById } from "@/lib/products/catalog";
-import type { ActionPreview } from "@/lib/today/sample";
+import type { ActionPreview } from "@/lib/today/types";
 
 const IMPACT_LABEL = { high: "High impact", medium: "Medium impact", low: "Low impact" } as const;
 
-/** Compact action summary for Today. Buttons arrive with the Actions board (Phase 4). */
-export function ActionCard({ action }: { action: ActionPreview }) {
+/** Compact action summary for Today; a real one links to the product's issues. */
+export function ActionCard({ action, linked }: { action: ActionPreview; linked: boolean }) {
+  const product = productById(action.productId);
   return (
     <Panel className="p-4">
       <article aria-labelledby={`action-${action.id}`}>
@@ -14,10 +16,16 @@ export function ActionCard({ action }: { action: ActionPreview }) {
           {IMPACT_LABEL[action.impact]}
         </Tag>
         <h3 id={`action-${action.id}`} className="mt-2 text-sm text-ink">
-          {action.title}
+          {linked ? (
+            <Link href={`/products/${product.id}#issues`} className="rounded-sm hover:text-accent">
+              {action.title}
+            </Link>
+          ) : (
+            action.title
+          )}
         </h3>
         <p className="mt-1 text-xs text-ink-muted">
-          {productById(action.productId).name} · {action.area} · {action.effort}
+          {product.name} · {action.area} · {action.detail}
         </p>
       </article>
     </Panel>
