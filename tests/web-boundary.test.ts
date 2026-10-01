@@ -6,7 +6,7 @@ import { dirname, join, relative, resolve } from "node:path";
 const ROOT = resolve(__dirname, "..");
 const FORBIDDEN_FILES = [
   /^lib\/scan\/collectors\//,
-  /^lib\/scan\/(registry|run-scan|worker-deps|fetch|http-request|robots-gate)\.ts$/,
+  /^lib\/scan\/(registry|run-scan|scan-bounds|worker-deps|fetch|http-request|robots-gate)\.ts$/,
 ];
 const FORBIDDEN_PACKAGES = ["google-auth-library", "node:http", "node:https", "node-html-parser"];
 const EXTENSIONS = [".ts", ".tsx", "/index.ts", "/index.tsx"];

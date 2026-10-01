@@ -1,9 +1,10 @@
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
-import { addEvent, type EventKind, finishJob, isCancelRequested, type Job } from "@/lib/jobs/queue";
+import { addEvent, type EventKind, finishJob, type Job } from "@/lib/jobs/queue";
 import type { Product } from "@/lib/products/catalog";
 import { collectorLabel } from "./labels";
 import { collectorTimeoutMs } from "./registry";
+import { runBounded, watchForStop } from "./scan-bounds";
 import {
   collectorObservations,
   finishScan,
@@ -38,7 +39,6 @@ export type ScanDeps = {
 // A weekly collector is due 7 days after its last ok run, less 12 h of slack so a daily scan
 // that starts a little earlier than last week's doesn't push the run back a whole day.
 const WEEKLY_DUE_MS = (7 * 24 - 12) * 60 * 60_000;
-const POLL_MS = 1000;
 const MAX_OBSERVATIONS = 20_000;
 const STOPPED = "Worker stopped";
 
@@ -66,60 +66,10 @@ function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function describeTimeout(ms: number): string {
-  return ms >= 60_000 ? `${Math.round(ms / 60_000)} minutes` : `${ms / 1000} s`;
-}
-
 function finish(deps: ScanDeps, job: Job, status: "ok" | "failed" | "cancelled", error?: string) {
   if (!finishJob(deps.db, job.id, status, error ?? null, deps.now())) {
     console.warn(`job ${job.id} was no longer running; its result (${status}) was not recorded`);
   }
-}
-
-/** Aborts when the job is cancelled or the worker stops; checked on demand and by polling. */
-function watchForStop(deps: ScanDeps, jobId: number) {
-  const controller = new AbortController();
-  let stoppedByWorker = false;
-  const check = () => {
-    if (controller.signal.aborted) return;
-    try {
-      stoppedByWorker = deps.stopping();
-      if (stoppedByWorker || isCancelRequested(deps.db, jobId)) {
-        controller.abort(new Error("Cancelled"));
-      }
-    } catch (error) {
-      console.error(`job ${jobId}: cancel check failed`, error);
-    }
-  };
-  const timer = setInterval(check, deps.pollMs ?? POLL_MS);
-  return {
-    signal: controller.signal,
-    check,
-    stoppedByWorker: () => stoppedByWorker,
-    dispose: () => clearInterval(timer),
-  };
-}
-
-/**
- * Runs `collect` under its own timeout and the scan's stop signal. A collector that ignores its
- * signal is abandoned: its late result is never recorded.
- */
-function runBounded(
-  collect: (signal: AbortSignal) => Promise<CollectorResult>,
-  ms: number,
-  parent: AbortSignal,
-): { result: Promise<CollectorResult>; signal: AbortSignal } {
-  const timeout = new AbortController();
-  const signal = AbortSignal.any([parent, timeout.signal]);
-  const timer = setTimeout(
-    () => timeout.abort(new Error(`Timed out after ${describeTimeout(ms)}`)),
-    ms,
-  );
-  const aborted = new Promise<never>((_, reject) => {
-    signal.addEventListener("abort", () => reject(signal.reason), { once: true });
-  });
-  const result = Promise.race([Promise.resolve().then(() => collect(signal)), aborted]);
-  return { result: result.finally(() => clearTimeout(timer)), signal };
 }
 
 function weeklySkipReason(scan: Scan, collector: Collector, now: Date): string | null {
