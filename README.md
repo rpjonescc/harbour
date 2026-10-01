@@ -77,6 +77,11 @@ moved to quarantine and restored from git. Only one agent runs at a time; queued
 their turn. Each run has a live activity page with a **Cancel** button, and lists the files it
 changed. Without a Claude token the server refuses new agent runs.
 
+Discovery results are proposals, not commitments. Open a product in the sidebar
+(`/settings/products/<id>`) to see its proposed keywords, AI questions and competitors, each with
+the agent's reason. **Approve**, **Reject** or **Edit** each one, or **Approve all proposed** per
+list. Re-running discovery never overwrites items you've already decided on.
+
 Saving and syncing need no action. The Agents page and the Second Brain show unsaved notes
 ("saved automatically in about 2 minutes") and commits waiting to sync to GitHub ("retrying
 automatically"); **Save now** and **Retry now** are optional shortcuts. While an interrupted run
