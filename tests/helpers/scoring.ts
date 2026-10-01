@@ -1,4 +1,5 @@
 /** Fixture observations for scoring tests: a fictional docs site, Acme Docs. */
+import { scoreScan } from "@/lib/scan/score";
 import type { CollectorStatus, ScanObservation, ScoreContext } from "@/lib/scan/types";
 
 export const ORIGIN = "https://docs.example.com";
@@ -202,7 +203,7 @@ export const ACME_SCAN: ScanObservation[] = [
   ...ACME_CRAWL,
   readiness(),
   cwv(),
-  ...searchConsole([412, 388, 503, 467], [700, 800]),
+  ...searchConsole([412, 388, 503, 467], [400, 350, 380, 370]),
 ];
 
 export const ALL_OK: Record<string, CollectorStatus> = {
@@ -213,3 +214,14 @@ export const ALL_OK: Record<string, CollectorStatus> = {
 };
 
 export const CONTEXT: ScoreContext = { now: NOW, previousPagespeed: null };
+
+/** Scores observations with the real v1 scorer; every collector ok unless `statuses` says. */
+export const scoreOf = (
+  observations: ScanObservation[],
+  statuses: Record<string, CollectorStatus> = ALL_OK,
+  context: ScoreContext = CONTEXT,
+) => scoreScan(observations, statuses, context);
+
+/** One breakdown entry of a scored scan. */
+export const entryOf = (result: ReturnType<typeof scoreOf>, key: string) =>
+  result?.breakdown.find((e) => e.key === key);

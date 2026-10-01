@@ -1,7 +1,14 @@
 import { hasSchemaFamily } from "../schema-types";
 import type { Crawl, Readiness } from "./inputs";
 import { type HtmlPage, htmlPages } from "./pages";
-import { measured, missing, type SubScore, type SubScoreSpec, withSources } from "./sub-score";
+import {
+  measured,
+  missing,
+  plural,
+  type SubScore,
+  type SubScoreSpec,
+  withSources,
+} from "./sub-score";
 
 /** A quarter of pages carrying Q&A markup is full marks: most pages are not Q&A pages. */
 const QA_TARGET = 0.25;
@@ -54,10 +61,11 @@ export function preferredSources(readiness: Readiness): SubScore {
   const score = (ready.button ? BUTTON_POINTS : 0) + (ready.freshContent ? FRESH_POINTS : 0);
   const pages = ready.buttonPages.length;
   const button = ready.button
-    ? `Preferred Sources button on ${pages} page${pages === 1 ? "" : "s"}`
+    ? `Preferred Sources button on ${pages} ${plural(pages, "page")}`
     : "No Preferred Sources button";
   const fresh = ready.freshContent ? "fresh content" : "not enough for fresh content";
-  const evidence = `${button}; ${ready.freshUrls} URLs updated in the last 30 days (${fresh}).`;
+  const urls = `${ready.freshUrls} ${plural(ready.freshUrls, "URL")}`;
+  const evidence = `${button}; ${urls} updated in the last 30 days (${fresh}).`;
   return measured(score, evidence);
 }
 

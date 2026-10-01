@@ -122,7 +122,7 @@ Tests: mock HTTP (inject fetch) with recorded responses; not-configured paths; e
 **Files:** `lib/scan/score.ts` (+ extensive tests), wire into `runScan`.
 
 Pure `scoreScan(observations, collectorStatuses): { seo, geo, aeo, complete, breakdown }`, `formulaVersion = "v1"`. Each total is a weighted mean of available sub-scores (0–100, integers); a sub-score whose collector didn't run ok is excluded and `complete=false` with a reason in breakdown. Sub-scores:
-- **SEO:** technical health (share of crawled pages with 2xx, title 10–60 chars, description 50–160, exactly one h1, no noindex on indexable pages, canonical present; minus broken links), indexability (sitemap valid, robots allows Googlebot, pages in sitemap reachable), Core Web Vitals (PSI performance score; field data preferred), Search Console visibility (impressions trend 28d vs prior when available).
+- **SEO:** technical health (share of crawled pages with 2xx, title 10–60 chars, description 50–160, exactly one h1, no noindex on indexable pages, canonical present; minus broken links), indexability (sitemap valid, robots allows Googlebot, pages in sitemap reachable), Core Web Vitals (PSI performance score, averaged with field INP when Google has field data), Search Console visibility (impressions trend 28d vs prior when available).
 - **GEO:** AI crawler access (share of AI bots allowed), llms.txt present, structured data for entities (Organization/LocalBusiness/WebSite), citation-ready content (pages with FAQ/HowTo/Article schema or question-style headings) — breakdown notes "AI engine mention checks not connected".
 - **AEO:** FAQ/HowTo/Q&A coverage, concise answer blocks (paragraph ≤ 60 words directly under a question heading), Preferred Sources readiness (button/deeplink + fresh content), featured-snippet data not connected.
 Breakdown entries `{ key, label, score, weight, evidence: string, status: "ok"|"missing" }` so the UI can explain every number. Tests: fixture observation sets → exact scores; incomplete paths; weights sum; idempotent.
@@ -131,11 +131,11 @@ Breakdown entries `{ key, label, score, weight, evidence: string, status: "ok"|"
 
 | Key | Weight | Needs | Formula |
 |---|---|---|---|
-| `seo.technical` | 0.35 | crawler | mean of: 2xx share of pages; over HTML pages, shares with title 10–60 chars, description 50–160, exactly one h1, a canonical, and (over indexable pages: canonical absent or self) not noindex; × 100, less 5 per distinct broken internal link target (max 25) |
-| `seo.indexability` | 0.25 | crawler, readiness | mean of: sitemap valid (1, else 0 incl. none found); Googlebot may reach "/" (blocked 0, allowed or partial 1; unknown → gap); share of crawled sitemap URLs that answered 2xx (left out without any) |
+| `seo.technical` | 0.35 | crawler | mean of: 2xx share of pages; over HTML pages, shares with title 10–60 chars, description 50–160, exactly one h1, a canonical, and (over indexable pages: canonical absent or the page itself, compared without fragment or trailing slash and with default ports dropped, query kept) not noindex; × 100, less 25 × the share of pages that link to a broken internal page (broken pages themselves already lower the 2xx share) |
+| `seo.indexability` | 0.25 | crawler, readiness | mean of the parts that can be judged: sitemap (1 when every same-origin sitemap read parsed; 0 when one did not parse or none is listed; left out with a gap when none could be fetched; left out with a note when the only sitemap is on another origin; a partly fetched set keeps 1 with a gap); Googlebot may reach "/" (blocked 0, allowed or partial 1; unknown → gap); share of crawled sitemap URLs that answered 2xx (left out without any). Missing when no part can be judged |
 | `seo.cwv` | 0.2 | pagespeed (or carried over ≤ 14 days when skipped) | Lighthouse mobile performance, averaged with field INP rated 100 at ≤ 200 ms, linear to 0 at ≥ 500 ms, when field data exists |
-| `seo.visibility` | 0.2 | search-console | 75 + 75 × (impressions − prior) / prior over the 28-day window vs the 28 days before; prior 0 → 100 (0 if both 0) |
-| `geo.aiCrawlers` | 0.3 | readiness | share of the 9 AI crawlers not blocked from "/" (partial counts as allowed) |
+| `seo.searchTrend` ("Search impressions trend") | 0.2 | search-console | mean daily impressions over the days with data, this 28-day window vs the 28 days before: 75 + 75 × change (flat 75, +33% → 100, no impressions now → 0). Missing (total incomplete) when the earlier window has no impressions ("no earlier data to compare"), fewer than 100, or a day count differing by more than 3 |
+| `geo.aiCrawlers` | 0.3 | readiness | weighted share of the 9 AI crawlers not blocked from "/" (partial counts as allowed): search and retrieval agents (OAI-SearchBot, ChatGPT-User, PerplexityBot, Claude-SearchBot) weigh 3, training-only crawlers (GPTBot, ClaudeBot, Google-Extended, CCBot, Bytespider) weigh 1; evidence marks blocked training-only crawlers |
 | `geo.llmsTxt` | 0.15 | readiness | llms.txt present 100, absent 0, unknown missing |
 | `geo.entities` | 0.25 | crawler, readiness | 60 if any page has Organization (LocalBusiness counts) + 40 if any has WebSite |
 | `geo.citations` | 0.3 | crawler | share of HTML pages with FAQ/HowTo/Article-family schema, FAQ microdata or a question heading, ÷ 0.5, capped at 100 |
@@ -146,6 +146,12 @@ Breakdown entries `{ key, label, score, weight, evidence: string, status: "ok"|"
 | `aeo.snippets` | 0 | — | note: "Featured-snippet data not connected" |
 
 Rounding: a sub-score is rounded half up to an integer and clamped to 0–100 (`toScore`; floating-point noise is cut at 6 decimals first, so 88.4999999 meaning 88.5 rounds to 89); a total is the weighted mean of its integer sub-scores that have a score, rounded the same way, or null when none has. A total is complete only when every weighted sub-score scored with no gaps; gaps (partial sitemap, robots.txt unreadable) keep the sub-score but add "Incomplete: …" to its evidence. Weight-0 notes never affect totals or completeness. Scores are stored once per scan (`storeScores` ignores a second insert for the same scan). Raw facts added to collectors for this task: crawler `questionHeadings`/`conciseAnswers` per page and `sitemapPages` on `site`; readiness `robotsTxt.googlebot`; Search Console `gsc_prior_daily`.
+
+v2 tuning notes (not in v1; revisit with the research sprint before changing the formula):
+- Google limited FAQ rich results to authoritative government and health sites and dropped HowTo rich results (2023): FAQ/HowTo schema still helps answer engines parse a page, but its weight in `aeo.qaCoverage` and `geo.citations` may be too high.
+- Preferred Sources mainly surfaces news (Top Stories): `aeo.preferredSources` may not suit non-news products; consider weighting it by product type.
+- llms.txt is a proposal with no confirmed use by the major AI engines: `geo.llmsTxt` (15%) rewards an unproven signal.
+- Sitemap URLs that redirect count as reachable (the final status is 2xx); Google prefers sitemaps to list final URLs, so redirects there could cost a little.
 
 ### Task 7: Scheduling
 

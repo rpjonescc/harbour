@@ -48,8 +48,8 @@ describe("runScan scoring", () => {
     expect(db.select().from(scores).all()).toEqual([
       expect.objectContaining({
         formulaVersion: "v1",
-        seo: 83,
-        geo: 91,
+        seo: 80,
+        geo: 92,
         aeo: 88,
         complete: { seo: false, geo: true, aeo: true },
       }),

@@ -1,18 +1,31 @@
 import type { Crawl } from "./inputs";
 import { distinctPages, type HtmlPage, htmlPages } from "./pages";
-import { measured, missing, type SubScore } from "./sub-score";
+import { measured, missing, plural, type SubScore, short } from "./sub-score";
 
 /** Google shows roughly this much of a title and a description in results. */
 const TITLE_CHARS = { min: 10, max: 60 };
 const DESCRIPTION_CHARS = { min: 50, max: 160 };
-/** Points off per distinct broken link target, and the most broken links can take. */
-const BROKEN_TARGET_POINTS = 5;
+/**
+ * Most points broken links can take, scaled by the share of pages that link to a broken page.
+ * The broken pages themselves already count against the 2xx share; this is the other half of
+ * the problem (pages sending readers and crawlers to them), so it scales with site size.
+ */
 const MAX_BROKEN_PENALTY = 25;
 
 const within = (n: number, range: { min: number; max: number }) => n >= range.min && n <= range.max;
 
+/** A URL for comparing canonicals: no fragment, no trailing slash (the query stays). */
+function comparable(url: string): string {
+  if (!URL.canParse(url)) return url;
+  const parsed = new URL(url);
+  parsed.hash = "";
+  if (parsed.pathname.length > 1) parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+  return parsed.href;
+}
+
 /** A page that names another URL as canonical is a duplicate: its noindex is no problem. */
-const isIndexable = (page: HtmlPage) => page.canonical === null || page.canonical === page.finalUrl;
+const isIndexable = (page: HtmlPage) =>
+  page.canonical === null || comparable(page.canonical) === comparable(page.finalUrl);
 
 /** The per-page HTML checks: each a share of pages (0–1), and how it reads in the evidence. */
 function htmlChecks(html: readonly HtmlPage[]): { shares: number[]; evidence: string } {
@@ -29,15 +42,16 @@ function htmlChecks(html: readonly HtmlPage[]): { shares: number[]; evidence: st
   if (indexable.length > 0) {
     const noindex = indexable.filter((p) => p.noindex).length;
     shares.push(1 - noindex / indexable.length);
-    evidence += `; ${noindex} of ${indexable.length} indexable pages are noindex`;
+    const verb = plural(noindex, "is", "are");
+    evidence += `; ${noindex} of ${indexable.length} indexable pages ${verb} noindex`;
   }
   return { shares, evidence: `${evidence}.` };
 }
 
 /**
  * Technical health: the mean of the page checks (2xx share; then over HTML pages: title
- * length, description length, one h1, canonical, no noindex on indexable pages), less 5 points
- * per distinct broken internal link target (at most 25).
+ * length, description length, one h1, canonical, no noindex on indexable pages), less up to
+ * 25 points scaled by the share of pages that link to a broken internal page.
  */
 export function technicalHealth(crawl: Crawl): SubScore {
   const pages = distinctPages(crawl.pages);
@@ -51,10 +65,12 @@ export function technicalHealth(crawl: Crawl): SubScore {
     shares.push(...checks.shares);
     parts.push(checks.evidence);
   }
-  const targets = new Set(crawl.site.brokenInternalLinks.map((link) => link.to)).size;
-  const penalty = Math.min(MAX_BROKEN_PENALTY, targets * BROKEN_TARGET_POINTS);
-  const plural = targets === 1 ? "target" : "targets";
-  parts.push(`${targets} broken internal link ${plural} (−${penalty}).`);
+  const linking = new Set(crawl.site.brokenInternalLinks.map((link) => link.from)).size;
+  const penalty = MAX_BROKEN_PENALTY * Math.min(1, linking / pages.length);
+  const verb = plural(linking, "links", "link");
+  parts.push(
+    `${linking} of ${pages.length} pages ${verb} to a broken internal page (−${short(penalty)}).`,
+  );
   const mean = shares.reduce((a, b) => a + b, 0) / shares.length;
   return measured(100 * mean - penalty, parts.join(" "));
 }

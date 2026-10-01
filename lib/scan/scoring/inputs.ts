@@ -44,7 +44,10 @@ const readiness = z.object({
       sitemapsRead: z.number(),
       urlCount: z.number().nullable(),
       partial: z.boolean(),
-      errors: z.array(z.object({ url: z.string() })),
+      errors: z.array(
+        z.object({ url: z.string(), status: z.number().optional(), kind: z.string().optional() }),
+      ),
+      offOrigin: z.array(z.string()),
     })
     .nullable(),
   schema: z
@@ -79,8 +82,13 @@ export type Crawl = { pages: CrawledPage[]; site: z.infer<typeof crawlSite> };
 export type Readiness = z.infer<typeof readiness>;
 /** Core Web Vitals and, when carried over from an earlier scan, the date it was measured. */
 export type Vitals = z.infer<typeof cwv> & { measuredOn: string | null };
-/** Impressions summed over the 28-day window and over the 28 days before it. */
-export type SearchConsole = { impressions: number; priorImpressions: number };
+/** Impressions summed, and the days with data, over the 28-day window and the 28 days before. */
+export type SearchConsole = {
+  impressions: number;
+  days: number;
+  priorImpressions: number;
+  priorDays: number;
+};
 
 /** Everything the formula reads, each part available or missing with a reason. */
 export type ScoringInputs = {
@@ -175,7 +183,13 @@ function readSearchConsole(of: Of): Source<SearchConsole> {
   const prior = daysOf("gsc_prior_daily");
   if (!prior.ok) return prior;
   const sum = (list: { impressions: number }[]) => list.reduce((n, d) => n + d.impressions, 0);
-  return { ok: true, value: { impressions: sum(days.value), priorImpressions: sum(prior.value) } };
+  const value = {
+    impressions: sum(days.value),
+    days: days.value.length,
+    priorImpressions: sum(prior.value),
+    priorDays: prior.value.length,
+  };
+  return { ok: true, value };
 }
 
 /** Reads and validates the scan's observations; a collector that did not end ok is a gap. */

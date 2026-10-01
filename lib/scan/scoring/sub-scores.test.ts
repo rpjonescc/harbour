@@ -3,8 +3,10 @@ import type { ScanObservation } from "../types";
 import { conciseAnswers, preferredSources, qaCoverage } from "./aeo";
 import { aiCrawlerAccess, citationReady, entitySchema, llmsTxt } from "./geo";
 import type { Crawl, CrawledPage, Readiness, Vitals } from "./inputs";
-import { coreWebVitals, indexability, searchVisibility } from "./seo";
+import { coreWebVitals } from "./seo";
+import { indexability } from "./seo-indexability";
 import { technicalHealth } from "./seo-technical";
+import { searchTrend } from "./seo-trend";
 import { toScore } from "./sub-score";
 
 const crawlOf = (pages: ScanObservation[], site: Record<string, unknown> = {}): Crawl => ({
@@ -36,19 +38,28 @@ describe("toScore (rounding)", () => {
 });
 
 describe("technical health", () => {
-  it("scores only the 2xx share, less broken links, when no page has HTML", () => {
+  it("scores error pages by the 2xx share and HTML checks over the pages that have HTML", () => {
     const pages = [errorPage("/a", 500), errorPage("/b", 404), htmlPage("/c")];
-    const broken = [{ from: "x", to: "https://docs.example.com/b" }];
-    // checks over 1 HTML page are all 1: mean(1/3, 1, 1, 1, 1, 1) = 88.9, less 5
-    expect(technicalHealth(crawlOf(pages, { brokenInternalLinks: broken })).score).toBe(84);
+    const broken = [{ from: "https://docs.example.com/c", to: "https://docs.example.com/b" }];
+    // mean(1/3, then 1 for each HTML check) = 88.9, less 25 × 1/3 pages carrying a broken link
+    const result = technicalHealth(crawlOf(pages, { brokenInternalLinks: broken }));
+    expect(result.score).toBe(81);
+    expect(result.evidence).toContain("1 of 3 pages links to a broken internal page (−8.3).");
     expect(technicalHealth(crawlOf(pages.slice(0, 2))).score).toBe(0);
   });
 
-  it("caps the broken-link penalty at 25 and never goes below 0", () => {
-    const broken = Array.from({ length: 9 }, (_, i) => ({ from: "x", to: `t${i}` }));
-    const result = technicalHealth(crawlOf([htmlPage("/")], { brokenInternalLinks: broken }));
-    expect(result.score).toBe(75);
-    expect(result.evidence).toContain("9 broken internal link targets (−25).");
+  it("scales the broken-link penalty to the share of pages carrying a broken link", () => {
+    const pages = ["/", "/a", "/b", "/c"].map((path) => htmlPage(path));
+    const from = (paths: string[]) =>
+      paths.map((path) => ({ from: `https://docs.example.com${path}`, to: "https://x/gone" }));
+    // one page of four: 25 × 1/4 = 6.25 off
+    const one = technicalHealth(crawlOf(pages, { brokenInternalLinks: from(["/", "/"]) }));
+    expect(one.score).toBe(94);
+    const all = technicalHealth(
+      crawlOf(pages, { brokenInternalLinks: from(["/", "/a", "/b", "/c"]) }),
+    );
+    expect(all).toMatchObject({ score: 75 });
+    expect(all.evidence).toContain("4 of 4 pages link to a broken internal page (−25).");
   });
 
   it("does not count noindex on a page that names another canonical", () => {
@@ -56,6 +67,21 @@ describe("technical health", () => {
     const result = technicalHealth(crawlOf([htmlPage("/"), duplicate]));
     expect(result.score).toBe(100);
     expect(result.evidence).toContain("0 of 1 indexable pages are noindex");
+  });
+
+  it("matches a canonical to its page despite a trailing slash, default port or fragment", () => {
+    const canonical = "https://docs.example.com:443/print/#top";
+    const self = htmlPage("/print", { noindex: true, canonical });
+    const result = technicalHealth(crawlOf([htmlPage("/"), self]));
+    // the noindex page is indexable: mean(1, 1, 1, 1, 1, 1/2) = 91.7
+    expect(result.score).toBe(92);
+    expect(result.evidence).toContain("1 of 2 indexable pages is noindex");
+  });
+
+  it("keeps the query when comparing a canonical", () => {
+    const canonical = "https://docs.example.com/print?view=1";
+    const other = htmlPage("/print", { noindex: true, canonical });
+    expect(technicalHealth(crawlOf([htmlPage("/"), other])).score).toBe(100);
   });
 
   it("is missing when the crawl recorded no pages", () => {
@@ -68,10 +94,17 @@ describe("technical health", () => {
 });
 
 describe("indexability", () => {
-  it("scores a missing sitemap and a Googlebot block as zero", () => {
+  const noSitemap = {
+    ...{ valid: null, sitemapsRead: 0, urlCount: null, partial: false },
+    ...{ errors: [], offOrigin: [] },
+  };
+
+  it("scores no sitemap and a Googlebot block as zero", () => {
     const robots = { state: "ok", valid: true, googlebot: "blocked", aiCrawlerAccess: {} };
-    const sitemap = { valid: null, sitemapsRead: 0, urlCount: null, partial: false, errors: [] };
-    const result = indexability(crawlOf([]), readinessOf({ robotsTxt: robots, sitemap }));
+    const result = indexability(
+      crawlOf([]),
+      readinessOf({ robotsTxt: robots, sitemap: noSitemap }),
+    );
     expect(result).toEqual({
       score: 0,
       evidence: "No sitemap found on the site's origin; robots.txt blocks Googlebot.",
@@ -79,8 +112,9 @@ describe("indexability", () => {
     });
   });
 
-  it("scores an invalid sitemap as zero", () => {
-    const sitemap = { valid: false, sitemapsRead: 0, urlCount: null, partial: false, errors: [] };
+  it("gives an invalid sitemap no credit while Googlebot's access still counts", () => {
+    const errors = [{ url: "https://docs.example.com/sitemap.xml", kind: "invalid" }];
+    const sitemap = { ...noSitemap, valid: false, errors };
     expect(indexability(crawlOf([]), readinessOf({ sitemap }))).toMatchObject({ score: 50 });
   });
 });
@@ -110,25 +144,54 @@ describe("Core Web Vitals", () => {
   });
 });
 
-describe("Search Console visibility", () => {
-  const visibility = (impressions: number, priorImpressions: number) =>
-    searchVisibility({ impressions, priorImpressions });
+describe("search impressions trend", () => {
+  const trend = (impressions: number, days: number, priorImpressions: number, priorDays: number) =>
+    searchTrend({ impressions, days, priorImpressions, priorDays });
 
   it.each([
-    [1000, 1000, 75],
-    [800, 1000, 60],
-    [1500, 1000, 100],
-    [0, 1000, 0],
-    [120, 0, 100],
-    [0, 0, 0],
-  ])("scores %d impressions after %d as %d", (now, before, expected) => {
-    expect(visibility(now, before).score).toBe(expected);
+    [2800, 28, 2600, 26, 75], // same daily mean over day counts within 3: flat
+    [800, 28, 1000, 28, 60],
+    [1500, 28, 1000, 28, 100],
+    [0, 0, 1000, 28, 0],
+  ])("scores %d impressions over %d days after %d over %d as %d", (...args) => {
+    const [now, days, before, priorDays, expected] = args;
+    expect(trend(now, days, before, priorDays).score).toBe(expected);
   });
 
-  it("explains a drop", () => {
-    expect(visibility(800, 1000).evidence).toBe(
-      "800 impressions in the last 28 days vs 1000 in the 28 days before (−20.0%).",
+  it("explains a drop by daily means", () => {
+    expect(trend(800, 28, 1000, 25).evidence).toBe(
+      "28.6 impressions a day over 28 days in the last 28 days vs 40 a day over 25 days in the " +
+        "28 days before (−28.6%).",
     );
+  });
+
+  it("explains impressions that stopped", () => {
+    expect(trend(0, 0, 1000, 28).evidence).toBe(
+      "No impressions in the last 28 days vs 1000 in the 28 days before.",
+    );
+  });
+
+  it("does not compare windows whose day counts differ by more than 3", () => {
+    expect(trend(1000, 28, 1000, 20)).toMatchObject({
+      score: null,
+      evidence:
+        "Not comparable: impressions on 28 days in the last 28 days but 20 in the 28 days before",
+    });
+  });
+
+  it("has no trend for a new property without earlier impressions", () => {
+    expect(trend(120, 10, 0, 0)).toMatchObject({
+      score: null,
+      evidence: "No earlier data to compare: no impressions in the 28 days before",
+    });
+  });
+
+  it("has no trend on too little earlier volume", () => {
+    expect(trend(500, 28, 80, 27)).toMatchObject({
+      score: null,
+      evidence:
+        "Too little volume to judge a trend: 80 impressions in the 28 days before (needs 100)",
+    });
   });
 });
 
@@ -138,7 +201,21 @@ describe("GEO sub-scores", () => {
     const robots = { state: "ok", valid: true, googlebot: "allowed", aiCrawlerAccess: blocked };
     expect(aiCrawlerAccess(readinessOf({ robotsTxt: robots }))).toMatchObject({
       score: 0,
-      evidence: "0 of 3 AI crawlers may fetch the home page; blocked: GPTBot, CCBot, ClaudeBot.",
+      evidence:
+        "0 of 3 AI crawlers may fetch the home page: 0 of 3 training crawlers; blocked: " +
+        "GPTBot (training only), CCBot (training only), ClaudeBot (training only).",
+    });
+  });
+
+  it("weighs search and retrieval agents three times as much as training crawlers", () => {
+    const access = { "OAI-SearchBot": "blocked", GPTBot: "allowed" };
+    const robots = { state: "ok", valid: true, googlebot: "allowed", aiCrawlerAccess: access };
+    expect(aiCrawlerAccess(readinessOf({ robotsTxt: robots }))).toMatchObject({
+      // allowed weight 1 of 3 + 1
+      score: 25,
+      evidence:
+        "1 of 2 AI crawlers may fetch the home page: 0 of 1 search and retrieval agent, " +
+        "1 of 1 training crawler; blocked: OAI-SearchBot.",
     });
   });
 
@@ -212,5 +289,12 @@ describe("AEO sub-scores", () => {
       evidence:
         "No Preferred Sources button; 2 URLs updated in the last 30 days (not enough for fresh content).",
     });
+  });
+
+  it("counts one fresh URL in the singular", () => {
+    const one = { button: false, buttonPages: [], freshUrls: 1, freshContent: false };
+    expect(preferredSources(readinessOf({ preferredSources: one })).evidence).toContain(
+      "1 URL updated in the last 30 days",
+    );
   });
 });

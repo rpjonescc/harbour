@@ -335,14 +335,17 @@ evidence behind its number, so the product page can explain it.
 
 | Score | Sub-score (weight) |
 |---|---|
-| SEO | Technical health (35%), indexability (25%), Core Web Vitals (20%), Search Console visibility (20%) |
-| GEO | AI crawler access (30%), llms.txt (15%), entity structured data (25%), citation-ready content (30%) |
+| SEO | Technical health (35%), indexability (25%), Core Web Vitals (20%), search impressions trend (20%) |
+| GEO | AI crawler access (30%; AI search and answer agents count three times as much as training-only crawlers), llms.txt (15%), entity structured data (25%), citation-ready content (30%) |
 | AEO | FAQ, HowTo and Q&A coverage (40%), concise answer blocks (35%), Preferred Sources readiness (25%) |
 
 - **Missing data is a gap, never a zero.** When a source is not connected, failed, or returned
   data Harbour could not read, its sub-scores are left out, the rest are re-weighted, and the
   score is marked incomplete with the reason. A partly unknown input (a sitemap that could only
   partly be read, an unreadable robots.txt) also marks the score incomplete.
+- **The search trend needs a baseline.** It compares average daily impressions with the 28
+  days before, and has no verdict (an incomplete score) for a new property, under 100 earlier
+  impressions, or windows with very different numbers of days with data.
 - **PageSpeed runs weekly.** On the days in between, Core Web Vitals use the last result while it
   is at most 14 days old, and say which day it is from.
 - **AI engine mentions and featured snippets** are listed as not connected: they need paid APIs.

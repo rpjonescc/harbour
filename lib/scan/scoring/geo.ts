@@ -1,7 +1,14 @@
 import { hasSchemaFamily } from "../schema-types";
 import type { Crawl, Readiness } from "./inputs";
 import { type HtmlPage, htmlPages } from "./pages";
-import { measured, missing, type SubScore, type SubScoreSpec, withSources } from "./sub-score";
+import {
+  measured,
+  missing,
+  plural,
+  type SubScore,
+  type SubScoreSpec,
+  withSources,
+} from "./sub-score";
 
 /** Half of a site's pages being citation-ready is full marks: home and contact pages rarely are. */
 const CITATION_TARGET = 0.5;
@@ -10,8 +17,38 @@ const ORGANIZATION_POINTS = 60;
 const WEBSITE_POINTS = 40;
 
 /**
- * AI crawler access: the share of the AI crawlers robots.txt lets reach "/" (some paths
- * disallowed still counts as allowed).
+ * Agents that fetch pages to answer a question or build an AI search index: being blocked
+ * keeps a site out of AI answers. Everything else listed (GPTBot, ClaudeBot, Google-Extended,
+ * CCBot, Bytespider) collects training data only, which owners may block on purpose.
+ */
+const RETRIEVAL_AGENTS = new Set([
+  "OAI-SearchBot",
+  "ChatGPT-User",
+  "PerplexityBot",
+  "Claude-SearchBot",
+]);
+/** A retrieval or search agent counts three times as much as a training-only crawler. */
+const RETRIEVAL_WEIGHT = 3;
+const TRAINING_WEIGHT = 1;
+
+const weightOf = (name: string) =>
+  RETRIEVAL_AGENTS.has(name) ? RETRIEVAL_WEIGHT : TRAINING_WEIGHT;
+
+/** "4 of 4 search and retrieval agents" for one class of crawler. */
+function classNote(entries: [string, string][], retrieval: boolean): string | null {
+  const members = entries.filter(([name]) => RETRIEVAL_AGENTS.has(name) === retrieval);
+  if (members.length === 0) return null;
+  const allowed = members.filter(([, access]) => access !== "blocked").length;
+  const what = retrieval
+    ? plural(members.length, "search and retrieval agent")
+    : plural(members.length, "training crawler");
+  return `${allowed} of ${members.length} ${what}`;
+}
+
+/**
+ * AI crawler access: the weighted share of the AI crawlers robots.txt lets reach "/" (some
+ * paths disallowed still counts as allowed); search and retrieval agents weigh 3, training-only
+ * crawlers 1.
  */
 export function aiCrawlerAccess(readiness: Readiness): SubScore {
   const { state, aiCrawlerAccess: access } = readiness.robotsTxt;
@@ -21,11 +58,17 @@ export function aiCrawlerAccess(readiness: Readiness): SubScore {
   const names = (value: string) => entries.filter(([, a]) => a === value).map(([name]) => name);
   const blocked = names("blocked");
   const partial = names("partial");
+  const total = entries.reduce((n, [name]) => n + weightOf(name), 0);
+  const allowedWeight = total - blocked.reduce((n, name) => n + weightOf(name), 0);
+  const classes = [classNote(entries, true), classNote(entries, false)].filter((n) => n !== null);
   const allowed = entries.length - blocked.length;
-  const notes = [`${allowed} of ${entries.length} AI crawlers may fetch the home page`];
-  if (blocked.length > 0) notes.push(`blocked: ${blocked.join(", ")}`);
+  const notes = [
+    `${allowed} of ${entries.length} AI crawlers may fetch the home page: ${classes.join(", ")}`,
+  ];
+  const label = (name: string) => (RETRIEVAL_AGENTS.has(name) ? name : `${name} (training only)`);
+  if (blocked.length > 0) notes.push(`blocked: ${blocked.map(label).join(", ")}`);
   if (partial.length > 0) notes.push(`some paths disallowed for: ${partial.join(", ")}`);
-  return measured((100 * allowed) / entries.length, `${notes.join("; ")}.`);
+  return measured((100 * allowedWeight) / total, `${notes.join("; ")}.`);
 }
 
 /** llms.txt: 100 when the site serves it, 0 when it does not; unknown is missing. */
@@ -50,7 +93,8 @@ export function entitySchema(readiness: Readiness): SubScore {
   const { Organization: organization, WebSite: website } = schema.pagesWith;
   const score = (organization > 0 ? ORGANIZATION_POINTS : 0) + (website > 0 ? WEBSITE_POINTS : 0);
   const evidence =
-    `Of ${schema.pagesChecked} HTML pages: ${organization} declare an Organization or ` +
+    `Of ${schema.pagesChecked} HTML pages: ${organization} ` +
+    `${plural(organization, "declares", "declare")} an Organization or ` +
     `LocalBusiness, ${website} the WebSite.`;
   return measured(score, evidence);
 }

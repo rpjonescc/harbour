@@ -46,3 +46,11 @@ export function withSources<T extends unknown[]>(
   }
   return measure(...(values as T));
 }
+
+/** The word for `n` things: `plural(1, "page")` is "page", `plural(2, "page")` is "pages". */
+export function plural(n: number, one: string, many = `${one}s`): string {
+  return n === 1 ? one : many;
+}
+
+/** One decimal at most: 8.333 → "8.3", 25 → "25". */
+export const short = (value: number) => String(Number(value.toFixed(1)));

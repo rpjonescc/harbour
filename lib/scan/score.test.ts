@@ -2,44 +2,36 @@ import {
   ACME_CRAWL,
   ACME_SCAN,
   ALL_OK,
-  CONTEXT,
-  crawlSite,
   cwv,
+  entryOf as entry,
   NOW,
   readiness,
+  scoreOf as score,
   searchConsole,
 } from "@/tests/helpers/scoring";
-import { FORMULA_VERSION, SUB_SCORES, scoreScan } from "./score";
-import type { ScanObservation } from "./types";
+import { FORMULA_VERSION, SUB_SCORES } from "./score";
 
 const DAY = 24 * 60 * 60_000;
-const score = (
-  observations: ScanObservation[],
-  statuses: Record<string, "ok" | "failed" | "not_configured" | "skipped"> = ALL_OK,
-  context = CONTEXT,
-) => scoreScan(observations, statuses, context);
-const entry = (result: ReturnType<typeof score>, key: string) =>
-  result?.breakdown.find((e) => e.key === key);
 
 describe("scoreScan on a full scan", () => {
   it("scores every sub-score and total exactly, with the evidence behind each", () => {
     expect(score(ACME_SCAN)).toEqual({
       formulaVersion: "v1",
-      seo: 83,
-      geo: 91,
+      seo: 81,
+      geo: 92,
       aeo: 88,
       complete: { seo: true, geo: true, aeo: true },
       breakdown: [
         {
           key: "seo.technical",
           label: "Technical health",
-          score: 76,
+          score: 72,
           weight: 0.35,
           status: "ok",
           evidence:
             "6 pages crawled, 5 answered 2xx. Of 5 HTML pages: 4 have a 10–60 character title, " +
             "4 a 50–160 character description, 4 exactly one h1, 4 a canonical link; 1 of 5 " +
-            "indexable pages are noindex. 1 broken internal link target (−5).",
+            "indexable pages is noindex. 2 of 6 pages link to a broken internal page (−8.3).",
         },
         {
           key: "seo.indexability",
@@ -60,21 +52,24 @@ describe("scoreScan on a full scan", () => {
           evidence: "PageSpeed this scan: mobile performance 72, field INP 260 ms (rated 80).",
         },
         {
-          key: "seo.visibility",
-          label: "Search Console visibility",
+          key: "seo.searchTrend",
+          label: "Search impressions trend",
           score: 89,
           weight: 0.2,
           status: "ok",
-          evidence: "1770 impressions in the last 28 days vs 1500 in the 28 days before (+18.0%).",
+          evidence:
+            "442.5 impressions a day over 4 days in the last 28 days vs 375 a day over 4 days " +
+            "in the 28 days before (+18.0%).",
         },
         {
           key: "geo.aiCrawlers",
           label: "AI crawler access",
-          score: 89,
+          score: 94,
           weight: 0.3,
           status: "ok",
           evidence:
-            "8 of 9 AI crawlers may fetch the home page; blocked: GPTBot; some paths disallowed " +
+            "8 of 9 AI crawlers may fetch the home page: 4 of 4 search and retrieval agents, " +
+            "4 of 5 training crawlers; blocked: GPTBot (training only); some paths disallowed " +
             "for: CCBot.",
         },
         {
@@ -91,7 +86,7 @@ describe("scoreScan on a full scan", () => {
           score: 100,
           weight: 0.25,
           status: "ok",
-          evidence: "Of 5 HTML pages: 1 declare an Organization or LocalBusiness, 1 the WebSite.",
+          evidence: "Of 5 HTML pages: 1 declares an Organization or LocalBusiness, 1 the WebSite.",
         },
         {
           key: "geo.citations",
@@ -190,23 +185,27 @@ describe("scoreScan with collectors that did not end ok", () => {
       "search-console": "not_configured",
     } as const;
     const result = score([...ACME_CRAWL, readiness()], statuses);
-    // (0.35 × 76 + 0.25 × 92) / 0.6 = 82.67
-    expect(result).toMatchObject({ seo: 83, geo: 91, aeo: 88 });
+    // (0.35 × 72 + 0.25 × 92) / 0.6 = 80.33
+    expect(result).toMatchObject({ seo: 80, geo: 92, aeo: 88 });
     expect(result?.complete).toEqual({ seo: false, geo: true, aeo: true });
     expect(entry(result, "seo.cwv")).toMatchObject({
       score: null,
       status: "missing",
       evidence: "PageSpeed is not connected",
     });
-    expect(entry(result, "seo.visibility")?.evidence).toBe("Search Console is not connected");
+    expect(entry(result, "seo.searchTrend")?.evidence).toBe("Search Console is not connected");
   });
 
   it("scores what it can when the crawl failed and readiness had no crawl to read", () => {
     const blind = readiness({ sitemap: null, schema: null, preferredSources: null });
-    const observations = [blind, cwv(), ...searchConsole([412, 388, 503, 467], [700, 800])];
+    const observations = [
+      blind,
+      cwv(),
+      ...searchConsole([412, 388, 503, 467], [400, 350, 380, 370]),
+    ];
     const result = score(observations, { ...ALL_OK, crawler: "failed" });
-    // SEO: (0.2 × 76 + 0.2 × 89) / 0.4 = 82.5; GEO: (0.3 × 89 + 0.15 × 100) / 0.45 = 92.67
-    expect(result).toMatchObject({ seo: 83, geo: 93, aeo: null });
+    // SEO: (0.2 × 76 + 0.2 × 89) / 0.4 = 82.5; GEO: (0.3 × 94 + 0.15 × 100) / 0.45 = 96
+    expect(result).toMatchObject({ seo: 83, geo: 96, aeo: null });
     expect(result?.complete).toEqual({ seo: false, geo: false, aeo: false });
     for (const key of ["seo.technical", "seo.indexability", "geo.entities", "aeo.qaCoverage"]) {
       expect(entry(result, key)).toMatchObject({
@@ -277,71 +276,5 @@ describe("scoreScan with a weekly PageSpeed skipped this scan", () => {
   it("ignores an earlier result when PageSpeed failed this scan", () => {
     const result = score(withoutCwv, { ...ALL_OK, pagespeed: "failed" }, previous(1));
     expect(entry(result, "seo.cwv")?.evidence).toBe("PageSpeed failed in this scan");
-  });
-});
-
-describe("scoreScan with partly unknown inputs", () => {
-  it("marks SEO incomplete for a partial sitemap and unreadable robots.txt", () => {
-    const unread = { state: "unavailable", valid: null, googlebot: null, aiCrawlerAccess: null };
-    const partial = {
-      ...{ reachable: true, valid: true, sitemapsRead: 1, urlCount: 5, partial: true },
-      errors: [{ url: "https://docs.example.com/sitemap-blog.xml", status: 500 }],
-    };
-    const observations = ACME_SCAN.filter((o) => o.collector !== "readiness");
-    const result = score([...observations, readiness({ robotsTxt: unread, sitemap: partial })]);
-    expect(entry(result, "seo.indexability")).toEqual({
-      key: "seo.indexability",
-      label: "Indexability",
-      // mean(sitemap valid 1, 3 of 4 sitemap URLs ok) = 87.5, half up
-      score: 88,
-      weight: 0.25,
-      status: "ok",
-      evidence:
-        "Sitemap valid (at least 5 URLs); 3 of 4 crawled sitemap URLs answered 2xx. " +
-        "Incomplete: sitemap partial: 1 sitemap could not be read, so the URL count covers " +
-        "only the 1 read; robots.txt could not be read, so Googlebot's access is unknown.",
-    });
-    expect(entry(result, "geo.aiCrawlers")?.evidence).toBe(
-      "robots.txt could not be read (unavailable): AI crawler access unknown",
-    );
-    expect(result?.complete).toEqual({ seo: false, geo: false, aeo: true });
-    // SEO still scores: 0.35 × 76 + 0.25 × 88 + 0.2 × 76 + 0.2 × 89 = 81.6
-    expect(result?.seo).toBe(82);
-  });
-});
-
-describe("scoreScan with malformed observations", () => {
-  it("treats a readiness value of the wrong shape as missing, not zero", () => {
-    const broken = { ...readiness(), value: { robotsTxt: "ok" } };
-    const observations = [...ACME_SCAN.filter((o) => o.collector !== "readiness"), broken];
-    const result = score(observations);
-    const evidence = entry(result, "geo.llmsTxt")?.evidence ?? "";
-    expect(evidence).toMatch(/^Readiness data has an unexpected shape \(robotsTxt: /);
-    expect(entry(result, "geo.llmsTxt")?.score).toBeNull();
-    expect(result?.complete.geo).toBe(false);
-  });
-
-  it("treats a crawled page of the wrong shape as missing crawl data", () => {
-    const observations = [...ACME_SCAN, { ...crawlSite(), kind: "page", value: { status: "200" } }];
-    const result = score(observations);
-    expect(entry(result, "seo.technical")?.evidence).toMatch(
-      /^Crawler data has an unexpected shape \(\d+\.status: /,
-    );
-    expect(entry(result, "seo.technical")?.score).toBeNull();
-  });
-
-  it("needs exactly one readiness observation", () => {
-    const result = score([...ACME_SCAN, readiness()]);
-    expect(entry(result, "geo.llmsTxt")?.evidence).toBe(
-      "Readiness stored no single readiness result",
-    );
-  });
-
-  it("treats a Search Console day of the wrong shape as missing", () => {
-    const [day] = searchConsole([10], []);
-    if (!day) throw new Error("expected a day");
-    const result = score([...ACME_SCAN, { ...day, value: { impressions: -1 } }]);
-    expect(entry(result, "seo.visibility")?.score).toBeNull();
-    expect(entry(result, "seo.visibility")?.evidence).toMatch(/^Search Console data has/);
   });
 });
