@@ -4,16 +4,29 @@ A calm, private, self-hosted control centre for your own projects. Harbour runs 
 always-on machine at home, is reachable only over your Tailscale network, and opens only
 with a passkey.
 
-The secure shell, design system, and Second Brain viewer are built. The roadmap continues with:
+The secure shell, design system, Second Brain viewer, agents and the daily visibility scan are
+built. The scan measures how findable each product is in classic search (SEO), in AI assistants
+(GEO) and as direct answers (AEO), scored 0–100 with explainable breakdowns. The roadmap
+continues with:
 
-- **Daily visibility scan** — how findable each product is in classic search (SEO), in AI
-  assistants (GEO) and as direct answers (AEO), scored 0–100 with explainable breakdowns.
+- **Actions board** — every issue the scan finds as a tracked action, resolved automatically
+  when the next scan no longer sees it.
 - **Weekly AI analyst** — turns the week's data into a report and a prioritised action plan.
+- **Paid sources** — AI engine mentions and citations, keyword rankings and featured snippets
+  (they need API keys, so they show as "not connected" for now).
 
 ## Features
 
-- **Today** — date, scan status, a score table per product with deltas and 30-day
-  sparklines, and the actions worth your attention (sample data until the scan ships).
+- **Today** — date, scan status, a one-line summary, a score table per product (SEO, GEO, AEO
+  with the change since the last scan and a 30-day SEO trend), the three issues most worth
+  your attention, and a banner when a source failed in the last scan. Until the first scan
+  finishes it shows clearly labelled sample data.
+- **Product pages** — per product: the three scores, **Scan now**, SEO/GEO/AEO tabs explaining
+  every sub-score (its weight, evidence, or why it is missing), the issues the scan found with
+  a **Hand to Claude** button that copies a ready prompt, the crawled pages and their problems,
+  and Search Console clicks, impressions and top queries.
+- **Sources** — whether the daily scan is on, which data sources are connected (never their
+  secrets), and each source's last run, status and reason per product.
 - **Products from config** — list your products in `harbour.config.json`; each gets a
   colour from a six-hue palette. Without it, a clearly labelled demo config is shown.
 - **Devices** — add a passkey to a new device with a one-time link, see local sign-in times
@@ -22,8 +35,25 @@ The secure shell, design system, and Second Brain viewer are built. The roadmap 
 - **Agents** — research and discovery agents that write into the Second Brain, one at a time,
   with live activity, cancel, and automatic save and sync.
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
-  a living reference and Second Brain examples at `/design`.
+  a living reference at `/design` showing every component in its main states.
 - **Accessible by default** — keyboard paths, visible focus, accessible names, rem-based type.
+
+### Pages
+
+| Path | What it shows |
+|---|---|
+| `/` | Today |
+| `/products/<id>` | A product's scores, issues, pages and sources |
+| `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors) |
+| `/settings/sources` | Scan schedule, connections and each source's last run |
+| `/brain` | Second Brain |
+| `/agents` | Agent runs |
+| `/settings/devices` | Passkeys and devices |
+| `/design` | Design system reference |
+
+The one scan endpoint, `POST /api/scans` with `{"productId": "<id>"}`, queues a scan for the
+worker (as **Scan now** does); like every mutating route it takes same-origin JSON from a
+signed-in session.
 
 ## Second Brain
 
@@ -84,9 +114,9 @@ edited counts as the agent's. Only one agent runs at a time; queued runs wait th
 has a live activity page with a **Cancel** button, and lists the files it changed. Without a
 Claude token the server refuses new agent runs.
 
-Discovery results are proposals, not commitments. Open a product in the sidebar
-(`/settings/products/<id>`) to see its proposed keywords, AI questions and competitors, each with
-the agent's reason. **Approve**, **Reject** or **Edit** each one, or **Approve all proposed** per
+Discovery results are proposals, not commitments. Open a product in the sidebar and choose
+**Research targets** (`/settings/products/<id>`) to see its proposed keywords, AI questions and
+competitors, each with the agent's reason. **Approve**, **Reject** or **Edit** each one, or **Approve all proposed** per
 list. Re-running discovery never overwrites items you've already decided on.
 
 Saving and syncing need no action. The Agents page and the Second Brain show unsaved notes
@@ -260,8 +290,28 @@ only by hand.
 
 Scans are ordinary jobs: they run one at a time, in queue order, between agent runs. Unlike
 agent runs they never wait for the brain to be quiet, because they don't touch it. To scan
-now — after changing `harbour.config.json`, say — run `pnpm scan:now`, or
-`pnpm scan:now <productId>` for one product; an unknown id is rejected with the configured ones.
+now — after changing `harbour.config.json`, say — choose **Scan now** on the product's page, or
+run `pnpm scan:now` (every product) or `pnpm scan:now <productId>`; an unknown id is rejected
+with the configured ones. The **Sources** page shows whether the daily scan is on and when each
+product was last scanned and will be next.
+
+## Reading the results
+
+- **Today** (`/`) lists every product's scores. A dash is a gap (no data), never a zero; an
+  asterisk marks an incomplete score, where a source was not connected or failed. Each product
+  name opens its page. While a scan is queued or running, the page refreshes itself.
+- **Product page** (`/products/<id>`) shows where scanning stands (never scanned, queued,
+  running, or how the last scan ended — a failed scan never hides the last good results) and
+  explains each score in its tab. **Issues** come from the scan's raw observations: pages
+  without a title or meta description, broken internal links, pages hidden by noindex, AI
+  crawlers blocked in robots.txt, no llms.txt, no FAQ structured data and no Google Preferred
+  Sources button. **Hand to Claude** copies a prompt with the product, the affected URLs, the
+  problem, a suggested fix and an acceptance check, to paste into Claude Code in the site's
+  repository; it contains only the product's name and URL and the scan's findings. The
+  **Pages** table lists the 50 crawled pages with the most problems.
+- **Sources** (`/settings/sources`) shows each collector's latest run per product (ok, failed,
+  not connected or skipped) with its reason, and whether PageSpeed and Search Console are
+  connected — as connected or not, never the key or the credentials.
 
 ## Connecting Google data
 
