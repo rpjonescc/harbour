@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { vi } from "vitest";
 import { getConfig } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
 import { collectorRuns, observations, scanRuns, scores } from "@/lib/db/schema";
@@ -6,7 +6,6 @@ import {
   claimNextJob,
   enqueueJob,
   eventsSince,
-  finishJob,
   getJob,
   type Job,
   requestCancel,
@@ -14,7 +13,6 @@ import {
 import type { Product } from "@/lib/products/catalog";
 import { openTestDb } from "@/tests/helpers/db";
 import { runScan, type ScanDeps } from "./run-scan";
-import { failInterruptedScans } from "./store";
 import type { Collector, CollectorResult, ScanScores, ScoreScan } from "./types";
 
 const DAY = 24 * 60 * 60_000;
@@ -209,7 +207,8 @@ describe("runScan", () => {
     expect(weekly.calls).toBe(1);
     expect(runsOf(db)[1]).toMatchObject({ status: "skipped", items: null });
     expect(runsOf(db)[1]?.error).toMatch(/weekly/);
-    advance(DAY + 1);
+    // A daily 06:00 scan that starts a few minutes early must not slip the weekly run a day.
+    advance(DAY - 5 * 60_000);
     await scan();
     expect(weekly.calls).toBe(2);
   });
@@ -263,6 +262,73 @@ describe("runScan", () => {
     const job = await scan();
     expect(rest.calls).toBe(0);
     expect(getJob(db, job.id)).toMatchObject({ status: "cancelled", error: "Worker stopped" });
+  });
+
+  it("records a collector whose observations cannot be stored as failed and carries on", async () => {
+    const bad = returns("crawler", {
+      status: "ok",
+      observations: [{ kind: "page", subject: "/", value: { n: 1n } }],
+    });
+    const next = ok("readiness");
+    const { db, scan } = setup([bad, next]);
+    const job = await scan();
+    expect(runsOf(db)[0]).toMatchObject({ collector: "crawler", status: "failed", items: null });
+    expect(runsOf(db)[0]?.error).toMatch(/BigInt/);
+    expect(next.calls).toBe(1);
+    expect(
+      db
+        .select()
+        .from(observations)
+        .all()
+        .map((o) => o.collector),
+    ).toEqual(["readiness"]);
+    expect(scanStatus(db)).toBe("partial");
+    expect(getJob(db, job.id)?.status).toBe("ok");
+  });
+
+  it("scores a scan normally when the stop arrives after the last collector finished", async () => {
+    const env = setup([ok("crawler")]);
+    // The stop becomes visible only once the last collector's run is recorded.
+    env.deps.stopping = () => runsOf(env.db).length > 0;
+    const job = await env.scan();
+    expect(runsOf(env.db)[0]?.status).toBe("ok");
+    expect(scanStatus(env.db)).toBe("ok");
+    expect(getJob(env.db, job.id)?.status).toBe("ok");
+  });
+
+  it("cancels when a collector finishes after the stop but before the next one starts", async () => {
+    const env = setup([]);
+    const first = fake("crawler", async () => {
+      requestCancel(env.db, job.id);
+      return { status: "ok", observations: [] };
+    });
+    const rest = ok("readiness");
+    env.deps.collectors = [first, rest];
+    const job = env.claim();
+    await runScan(env.deps, job);
+    expect(runsOf(env.db).map((r) => r.status)).toEqual(["ok"]);
+    expect(rest.calls).toBe(0);
+    expect(getJob(env.db, job.id)?.status).toBe("cancelled");
+  });
+
+  it("never throws into the worker loop, even when recording the failure fails", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const env = setup([ok("crawler")]);
+    const job = env.claim();
+    // Every UPDATE fails (finishScan, finishJob): as if the disk filled up mid-scan.
+    const broken = new Proxy(env.db, {
+      get(target, key, receiver) {
+        if (key === "update") {
+          return () => {
+            throw new Error("disk I/O error");
+          };
+        }
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    await expect(runScan({ ...env.deps, db: broken }, job)).resolves.toBeUndefined();
+    expect(errors).toHaveBeenCalled();
+    errors.mockRestore();
   });
 
   it("scores the scan's observations and stores the result", async () => {
@@ -325,19 +391,5 @@ describe("runScan", () => {
     await scan();
     expect(runsOf(db)[0]).toMatchObject({ status: "failed", items: null });
     expect(db.select().from(observations).all()).toEqual([]);
-  });
-});
-
-describe("failInterruptedScans", () => {
-  it("marks scans left running by a stopped worker as failed", async () => {
-    const { db, claim } = setup([]);
-    const job = claim();
-    db.insert(scanRuns)
-      .values({ productId: "acme-docs", jobId: job.id, startedAt: t0, status: "running" })
-      .run();
-    finishJob(db, job.id, "failed", "Worker stopped");
-    expect(failInterruptedScans(db, t0)).toBe(1);
-    const row = db.select().from(scanRuns).where(eq(scanRuns.jobId, job.id)).get();
-    expect(row).toMatchObject({ status: "failed", finishedAt: t0 });
   });
 });

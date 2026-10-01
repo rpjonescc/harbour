@@ -32,7 +32,9 @@ export type ScanDeps = {
   maxObservations?: number;
 };
 
-const WEEK_MS = 7 * 24 * 60 * 60_000;
+// A weekly collector is due 7 days after its last ok run, less 12 h of slack so a daily scan
+// that starts a little earlier than last week's doesn't push the run back a whole day.
+const WEEKLY_DUE_MS = (7 * 24 - 12) * 60 * 60_000;
 const POLL_MS = 1000;
 const MAX_OBSERVATIONS = 20_000;
 const STOPPED = "Worker stopped";
@@ -43,6 +45,8 @@ type Scan = {
   product: Product;
   scanId: number;
   signal: AbortSignal;
+  /** Set once a stop cut a collector short or kept one from running. */
+  interrupted: boolean;
   event: (kind: EventKind, text: string) => void;
 };
 
@@ -116,7 +120,7 @@ function runBounded(
 function weeklySkipReason(scan: Scan, collector: Collector, now: Date): string | null {
   if (collector.cadence !== "weekly") return null;
   const last = lastOkRunAt(scan.deps.db, scan.product.id, collector.id);
-  if (!last || now.getTime() - last.getTime() >= WEEK_MS) return null;
+  if (!last || now.getTime() - last.getTime() >= WEEKLY_DUE_MS) return null;
   return `runs weekly; last ran ${last.toISOString().slice(0, 10)}`;
 }
 
@@ -140,8 +144,10 @@ async function attempt(scan: Scan, collector: Collector): Promise<CollectorResul
   try {
     return await run.result;
   } catch (error) {
+    if (!run.signal.aborted) throw error;
+    if (scan.signal.aborted && run.signal.reason === scan.signal.reason) scan.interrupted = true;
     // Prefer why we aborted (timeout, cancel) over the collector's own reaction to it.
-    throw run.signal.aborted ? run.signal.reason : error;
+    throw run.signal.reason;
   }
 }
 
@@ -180,7 +186,14 @@ async function runCollector(scan: Scan, collector: Collector): Promise<Collector
     return "failed";
   }
   if (result.status === "ok") {
-    record("ok", null, result);
+    try {
+      record("ok", null, result);
+    } catch (error) {
+      // e.g. a value JSON can't hold: this collector failed, the rest of the scan goes on.
+      record("failed", `Could not store observations: ${message(error)}`);
+      scan.event("error", `${label}: failed — could not store observations: ${message(error)}`);
+      return "failed";
+    }
     const n = result.observations.length;
     scan.event("status", `${label}: ${n} observation${n === 1 ? "" : "s"}`);
   } else {
@@ -221,26 +234,40 @@ export async function runScan(deps: ScanDeps, job: Job): Promise<void> {
   }
   const scanId = startScan(deps.db, product.id, job.id, deps.now());
   const stop = watchForStop(deps, job.id);
-  const scan: Scan = { deps, job, product, scanId, signal: stop.signal, event };
+  const scan: Scan = { deps, job, product, scanId, signal: stop.signal, interrupted: false, event };
   try {
     const statuses: Record<string, CollectorStatus> = {};
     for (const collector of deps.collectors) {
       stop.check();
-      if (stop.signal.aborted) break;
+      if (stop.signal.aborted) {
+        scan.interrupted = true;
+        break;
+      }
       statuses[collector.id] = await runCollector(scan, collector);
     }
-    // Only a stop that interrupted a collector cancels; finished collectors are always scored.
-    if (!stop.signal.aborted) return scoreAndFinish(scan, statuses);
+    // Only a stop that cut the scan short cancels it; a late one leaves the full scan standing.
+    if (!scan.interrupted) return scoreAndFinish(scan, statuses);
     finishScan(deps.db, scanId, "failed", deps.now());
     const stopped = stop.stoppedByWorker();
     event("status", stopped ? STOPPED : "Cancelled");
     finish(deps, job, "cancelled", stopped ? STOPPED : undefined);
   } catch (error) {
     console.error(`job ${job.id}: scan crashed`, error);
-    finishScan(deps.db, scanId, "failed", deps.now());
-    event("error", `Scan failed: ${message(error)}`);
-    finish(deps, job, "failed", message(error));
+    recordCrash(scan, error);
   } finally {
     stop.dispose();
+  }
+}
+
+/** Best effort: the database may be what failed. Never throws into the worker loop. */
+function recordCrash(scan: Scan, error: unknown) {
+  const { deps, job, scanId } = scan;
+  try {
+    finishScan(deps.db, scanId, "failed", deps.now());
+    scan.event("error", `Scan failed: ${message(error)}`);
+    finish(deps, job, "failed", message(error));
+  } catch (recordError) {
+    // The job keeps "running" until heartbeat recovery or the next worker start fails it.
+    console.error(`job ${job.id}: could not record the scan failure`, recordError);
   }
 }

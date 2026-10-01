@@ -1,6 +1,6 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
-import { collectorRuns, observations, scanRuns, scores } from "@/lib/db/schema";
+import { collectorRuns, jobs, observations, scanRuns, scores } from "@/lib/db/schema";
 import type { CollectorStatus, Observation, ScanObservation, ScanScores } from "./types";
 
 export type ScanStatus = "ok" | "partial" | "failed";
@@ -60,10 +60,9 @@ export function recordCollectorRun(db: Db, run: CollectorRunRecord): void {
   });
 }
 
-/** When a collector last finished ok for a product, or null if never. */
-export function lastOkRunAt(db: Db, productId: string, collector: string): Date | null {
-  const row = db
-    .select({ finishedAt: collectorRuns.finishedAt })
+function latestOkRun(db: Db, productId: string, collector: string) {
+  return db
+    .select({ scanId: collectorRuns.scanId, finishedAt: collectorRuns.finishedAt })
     .from(collectorRuns)
     .innerJoin(scanRuns, eq(collectorRuns.scanId, scanRuns.id))
     .where(
@@ -73,9 +72,33 @@ export function lastOkRunAt(db: Db, productId: string, collector: string): Date 
         eq(collectorRuns.status, "ok"),
       ),
     )
-    .orderBy(desc(collectorRuns.finishedAt))
+    .orderBy(desc(collectorRuns.finishedAt), desc(collectorRuns.id))
     .get();
-  return row?.finishedAt ?? null;
+}
+
+/** When a collector last finished ok for a product, or null if never. */
+export function lastOkRunAt(db: Db, productId: string, collector: string): Date | null {
+  return latestOkRun(db, productId, collector)?.finishedAt ?? null;
+}
+
+/**
+ * What a collector observed in its latest ok run for a product (e.g. a weekly collector that
+ * was skipped in the current scan), or null if it never ran ok.
+ */
+export function latestOkObservations(
+  db: Db,
+  productId: string,
+  collector: string,
+): { observations: Observation[]; finishedAt: Date } | null {
+  const run = latestOkRun(db, productId, collector);
+  if (!run) return null;
+  const rows = db
+    .select({ kind: observations.kind, subject: observations.subject, value: observations.value })
+    .from(observations)
+    .where(and(eq(observations.scanId, run.scanId), eq(observations.collector, collector)))
+    .orderBy(observations.id)
+    .all();
+  return { observations: rows, finishedAt: run.finishedAt };
 }
 
 /** Every observation a scan stored, with its collector. */
@@ -116,12 +139,16 @@ export function storeScores(
     .run();
 }
 
-/** At worker start every running scan is orphaned (its job was failed); mark it failed. */
+/**
+ * Marks scans still "running" whose job is no longer running (failed or cancelled by recovery
+ * after the worker stopped) as failed. Safe to call at any time.
+ */
 export function failInterruptedScans(db: Db, now = new Date()): number {
+  const endedJobs = db.select({ id: jobs.id }).from(jobs).where(ne(jobs.status, "running"));
   return db
     .update(scanRuns)
     .set({ status: "failed", finishedAt: now })
-    .where(eq(scanRuns.status, "running"))
+    .where(and(eq(scanRuns.status, "running"), inArray(scanRuns.jobId, endedJobs)))
     .returning({ id: scanRuns.id })
     .all().length;
 }

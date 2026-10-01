@@ -11,9 +11,9 @@ import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
 import { makeScheduler } from "@/lib/jobs/scheduler";
 import { getProducts } from "@/lib/products/catalog";
-import { COLLECTORS, noScoring, unavailableFetch } from "@/lib/scan/registry";
 import { runScan } from "@/lib/scan/run-scan";
 import { failInterruptedScans } from "@/lib/scan/store";
+import { workerScanDeps } from "@/lib/scan/worker-deps";
 
 const IDLE_MS = 2000;
 const HEARTBEAT_MS = 10_000;
@@ -45,19 +45,15 @@ async function main() {
       scheduler.notesSynced(runNotesSyncJob({ db, root, quarantineRoot, now }, job));
     } else if (job.kind === "scan") {
       // Scans never touch the brain, so they don't wait for it to be quiet.
-      await runScan(
-        {
-          db,
-          config,
-          products: getProducts(),
-          collectors: COLLECTORS,
-          fetch: unavailableFetch,
-          scoreScan: noScoring,
-          now,
-          stopping: () => stopping,
-        },
-        job,
-      );
+      // Fetch and scoring are stand-ins (replaced in Task 2 / Task 6); see workerScanDeps.
+      const deps = workerScanDeps({
+        db,
+        config,
+        products: getProducts(),
+        now,
+        stopping: () => stopping,
+      });
+      await runScan(deps, job);
     } else {
       const { pushed } = await runAgentJob(
         {

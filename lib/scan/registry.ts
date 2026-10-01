@@ -22,10 +22,10 @@ export function collectorTimeoutMs(id: string): number {
   return id === "crawler" ? 10 * MINUTE : 2 * MINUTE;
 }
 
-/** Scoring until the v1 formula lands: no score row is written. */
+/** Scoring until the v1 formula lands (replaced in Task 6): no score row is written. */
 export const noScoring: ScoreScan = () => null;
 
-/** Stand-in until the safe fetch exists; no registered collector calls it yet. */
+/** Stand-in until the safe fetch exists (replaced in Task 2); no collector calls it yet. */
 export const unavailableFetch: SafeFetch = async () => {
   throw new Error("Outbound fetch is not available yet");
 };
