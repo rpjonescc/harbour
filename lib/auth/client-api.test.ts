@@ -19,6 +19,17 @@ describe("postJson", () => {
     expect(await postJson("/api/x")).toEqual({ ok: false, error: "unauthenticated" });
   });
 
+  it("passes through a server message on errors", async () => {
+    stubFetch(async () =>
+      Response.json({ error: "invalid_edit", message: "term: Too small" }, { status: 400 }),
+    );
+    expect(await postJson("/api/x")).toEqual({
+      ok: false,
+      error: "invalid_edit",
+      message: "term: Too small",
+    });
+  });
+
   it("treats a redirected response as a bad response", async () => {
     stubFetch(async () => {
       const response = Response.json({ ok: true });

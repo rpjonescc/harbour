@@ -40,6 +40,13 @@ const VALUE_SCHEMAS = {
   competitor: competitor.omit({ why: true }),
 } as const;
 
+/** "✖ msg\n  → at field" blocks from z.prettifyError become "field: msg" lines. */
+function readableIssues(error: z.ZodError): string {
+  return error.issues
+    .map((i) => (i.path.length ? `${i.path.join(".")}: ${i.message}` : i.message))
+    .join("\n");
+}
+
 function norm(s: string): string {
   return s.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -165,7 +172,7 @@ export function editProposal(db: Db, productId: string, id: number, value: Recor
   if (row.status === "rejected")
     return { ok: false as const, error: "rejected items can't be edited" };
   const parsed = VALUE_SCHEMAS[row.type].safeParse(value);
-  if (!parsed.success) return { ok: false as const, error: z.prettifyError(parsed.error) };
+  if (!parsed.success) return { ok: false as const, error: readableIssues(parsed.error) };
   const clean = parsed.data as Record<string, string>;
   try {
     db.update(proposals)

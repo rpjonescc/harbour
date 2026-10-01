@@ -24,18 +24,22 @@ export function ProposalList({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState("");
   const count = (status: string) => items.filter((i) => i.status === status).length;
   const proposed = count("proposed");
 
   async function approveAll() {
     setBusy(true);
     setError(null);
+    setAnnouncement("");
     const result = await postJson<{ ok: true; count: number }>(
       `/api/products/${productId}/proposals`,
       { action: "approve-all", type },
     );
     setBusy(false);
-    if (!result.ok) return setError("Couldn't approve them all. Try again.");
+    if (!result.ok) return setError(result.message ?? "Couldn't approve them all. Try again.");
+    const n = result.data.count ?? 0;
+    setAnnouncement(`Approved ${n} ${n === 1 ? type : `${type}s`}`);
     router.refresh();
   }
 
@@ -64,13 +68,21 @@ export function ProposalList({
         )}
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-sm text-bad">
+        <p role="alert" className="mt-2 whitespace-pre-line text-sm text-bad">
           {error}
         </p>
       )}
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
       <ul className="mt-2 divide-y divide-line">
         {items.map((item) => (
-          <ProposalItem key={item.id} productId={productId} item={item} />
+          <ProposalItem
+            key={item.id}
+            productId={productId}
+            item={item}
+            onResult={setAnnouncement}
+          />
         ))}
       </ul>
     </Panel>

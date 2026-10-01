@@ -118,4 +118,93 @@ describe("ProposalList", () => {
     expect(link).toHaveAttribute("target", "_blank");
     expect(screen.queryByRole("button", { name: /^Edit/ })).toBeNull();
   });
+
+  it("moves focus into the first field on Edit and back to Edit on Cancel", () => {
+    renderList([row({})]);
+    fireEvent.click(screen.getByRole("button", { name: 'Edit keyword "example widgets"' }));
+    expect(screen.getByLabelText("Term")).toHaveFocus();
+    fireEvent.click(
+      screen.getByRole("button", { name: 'Cancel editing keyword "example widgets"' }),
+    );
+    expect(screen.getByRole("button", { name: 'Edit keyword "example widgets"' })).toHaveFocus();
+  });
+
+  it("returns focus to Edit after a successful save", async () => {
+    api.postJson.mockResolvedValue({ ok: true, data: { ok: true } });
+    renderList([row({})]);
+    fireEvent.click(screen.getByRole("button", { name: 'Edit keyword "example widgets"' }));
+    fireEvent.click(screen.getByRole("button", { name: 'Save keyword "example widgets"' }));
+    await vi.waitFor(() =>
+      expect(screen.getByRole("button", { name: 'Edit keyword "example widgets"' })).toHaveFocus(),
+    );
+  });
+
+  it("Cancel restores the original draft", () => {
+    renderList([row({})]);
+    fireEvent.click(screen.getByRole("button", { name: 'Edit keyword "example widgets"' }));
+    fireEvent.change(screen.getByLabelText("Term"), { target: { value: "changed" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: 'Cancel editing keyword "example widgets"' }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: 'Edit keyword "example widgets"' }));
+    expect(screen.getByLabelText("Term")).toHaveValue("example widgets");
+  });
+
+  it("rejects an item and announces it", async () => {
+    api.postJson.mockResolvedValue({ ok: true, data: { ok: true } });
+    renderList([row({ id: 4 })]);
+    fireEvent.click(screen.getByRole("button", { name: 'Reject keyword "example widgets"' }));
+    await vi.waitFor(() =>
+      expect(api.postJson).toHaveBeenCalledWith(URL_, { action: "reject", proposalId: 4 }),
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      'Rejected keyword "example widgets"',
+    );
+  });
+
+  it("keeps focus on Approve and ignores clicks while busy or already approved", async () => {
+    let finish: (v: unknown) => void = () => {};
+    api.postJson.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    renderList([row({})]);
+    const button = screen.getByRole("button", { name: 'Approve keyword "example widgets"' });
+    button.focus();
+    fireEvent.click(button);
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(button).not.toBeDisabled();
+    expect(button).toHaveFocus();
+    fireEvent.click(button);
+    expect(api.postJson).toHaveBeenCalledTimes(1);
+    finish({ ok: true, data: { ok: true } });
+    await vi.waitFor(() => expect(nav.refresh).toHaveBeenCalled());
+  });
+
+  it("ignores Approve on an already approved item", () => {
+    renderList([row({ status: "approved" })]);
+    const button = screen.getByRole("button", { name: 'Approve keyword "example widgets"' });
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(button);
+    expect(api.postJson).not.toHaveBeenCalled();
+  });
+
+  it("announces approve-all results and surfaces server messages on failure", async () => {
+    api.postJson.mockResolvedValueOnce({ ok: true, data: { ok: true, count: 12 } });
+    renderList([row({})]);
+    fireEvent.click(screen.getByRole("button", { name: "Approve all proposed" }));
+    expect(await screen.findByText("Approved 12 keywords")).toBeInTheDocument();
+    api.postJson.mockResolvedValueOnce({ ok: false, error: "x", message: "Nope" });
+    fireEvent.click(screen.getByRole("button", { name: "Approve all proposed" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nope");
+  });
+
+  it("shows multi-line validation messages", async () => {
+    api.postJson.mockResolvedValue({
+      ok: false,
+      error: "invalid_edit",
+      message: "term: Too small\nintent: Invalid",
+    });
+    renderList([row({})]);
+    fireEvent.click(screen.getByRole("button", { name: 'Edit keyword "example widgets"' }));
+    fireEvent.click(screen.getByRole("button", { name: 'Save keyword "example widgets"' }));
+    expect(await screen.findByRole("alert")).toHaveClass("whitespace-pre-line");
+  });
 });

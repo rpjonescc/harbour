@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import type { ProposalRow } from "@/lib/agents/proposals";
@@ -11,14 +11,8 @@ import { cleanValue, FIELDS, proposalLabel } from "./proposal-fields";
 const INPUT = "w-full rounded-sm border border-line bg-surface px-2 py-1 text-sm";
 
 function StatusTag({ status }: { status: string }) {
-  if (status === "proposed") {
-    return (
-      <span className="inline-block rounded-full bg-warn-soft px-2 py-0.5 text-2xs font-medium text-ink">
-        proposed
-      </span>
-    );
-  }
-  return <Tag tone={status === "approved" ? "accent" : "neutral"}>{status}</Tag>;
+  const tone = status === "proposed" ? "warn" : status === "approved" ? "accent" : "neutral";
+  return <Tag tone={tone}>{status}</Tag>;
 }
 
 function ValueView({ item }: { item: ProposalRow }) {
@@ -56,15 +50,38 @@ function ValueView({ item }: { item: ProposalRow }) {
 }
 
 /** One proposal row with approve / reject / edit controls. */
-export function ProposalItem({ productId, item }: { productId: string; item: ProposalRow }) {
+export function ProposalItem({
+  productId,
+  item,
+  onResult,
+}: {
+  productId: string;
+  item: ProposalRow;
+  onResult?: (message: string) => void;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Record<string, string>>(item.value);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const label = proposalLabel(item.type, item.value);
+  const editButton = useRef<HTMLButtonElement>(null);
+  const firstField = useRef<HTMLInputElement & HTMLSelectElement>(null);
+  const wasEditing = useRef(false);
 
-  async function send(body: unknown, failure: string) {
+  useEffect(() => {
+    if (editing) firstField.current?.focus();
+    else if (wasEditing.current) editButton.current?.focus();
+    wasEditing.current = editing;
+  }, [editing]);
+
+  function startEditing() {
+    setDraft(item.value);
+    setError(null);
+    setEditing(true);
+  }
+
+  async function send(body: unknown, failure: string, success: string) {
     setBusy(true);
     setError(null);
     const result = await postJson<{ ok: true }>(`/api/products/${productId}/proposals`, body);
@@ -73,8 +90,19 @@ export function ProposalItem({ productId, item }: { productId: string; item: Pro
       return setError(result.error === "invalid_edit" && result.message ? result.message : failure);
     }
     setEditing(false);
+    onResult?.(success);
     router.refresh();
   }
+
+  const decide = (action: "approve" | "reject") => {
+    const alreadyDone = item.status === (action === "approve" ? "approved" : "rejected");
+    if (busy || alreadyDone) return;
+    void send(
+      { action, proposalId: item.id },
+      `Couldn't ${action}. Try again.`,
+      `${action === "approve" ? "Approved" : "Rejected"} ${label}`,
+    );
+  };
 
   return (
     <li className="flex flex-col gap-2 py-3">
@@ -96,16 +124,18 @@ export function ProposalItem({ productId, item }: { productId: string; item: Pro
             void send(
               { action: "edit", proposalId: item.id, value: cleanValue(item.type, draft) },
               "Couldn't save. Try again.",
+              `Saved ${label}`,
             );
           }}
         >
-          {FIELDS[item.type].map((field) => (
+          {FIELDS[item.type].map((field, index) => (
             <div key={field.name} className="flex flex-col gap-1 text-sm">
               <label htmlFor={`p${item.id}-${field.name}`} className="text-ink-muted">
                 {field.label}
               </label>
               {field.choices ? (
                 <select
+                  ref={index === 0 ? firstField : undefined}
                   id={`p${item.id}-${field.name}`}
                   className={INPUT}
                   value={draft[field.name] ?? ""}
@@ -119,6 +149,7 @@ export function ProposalItem({ productId, item }: { productId: string; item: Pro
                 </select>
               ) : (
                 <input
+                  ref={index === 0 ? firstField : undefined}
                   id={`p${item.id}-${field.name}`}
                   className={INPUT}
                   value={draft[field.name] ?? ""}
@@ -148,29 +179,28 @@ export function ProposalItem({ productId, item }: { productId: string; item: Pro
       ) : (
         <div className="flex flex-wrap gap-2">
           <Button
-            disabled={busy || item.status === "approved"}
-            onClick={() =>
-              send({ action: "approve", proposalId: item.id }, "Couldn't approve. Try again.")
-            }
+            aria-disabled={busy || item.status === "approved"}
+            onClick={() => decide("approve")}
             aria-label={`Approve ${label}`}
+            className="aria-disabled:opacity-50"
           >
             Approve
           </Button>
           <Button
             variant="ghost"
-            disabled={busy || item.status === "rejected"}
-            onClick={() =>
-              send({ action: "reject", proposalId: item.id }, "Couldn't reject. Try again.")
-            }
+            aria-disabled={busy || item.status === "rejected"}
+            onClick={() => decide("reject")}
             aria-label={`Reject ${label}`}
+            className="aria-disabled:opacity-50"
           >
             Reject
           </Button>
           {item.status !== "rejected" && (
             <Button
+              ref={editButton}
               variant="ghost"
               disabled={busy}
-              onClick={() => setEditing(true)}
+              onClick={startEditing}
               aria-label={`Edit ${label}`}
             >
               Edit
@@ -179,7 +209,7 @@ export function ProposalItem({ productId, item }: { productId: string; item: Pro
         </div>
       )}
       {error && (
-        <p role="alert" className="text-sm text-bad">
+        <p role="alert" className="whitespace-pre-line text-sm text-bad">
           {error}
         </p>
       )}

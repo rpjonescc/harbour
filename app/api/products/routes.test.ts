@@ -116,4 +116,34 @@ describe("POST /api/products/[id]/proposals", () => {
     expect(await response.json()).toEqual({ ok: true, count: 2 });
     expect(rows().every((r) => r.status === "approved")).toBe(true);
   });
+
+  it("returns 400 when editing a rejected item", async () => {
+    const [a] = seed();
+    await POST(post({ action: "reject", proposalId: a }), params());
+    const response = await POST(
+      post({ action: "edit", proposalId: a, value: { term: "x", intent: "local" } }),
+      params(),
+    );
+    expect(response.status).toBe(400);
+    expect(((await response.json()) as { error: string }).error).toBe("invalid_edit");
+  });
+
+  it("404s for a proposal that belongs to another product", async () => {
+    const [a] = seed();
+    expect((await POST(post({ action: "approve", proposalId: a }), params("other"))).status).toBe(
+      404,
+    );
+    expect(rows().find((r) => r.id === a)?.status).toBe("proposed");
+  });
+
+  it("reports validation errors as readable field lines", async () => {
+    const [a] = seed();
+    const response = await POST(
+      post({ action: "edit", proposalId: a, value: { term: "", intent: "commercial" } }),
+      params(),
+    );
+    const { message } = (await response.json()) as { message: string };
+    expect(message).toMatch(/^term: /);
+    expect(message).not.toContain("✖");
+  });
 });
