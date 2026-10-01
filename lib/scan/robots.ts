@@ -69,14 +69,37 @@ function rulesFor(robots: Robots, agent: string): RobotsRule[] {
   return groups.flatMap((group) => group.rules);
 }
 
+/**
+ * Glob match where `*` is any run of characters: two pointers that backtrack only to the last
+ * `*`, so the cost is O(pattern × path) — a regex here backtracks exponentially.
+ */
+function globMatches(pattern: string, path: string): boolean {
+  let p = 0;
+  let s = 0;
+  let star = -1;
+  let resume = 0;
+  while (s < path.length) {
+    if (pattern[p] === "*") {
+      star = p++;
+      resume = s;
+    } else if (p < pattern.length && pattern[p] === path[s]) {
+      p++;
+      s++;
+    } else if (star !== -1) {
+      p = star + 1;
+      s = ++resume;
+    } else {
+      return false;
+    }
+  }
+  while (pattern[p] === "*") p++;
+  return p === pattern.length;
+}
+
+/** Rules match a path prefix unless they end with the `$` anchor. */
 function patternMatches(pattern: string, path: string): boolean {
-  const anchored = pattern.endsWith("$");
-  const body = anchored ? pattern.slice(0, -1) : pattern;
-  const source = body
-    .split("*")
-    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
-    .join(".*");
-  return new RegExp(`^${source}${anchored ? "$" : ""}`).test(path);
+  if (pattern.endsWith("$")) return globMatches(pattern.slice(0, -1), path);
+  return globMatches(`${pattern}*`, path);
 }
 
 function allowedBy(rules: readonly RobotsRule[], path: string): boolean {

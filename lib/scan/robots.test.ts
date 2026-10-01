@@ -97,6 +97,13 @@ describe("isAllowed", () => {
     expect(isAllowed(robots, "HarbourBot", "/axb(c)/d")).toBe(true);
   });
 
+  it("matches many wildcards against a long path in linear time", () => {
+    const robots = parseRobots("User-agent: *\nDisallow: /*a*a*a*a*a*a*a*a*a*a*a*a*b\n");
+    const started = performance.now();
+    expect(isAllowed(robots, "HarbourBot", `/${"a".repeat(60)}`)).toBe(true);
+    expect(performance.now() - started).toBeLessThan(50);
+  });
+
   it("always allows /robots.txt itself", () => {
     expect(
       isAllowed(parseRobots("User-agent: *\nDisallow: /\n"), "HarbourBot", "/robots.txt"),
