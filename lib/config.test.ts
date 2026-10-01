@@ -126,3 +126,17 @@ describe("agent settings", () => {
     ).toBe(5);
   });
 });
+
+describe("crawl settings", () => {
+  it("caps a crawl at 200 pages by default", () => {
+    expect(parseConfig(base).HARBOUR_CRAWL_MAX_PAGES).toBe(200);
+  });
+  it("accepts 1 to 500 pages", () => {
+    expect(() => parseConfig({ ...base, HARBOUR_CRAWL_MAX_PAGES: "0" })).toThrow();
+    expect(() => parseConfig({ ...base, HARBOUR_CRAWL_MAX_PAGES: "501" })).toThrow();
+    expect(parseConfig({ ...base, HARBOUR_CRAWL_MAX_PAGES: "1" }).HARBOUR_CRAWL_MAX_PAGES).toBe(1);
+    expect(parseConfig({ ...base, HARBOUR_CRAWL_MAX_PAGES: "500" }).HARBOUR_CRAWL_MAX_PAGES).toBe(
+      500,
+    );
+  });
+});

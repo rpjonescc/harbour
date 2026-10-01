@@ -68,6 +68,8 @@ const schema = z
     // Full model id (aliases like "sonnet" can resolve to an older model).
     HARBOUR_AGENT_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
     HARBOUR_AGENT_TIMEOUT_MINUTES: z.coerce.number().int().min(1).max(120).default(30),
+    // Most pages the crawler fetches per product per scan.
+    HARBOUR_CRAWL_MAX_PAGES: z.coerce.number().int().min(1).max(500).default(200),
   })
   .refine((c) => rpIdMatchesOrigin(c.HARBOUR_RP_ID, c.HARBOUR_ORIGIN), {
     message: "HARBOUR_RP_ID must equal HARBOUR_ORIGIN's hostname or be a parent domain of it",
