@@ -1,10 +1,11 @@
 import { readCappedBody } from "./fetch-body";
 import { FetchError } from "./fetch-error";
 import { HostLimiter } from "./host-limiter";
+import { sendRequest } from "./http-request";
 import { resolvePublicHost } from "./public-host";
 import { createRobotsGate, NO_RULES, robotsForStatus } from "./robots-gate";
 import { sameSite, siteKey } from "./site";
-import type { SafeFetch, SafeFetchOptions } from "./types";
+import type { SafeFetch, SafeFetchOptions, SafeFetchResponse } from "./types";
 
 export const HARBOUR_USER_AGENT = "HarbourBot/0.1 (+https://github.com/rpjonescc/harbour)";
 const ROBOTS_MAX_BYTES = 512 * 1024;
@@ -35,10 +36,8 @@ const DEFAULTS: Omit<SafeFetchSettings, "allowedHosts"> = {
   robotsTtlMs: 10 * 60_000,
 };
 
-type Hop = { status: number; headers: Record<string, string>; ms: number } & (
-  | { location: string }
-  | { location: null; body: string; truncated: boolean }
-);
+type Hop = Pick<SafeFetchResponse, "status" | "headers" | "headerLines" | "ms"> &
+  ({ location: string } | { location: null; body: string; truncated: boolean });
 
 function parseHttpUrl(raw: string, base?: URL): URL | null {
   if (!URL.canParse(raw, base)) return null;
@@ -71,39 +70,39 @@ export function createSafeFetch(
 
   async function request(url: URL, options: SafeFetchOptions): Promise<Hop> {
     const started = performance.now();
+    const timeoutMs = options.timeoutMs ?? settings.timeoutMs;
     const timeout = new AbortController();
-    const timer = setTimeout(() => timeout.abort(), settings.timeoutMs);
+    const timer = setTimeout(() => timeout.abort(new Error("timeout")), timeoutMs);
     const signal = options.signal
       ? AbortSignal.any([options.signal, timeout.signal])
       : timeout.signal;
     const strict = options.onOverflow === "error";
     try {
-      const response = await fetch(url, {
-        redirect: "manual",
+      const response = await sendRequest(
+        url,
+        { "user-agent": HARBOUR_USER_AGENT, accept: options.accept ?? "*/*" },
         signal,
-        headers: { "user-agent": HARBOUR_USER_AGENT, accept: options.accept ?? "*/*" },
-      });
-      const headers = Object.fromEntries(response.headers);
-      const { status } = response;
+      );
+      const { status, headers, headerLines } = response;
       const location = status >= 300 && status < 400 ? headers.location : undefined;
+      const ms = () => performance.now() - started;
       if (location) {
-        await response.body?.cancel();
-        return { status, headers, location, ms: performance.now() - started };
+        response.body.destroy();
+        return { status, headers, headerLines, location, ms: ms() };
       }
       const declared = headers["content-length"] ?? "";
       if (strict && Number(declared) > options.maxBytes) {
-        await response.body?.cancel();
+        response.body.destroy();
         throw tooLarge(url, declared, options.maxBytes);
       }
       const { text, truncated } = await readCappedBody(response.body, options.maxBytes);
       if (strict && truncated) throw tooLarge(url, `over ${options.maxBytes}`, options.maxBytes);
-      const ms = performance.now() - started;
-      return { status, headers, location: null, body: text, truncated, ms };
+      return { status, headers, headerLines, location: null, body: text, truncated, ms: ms() };
     } catch (error) {
       if (error instanceof FetchError) throw error;
       if (options.signal?.aborted) throw options.signal.reason;
       if (timeout.signal.aborted) {
-        throw new FetchError("timeout", `${url} took longer than ${settings.timeoutMs} ms`);
+        throw new FetchError("timeout", `${url} took longer than ${timeoutMs} ms`);
       }
       throw new FetchError("network", `${url} failed: ${String(error)}`, { cause: error });
     } finally {
@@ -141,19 +140,22 @@ export function createSafeFetch(
     assertAllowedHost(start, "network");
     let current = start;
     let ms = 0;
+    const redirects: string[] = [];
     for (let hops = 0; hops <= settings.maxRedirects; hops++) {
       if (!options.ignoreRobots) await assertRobotsAllow(current, options.signal);
       const result = await hop(current, options);
       ms += result.ms;
       if (result.location === null) {
-        const { status, headers, body, truncated } = result;
-        return { url: raw, finalUrl: current.href, status, headers, body, truncated, ms };
+        const { status, headers, headerLines, body, truncated } = result;
+        const finalUrl = current.href;
+        return { url: raw, finalUrl, redirects, status, headers, headerLines, body, truncated, ms };
       }
       const next = parseHttpUrl(result.location, current);
       if (!next || !sameSite(start, next)) {
         throw new FetchError("redirect", `${current} redirects off-site to ${result.location}`);
       }
       assertAllowedHost(next, "redirect");
+      redirects.push(current.href);
       current = next;
     }
     throw new FetchError("redirect", `${raw} redirects more than ${settings.maxRedirects} times`);

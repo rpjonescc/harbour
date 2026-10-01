@@ -1,3 +1,4 @@
+import { gzipSync } from "node:zlib";
 import { closeSites, fetchError, never, redirect, site, text } from "@/tests/helpers/http-site";
 import { createSafeFetch, HARBOUR_USER_AGENT } from "./fetch";
 import { HostLimiter } from "./host-limiter";
@@ -42,6 +43,33 @@ describe("safeFetch", () => {
     expect(accept).toBe("text/html");
   });
 
+  it("keeps each header line as sent, even when a header repeats", async () => {
+    const { origin } = await site({
+      "/page": (_req, res) => {
+        res.setHeader("X-Robots-Tag", ["otherbot: noindex", "noindex"]);
+        res.end("hi");
+      },
+    });
+    const response = await testFetch()(`${origin}/page`, opts);
+    const robotsLines = response.headerLines.filter(([name]) => name === "x-robots-tag");
+    expect(robotsLines).toEqual([
+      ["x-robots-tag", "otherbot: noindex"],
+      ["x-robots-tag", "noindex"],
+    ]);
+    expect(response.headers["x-robots-tag"]).toBe("otherbot: noindex, noindex");
+  });
+
+  it("decodes a compressed body", async () => {
+    const { origin } = await site({
+      "/zip": (_req, res) =>
+        res
+          .writeHead(200, { "content-type": "text/plain", "content-encoding": "gzip" })
+          .end(gzipSync("compressed hello")),
+    });
+    const response = await testFetch()(`${origin}/zip`, opts);
+    expect(response.body).toBe("compressed hello");
+  });
+
   it("returns error statuses as responses", async () => {
     const { origin } = await site({});
     const response = await testFetch()(`${origin}/missing`, opts);
@@ -80,6 +108,30 @@ describe("safeFetch", () => {
       body: "done",
     });
     expect(hits).toEqual(["/1", "/2", "/3", "/final"]);
+  });
+
+  it("lists every URL that redirected, in order", async () => {
+    const { origin } = await site({
+      "/1": redirect("/2"),
+      "/2": redirect("/final"),
+      "/final": text("done"),
+      "/direct": text("done"),
+    });
+    const fetch = testFetch();
+    expect((await fetch(`${origin}/1`, opts)).redirects).toEqual([`${origin}/1`, `${origin}/2`]);
+    expect((await fetch(`${origin}/direct`, opts)).redirects).toEqual([]);
+  });
+
+  it("lets one call override the timeout", async () => {
+    const { origin } = await site({
+      "/slow": never,
+      "/late": (_req, res) => setTimeout(() => res.end("late"), 300),
+    });
+    const short = await fetchError(testFetch()(`${origin}/slow`, { ...opts, timeoutMs: 100 }));
+    expect(short.kind).toBe("timeout");
+    expect(short.message).toContain("100 ms");
+    const long = testFetch({ timeoutMs: 100 })(`${origin}/late`, { ...opts, timeoutMs: 2_000 });
+    expect((await long).body).toBe("late");
   });
 
   it("refuses a fourth redirect", async () => {

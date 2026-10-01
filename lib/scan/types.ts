@@ -16,8 +16,13 @@ export type CollectorStatus = CollectorResult["status"] | "failed";
 export type SafeFetchResponse = {
   url: string;
   finalUrl: string;
+  /** Each URL that answered with a redirect, in order (empty when there was none). */
+  redirects: string[];
   status: number;
+  /** Lowercased names; a repeated header's values joined with ", ". */
   headers: Record<string, string>;
+  /** Every header line as received (lowercased names), so repeated headers stay apart. */
+  headerLines: [string, string][];
   body: string;
   truncated: boolean;
   ms: number;
@@ -38,6 +43,11 @@ export type SafeFetchOptions = {
    * HarbourBot. Only API calls that aren't crawling a site (Google APIs) opt out.
    */
   ignoreRobots?: true;
+  /**
+   * Overrides the 15 s per-request timeout. Only Google API calls use it: PageSpeed Insights
+   * runs Lighthouse before answering, which takes 15–40 s.
+   */
+  timeoutMs?: number;
 };
 
 /** Outbound HTTP for collectors: timeouts, redirect and size limits, robots, politeness. */

@@ -1,24 +1,24 @@
-/** Reads a response body as UTF-8 up to `maxBytes`, cancelling the stream once the cap is hit. */
+import type { Readable } from "node:stream";
+
+/** Reads a response body as UTF-8 up to `maxBytes`, destroying the stream once the cap is hit. */
 export async function readCappedBody(
-  body: ReadableStream<Uint8Array> | null,
+  body: Readable,
   maxBytes: number,
 ): Promise<{ text: string; truncated: boolean }> {
-  if (!body) return { text: "", truncated: false };
-  const reader = body.getReader();
   const decoder = new TextDecoder();
   let received = 0;
   let text = "";
   // Bounded: each pass consumes a chunk and the cap stops the loop.
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) return { text: text + decoder.decode(), truncated: false };
+  for await (const chunk of body) {
+    const bytes: Uint8Array = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
     const room = maxBytes - received;
-    if (value.byteLength > room) {
-      text += decoder.decode(value.subarray(0, room));
-      await reader.cancel();
+    if (bytes.byteLength > room) {
+      text += decoder.decode(bytes.subarray(0, room));
+      body.destroy();
       return { text, truncated: true };
     }
-    received += value.byteLength;
-    text += decoder.decode(value, { stream: true });
+    received += bytes.byteLength;
+    text += decoder.decode(bytes, { stream: true });
   }
+  return { text: text + decoder.decode(), truncated: false };
 }
