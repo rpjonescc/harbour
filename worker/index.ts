@@ -1,4 +1,4 @@
-// Harbour worker: runs queued jobs (agents, git sync, scans, backups) one at a time. Started by systemd (`pnpm worker`).
+// Harbour worker: runs queued jobs (agents, git sync, scans, backups, retention) one at a time. Started by systemd (`pnpm worker`).
 // Must not import any module that imports "server-only".
 
 import { makeSnoozeWaker } from "@/lib/actions/store";
@@ -17,7 +17,7 @@ import { runAgentJob } from "@/lib/jobs/run-job";
 import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
 import { makeScheduler } from "@/lib/jobs/scheduler";
 import { failUnknownJob } from "@/lib/jobs/unknown-job";
-import { runBackupJob } from "@/lib/ops/backup-job";
+import { type OpsJobDeps, runBackupJob, runRetentionJob } from "@/lib/ops/backup-job";
 import { describeNextBackup, makeBackupSchedule } from "@/lib/ops/backup-schedule";
 import { getProducts } from "@/lib/products/catalog";
 import { runScan } from "@/lib/scan/run-scan";
@@ -90,6 +90,14 @@ async function main() {
     `harbour-worker ready; ${describeNextBackup(new Date(), config.HARBOUR_TIMEZONE, backupsOn)}`,
   );
 
+  const opsDeps = (now: () => Date): OpsJobDeps => ({
+    db,
+    config,
+    productIds: () => getProducts().map((p) => p.id),
+    now,
+    stopping: () => stopping,
+  });
+
   const runJob = async (job: Job) => {
     const now = () => new Date();
     if (job.kind === "brain-push") {
@@ -107,16 +115,9 @@ async function main() {
       });
       await runScan(deps, job);
     } else if (job.kind === "backup") {
-      await runBackupJob(
-        {
-          db,
-          config,
-          productIds: () => getProducts().map((p) => p.id),
-          now,
-          stopping: () => stopping,
-        },
-        job,
-      );
+      await runBackupJob(opsDeps(now), job);
+    } else if (job.kind === "retention") {
+      await runRetentionJob(opsDeps(now), job);
     } else if (isAgentJobKind(job.kind)) {
       const { pushed } = await runAgentJob(
         {

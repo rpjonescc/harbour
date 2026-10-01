@@ -219,6 +219,23 @@ describe("test-only loopback scans", () => {
   });
 });
 
+describe("observation retention setting", () => {
+  it("keeps the observations of the newest 30 scans by default", () => {
+    expect(parseConfig(base).HARBOUR_OBSERVATION_SCANS_KEPT).toBe(30);
+    expect(
+      parseConfig({ ...base, HARBOUR_OBSERVATION_SCANS_KEPT: "7" }).HARBOUR_OBSERVATION_SCANS_KEPT,
+    ).toBe(7);
+  });
+
+  it("refuses fewer than 7 or more than 365 scans", () => {
+    for (const value of ["6", "366", "30.5", "lots"]) {
+      expect(() => parseConfig({ ...base, HARBOUR_OBSERVATION_SCANS_KEPT: value })).toThrow(
+        /HARBOUR_OBSERVATION_SCANS_KEPT/,
+      );
+    }
+  });
+});
+
 describe("backup settings", () => {
   it("backs up nightly by default into the default folder", () => {
     const config = parseConfig(base);

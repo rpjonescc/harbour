@@ -27,6 +27,7 @@
     "scan:now": "tsx --env-file=.env scripts/scan-now.ts",
     "analyst:now": "tsx --env-file=.env scripts/analyst-now.ts",
     "backup:now": "tsx --env-file=.env scripts/backup-now.ts",
+    "retention:check": "tsx --env-file=.env scripts/retention-check.ts",
     "worker": "tsx --env-file=.env worker/index.ts",
     "prepare": "lefthook install"
   },

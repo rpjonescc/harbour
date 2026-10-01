@@ -116,6 +116,8 @@ const schema = z
     HARBOUR_BACKUP_DIR: z.string().min(1).optional(),
     // "off" stops the worker queueing the nightly backup (`pnpm backup:now` still works).
     HARBOUR_SCHEDULED_BACKUP: z.enum(["on", "off"]).default("on"),
+    // Scans per product whose observations retention keeps (after each verified backup).
+    HARBOUR_OBSERVATION_SCANS_KEPT: z.coerce.number().int().min(7).max(365).default(30),
     // Secret: Google API key for PageSpeed Insights; without one it is not connected. Worker only.
     HARBOUR_PAGESPEED_API_KEY: z.string().min(1).optional(),
     // Path to a Google credentials JSON file for Search Console (secret, mode 600). Worker only.

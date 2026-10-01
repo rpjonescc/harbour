@@ -241,6 +241,7 @@ pnpm agents:initial-run  # once: queues every research topic, then discovery per
 pnpm scan:now       # queues a visibility scan of every product now (or: pnpm scan:now <productId>)
 pnpm analyst:now    # queues the weekly analyst report for the current week now
 pnpm backup:now     # queues a backup of the database now (see "Backups and restore")
+pnpm retention:check  # read-only: what the next retention run would delete (see "Data kept")
 ```
 
 A deployed install runs the worker as the `harbour-worker` systemd user service (see
@@ -293,6 +294,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Run weekly report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
 | `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
+| `HARBOUR_OBSERVATION_SCANS_KEPT` | no | `30` | How many of each product's newest scans keep their raw observations (7 to 365); older scans' observations are deleted after each verified backup (see [Data kept](#data-kept)). Scores and scan history are always kept. Restart the worker after changing it. |
 | `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
 | `HARBOUR_GSC_CREDENTIALS` | for Search Console | unset | Absolute path to a Google credentials JSON file — a service account key or an OAuth authorized-user file (see [Connect Search Console](#connect-search-console)). Keep it outside the repo with mode 600; Harbour warns in the scan if other users can read it. Read by the worker only; its contents and the access tokens are never logged, shown or stored. Restart the worker after changing it. |
 | `HARBOUR_TEST_MODE` | tests only | `0` | `1` marks the end-to-end test environment (`pnpm test:e2e` sets it). Refused unless `HARBOUR_ORIGIN` is a loopback origin (`http://localhost`, `127.0.0.1` or `[::1]`), so a deployed Harbour cannot turn it on. Never set it yourself. |
@@ -339,7 +341,9 @@ minutes after that; after three failures the worker waits for the next night. A 
 worker's own stop interrupts counts as a failed attempt and is retried the same way; one you
 cancel on **Agents** stays cancelled until the next night. A backup you queue by hand
 (`pnpm backup:now`) counts as that day's. Set `HARBOUR_SCHEDULED_BACKUP=off` to
-back up only by hand. The worker's start-up line says when the next backup is due.
+back up only by hand. The worker's start-up line says when the next backup is due. Each
+verified backup then queues a retention job that prunes old scan observations (see
+[Data kept](#data-kept)).
 
 ### Daily scans
 
@@ -410,6 +414,38 @@ To restore one:
    belong to the database you replaced.
 4. Start the web, then the worker: `systemctl --user start harbour-web`, then
    `systemctl --user start harbour-worker`.
+
+### Data kept
+
+Raw observations (every page, robots.txt and PageSpeed record a scan stores) are most of the
+database: a crawl alone stores up to 200 page records per product per day. After each verified
+backup the worker runs a retention job that deletes the observations of old scans, so the file
+stops growing. For each product (configured or not) it keeps:
+
+- the observations of the newest `HARBOUR_OBSERVATION_SCANS_KEPT` scans (default 30, whatever
+  their outcome) and of any scan still running;
+- the observations of each source's latest successful run, however old, so a weekly result
+  such as PageSpeed still counts in later scores;
+- the observations of the scan behind the latest scores, which the product page and the
+  weekly export read.
+
+Nothing else is ever pruned: scan runs, collector runs (with how many records each stored) and
+scores stay complete, so score history, trends and **Sources** never change, and nor do job
+history, agent runs, actions or the audit log. A run deletes at most 2,000 rows per statement,
+each statement its own short transaction so the web never waits long, and at most 500,000 rows
+(from at most 500 scans) per night; the rest goes after the next night's backup. The job's
+events on **Agents** say how many observations it removed per product.
+
+Deleted space is reused by later scans rather than returned to the disk: Harbour never runs
+`VACUUM`, which rewrites the whole file and blocks the web while it runs. If you lower
+`HARBOUR_OBSERVATION_SCANS_KEPT` a lot and want the space back, stop both services
+(`systemctl --user stop harbour-worker harbour-web`), run `sqlite3 data/harbour.db 'VACUUM'`
+(your `HARBOUR_DB_PATH`), then start the web and the worker again.
+
+To see what the next run would delete without changing anything, run `pnpm retention:check`.
+It opens the database read-only and prints, per product, the old scans and observation count
+to remove, the totals, and the row counts of `observations`, `jobs` and `agent_run_events`
+(job history is kept; it grows by a few rows a day).
 
 ## Reading the results
 
@@ -632,7 +668,7 @@ lib/          auth, agents, brain, config, db, jobs, ops (backups), products, se
 worker/       the job worker (`pnpm worker`): agent runs, scans, backups, autosave and push retries
 deploy/       systemd unit template, install script, deployment guide
 drizzle/      SQL migrations
-scripts/      repo checks and the setup-token, initial-run, scan-now, analyst-now and backup-now CLIs
+scripts/      repo checks and the setup-token, initial-run, scan-now, analyst-now, backup-now and retention-check CLIs
 tests/        e2e specs and test helpers
 docs/         design spec and implementation plans
 ```

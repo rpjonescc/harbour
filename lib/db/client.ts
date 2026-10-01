@@ -36,6 +36,16 @@ export function openDb(path: string): Db {
   return drizzle({ client: sqlite, schema });
 }
 
+/**
+ * Opens an existing database read-only, for inspection scripts that must never write (no
+ * migrations, no pragma or permission changes). Throws if the file does not exist.
+ */
+export function openReadonlyDb(path: string): Db {
+  const sqlite = new Database(path, { readonly: true, fileMustExist: true });
+  sqlite.pragma("busy_timeout = 5000");
+  return drizzle({ client: sqlite, schema });
+}
+
 /** Applies pending migrations from ./drizzle. Safe to run repeatedly. */
 export function migrateDb(db: Db): void {
   migrate(db, { migrationsFolder: join(process.cwd(), "drizzle") });

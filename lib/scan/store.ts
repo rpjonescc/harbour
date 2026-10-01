@@ -66,7 +66,8 @@ export function recordCollectorRun(db: Db, run: CollectorRunRecord): void {
   });
 }
 
-function latestOkRun(db: Db, productId: string, collector: string) {
+/** A collector's latest ok run for a product (newest finish), or undefined if it never ran ok. */
+export function latestOkRun(db: Db, productId: string, collector: string) {
   return db
     .select({ scanId: collectorRuns.scanId, finishedAt: collectorRuns.finishedAt })
     .from(collectorRuns)

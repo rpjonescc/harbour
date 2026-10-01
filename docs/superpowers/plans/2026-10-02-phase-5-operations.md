@@ -204,7 +204,7 @@ Everything else's observations are deleted with `DELETE FROM observations WHERE 
 - [ ] **Step 5: Docs**: README "Backups and restore" → "Data kept" (what is pruned and kept, N, no VACUUM and how to reclaim space by hand, `pnpm retention:check`), Configuration row, `.env.example`. Spec §11 (see "Spec changes").
 - [ ] **Step 6: Commit** `feat(ops): prune old scan observations after each verified backup`.
 
-**As built:** _(implementer)_
+**As built:** as specified, with these additions. Retention also keeps the scan behind the product's latest scores (newest `computedAt` of an ok/partial scan): the product page and weekly export read it, and it can be older than the newest N when every later scan failed; `keptForCarryOver` counts every older scan kept for a reader (running, a collector's latest ok run, latest scored). A kept scan keeps all its observations, not only the carried-over collector's. `latestOkRun` is exported from `lib/scan/store.ts` so the carry-over rule has one definition. The dry run opens the database with a new `openReadonlyDb` (better-sqlite3 `readonly`, `fileMustExist`; no chmod, no `journal_mode` pragma) instead of `openDb`, so it cannot write; SQLite still creates an empty `-wal` and the `-shm` index (same mode as the database) when none exist. An owner's cancel stops retention between batches like a worker stop (job `cancelled`, no error). A plan cut at 500 scans adds the event "Pruned the oldest 500 scans; the rest goes after tomorrow's backup". Live-run counts: recorded in Task 6.
 
 ---
 
