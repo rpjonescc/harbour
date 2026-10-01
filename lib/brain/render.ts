@@ -35,7 +35,8 @@ export async function renderMarkdown(body: string, index: LinkIndex): Promise<Re
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkWikiLinks, { index, onLink: (path: string) => links.add(path) })
-    .use(remarkRehype)
+    // rehype-sanitize prefixes generated ids itself; prefixing here too doubled footnote ids.
+    .use(remarkRehype, { clobberPrefix: "" })
     .use(rehypeSanitize, sanitizeSchema)
     // Prefixed so a heading such as "main" cannot reuse an id the app shell owns.
     .use(rehypeSlug, { prefix: "h-" })

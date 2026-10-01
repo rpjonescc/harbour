@@ -45,6 +45,31 @@ describe("listTree", () => {
     }
   });
 
+  it("is not truncated when exactly the limit of documents exists", () => {
+    const brain = makeBrain({ "a.md": "", "b.md": "", "c.txt": "", "zz/notes.txt": "" });
+    try {
+      const { nodes, truncated } = listTree(brain.root, 2);
+      expect(filePaths(nodes)).toEqual(["a.md", "b.md"]);
+      expect(truncated).toBe(false);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("looks inside later folders before reporting truncation", () => {
+    const more = makeBrain({ "a/x.md": "", "b/y.md": "" });
+    const none = makeBrain({ "a/x.md": "", "b/y.txt": "" });
+    try {
+      expect(listTree(more.root, 1).truncated).toBe(true);
+      const exact = listTree(none.root, 1);
+      expect(filePaths(exact.nodes)).toEqual(["a/x.md"]);
+      expect(exact.truncated).toBe(false);
+    } finally {
+      more.cleanup();
+      none.cleanup();
+    }
+  });
+
   it("counts only Markdown files toward the document limit", () => {
     const brain = makeBrain({ "a.txt": "", "b.txt": "", "c.txt": "", "x.md": "", "y.md": "" });
     try {

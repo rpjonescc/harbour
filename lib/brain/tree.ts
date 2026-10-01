@@ -52,15 +52,17 @@ export function listTree(
       );
     const nodes: TreeNode[] = [];
     for (const entry of entries) {
-      if (count >= limit) {
-        truncated = true;
-        break;
-      }
+      if (truncated && count >= limit) break;
       const path = prefix ? `${prefix}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
+        // Still walked at the limit: only a further document means the tree is truncated.
         const children = walk(join(dir, entry.name), path, depth + 1);
         if (children.length > 0) nodes.push({ kind: "dir", name: entry.name, path, children });
       } else if (entry.isFile() && entry.name.endsWith(".md")) {
+        if (count >= limit) {
+          truncated = true;
+          break;
+        }
         count += 1;
         nodes.push({ kind: "file", name: entry.name, path });
       }

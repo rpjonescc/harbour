@@ -58,6 +58,24 @@ describe("renderMarkdown", () => {
     expect(html).toContain('<h2 id="h-main">');
   });
 
+  it("points same-page author anchors at the prefixed heading ids", async () => {
+    const { html } = await renderMarkdown("## Intro\n\nBack to [intro](#intro).", index);
+    expect(html).toContain('<a href="#h-intro">intro</a>');
+  });
+
+  it("links footnotes to ids that exist and keeps them out of the outline", async () => {
+    const { html, outline } = await renderMarkdown(
+      "## Intro\n\nA note[^1].\n\n[^1]: The note.",
+      index,
+    );
+    const ids = new Set([...html.matchAll(/ id="([^"]+)"/g)].map((m) => m[1]));
+    const targets = [...html.matchAll(/ href="#([^"]+)"/g)].map((m) => m[1]);
+    expect(targets.length).toBeGreaterThanOrEqual(2);
+    for (const target of targets) expect(ids).toContain(target);
+    expect(html).not.toContain("user-content-user-content");
+    expect(outline).toEqual([{ id: "h-intro", text: "Intro", depth: 2 }]);
+  });
+
   it("renders GitHub-flavoured tables", async () => {
     const { html } = await renderMarkdown("| a | b |\n|---|---|\n| 1 | 2 |", index);
     expect(html).toContain("<table>");
