@@ -129,7 +129,7 @@ Phase 2 ships in two parts with separate implementation plans:
   (`Restart=always`), installed by `deploy/install.sh`. Shares `lib/` and the SQLite
   database with the web process.
 - Tables: `jobs(id, kind, params json, status, attempt, created_at, started_at,
-  finished_at, heartbeat_at, error, cancel_requested)`,
+  finished_at, heartbeat_at, error, cancel_requested, not_before)`,
   `agent_runs(id, job_id, prompt_version, exit_code, files_changed json,
   commit_sha, pushed, stdout_tail, stderr_tail)`,
   `agent_run_events(id, run_id, at, kind, text)`.
@@ -137,6 +137,13 @@ Phase 2 ships in two parts with separate implementation plans:
   at a time with an atomic update; heartbeat every 10s. On start, any `running` job
   whose heartbeat is older than 60s is marked `failed` ("worker stopped during run").
 - The web process only inserts jobs and sets `cancel_requested`; it never spawns agents.
+- **Quiet brain:** an agent job is not started while anything in the brain changed in the
+  last 3 minutes (newest uncommitted change by mtime; a deletion is dated by its folder).
+  The job goes back to `queued` with `not_before` set to when the brain will have been quiet
+  for 3 minutes, plus one "Waiting for the brain to be quiet" event; claiming skips jobs that
+  are not yet due.
+- A run whose agent dies while the worker is stopping (systemd stops the whole group) is
+  `cancelled` ("Cancelled — the worker was stopped"), not failed.
 
 ### B2. Agent runner
 
@@ -151,8 +158,9 @@ Phase 2 ships in two parts with separate implementation plans:
   - authentication only via `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, stored as
     `HARBOUR_CLAUDE_OAUTH_TOKEN`); the agent's environment contains only HOME, PATH and the token.
 - Runs in its own process group; cancel and timeout send SIGTERM to the group, then
-  SIGKILL after 10s. Captured output is capped (stdout/stderr tails, max 200 events per
-  run stored).
+  SIGKILL after 10s. Captured output is capped (stdout/stderr tails; at most 180 agent
+  tool/text events per run plus one "limit reached" note, and 220 events in total so the
+  worker's own status and error lines are always recorded).
 - Stream events are summarised into `agent_run_events`: tool use ("Searching: …",
   "Reading: …", "Wrote: research/geo/…"), assistant milestones, errors.
 - **Post-run gate:** the worker diffs the brain working tree. Every changed path must be

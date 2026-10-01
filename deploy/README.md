@@ -47,6 +47,9 @@ From another tailnet device, `https://<machine>.<tailnet>.ts.net:8444` should sh
 
 ## Updating
 
+Update when the Agents page is idle (no run queued or running): restarting the worker cancels a
+running agent and moves its work to quarantine.
+
 ```bash
 git pull && pnpm install --frozen-lockfile && pnpm build && systemctl --user restart harbour-web harbour-worker
 ```
@@ -60,13 +63,22 @@ commits.
 
 1. Run `claude setup-token` and put the result in `.env` as `HARBOUR_CLAUDE_OAUTH_TOKEN=`.
    Without it agents stay disabled.
-2. `systemctl --user restart harbour-worker` to pick it up.
-3. The brain repo must be pushable non-interactively by the worker. Test it from a
+2. `systemctl --user restart harbour-web harbour-worker` to pick it up (and again whenever you
+   change the token): the worker reads the token, the web only checks whether it is set.
+3. The worker must find the Claude Code CLI. systemd starts it with a minimal `PATH`:
+   `~/.local/bin` (where the CLI installs by default), `/usr/bin` and `/bin`, plus the
+   directory `claude` was found in when you ran `install.sh`. If you install the CLI somewhere
+   else later, re-run `install.sh` or set `HARBOUR_CLAUDE_BIN` in `.env` to its absolute path.
+4. The brain repo must be pushable non-interactively by the worker. Test it from a
    non-interactive shell: `git -C <brain> push --dry-run`. If it prompts, set up a credential
    helper or an SSH remote.
-4. Once, after the first deploy, queue the whole first run (all research topics, then discovery
+5. Once, after the first deploy, queue the whole first run (all research topics, then discovery
    for every product): `pnpm agents:initial-run`. It is safe to repeat; jobs already queued or
    running are not duplicated.
+
+Edit the brain only on the Harbour PC: the worker commits and pushes but never pulls. Give the
+brain a `.gitignore` for editor and OS files (`.DS_Store`, `*.swp`, `*~`,
+`.obsidian/workspace*.json`).
 
 ## Logs
 

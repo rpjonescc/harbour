@@ -67,8 +67,10 @@ your Second Brain:
   `products/<id>/discovery.md` and `products/<id>/proposals.json`.
 
 Agents run Claude Code on the Harbour PC with your Claude subscription. Run
-`claude setup-token` there, add `HARBOUR_CLAUDE_OAUTH_TOKEN=…` to `.env`, then restart the
-worker; until then the run buttons are disabled. Agents only have web research (search and
+`claude setup-token` there, add `HARBOUR_CLAUDE_OAUTH_TOKEN=…` to `.env`, then restart both
+services (`systemctl --user restart harbour-web harbour-worker`) — also after changing the token.
+The worker reads the token to run agents; the web only checks whether it is set, and keeps the
+run buttons disabled until it is. Agents only have web research (search and
 fetch) and file tools limited to the brain directory: no shell, no hooks, no MCP servers.
 
 The **git gate** checks every run: a run may change only its own target files (Markdown, plus
@@ -172,7 +174,18 @@ files are included in its commit; an edit anywhere else fails the run (the worke
 tell it from the agent's) and is moved, with the run's output, to `quarantine/job-<id>` (next
 to the database). Files a failed or cancelled run leaves behind go there
 too. If the worker stops mid-run, it recovers the run on restart the same way; until then
-autosave and new agent runs wait.
+autosave and new agent runs wait. An agent run also waits (back in the queue, with a
+"Waiting for the brain to be quiet" note) while anything in the brain changed in the last
+3 minutes, so it never commits notes you are still writing.
+
+Running it day to day:
+
+- **Edit the brain only on the Harbour PC.** Harbour commits and pushes the brain but never
+  pulls, so commits made elsewhere make its pushes fail until you reconcile them by hand.
+- Give the brain a `.gitignore` for editor and OS files (`.DS_Store`, `*.swp`, `*~`,
+  `.obsidian/workspace*.json`), so they are never saved as notes or mistaken for agent changes.
+- **Update Harbour when the Agents page is idle** (no run queued or running): restarting the
+  worker cancels a running agent and moves its work to quarantine.
 
 ## Configuration
 
@@ -190,8 +203,8 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_BRAIN_DIR` | no | `./brain` | Second Brain directory — point it at a separate private repo. The worker refuses all git work unless it is the root of its own git repository. |
 | `HARBOUR_EDITOR_URL_TEMPLATE` | no | `vscode://file/{path}` | Editor link for brain documents; `{path}` is the encoded absolute file path. Empty hides the link. |
 | `HARBOUR_DEV_IDENTITY` | dev only | — | Stand-in Tailscale login for `next dev`; refused in production. |
-| `HARBOUR_CLAUDE_OAUTH_TOKEN` | for agents | unset | Secret; from `claude setup-token`; required for agents. Read by the worker only, never shown. |
-| `HARBOUR_CLAUDE_BIN` | no | `claude` | Claude Code CLI executable the worker runs. |
+| `HARBOUR_CLAUDE_OAUTH_TOKEN` | for agents | unset | Secret; from `claude setup-token`; required for agents. Used by the worker; the web only checks whether it is set. Never shown. Restart both services after changing it. |
+| `HARBOUR_CLAUDE_BIN` | no | `claude` | Claude Code CLI executable the worker runs: a command on the worker's `PATH`, or an absolute path (e.g. `/opt/claude/bin/claude`). |
 | `HARBOUR_AGENT_MODEL` | no | `claude-sonnet-5-5` | Full model id used for agent runs. |
 | `HARBOUR_AGENT_TIMEOUT_MINUTES` | no | `30` | Maximum agent run length, 1 to 120 minutes. |
 | `HARBOUR_HTTPS_PORT` | no | `8444` | Shell variable for `deploy/install.sh` (Tailscale Serve HTTPS port); the app itself does not read it. |
