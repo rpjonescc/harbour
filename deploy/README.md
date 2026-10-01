@@ -80,6 +80,13 @@ Edit the brain only on the Harbour PC: the worker commits and pushes but never p
 brain a `.gitignore` for editor and OS files (`.DS_Store`, `*.swp`, `*~`,
 `.obsidian/workspace*.json`).
 
+## Google data for the visibility scan
+
+Optional. To add PageSpeed (Core Web Vitals), follow
+[Connect PageSpeed](../README.md#connect-pagespeed) in the main README, put the key in `.env` as
+`HARBOUR_PAGESPEED_API_KEY=`, then `systemctl --user restart harbour-worker`. The next scan's
+job events say "PageSpeed: not connected — …" until the key is set.
+
 ## Logs
 
 `journalctl --user -u harbour-web -f`

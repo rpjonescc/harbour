@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { getConfig } from "@/lib/config";
 import { crawlContext as context } from "@/tests/helpers/crawl";
 import { applyFieldMask } from "@/tests/helpers/field-mask";
 import { DAY, runsOf, setup } from "@/tests/helpers/scan-run";
@@ -28,9 +29,10 @@ function answering(body: string, status = 200) {
   return { fetch, calls };
 }
 
-function contextWith(fetch: SafeFetch, key?: string) {
+/** A context with an API key, or with none (`null`). */
+function contextWith(fetch: SafeFetch, key: string | null = KEY) {
   const ctx = context(PRODUCT, { fetch });
-  return { ...ctx, config: { ...ctx.config, HARBOUR_PAGESPEED_API_KEY: key } };
+  return { ...ctx, config: { ...ctx.config, HARBOUR_PAGESPEED_API_KEY: key ?? undefined } };
 }
 
 /** The recorded response with `change` applied. */
@@ -75,6 +77,7 @@ describe("pagespeed collector", () => {
       strategy: "mobile",
       category: "performance",
       fields: PSI_FIELDS,
+      key: KEY,
     });
     expect(calls[0]?.options).toMatchObject({
       ignoreRobots: true,
@@ -142,17 +145,16 @@ describe("pagespeed collector", () => {
     );
   });
 
-  it("fails readably when the shared quota is used up (no key)", async () => {
-    const body = googleError(
-      429,
-      "Quota exceeded for quota metric 'Queries'.",
-      "rateLimitExceeded",
-    );
-    const run = pagespeed.collect(contextWith(answering(body, 429).fetch));
-    await expect(run).rejects.toThrow(
-      "PageSpeed Insights quota exceeded (HTTP 429): Quota exceeded for quota metric 'Queries'. " +
-        "Set HARBOUR_PAGESPEED_API_KEY for a higher quota, or wait for the next weekly run.",
-    );
+  it("is not configured without an API key, and says how to get one", async () => {
+    const { fetch, calls } = answering(recorded);
+    expect(await pagespeed.collect(contextWith(fetch, null))).toEqual({
+      status: "not_configured",
+      reason:
+        'PageSpeed Insights needs an API key: in Google Cloud, enable the "PageSpeed Insights API", ' +
+        "create an API key restricted to that API, set HARBOUR_PAGESPEED_API_KEY in .env and " +
+        "restart the worker.",
+    });
+    expect(calls).toEqual([]);
   });
 
   it("redacts the key from Google's own error message", async () => {
@@ -193,6 +195,7 @@ describe("pagespeed in a scan", () => {
     const { fetch, calls } = answering(recorded);
     const { db, scan, advance } = setup([pagespeed], {
       fetch,
+      config: { ...getConfig(), HARBOUR_PAGESPEED_API_KEY: KEY },
       products: [{ id: "acme-docs", name: "Acme Docs", url: PRODUCT, hue: "amber" }],
     });
     await scan();

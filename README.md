@@ -213,7 +213,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_AGENT_MODEL` | no | `claude-sonnet-5-5` | Full model id used for agent runs. |
 | `HARBOUR_AGENT_TIMEOUT_MINUTES` | no | `30` | Maximum agent run length, 1 to 120 minutes. |
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility scan's crawler fetches per product per scan, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
-| `HARBOUR_PAGESPEED_API_KEY` | no | unset | Secret; a Google Cloud API key with the PageSpeed Insights API enabled. Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). It works without a key on a small shared quota; a key gives the run its own quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
+| `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
 | `HARBOUR_HTTPS_PORT` | no | `8444` | Shell variable for `deploy/install.sh` (Tailscale Serve HTTPS port); the app itself does not read it. |
 
 `harbour.config.json` lists 1–12 products:
@@ -242,6 +242,25 @@ product shows as not connected.
 
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.
+
+## Connecting Google data
+
+The visibility scan works without any Google account: the crawler and the readiness checks
+read your sites directly. Two optional Google sources add more; until you connect one, the
+scan shows it as not connected and the scores it feeds are marked incomplete (a gap, never a
+zero).
+
+### Connect PageSpeed
+
+PageSpeed Insights measures mobile performance and Core Web Vitals once a week per product.
+Google gives requests without an API key no quota, so it needs a free key:
+
+1. In the [Google Cloud console](https://console.cloud.google.com/), pick or create a project.
+2. Under **APIs & Services → Library**, enable the **PageSpeed Insights API**.
+3. Under **APIs & Services → Credentials**, choose **Create credentials → API key**, then edit
+   the key and, under **API restrictions**, restrict it to the PageSpeed Insights API.
+4. Put it in `.env` as `HARBOUR_PAGESPEED_API_KEY=` and restart the worker
+   (`systemctl --user restart harbour-worker`).
 
 ## Deployment
 

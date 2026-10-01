@@ -17,14 +17,20 @@ export const PSI_FIELDS =
   "audits(largest-contentful-paint/numericValue,cumulative-layout-shift/numericValue," +
   "first-contentful-paint/numericValue,total-blocking-time/numericValue))";
 
-function requestUrl(productUrl: string, key: string | undefined): string {
+/** Keyless requests have no quota at all (Google answers 429 with a quota limit of 0). */
+const NOT_CONFIGURED =
+  'PageSpeed Insights needs an API key: in Google Cloud, enable the "PageSpeed Insights API", ' +
+  "create an API key restricted to that API, set HARBOUR_PAGESPEED_API_KEY in .env and " +
+  "restart the worker.";
+
+function requestUrl(productUrl: string, key: string): string {
   const params = new URLSearchParams({
     url: productUrl,
     strategy: "mobile",
     category: "performance",
     fields: PSI_FIELDS,
+    key,
   });
-  if (key) params.set("key", key);
   return `${ENDPOINT}?${params}`;
 }
 
@@ -39,14 +45,13 @@ function fetchFailure(error: FetchError): Error {
   return new Error(`PageSpeed Insights request failed (${error.kind})`);
 }
 
-function httpFailure(status: number, body: string, key: string | undefined): Error {
+function httpFailure(status: number, body: string, key: string): Error {
   const google = readGoogleError(body);
-  const message = google && key ? google.message.replaceAll(key, "[redacted]") : google?.message;
+  const message = google?.message.replaceAll(key, "[redacted]");
   const detail = message ? `: ${message}` : ".";
   if (status === 429 || google?.quota) {
-    const advice = key
-      ? "The API key's quota is used up: raise it in Google Cloud, or wait for the next weekly run."
-      : "Set HARBOUR_PAGESPEED_API_KEY for a higher quota, or wait for the next weekly run.";
+    const advice =
+      "The API key's quota is used up: raise it in Google Cloud, or wait for the next weekly run.";
     return new Error(`PageSpeed Insights quota exceeded (HTTP ${status})${detail} ${advice}`);
   }
   return new Error(`PageSpeed Insights answered HTTP ${status}${detail}`);
@@ -55,6 +60,7 @@ function httpFailure(status: number, body: string, key: string | undefined): Err
 async function collect(ctx: CollectContext): Promise<CollectorResult> {
   const subject = new URL(ctx.product.url).href;
   const key = ctx.config.HARBOUR_PAGESPEED_API_KEY;
+  if (!key) return { status: "not_configured", reason: NOT_CONFIGURED };
   let response: Awaited<ReturnType<CollectContext["fetch"]>>;
   try {
     response = await ctx.fetch(requestUrl(subject, key), {
