@@ -214,13 +214,24 @@ All settings are environment variables, validated at startup.
 ```json
 {
   "products": [
-    { "id": "acme-docs", "name": "Acme Docs", "url": "https://docs.example.com", "hue": "amber" }
+    {
+      "id": "acme-docs",
+      "name": "Acme Docs",
+      "url": "https://docs.example.com",
+      "hue": "amber",
+      "searchConsoleProperty": "sc-domain:docs.example.com"
+    }
   ]
 }
 ```
 
 `id` is a unique lowercase slug, `url` is http(s), and `hue` is one of `amber`, `violet`,
 `blue`, `green`, `rose` or `teal`. An invalid file stops Harbour with a readable error.
+
+Optionally, `searchConsoleProperty` names the product's Google Search Console property, in
+either form Search Console uses: a domain property (`"sc-domain:example.com"`) or a URL-prefix
+property (`"https://www.example.com/"`, ending in `/`). Without it, Search Console data for that
+product shows as not connected.
 
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.

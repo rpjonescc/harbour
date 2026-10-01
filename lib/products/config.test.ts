@@ -42,6 +42,30 @@ describe("parseProductConfig", () => {
     expect(() => parseProductConfig({ products: [{ ...product, id: "Acme Docs" }] })).toThrow(/id/);
   });
 
+  it("accepts a Search Console domain or URL-prefix property", () => {
+    for (const searchConsoleProperty of ["sc-domain:example.com", "https://docs.example.com/"]) {
+      const config = parseProductConfig({ products: [{ ...product, searchConsoleProperty }] });
+      expect(config.products[0]?.searchConsoleProperty).toBe(searchConsoleProperty);
+    }
+    expect(parseProductConfig({ products: [product] }).products[0]?.searchConsoleProperty).toBe(
+      undefined,
+    );
+  });
+
+  it("rejects a malformed Search Console property", () => {
+    for (const searchConsoleProperty of [
+      "example.com",
+      "sc-domain:",
+      "https://docs.example.com",
+      "ftp://docs.example.com/",
+      "sc-domain:https://example.com/",
+    ]) {
+      expect(() =>
+        parseProductConfig({ products: [{ ...product, searchConsoleProperty }] }),
+      ).toThrow(/searchConsoleProperty/);
+    }
+  });
+
   it("requires between 1 and 12 products", () => {
     expect(() => parseProductConfig({ products: [] })).toThrow();
     const many = Array.from({ length: 13 }, (_, i) => ({ ...product, id: `p-${i}` }));

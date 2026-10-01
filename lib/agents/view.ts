@@ -8,9 +8,10 @@ export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly P
     const topic = job.params.topic ?? "";
     return `Research: ${RESEARCH_TOPICS.find((t) => t.id === topic)?.title ?? topic}`;
   }
-  if (job.kind === "discovery") {
+  if (job.kind === "discovery" || job.kind === "scan") {
     const id = job.params.productId ?? "";
-    return `Discovery: ${products.find((p) => p.id === id)?.name ?? id}`;
+    const name = products.find((p) => p.id === id)?.name ?? id;
+    return `${job.kind === "scan" ? "Scan" : "Discovery"}: ${name}`;
   }
   if (job.kind === "notes-sync") return "Save notes to GitHub";
   return "Sync brain to GitHub";

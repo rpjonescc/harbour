@@ -5,7 +5,7 @@ const products = [
 ];
 
 describe("jobLabel", () => {
-  it("names research, discovery and git jobs", () => {
+  it("names research, discovery, git and scan jobs", () => {
     expect(jobLabel({ kind: "research", params: { topic: "glossary" } }, products)).toBe(
       "Research: Glossary",
     );
@@ -17,6 +17,9 @@ describe("jobLabel", () => {
     );
     expect(jobLabel({ kind: "brain-push", params: {} }, products)).toBe("Sync brain to GitHub");
     expect(jobLabel({ kind: "notes-sync", params: {} }, products)).toBe("Save notes to GitHub");
+    expect(jobLabel({ kind: "scan", params: { productId: "acme-docs" } }, products)).toBe(
+      "Scan: Acme Docs",
+    );
   });
 });
 

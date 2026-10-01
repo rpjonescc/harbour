@@ -2,7 +2,7 @@ import { and, asc, count, desc, eq, gt, inArray, isNull, lt, lte, or, type SQL }
 import type { Db } from "@/lib/db/client";
 import { agentRunEvents, agentRuns, jobs } from "@/lib/db/schema";
 
-export type JobKind = "research" | "discovery" | "brain-push" | "notes-sync";
+export type JobKind = "research" | "discovery" | "brain-push" | "notes-sync" | "scan";
 export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";
 export type Job = typeof jobs.$inferSelect;
 export type EventKind = "status" | "tool" | "text" | "error";

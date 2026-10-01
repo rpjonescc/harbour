@@ -5,7 +5,14 @@ export type { Hue } from "./config";
 
 export type ProductId = string;
 
-export type Product = { id: ProductId; name: string; url: string; hue: Hue };
+export type Product = {
+  id: ProductId;
+  name: string;
+  url: string;
+  hue: Hue;
+  /** Search Console property to query, e.g. "sc-domain:example.com"; unset = not connected. */
+  searchConsoleProperty?: string;
+};
 
 const EXAMPLE_CONFIG_PATH = "./harbour.config.example.json";
 

@@ -50,6 +50,13 @@
       "when": 1790851976668,
       "tag": "0006_job_not_before",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1790852604122,
+      "tag": "0007_scans",
+      "breakpoints": true
     }
   ]
 }

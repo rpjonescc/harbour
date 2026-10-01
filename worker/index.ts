@@ -1,4 +1,4 @@
-// Harbour worker: runs queued agent jobs one at a time. Started by systemd (`pnpm worker`).
+// Harbour worker: runs queued jobs (agents, git sync, scans) one at a time. Started by systemd (`pnpm worker`).
 // Must not import any module that imports "server-only".
 import { quarantineRootFor } from "@/lib/agents/brain-status";
 import { runProcess } from "@/lib/agents/process";
@@ -11,6 +11,9 @@ import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
 import { makeScheduler } from "@/lib/jobs/scheduler";
 import { getProducts } from "@/lib/products/catalog";
+import { COLLECTORS, noScoring, unavailableFetch } from "@/lib/scan/registry";
+import { runScan } from "@/lib/scan/run-scan";
+import { failInterruptedScans } from "@/lib/scan/store";
 
 const IDLE_MS = 2000;
 const HEARTBEAT_MS = 10_000;
@@ -31,6 +34,7 @@ async function main() {
   const quarantineRoot = quarantineRootFor(config.HARBOUR_DB_PATH);
   const scheduler = makeScheduler({ db, root, quarantineRoot, clock: Date.now });
   scheduler.startup();
+  failInterruptedScans(db); // their jobs were just failed by startup()
   console.log("harbour-worker ready");
 
   const runJob = async (job: Job) => {
@@ -39,6 +43,21 @@ async function main() {
       scheduler.pushed(runPushJob({ db, root, now }, job));
     } else if (job.kind === "notes-sync") {
       scheduler.notesSynced(runNotesSyncJob({ db, root, quarantineRoot, now }, job));
+    } else if (job.kind === "scan") {
+      // Scans never touch the brain, so they don't wait for it to be quiet.
+      await runScan(
+        {
+          db,
+          config,
+          products: getProducts(),
+          collectors: COLLECTORS,
+          fetch: unavailableFetch,
+          scoreScan: noScoring,
+          now,
+          stopping: () => stopping,
+        },
+        job,
+      );
     } else {
       const { pushed } = await runAgentJob(
         {
@@ -65,7 +84,7 @@ async function main() {
   };
 
   while (!stopping) {
-    scheduler.tick(); // between jobs only: never during an agent run
+    scheduler.tick(); // between jobs only: never during a run
     const job = claimNextJob(db);
     if (!job) {
       await sleep(IDLE_MS);

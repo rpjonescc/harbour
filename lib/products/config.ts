@@ -5,11 +5,27 @@ import { z } from "zod";
 export const HUES = ["amber", "violet", "blue", "green", "rose", "teal"] as const;
 export type Hue = (typeof HUES)[number];
 
+const SC_DOMAIN = "sc-domain:";
+
+/** Search Console property: `sc-domain:example.com` or a URL prefix ending in "/". */
+function isSearchConsoleProperty(value: string): boolean {
+  if (value.startsWith(SC_DOMAIN)) return /^[a-z0-9.-]+$/i.test(value.slice(SC_DOMAIN.length));
+  if (!URL.canParse(value)) return false;
+  return /^https?:$/.test(new URL(value).protocol) && value.endsWith("/");
+}
+
 const productSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/, "id must be a lowercase slug (a-z, 0-9, -)"),
   name: z.string().trim().min(1, "name must not be empty"),
   url: z.url({ protocol: /^https?$/, message: "url must be an http(s) URL" }),
   hue: z.enum(HUES, { message: `hue must be one of: ${HUES.join(", ")}` }),
+  searchConsoleProperty: z
+    .string()
+    .refine(isSearchConsoleProperty, {
+      message:
+        'searchConsoleProperty must be "sc-domain:example.com" or an http(s) URL prefix ending in "/"',
+    })
+    .optional(),
 });
 
 const configSchema = z.object({
