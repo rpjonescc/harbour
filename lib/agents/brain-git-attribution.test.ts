@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { makeGitBrain } from "@/tests/helpers/git-brain";
 import { OUTSIDE_BRAIN } from "./attribution";
-import { discardRun, inspectRun, snapshotRun } from "./brain-git";
+import { discardRun } from "./brain-discard";
+import { inspectRun, snapshotRun } from "./brain-git";
 
 // The owner keeps editing the brain while an agent runs: only the agent's own writes are gated.
 const research = { prefixes: ["research/"], exact: ["00-start-here.md"] };

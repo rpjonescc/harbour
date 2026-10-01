@@ -17,12 +17,8 @@ import {
 import { join } from "node:path";
 import { z } from "zod";
 import { type Touched, UNKNOWN_TOUCH } from "@/lib/agents/attribution";
-import {
-  assertBrainRepoRoot,
-  discardRun,
-  ownerChanges,
-  type RunSnapshot,
-} from "@/lib/agents/brain-git";
+import { discardRun } from "@/lib/agents/brain-discard";
+import { assertBrainRepoRoot, ownerChanges, type RunSnapshot } from "@/lib/agents/brain-git";
 
 /**
  * A run marker is the durable copy of an agent run's snapshot, written before the agent starts
