@@ -121,7 +121,7 @@ A rule is `unknown` with reason "<Collector label> did not run ok in this scan" 
 - [ ] **Step 4: Run** the tests above and `pnpm test` — all green (existing product page/Today tests unchanged apart from the new fields).
 - [ ] **Step 5: Commit** `refactor(scan): rules report present, clear or unknown with effort and docs`.
 
-**As built:** _(implementer: record anything that differs — rule ids, reasons, docs mapping)._
+**As built:** rule ids, needs, effort and docs exactly as in the table. `scanFindings` also returns `statuses` (collector → status, from its `runs`) so both callers share one mapping. Rules that need readiness are `unknown` ("The readiness check recorded no usable result") when no well-formed readiness observation exists; other unknown reasons: "No HTML pages were crawled", "The crawl recorded no site summary", "AI crawler access in robots.txt could not be read", "No page's schema was checked", "Whether /llms.txt exists could not be checked", "The Preferred Sources check had no pages to read". A present finding with no locations (e.g. no page lacks a title) is `clear`. Docs paths come from `RESEARCH_TOPICS` by id via `topicPath()`, which throws at module load for an unknown id.
 
 ---
 

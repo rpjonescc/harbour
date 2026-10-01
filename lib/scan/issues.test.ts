@@ -1,5 +1,9 @@
-import { ACME_CRAWL, crawlSite, htmlPage, readiness } from "@/tests/helpers/scoring";
-import { deriveIssues } from "./issues";
+import { ACME_CRAWL, ALL_OK, crawlSite, htmlPage, readiness } from "@/tests/helpers/scoring";
+import { deriveIssues as derive } from "./issues";
+import type { ScanObservation } from "./types";
+
+/** Issues with every collector ok: these tests are about the rules, not collector failures. */
+const deriveIssues = (observations: ScanObservation[]) => derive(observations, ALL_OK);
 
 const at = (path: string) => `https://docs.example.com${path}`;
 const ids = (issues: ReturnType<typeof deriveIssues>) => issues.map((issue) => issue.id);

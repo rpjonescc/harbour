@@ -55,6 +55,20 @@ describe("productView", () => {
     expect(view.scan.last?.status).toBe("failed");
   });
 
+  it("raises no issue from a collector that did not run ok, even with observations stored", () => {
+    const db = openTestDb();
+    seedScan(db, {
+      productId: "acme-docs",
+      at: T0,
+      status: "partial",
+      runs: [crawler(), { ...readinessRun, status: "failed" }],
+    });
+    expect(productView(db, "acme-docs", T0).issues.map((i) => i.id)).toEqual([
+      "broken-links",
+      "noindex",
+    ]);
+  });
+
   it("says why Search Console has no data", () => {
     const db = openTestDb();
     seedScan(db, {

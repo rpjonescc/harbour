@@ -13,6 +13,8 @@ const issue = (over: Partial<Issue> = {}): Issue => ({
   check: "Each listed URL serves a <title>.",
   locations: ["https://docs.example.com/a", "https://docs.example.com/b"],
   total: 2,
+  effort: "small",
+  docs: ["research/seo/technical-seo-checklist.md"],
   ...over,
 });
 

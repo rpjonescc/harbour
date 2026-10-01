@@ -27,13 +27,22 @@ export type ProductView = {
   search: SearchState;
 };
 
-/** What a scan found: its observations and how each collector ended. */
+/** What a scan found: its observations, how each collector ended, and those endings by collector. */
 export function scanFindings(
   db: Db,
   scanId: number | undefined,
-): { observations: ScanObservation[]; runs: CollectorRunView[] } {
-  if (scanId === undefined) return { observations: [], runs: [] };
-  return { observations: scanObservations(db, scanId), runs: scanCollectorRuns(db, scanId) };
+): {
+  observations: ScanObservation[];
+  runs: CollectorRunView[];
+  statuses: Record<string, CollectorStatus>;
+} {
+  if (scanId === undefined) return { observations: [], runs: [], statuses: {} };
+  const runs = scanCollectorRuns(db, scanId);
+  return {
+    observations: scanObservations(db, scanId),
+    runs,
+    statuses: Object.fromEntries(runs.map((run) => [run.collector, run.status])),
+  };
 }
 
 function searchState(observations: ScanObservation[], runs: CollectorRunView[]): SearchState {
@@ -46,11 +55,11 @@ function searchState(observations: ScanObservation[], runs: CollectorRunView[]):
 /** The product page's data, all from the scan behind the latest scores. */
 export function productView(db: Db, productId: string, now: Date): ProductView {
   const scores = productScoreTrend(db, productId, now);
-  const { observations, runs } = scanFindings(db, scores.latest?.scanId);
+  const { observations, runs, statuses } = scanFindings(db, scores.latest?.scanId);
   return {
     scores,
     scan: scanState(db, productId),
-    issues: deriveIssues(observations),
+    issues: deriveIssues(observations, statuses),
     pages: pageRows(observations),
     search: searchState(observations, runs),
   };

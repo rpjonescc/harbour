@@ -90,6 +90,8 @@ export const EXAMPLE_ISSUE: Issue = {
   check: "Each listed URL serves a <title> of 10–60 characters.",
   locations: ["https://docs.example.com/pricing", "https://docs.example.com/guides/setup"],
   total: 2,
+  effort: "small",
+  docs: ["research/seo/technical-seo-checklist.md"],
 };
 
 export const EXAMPLE_SOURCES: SourcesView = {

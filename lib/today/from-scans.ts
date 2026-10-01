@@ -42,7 +42,8 @@ type ProductToday = {
 function productToday(db: Db, productId: string, now: Date): ProductToday {
   const { latest, deltas, trend } = productScoreTrend(db, productId, now);
   const scan = scanState(db, productId);
-  const issues = deriveIssues(scanFindings(db, latest?.scanId).observations);
+  const { observations, statuses } = scanFindings(db, latest?.scanId);
+  const issues = deriveIssues(observations, statuses);
   return {
     row: {
       productId,

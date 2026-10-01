@@ -4,7 +4,7 @@ import type { Product } from "@/lib/products/catalog";
 import { deriveIssues } from "@/lib/scan/issues";
 import { pageRows } from "@/lib/scan/page-rows";
 import type { ProductView } from "@/lib/scan/product-view";
-import { ACME_CRAWL, readiness } from "@/tests/helpers/scoring";
+import { ACME_CRAWL, ALL_OK, readiness } from "@/tests/helpers/scoring";
 import { ProductOverview } from "./ProductOverview";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
@@ -82,7 +82,7 @@ const scanned: ProductView = {
       failedCollectors: [{ collector: "pagespeed", error: "quota exceeded" }],
     },
   },
-  issues: deriveIssues([...ACME_CRAWL, readiness()]),
+  issues: deriveIssues([...ACME_CRAWL, readiness()], ALL_OK),
   pages: pageRows(ACME_CRAWL),
   search: { state: "not_configured", reason: "HARBOUR_GSC_CREDENTIALS is not set" },
 };
