@@ -1,3 +1,4 @@
+import { COLLECTOR_IDS } from "./labels";
 import { COLLECTORS } from "./registry";
 
 describe("COLLECTORS", () => {
@@ -8,6 +9,10 @@ describe("COLLECTORS", () => {
       "pagespeed",
       "search-console",
     ]);
+  });
+
+  it("matches the collector list the web UI reads from labels.ts", () => {
+    expect(COLLECTORS.map((c) => c.id)).toEqual(COLLECTOR_IDS);
   });
 
   it("runs every collector after each collector it depends on", () => {

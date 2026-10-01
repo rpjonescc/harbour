@@ -6,6 +6,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Actions", soon: true },
   { label: "Second Brain", href: "/brain", badge: "brain-new" },
   { label: "Agents", href: "/agents" },
+  { label: "Sources", href: "/settings/sources" },
   { label: "Devices", href: "/settings/devices" },
   { label: "Design system", href: "/design" },
 ];
