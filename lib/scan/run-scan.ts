@@ -3,11 +3,11 @@ import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
 import { addEvent, type EventKind, finishJob, type Job } from "@/lib/jobs/queue";
 import type { Product } from "@/lib/products/catalog";
+import { collectContext } from "./collect-context";
 import { collectorLabel } from "./labels";
 import { collectorTimeoutMs } from "./registry";
 import { runBounded, watchForStop } from "./scan-bounds";
 import {
-  collectorObservations,
   finishScan,
   lastOkRunAt,
   recordCollectorRun,
@@ -97,18 +97,16 @@ async function attempt(scan: Scan, collector: Collector): Promise<CollectorResul
   const timeoutMs = (deps.timeoutMs ?? collectorTimeoutMs)(collector.id);
   const run = runBounded(
     (signal) =>
-      collector.collect({
-        product: scan.product,
-        config: deps.config,
-        now: deps.now(),
-        fetch: deps.fetch,
-        log: (text) => scan.event("status", `${label}: ${text}`),
-        signal,
-        earlier: {
-          status: (id) => scan.statuses[id],
-          observations: (id) => collectorObservations(deps.db, scan.scanId, id),
-        },
-      }),
+      collector.collect(
+        collectContext({
+          deps,
+          product: scan.product,
+          scanId: scan.scanId,
+          statuses: scan.statuses,
+          log: (text) => scan.event("status", `${label}: ${text}`),
+          signal,
+        }),
+      ),
     timeoutMs,
     scan.signal,
   );

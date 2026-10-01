@@ -10,7 +10,7 @@ const FORBIDDEN_FILES = [
   /^lib\/analyst\/(export|export-product)\.ts$/,
   /^lib\/jobs\/(agent-output|import-retry)\.ts$/,
   /^lib\/ops\/(backup|backup-job|retention)\.ts$/,
-  /^lib\/scan\/(registry|run-scan|scan-bounds|worker-deps|fetch|http-request|robots-gate)\.ts$/,
+  /^lib\/scan\/(registry|run-scan|collect-context|scan-bounds|worker-deps|fetch|http-request|robots-gate)\.ts$/,
 ];
 const FORBIDDEN_PACKAGES = ["google-auth-library", "node:http", "node:https", "node-html-parser"];
 const EXTENSIONS = [".ts", ".tsx", "/index.ts", "/index.tsx"];
