@@ -27,6 +27,8 @@ function page(path: string, status: number, title: string | null, ms = 10): Craw
     images: null,
     imagesMissingAlt: null,
     hasFaqMarkup: null,
+    articleDatePublished: null,
+    preferredSourcesLink: null,
   };
 }
 

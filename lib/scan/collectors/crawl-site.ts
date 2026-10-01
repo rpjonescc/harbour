@@ -1,14 +1,19 @@
 import type { FetchErrorKind } from "../fetch-error";
 import type { RobotsTxtState } from "./crawl-seeds";
-import type { SitemapError } from "./crawl-sitemaps";
+import type { SitemapError, SitemapLastmods } from "./crawl-sitemaps";
 import type { BrokenLink, DuplicateTitle } from "./crawl-summary";
 
 /** The crawler's one `site` observation per scan (subject: the normalised product URL). */
 export type CrawlSite = {
   /** Page observations recorded (robots-blocked and failed fetches are not pages). */
   pagesCrawled: number;
-  /** Unique same-origin page URLs in the sitemaps; null when sitemaps exist but none could be read. */
+  /**
+   * Unique same-origin page URLs in the sitemaps; null when sitemaps exist but none could be
+   * read. Partial when `sitemapErrors` is not empty: the failed sitemaps' URLs are missing.
+   */
   pagesInSitemap: number | null;
+  /** `<lastmod>` dates of those URLs (count, newest 50); null when `pagesInSitemap` is. */
+  sitemapLastmods: SitemapLastmods | null;
   /** Internal links to a 4xx/5xx page, sorted by target then source, at most 100. */
   brokenInternalLinks: BrokenLink[];
   /** Titles shared by distinct successful pages (by final URL), at most 50, 10 URLs each. */

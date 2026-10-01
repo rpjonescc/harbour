@@ -16,8 +16,10 @@ describe("crawler on a recorded site", () => {
       value: { status: 200, finalUrl: `${origin}${path}`, ms, truncated: false, ...value },
     });
     const none = { robotsMeta: null, noindex: false, canonical: null, images: 0 };
+    const noNews = { articleDatePublished: null, preferredSourcesLink: false };
     expect(pages).toEqual([
       page("/", {
+        ...noNews,
         ...{ title: "Acme Docs", titleLength: 9, h1Count: 1, lang: "en", robotsMeta: null },
         metaDescription: "Documentation for Acme, a fictional example product.",
         ...{ descriptionLength: 52, canonical: `${origin}/`, noindex: false },
@@ -25,12 +27,14 @@ describe("crawler on a recorded site", () => {
         ...{ wordCount: 13, internalLinks: 4, externalLinks: 1, images: 2, imagesMissingAlt: 1 },
       }),
       page("/about", {
+        ...noNews,
         ...{ title: null, titleLength: 0, metaDescription: null, descriptionLength: 0 },
         ...{ h1Count: 0, canonical: null, robotsMeta: "noindex, follow", noindex: true },
         ...{ lang: null, jsonLdTypes: [], invalidJsonLd: 0, hasFaqMarkup: false, wordCount: 6 },
         ...{ internalLinks: 2, externalLinks: 0, images: 0, imagesMissingAlt: 0 },
       }),
       page("/guides/faq", {
+        ...noNews,
         ...{ title: "Acme Docs", titleLength: 9, h1Count: 1, lang: "en", ...none },
         ...{ metaDescription: "Answers to common questions.", descriptionLength: 28 },
         ...{ jsonLdTypes: ["FAQPage"], invalidJsonLd: 1, hasFaqMarkup: true, wordCount: 11 },
@@ -42,6 +46,7 @@ describe("crawler on a recorded site", () => {
         value: { status: 404, finalUrl: `${origin}/missing`, ms, truncated: false, ...NO_HTML },
       },
       page("/orphan", {
+        ...noNews,
         ...{ title: "Orphaned page", titleLength: 13, h1Count: 1, lang: "en", ...none },
         ...{ metaDescription: null, descriptionLength: 0, jsonLdTypes: [], invalidJsonLd: 0 },
         ...{ hasFaqMarkup: false, wordCount: 5, internalLinks: 1, externalLinks: 0 },
@@ -52,6 +57,10 @@ describe("crawler on a recorded site", () => {
     expect(summary).toEqual({
       pagesCrawled: 5,
       pagesInSitemap: 5,
+      sitemapLastmods: {
+        dated: 1,
+        newest: [{ url: `${origin}/guides/faq`, lastmod: "2026-09-20T00:00:00.000Z" }],
+      },
       brokenInternalLinks: [
         { from: `${origin}/`, to: `${origin}/missing`, status: 404 },
         { from: `${origin}/about`, to: `${origin}/missing`, status: 404 },

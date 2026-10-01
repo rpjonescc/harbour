@@ -25,6 +25,10 @@ export type PageFacts = {
   invalidJsonLd: number;
   /** FAQPage in JSON-LD or microdata. */
   hasFaqMarkup: boolean;
+  /** Newest datePublished of an Article-type JSON-LD node, as ISO 8601; null when none. */
+  articleDatePublished: string | null;
+  /** A link to Google's Preferred Sources page (google.com/preferences/source). */
+  preferredSourcesLink: boolean;
   /** Words of visible body text (scripts, styles, noscript and templates excluded). */
   wordCount: number;
   /** Unique same-origin http(s) link targets (fragment-only links excluded). */
@@ -109,17 +113,26 @@ function canonicalOf(root: HTMLElement, base: URL): string | null {
   return href ? (resolveHttp(href, base)?.href ?? null) : null;
 }
 
+const GOOGLE_HOSTS = new Set(["google.com", "www.google.com"]);
+
+/** Google's "add as a preferred source" deeplink (https://www.google.com/preferences/source?q=…). */
+function isPreferredSourcesLink(url: URL): boolean {
+  return GOOGLE_HOSTS.has(url.hostname) && /^\/preferences\/source\/?$/.test(url.pathname);
+}
+
 function linksOf(root: HTMLElement, base: URL, origin: string) {
   const internal = new Set<string>();
   const external = new Set<string>();
+  let preferredSources = false;
   for (const anchor of root.querySelectorAll("a[href]")) {
     const href = anchor.getAttribute("href") ?? "";
     // A fragment-only link moves within this page; it isn't a link to another page.
     const url = href.trim().startsWith("#") ? null : resolveHttp(href, base);
     if (!url) continue;
     (url.origin === origin ? internal : external).add(url.href);
+    preferredSources ||= isPreferredSourcesLink(url);
   }
-  return { links: [...internal], external: external.size };
+  return { links: [...internal], external: external.size, preferredSources };
 }
 
 function baseUrl(root: HTMLElement, page: URL): URL {
@@ -153,7 +166,7 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
     .filter((el) => el.getAttribute("type")?.trim().toLowerCase() === "application/ld+json")
     .map((el) => el.rawText);
   const jsonLd = summariseJsonLd(blocks);
-  const { links, external } = linksOf(root, base, page.origin);
+  const { links, external, preferredSources } = linksOf(root, base, page.origin);
   const images = root.querySelectorAll("img");
   return {
     title,
@@ -168,6 +181,8 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
     jsonLdTypes: jsonLd.types,
     invalidJsonLd: jsonLd.invalid,
     hasFaqMarkup: jsonLd.types.includes("FAQPage") || hasFaqMicrodata(root),
+    articleDatePublished: jsonLd.articleDatePublished,
+    preferredSourcesLink: preferredSources,
     internalLinks: links.length,
     externalLinks: external,
     images: images.length,

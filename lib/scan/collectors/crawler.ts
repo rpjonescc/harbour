@@ -136,6 +136,7 @@ async function collect(ctx: CollectContext, limits: CrawlLimits): Promise<Collec
   const site: CrawlSite = {
     ...summarisePages(crawl.pages, (url) => frontier.referrersOf(url)),
     pagesInSitemap: seeds.urls?.length ?? null,
+    sitemapLastmods: seeds.sitemapLastmods,
     robotsTxt: seeds.robotsTxt,
     sitemapsRead: seeds.sitemapsRead,
     sitemapErrors: seeds.sitemapErrors,

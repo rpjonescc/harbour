@@ -38,6 +38,8 @@ const NO_HTML: { [K in keyof HtmlFields]: null } = {
   images: null,
   imagesMissingAlt: null,
   hasFaqMarkup: null,
+  articleDatePublished: null,
+  preferredSourcesLink: null,
 };
 
 function isHtml(headers: Record<string, string>): boolean {

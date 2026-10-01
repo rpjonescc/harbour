@@ -82,6 +82,16 @@ describe("extractPage", () => {
     expect(page.externalLinks).toBe(2);
   });
 
+  it.each([
+    ["https://www.google.com/preferences/source?q=docs.example.com", true],
+    ["https://google.com/preferences/source?q=docs.example.com", true],
+    ["https://www.google.com/search?q=docs.example.com", false],
+    ["https://www.example.org/preferences/source?q=x", false],
+  ])("links to Google Preferred Sources: %s → %s", (href, expected) => {
+    const html = doc("", `<a href="${href}">Add as a preferred source on Google</a>`);
+    expect(extractPage(html, PAGE_URL).preferredSourcesLink).toBe(expected);
+  });
+
   it("resolves links against a base element", () => {
     const html = doc('<base href="https://docs.example.com/v2/">', '<a href="intro">Intro</a>');
     expect(extractPage(html, PAGE_URL).links).toEqual(["https://docs.example.com/v2/intro"]);
@@ -124,6 +134,24 @@ describe("extractPage JSON-LD", () => {
       "",
     );
     expect(extractPage(html, PAGE_URL)).toMatchObject({ jsonLdTypes: ["HowTo"], invalidJsonLd: 2 });
+  });
+
+  it("keeps the newest datePublished of article-type nodes", () => {
+    const html = doc(
+      [
+        jsonLd('{"@type":"BlogPosting","datePublished":"2026-09-01"}'),
+        jsonLd('{"@graph":[{"@type":"NewsArticle","datePublished":"2026-09-20T08:00:00Z"}]}'),
+        jsonLd('{"@type":"Event","datePublished":"2026-09-30"}'),
+        jsonLd('{"@type":"Article","datePublished":"not a date"}'),
+      ].join(""),
+      "",
+    );
+    expect(extractPage(html, PAGE_URL).articleDatePublished).toBe("2026-09-20T08:00:00.000Z");
+  });
+
+  it("has no article date without an article", () => {
+    const html = doc(jsonLd('{"@type":"WebPage","datePublished":"2026-09-01"}'), "");
+    expect(extractPage(html, PAGE_URL).articleDatePublished).toBeNull();
   });
 
   it("detects FAQ markup in JSON-LD", () => {

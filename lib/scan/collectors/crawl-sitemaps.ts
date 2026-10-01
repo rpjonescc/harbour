@@ -13,11 +13,19 @@ export type SitemapError = { url: string } & (
   | { kind: FetchErrorKind | "invalid" | "off_origin" }
 );
 
+/** A listed page's `<lastmod>`, as ISO 8601. */
+export type DatedUrl = { url: string; lastmod: string };
+
+/** Sitemap `<lastmod>` dates: how many listed pages have a valid one, and the newest 50. */
+export type SitemapLastmods = { dated: number; newest: DatedUrl[] };
+
 export type SitemapReading = {
   /** Sitemaps read successfully (a urlset or an index). */
   read: number;
   /** Unique same-origin page URLs listed; null when sitemaps exist but none could be read. */
   urls: string[] | null;
+  /** Null exactly when `urls` is. */
+  lastmods: SitemapLastmods | null;
   errors: SitemapError[];
 };
 
@@ -26,6 +34,7 @@ const MAX_SITEMAPS = 5;
 const MAX_CANDIDATES = 50;
 const MAX_SITEMAP_URLS = 5_000;
 const MAX_ERRORS = 5;
+const MAX_NEWEST = 50;
 const SITEMAP_MAX_BYTES = 5 * 1024 * 1024;
 
 type Candidate = { url: string; isDefault: boolean };
@@ -52,6 +61,7 @@ export async function readSitemaps(
   enqueue(`${origin}/sitemap.xml`, true);
 
   const urls = new Set<string>();
+  const dated = new Map<string, number>();
   const errors: SitemapError[] = [];
   const fail = (error: SitemapError) => {
     if (errors.length < MAX_ERRORS) errors.push(error);
@@ -89,16 +99,28 @@ export async function readSitemaps(
     }
     read++;
     if (sitemap.kind === "index") {
-      for (const loc of sitemap.locs) enqueue(loc);
+      for (const { loc } of sitemap.entries) enqueue(loc);
       continue;
     }
     urlsetsRead++;
-    for (const loc of sitemap.locs.slice(0, MAX_SITEMAP_URLS - entries)) {
+    for (const { loc, lastmod } of sitemap.entries.slice(0, MAX_SITEMAP_URLS - entries)) {
       entries++;
       const href = sameOriginHref(loc, origin);
-      if (href) urls.add(href);
+      if (!href) continue;
+      urls.add(href);
+      const ms = lastmod === null ? Number.NaN : Date.parse(lastmod);
+      if (!Number.isNaN(ms)) dated.set(href, Math.max(ms, dated.get(href) ?? ms));
     }
   }
-  const unreadable = urlsetsRead === 0 && errors.length > 0;
-  return { read, urls: unreadable ? null : [...urls], errors };
+  if (urlsetsRead === 0 && errors.length > 0) return { read, urls: null, lastmods: null, errors };
+  return { read, urls: [...urls], lastmods: summariseLastmods(dated), errors };
+}
+
+/** How many URLs carry a lastmod, and the newest 50 (ties by URL, for a stable order). */
+function summariseLastmods(dated: ReadonlyMap<string, number>): SitemapLastmods {
+  const newest = [...dated]
+    .sort(([a, x], [b, y]) => y - x || (a < b ? -1 : a > b ? 1 : 0))
+    .slice(0, MAX_NEWEST)
+    .map(([url, ms]) => ({ url, lastmod: new Date(ms).toISOString() }));
+  return { dated: dated.size, newest };
 }

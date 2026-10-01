@@ -63,4 +63,6 @@ export const NO_HTML = {
   images: null,
   imagesMissingAlt: null,
   hasFaqMarkup: null,
+  articleDatePublished: null,
+  preferredSourcesLink: null,
 };

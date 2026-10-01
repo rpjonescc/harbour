@@ -1,7 +1,7 @@
 import { FetchError } from "../fetch-error";
 import { parseRobots } from "../robots";
 import type { SafeFetch } from "../types";
-import { readSitemaps, type SitemapError } from "./crawl-sitemaps";
+import { readSitemaps, type SitemapError, type SitemapLastmods } from "./crawl-sitemaps";
 import { attempt } from "./fetch-attempt";
 
 /**
@@ -16,6 +16,7 @@ export type Seeds = {
   sitemapsRead: number;
   /** Unique same-origin page URLs listed in the sitemaps; null when none could be read. */
   urls: string[] | null;
+  sitemapLastmods: SitemapLastmods | null;
   sitemapErrors: SitemapError[];
 };
 
@@ -51,6 +52,7 @@ export async function discoverSeeds(
     robotsTxt: robots.state,
     sitemapsRead: sitemaps.read,
     urls: sitemaps.urls,
+    sitemapLastmods: sitemaps.lastmods,
     sitemapErrors: sitemaps.errors,
   };
 }

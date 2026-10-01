@@ -57,6 +57,7 @@ describe("crawler sitemap failures", () => {
     const { site: summary } = await crawl(context(`${origin}/`));
     expect(summary).toMatchObject({
       pagesInSitemap: null,
+      sitemapLastmods: null,
       sitemapsRead: 0,
       sitemapErrors: [{ url: `${origin}/pages.xml`, status: 503 }],
     });
@@ -227,6 +228,29 @@ describe("crawler bounds", () => {
     const { origin } = await site({ "/sitemap.xml": text(sitemap), "/": html("Home") });
     const { site: summary } = await crawl(context(`${origin}/`, {}, 1));
     expect(summary).toMatchObject({ pagesInSitemap: 5000, limitReached: "pages" });
+  });
+
+  it("counts dated sitemap URLs and keeps the newest 50, newest first", async () => {
+    const day = (i: number) => `2026-07-${String(i + 1).padStart(2, "0")}`;
+    const urls = Array.from({ length: 30 }, (_, i) => [
+      `<url><loc>/a${i}</loc><lastmod>${day(i)}</lastmod></url>`,
+      `<url><loc>/b${i}</loc><lastmod>${day(i)}</lastmod></url>`,
+    ]).flat();
+    urls.push(
+      "<url><loc>/undated</loc></url>",
+      "<url><loc>/bad</loc><lastmod>soon</lastmod></url>",
+    );
+    const sitemap = `<urlset>${urls.join("")}</urlset>`;
+    const { origin } = await site({ "/sitemap.xml": text(sitemap), "/": html("Home") });
+    const { site: summary } = await crawl(context(`${origin}/`, {}, 1));
+    const lastmods = summary.sitemapLastmods as { dated: number; newest: { url: string }[] };
+    expect(lastmods.dated).toBe(60);
+    expect(lastmods.newest).toHaveLength(50);
+    expect(lastmods.newest[0]).toEqual({
+      url: `${origin}/a29`,
+      lastmod: "2026-07-30T00:00:00.000Z",
+    });
+    expect(lastmods.newest[1]?.url).toBe(`${origin}/b29`);
   });
 
   it("stops once the crawl has read its byte budget", async () => {
