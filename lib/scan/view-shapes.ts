@@ -4,8 +4,10 @@ import type { ScanObservation } from "./types";
 // The observation fields the UI reads, validated at the boundary: stored JSON is external data.
 // Each mirrors the collector's own type (CrawledPage, CrawlSite, Readiness, GscMetrics).
 
-// Stored URLs are parsed later (paths, robots.txt location): a malformed one is skipped here.
-const url = z.string().refine((value) => URL.canParse(value));
+// Stored URLs are parsed later (paths, robots.txt location) and rendered as links: anything that
+// isn't a well-formed http(s) URL is skipped here.
+const isHttpUrl = (value: string) => /^https?:$/.test(URL.parse(value)?.protocol ?? "");
+const url = z.string().refine(isHttpUrl);
 
 const crawledPage = z.object({
   status: z.number(),
@@ -61,7 +63,7 @@ function read<T extends z.ZodType>(
   return observations.flatMap((o) => {
     if (o.collector !== collector || o.kind !== kind) return [];
     const parsed = shape.safeParse(o.value);
-    if (!parsed.success || (urlSubject && !URL.canParse(o.subject))) return [];
+    if (!parsed.success || (urlSubject && !isHttpUrl(o.subject))) return [];
     return [{ subject: o.subject, value: parsed.data }];
   });
 }

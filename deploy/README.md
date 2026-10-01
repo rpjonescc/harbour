@@ -48,10 +48,13 @@ From another tailnet device, `https://<machine>.<tailnet>.ts.net:8444` should sh
 ## Updating
 
 Update when the Agents page is idle (no run queued or running): restarting the worker cancels a
-running agent and moves its work to quarantine.
+running agent (its work moves to quarantine) or a running scan (it is marked failed). On start the
+worker queues a catch-up scan of every product not scanned in the last 24 hours; scans run in
+queue order with agent jobs, so a fresh install scans every product before later agent runs.
+Restart the worker before the web so only one process applies new database migrations.
 
 ```bash
-git pull && pnpm install --frozen-lockfile && pnpm build && systemctl --user restart harbour-web harbour-worker
+git pull && pnpm install --frozen-lockfile && pnpm build && systemctl --user restart harbour-worker harbour-web
 ```
 
 ## Worker and agents

@@ -33,6 +33,13 @@ describe("pageRows", () => {
     expect(total).toBe(1);
   });
 
+  it("leaves out pages whose stored URLs are not http(s), so they never become links", () => {
+    const script = { ...htmlPage("/a"), subject: "javascript:alert(1)" };
+    const ftp = htmlPage("/b", { finalUrl: "ftp://example.com/b" });
+    const { rows } = pageRows([script, ftp, htmlPage("/c")]);
+    expect(rows.map((r) => r.url)).toEqual([at("/c")]);
+  });
+
   it("keeps the first 50 rows and reports the total", () => {
     const pages = Array.from({ length: 60 }, (_, i) => errorPage(`/p${i}`, 500));
     const { rows, total } = pageRows(pages);

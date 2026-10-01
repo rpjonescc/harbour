@@ -292,9 +292,10 @@ only by hand.
 
 Scans are ordinary jobs: they run one at a time, in queue order, between agent runs. Unlike
 agent runs they never wait for the brain to be quiet, because they don't touch it. To scan
-now — after changing `harbour.config.json`, say — choose **Scan now** on the product's page, or
-run `pnpm scan:now` (every product) or `pnpm scan:now <productId>`; an unknown id is rejected
-with the configured ones. The **Sources** page shows whether the daily scan is on and when each
+now, choose **Scan now** on the product's page, or run `pnpm scan:now` (every product) or
+`pnpm scan:now <productId>`; an unknown id is rejected with the configured ones. Both services
+read `harbour.config.json` once, so after changing it restart them
+(`systemctl --user restart harbour-worker harbour-web`) before scanning. The **Sources** page shows whether the daily scan is on and when each
 product was last scanned and will be next.
 
 ## Reading the results
