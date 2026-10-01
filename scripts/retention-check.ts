@@ -44,7 +44,19 @@ export function retentionReport(db: Db, keep: number): string[] {
 /** Opens `path` read-only and reports; code 1 with a message when it is missing. */
 export function checkRetention(path: string, keep: number): { code: 0 | 1; lines: string[] } {
   if (!existsSync(path)) return { code: 1, lines: [`Database not found: ${path}`] };
-  const db = openReadonlyDb(path);
+  let db: Db;
+  try {
+    db = openReadonlyDb(path);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      code: 1,
+      lines: [
+        `Could not open the database read-only: ${message}`,
+        "Run it as the user that runs Harbour: SQLite needs write access to the data folder for its -shm and -wal files.",
+      ],
+    };
+  }
   try {
     return { code: 0, lines: retentionReport(db, keep) };
   } finally {

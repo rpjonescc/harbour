@@ -5,6 +5,7 @@
 import { and, count, countDistinct, desc, eq, exists, inArray, lt } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { collectorRuns, observations, scanRuns, scores } from "@/lib/db/schema";
+import { COLLECTORS } from "@/lib/scan/registry";
 import { plural } from "@/lib/scan/scoring/sub-score";
 import { latestOkRun } from "@/lib/scan/store";
 
@@ -20,8 +21,8 @@ export type RetentionPlan = { keep: number; products: ProductRetention[]; trunca
 
 /** Most scans one run plans (and so deletes from): keeps every IN list small. */
 export const MAX_PLANNED_SCANS = 500;
-const BATCH_ROWS = 2000;
-const MAX_BATCHES = 250;
+/** Rows per DELETE statement and statements per run (500,000 rows). */
+export const RETENTION_LIMITS = { batchRows: 2000, maxBatches: 250 };
 
 const productIds = (db: Db) =>
   db
@@ -44,8 +45,9 @@ function latestScoredScanId(db: Db, productId: string): number | undefined {
 
 /**
  * Scans whose observations a reader may still need whatever their age: running ones, each
- * collector's latest ok run (carried into later scores, e.g. weekly PageSpeed), and the scan
- * behind the latest scores.
+ * registered collector's latest ok run (carried into later scores, e.g. weekly PageSpeed), and
+ * the scan behind the latest scores. A collector no longer registered is never carried over, so
+ * its last run does not pin an old scan forever.
  */
 function neededScanIds(db: Db, productId: string): Set<number> {
   const forProduct = eq(scanRuns.productId, productId);
@@ -61,7 +63,16 @@ function neededScanIds(db: Db, productId: string): Set<number> {
     .selectDistinct({ collector: collectorRuns.collector })
     .from(collectorRuns)
     .innerJoin(scanRuns, eq(collectorRuns.scanId, scanRuns.id))
-    .where(and(forProduct, eq(collectorRuns.status, "ok")))
+    .where(
+      and(
+        forProduct,
+        eq(collectorRuns.status, "ok"),
+        inArray(
+          collectorRuns.collector,
+          COLLECTORS.map((c) => c.id),
+        ),
+      ),
+    )
     .all();
   for (const { collector } of collectors) {
     const run = latestOkRun(db, productId, collector);
@@ -171,7 +182,8 @@ export async function applyRetention(
   plan: RetentionPlan,
   opts: { batchRows?: number; maxBatches?: number; stopping: () => boolean },
 ): Promise<{ deleted: number; scans: number; complete: boolean; stopped: boolean }> {
-  const { batchRows = BATCH_ROWS, maxBatches = MAX_BATCHES, stopping } = opts;
+  const { batchRows, maxBatches } = { ...RETENTION_LIMITS, ...opts };
+  const { stopping } = opts;
   const scanIds = plan.products.flatMap((p) => p.pruneScanIds);
   let deleted = 0;
   let batches = 0;

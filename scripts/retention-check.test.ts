@@ -51,6 +51,16 @@ describe("checkRetention", () => {
     }
   });
 
+  it("fails with a message when the database cannot be opened", () => {
+    expect(checkRetention(dir, 30)).toEqual({
+      code: 1,
+      lines: [
+        expect.stringMatching(/^Could not open the database read-only: /),
+        expect.stringContaining("write access to the data folder"),
+      ],
+    });
+  });
+
   it("fails with a message when the database is missing", () => {
     const path = join(dir, "missing.db");
     expect(checkRetention(path, 30)).toEqual({

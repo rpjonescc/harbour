@@ -3,10 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseConfig } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
-import { connectionOf } from "@/lib/db/client";
 import {
   claimNextJob,
-  enqueueJob,
   eventsSince,
   getJob,
   type Job,
@@ -14,11 +12,22 @@ import {
   requestCancel,
 } from "@/lib/jobs/queue";
 import { openTestDb } from "@/tests/helpers/db";
-import { addScans, scansWithObservations } from "@/tests/helpers/retention";
-import { describeBackup, type OpsJobDeps, runBackupJob, runRetentionJob } from "./backup-job";
+import { describeBackup, type OpsJobDeps, runBackupJob } from "./backup-job";
 import { enqueueBackup } from "./backup-schedule";
 
-const fsState = vi.hoisted(() => ({ failUnlink: false }));
+const fsState = vi.hoisted(() => ({ failUnlink: false, failRetentionQueue: false }));
+vi.mock("@/lib/jobs/queue", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/jobs/queue")>();
+  return {
+    ...actual,
+    enqueueJob: (...args: Parameters<typeof actual.enqueueJob>) => {
+      if (fsState.failRetentionQueue && args[1] === "retention") {
+        throw new Error("database is locked");
+      }
+      return actual.enqueueJob(...args);
+    },
+  };
+});
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
   return {
@@ -36,6 +45,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   fsState.failUnlink = false;
+  fsState.failRetentionQueue = false;
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -95,6 +105,20 @@ describe("runBackupJob", () => {
   });
 });
 
+describe("runBackupJob queueing retention", () => {
+  it("stays ok and records an error when retention cannot be queued", async () => {
+    const { deps, db, job } = setup();
+    fsState.failRetentionQueue = true;
+    await runBackupJob(deps, job);
+    expect(getJob(db, job.id)).toMatchObject({ status: "ok", error: null });
+    expect(texts(db, job.id).at(-1)).toEqual([
+      "error",
+      "Could not queue retention: database is locked",
+    ]);
+    expect(queuedRetention(db)).toEqual([]);
+  });
+});
+
 describe("runBackupJob when the backup cannot finish", () => {
   it("fails the job when the backup itself fails", async () => {
     writeFileSync(join(dir, "a-file"), "not a folder");
@@ -145,57 +169,6 @@ describe("runBackupJob when the backup cannot finish", () => {
       "Could not remove old backups: EACCES: permission denied, unlink",
     ]);
     expect(getJob(db, job.id)?.status).toBe("ok");
-  });
-});
-
-describe("runRetentionJob", () => {
-  function retention(over: Partial<OpsJobDeps> = {}) {
-    const { deps, db } = setup();
-    addScans(db, "acme-docs", 41, { pages: 1000 });
-    enqueueJob(db, "retention", { day: "2026-10-02" }, null);
-    const job = claimNextJob(db);
-    if (!job) throw new Error("no job claimed");
-    return { deps: { ...deps, ...over }, db, job };
-  }
-
-  it("prunes old observations and says how many, per product", async () => {
-    const { deps, db, job } = retention();
-    await runRetentionJob(deps, job);
-    expect(getJob(db, job.id)).toMatchObject({ status: "ok", error: null });
-    expect(texts(db, job.id)).toEqual([
-      ["status", "acme-docs: 11 old scans, 11,000 observations"],
-      ["status", "Removed 11,000 observations from 11 scans"],
-    ]);
-    expect(scansWithObservations(db)[0]).toBe(12);
-  });
-
-  it("says when there is nothing to prune", async () => {
-    const { deps, db, job } = retention();
-    await runRetentionJob(deps, job);
-    enqueueJob(db, "retention", { day: "2026-10-03" }, null);
-    const again = claimNextJob(db);
-    if (!again) throw new Error("no job claimed");
-    await runRetentionJob(deps, again);
-    expect(texts(db, again.id)).toEqual([
-      ["status", "Nothing to prune — every product has at most 30 scans with observations"],
-    ]);
-  });
-
-  it("fails the job with the reason, and leaves the rest for the next night", async () => {
-    const { deps, db, job } = retention();
-    connectionOf(db).exec("DROP TABLE observations");
-    await runRetentionJob(deps, job);
-    const row = getJob(db, job.id);
-    expect(row).toMatchObject({ status: "failed", error: expect.stringMatching(/observations/) });
-    expect(texts(db, job.id).at(-1)).toEqual(["error", row?.error]);
-  });
-
-  it("finishes cancelled when the worker stops", async () => {
-    const { deps, db, job } = retention({ stopping: () => true });
-    await runRetentionJob(deps, job);
-    expect(getJob(db, job.id)).toMatchObject({ status: "cancelled", error: "Worker stopped" });
-    expect(texts(db, job.id).at(-1)).toEqual(["status", "Worker stopped"]);
-    expect(scansWithObservations(db)[0]).toBe(1);
   });
 });
 

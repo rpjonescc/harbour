@@ -408,7 +408,7 @@ stand, what improved, what got worse, top opportunities, and new competitors see
   is its own git repo.
 - **Retention**: only after a verified backup, a retention job deletes the observations of all
   but each product's newest 30 scans (`HARBOUR_OBSERVATION_SCANS_KEPT`, 7–365), keeping those
-  of running scans, of each collector's latest ok run (the scorer's carry-over) and of the scan
+  of running scans, of each registered collector's latest ok run (the scorer's carry-over) and of the scan
   behind the latest scores. Scan runs, collector runs, scores, jobs, agent run events, actions
   and the audit log are kept. Deletes are bounded (2,000 rows per statement, each in its own
   transaction, 500,000 rows and 500 scans per run; the rest waits for the next night). No

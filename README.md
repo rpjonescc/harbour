@@ -425,7 +425,8 @@ stops growing. For each product (configured or not) it keeps:
 - the observations of the newest `HARBOUR_OBSERVATION_SCANS_KEPT` scans (default 30, whatever
   their outcome) and of any scan still running;
 - the observations of each source's latest successful run, however old, so a weekly result
-  such as PageSpeed still counts in later scores;
+  such as PageSpeed still counts in later scores (only sources Harbour still has: a removed
+  source's last run is pruned like any other old scan);
 - the observations of the scan behind the latest scores, which the product page and the
   weekly export read.
 
@@ -445,7 +446,9 @@ Deleted space is reused by later scans rather than returned to the disk: Harbour
 To see what the next run would delete without changing anything, run `pnpm retention:check`.
 It opens the database read-only and prints, per product, the old scans and observation count
 to remove, the totals, and the row counts of `observations`, `jobs` and `agent_run_events`
-(job history is kept; it grows by a few rows a day).
+(job history is kept; it grows by a few rows a day). Run it as the user that runs Harbour: even
+a read-only SQLite connection needs write access to the data folder for the database's `-shm`
+and `-wal` files, and it says so if it cannot open the database.
 
 ## Reading the results
 

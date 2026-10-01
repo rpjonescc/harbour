@@ -13,8 +13,12 @@ export type ScanSpec = {
   pages?: number;
   /** PageSpeed ran ok in this scan (2 observations); otherwise it is skipped. */
   pagespeed?: boolean;
-  /** "running" leaves the scan open. */
-  status?: "ok" | "failed" | "running";
+  /** Another collector that ran ok in this scan (1 observation). */
+  alsoOk?: string;
+  /** "running" leaves the scan open; ok and partial scans are scored. */
+  status?: "ok" | "partial" | "failed" | "running";
+  /** When the scores were computed (default: the scan's time). */
+  scoredAt?: Date;
 };
 
 /** Adds `n` daily scans of `productId` after any it already has; returns their ids. */
@@ -53,10 +57,22 @@ export function addScans(db: Db, productId: string, n: number, spec: ScanSpec = 
           ]
         : [],
     });
+    if (spec.alsoOk) {
+      recordCollectorRun(db, {
+        scanId,
+        collector: spec.alsoOk,
+        status: "ok",
+        error: null,
+        startedAt: at,
+        finishedAt: at,
+        observations: [{ kind: "feed", subject: "all", value: { items: 1 } }],
+      });
+    }
     const status = spec.status ?? "ok";
     if (status !== "running") {
       finishScan(db, scanId, status, at);
-      if (status === "ok") storeScores(db, scanId, productId, SCORES, at);
+      const scored = status === "ok" || status === "partial";
+      if (scored) storeScores(db, scanId, productId, SCORES, spec.scoredAt ?? at);
     }
     ids.push(scanId);
   }

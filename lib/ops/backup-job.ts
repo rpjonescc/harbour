@@ -12,6 +12,7 @@ import {
   describeRemoved,
   MAX_PLANNED_SCANS,
   planRetention,
+  RETENTION_LIMITS,
 } from "./retention";
 
 export type OpsJobDeps = {
@@ -20,6 +21,8 @@ export type OpsJobDeps = {
   productIds: () => readonly string[];
   now: () => Date;
   stopping: () => boolean;
+  /** Retention's delete limits; tests lower them. */
+  retention?: { batchRows: number; maxBatches: number };
 };
 
 /** "Backup verified: 12.4 MB, 3,021 pages in 2.1 s; 14 kept, 1 removed (harbour-2026-09-18.db)". */
@@ -57,8 +60,7 @@ export async function runBackupJob(deps: OpsJobDeps, job: Job): Promise<void> {
       addEvent(db, job.id, "error", `Could not remove old backups: ${result.pruneError}`, now());
     }
     finishJob(db, job.id, "ok", null, now());
-    // Only now is there a verified copy of what retention deletes.
-    enqueueJob(db, "retention", { day }, null, now());
+    queueRetention(deps, job, day);
   } catch (error) {
     if (error instanceof BackupStopped) {
       const stopped = stopping();
@@ -72,6 +74,17 @@ export async function runBackupJob(deps: OpsJobDeps, job: Job): Promise<void> {
   }
 }
 
+/** Only after a verified backup is there a copy of what retention deletes. */
+function queueRetention({ db, now }: OpsJobDeps, job: Job, day: string): void {
+  try {
+    enqueueJob(db, "retention", { day }, null, now());
+  } catch (error) {
+    // The backup itself is done and stays ok; retention waits for the next night's backup.
+    const message = error instanceof Error ? error.message : String(error);
+    addEvent(db, job.id, "error", `Could not queue retention: ${message}`, now());
+  }
+}
+
 const LATER = "the rest goes after tomorrow's backup";
 
 /**
@@ -80,19 +93,20 @@ const LATER = "the rest goes after tomorrow's backup";
  * night; nothing is retried before then.
  */
 export async function runRetentionJob(deps: OpsJobDeps, job: Job): Promise<void> {
-  const { db, config, now, stopping } = deps;
+  const { db, config, now, stopping, retention = RETENTION_LIMITS } = deps;
   const status = (text: string) => addEvent(db, job.id, "status", text, now());
   try {
     const keep = config.HARBOUR_OBSERVATION_SCANS_KEPT;
     const plan = planRetention(db, keep);
     const due = plan.products.filter((p) => p.pruneScanIds.length > 0);
     if (due.length === 0) {
-      status(`Nothing to prune — every product has at most ${keep} scans with observations`);
+      status(`No old scans to prune (newest ${keep} kept, plus the latest result of each source)`);
       finishJob(db, job.id, "ok", null, now());
       return;
     }
     for (const product of due) status(describeProductPlan(product));
     const result = await applyRetention(db, plan, {
+      ...retention,
       stopping: () => stopping() || isCancelRequested(db, job.id),
     });
     if (result.deleted > 0) status(describeRemoved(result));
@@ -102,8 +116,10 @@ export async function runRetentionJob(deps: OpsJobDeps, job: Job): Promise<void>
       finishJob(db, job.id, "cancelled", stopped ? STOPPED : null, now());
       return;
     }
-    if (!result.complete) status(`Stopped at the 500,000-row limit; ${LATER}`);
-    else if (plan.truncated) status(`Pruned the oldest ${MAX_PLANNED_SCANS} scans; ${LATER}`);
+    if (!result.complete) {
+      const limit = (retention.batchRows * retention.maxBatches).toLocaleString("en-US");
+      status(`Stopped at the ${limit}-row limit; ${LATER}`);
+    } else if (plan.truncated) status(`Pruned the oldest ${MAX_PLANNED_SCANS} scans; ${LATER}`);
     finishJob(db, job.id, "ok", null, now());
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

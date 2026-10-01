@@ -57,6 +57,31 @@ describe("planRetention", () => {
     expect(plan).toMatchObject({ keptForCarryOver: 1, pruneScanIds: [1] });
   });
 
+  it("keeps the scan with the newest scores even when its id is older", () => {
+    const db = openTestDb();
+    addScans(db, "acme-docs", 1, { scoredAt: new Date("2027-01-01T00:00:00Z") });
+    addScans(db, "acme-docs", 31);
+    const [plan] = planRetention(db, 30).products;
+    expect(plan).toMatchObject({ keptForCarryOver: 1, pruneScanIds: [2] });
+  });
+
+  it("keeps a partial scan behind the latest scores", () => {
+    const db = openTestDb();
+    addScans(db, "acme-docs", 1);
+    addScans(db, "acme-docs", 1, { status: "partial" });
+    addScans(db, "acme-docs", 30, { status: "failed" });
+    const [plan] = planRetention(db, 30).products;
+    expect(plan).toMatchObject({ keptForCarryOver: 1, pruneScanIds: [1] });
+  });
+
+  it("carries over only registered collectors", () => {
+    const db = openTestDb();
+    addScans(db, "acme-docs", 1, { alsoOk: "retired-feed" });
+    addScans(db, "acme-docs", 30);
+    const [plan] = planRetention(db, 30).products;
+    expect(plan).toMatchObject({ keptForCarryOver: 0, pruneScanIds: [1], observations: 4 });
+  });
+
   it("plans each product separately, configured or not", () => {
     const db = openTestDb();
     addScans(db, "acme-docs", 32);
