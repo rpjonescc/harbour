@@ -17,11 +17,15 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
   test.setTimeout(120_000);
   await page.goto("/products/acme-docs");
   await expect(page.getByText("Not scanned yet")).toBeVisible();
-  await page.getByRole("button", { name: "Scan now" }).click();
-  await expect(page.getByRole("button", { name: "Scan now" })).toBeDisabled();
+  const scanNow = page.getByRole("button", { name: "Scan now" });
+  // A click before hydration is lost; a repeat click is harmless (one scan per product queues).
+  await expect(async () => {
+    await scanNow.click();
+    await expect(scanNow).toBeDisabled({ timeout: 1_000 });
+  }).toPass();
   // The page refreshes itself every 10 s while the scan is queued or running.
   await expect(page.getByText(/^Last scan .+\.$/)).toBeVisible({ timeout: 90_000 });
-  await expect(page.getByRole("button", { name: "Scan now" })).toBeEnabled();
+  await expect(scanNow).toBeEnabled();
 
   for (const [area, name] of [
     ["SEO", "Search engines"],
@@ -65,13 +69,21 @@ test("keyboard: the score breakdown tabs move with the arrow keys", async ({ pag
   await page.goto("/products/acme-docs");
   const tabs = page.getByRole("tablist", { name: "Score breakdown" });
   const tab = (name: string) => tabs.getByRole("tab", { name });
-  await tab("SEO").focus();
+  await expect(tab("SEO")).toHaveAttribute("aria-selected", "true");
+  // Keys pressed before hydration are lost; a click that selects GEO shows the tabs are live.
+  await expect(async () => {
+    await tab("GEO").click();
+    await expect(tab("GEO")).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+  }).toPass();
+  await page.keyboard.press("ArrowLeft");
+  await expect(tab("SEO")).toBeFocused();
+  await expect(tab("SEO")).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowRight");
   await expect(tab("GEO")).toBeFocused();
-  await expect(tab("GEO")).toHaveAttribute("aria-selected", "true");
   await expect(
     page.getByRole("tabpanel", { name: "GEO" }).getByRole("heading", { name: "llms.txt" }),
   ).toBeVisible();
+  await expect(page.getByRole("tabpanel", { name: "SEO" })).toBeHidden();
   await page.keyboard.press("End");
   await expect(tab("AEO")).toBeFocused();
   await page.keyboard.press("ArrowRight");
