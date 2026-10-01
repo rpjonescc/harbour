@@ -29,8 +29,9 @@ Phase 2 ships in two parts with separate implementation plans:
 ### A1. Brain access layer (`lib/brain/`)
 
 - `resolveBrainPath(relative)`: joins with `HARBOUR_BRAIN_DIR`, rejects absolute paths,
-  `..` segments, hidden segments (`.git`, dotfiles) and any path whose `realpath` is
-  outside the brain root (symlink escape). Only `.md` files are served. Violations throw a
+  `..` segments, hidden segments (`.git`, dotfiles) and any symlink below the brain root
+  (matching `listTree()`, which skips symlinks), so no link can escape the root or point
+  at a hidden or non-Markdown file. Only regular `.md` files are served. Violations throw a
   typed error and render as 404 — never a stack trace.
 - `listTree()`: directory tree of `.md` files and folders (hidden entries skipped), sorted
   folders-first then alphabetically; capped at 5,000 entries with a visible "tree
@@ -218,7 +219,7 @@ Phase 2 ships in two parts with separate implementation plans:
 
 ## Testing
 
-- **Brain:** path guard (traversal, symlink escape, hidden files, non-.md), tree cap,
+- **Brain:** path guard (traversal, symlinks, hidden files, non-.md), tree cap,
   frontmatter valid/invalid, wiki-link resolution (resolved, ambiguous, broken),
   sanitisation (script, event handler, style, iframe removed).
 - **Search:** index build, watcher update, snippet highlighting; dialog keyboard flow.

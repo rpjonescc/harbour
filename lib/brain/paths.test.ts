@@ -39,6 +39,23 @@ describe("resolveBrainPath", () => {
     }
   });
 
+  it("rejects an in-root symlink to a hidden file", () => {
+    mkdirSync(join(brain.root, ".git"));
+    writeFileSync(join(brain.root, ".git/config"), "[core]");
+    symlinkSync(join(brain.root, ".git/config"), join(brain.root, "alias.md"));
+    expect(() => resolveBrainPath(brain.root, "alias.md")).toThrow(BrainPathError);
+  });
+
+  it("rejects an in-root symlink to a non-markdown file", () => {
+    symlinkSync(join(brain.root, "notes.txt"), join(brain.root, "x.md"));
+    expect(() => resolveBrainPath(brain.root, "x.md")).toThrow(BrainPathError);
+  });
+
+  it("rejects a path through a symlinked directory inside the root", () => {
+    symlinkSync(join(brain.root, "research"), join(brain.root, "shortcut"));
+    expect(() => resolveBrainPath(brain.root, "shortcut/geo/a.md")).toThrow(BrainPathError);
+  });
+
   it("rejects a directory whose name ends in .md", () => {
     mkdirSync(join(brain.root, "folder.md"));
     expect(() => resolveBrainPath(brain.root, "folder.md")).toThrow(BrainPathError);
