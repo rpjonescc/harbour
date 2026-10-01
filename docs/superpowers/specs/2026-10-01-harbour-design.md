@@ -323,7 +323,8 @@ stand, what improved, what got worse, top opportunities, and new competitors see
 
 The research refresh runs on the first Sunday of each month at 21:00 (an hour after the weekly
 analyst, which runs first in the queue) and on demand ("Refresh stale research" on Agents). A
-document is due when its `researched` date is more than 30 days old, or missing or unreadable.
+document is due when its `researched` date is more than 30 days old, or missing or unreadable
+(a date more than a day in the future counts as unreadable).
 Each round queues at most 3 refreshes, oldest first, for existing documents only (missing ones
 are left to the research sprint); one scheduled round per month, and a failed refresh is not
 retried automatically. A refresh is a research run of the same topic with the same single

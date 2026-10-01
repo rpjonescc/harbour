@@ -216,11 +216,25 @@ describe("agents API routes", () => {
       ]);
     });
 
-    it("queues nothing when nothing is stale", async () => {
+    it("queues nothing when nothing is stale, and still audits the click", async () => {
       mocks.brainDir = "/nonexistent/harbour-example-brain";
       const response = await run(post("/api/agents/run", { kind: "refresh" }));
       expect(await response.json()).toEqual({ jobIds: [], stale: 0 });
       expect(listJobs(db())).toEqual([]);
+      expect(auditEvents()).toMatchObject([
+        { event: "agent_run_requested", detail: { kind: "refresh", topics: [], jobIds: [] } },
+      ]);
+    });
+
+    it("never queues a sprint run for a topic that is being refreshed", async () => {
+      const refresh = (await (await run(post("/api/agents/run", { kind: "refresh" }))).json()) as {
+        jobIds: number[];
+      };
+      const sprint = (await (
+        await run(post("/api/agents/run", { kind: "research", topic: "glossary" }))
+      ).json()) as { jobIds: number[] };
+      expect(sprint.jobIds).toEqual([refresh.jobIds[1]]);
+      expect(listJobs(db())).toHaveLength(3);
     });
 
     it("refuses extra keys", async () => {

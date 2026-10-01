@@ -7,8 +7,8 @@ import { Panel } from "@/components/ui/Panel";
 import type { RefreshPanelView } from "@/lib/agents/refresh-view";
 import { postJson } from "@/lib/auth/client-api";
 
-function queuedNotice(count: number): string {
-  if (count === 0) return "Nothing is stale";
+function queuedNotice(count: number, stale: number): string {
+  if (count === 0) return stale > 0 ? "Every stale document is already queued" : "Nothing is stale";
   return `Queued ${count} ${count === 1 ? "refresh" : "refreshes"}`;
 }
 
@@ -37,7 +37,7 @@ export function ResearchRefreshPanel({ view }: { view: RefreshPanelView }) {
     });
     setBusy(false);
     if (!result.ok) return setError("Couldn't queue the refresh. Try again.");
-    setNotice(queuedNotice(result.data.jobIds.length));
+    setNotice(queuedNotice(result.data.jobIds.length, result.data.stale));
     router.refresh();
   }
 

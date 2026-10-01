@@ -16,14 +16,36 @@ const BRAIN_PROBLEM = {
 
 export type QueuedRefresh = { jobId: number; topicId: string };
 
-/** Topics with a research job (sprint or refresh) already queued or running. */
-function activeResearchTopics(db: Db): Set<string> {
+/** Each topic with a research job (sprint or refresh) queued or running, and that job's id. */
+function activeResearchJobs(db: Db): Map<string, number> {
   const rows = db
-    .select({ params: jobs.params })
+    .select({ id: jobs.id, params: jobs.params })
     .from(jobs)
     .where(and(eq(jobs.kind, "research"), inArray(jobs.status, ["queued", "running"])))
     .all();
-  return new Set(rows.map((row) => row.params.topic ?? ""));
+  return new Map(rows.map((row) => [row.params.topic ?? "", row.id]));
+}
+
+// Immediate: the web and the worker both queue research, so the active-topic read and the
+// inserts must not interleave with the other process's.
+const IMMEDIATE = { behavior: "immediate" } as const;
+
+/**
+ * Queues a research-sprint run per topic, except a topic that already has a research job
+ * queued or running (a refresh included): its job id is returned instead.
+ */
+export function enqueueResearch(
+  db: Db,
+  topics: readonly string[],
+  requestedBy: string | null,
+  now = new Date(),
+): number[] {
+  return db.transaction(() => {
+    const active = activeResearchJobs(db);
+    return topics.map(
+      (topic) => active.get(topic) ?? enqueueJob(db, "research", { topic }, requestedBy, now).id,
+    );
+  }, IMMEDIATE);
 }
 
 /** Queues up to 3 stale topics, skipping any topic with a research job already queued or running. */
@@ -37,17 +59,19 @@ export function queueRefreshes(
     now: Date;
   },
 ): { queued: QueuedRefresh[]; stale: number } {
-  const stale = staleTopics(topicAges(input.root), input.today);
-  const active = activeResearchTopics(db);
-  const queued = stale
-    .filter((age) => !active.has(age.topicId))
-    .slice(0, MAX_REFRESHES)
-    .map((age) => {
-      const params: Record<string, string> = { topic: age.topicId, mode: "refresh" };
-      if (input.month) params.month = input.month;
-      const job = enqueueJob(db, "research", params, input.requestedBy, input.now);
-      return { jobId: job.id, topicId: age.topicId };
-    });
+  const stale = staleTopics(topicAges(input.root), input.today); // file reads: outside the lock
+  const queued = db.transaction(() => {
+    const active = activeResearchJobs(db);
+    return stale
+      .filter((age) => !active.has(age.topicId))
+      .slice(0, MAX_REFRESHES)
+      .map((age) => {
+        const params: Record<string, string> = { topic: age.topicId, mode: "refresh" };
+        if (input.month) params.month = input.month;
+        const job = enqueueJob(db, "research", params, input.requestedBy, input.now);
+        return { jobId: job.id, topicId: age.topicId };
+      });
+  }, IMMEDIATE);
   return { queued, stale: stale.length };
 }
 

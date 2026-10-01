@@ -51,6 +51,15 @@ describe("ResearchRefreshPanel", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Nothing is stale");
   });
 
+  it("says when every stale document is already queued", async () => {
+    api.postJson.mockResolvedValue({ ok: true, data: { jobIds: [], stale: 2 } });
+    render(<ResearchRefreshPanel view={view} />);
+    fireEvent.click(button());
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Every stale document is already queued",
+    );
+  });
+
   it("shows an error when the refresh could not be queued", async () => {
     api.postJson.mockResolvedValue({ ok: false, error: "network_error" });
     render(<ResearchRefreshPanel view={view} />);

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { queueRefreshes } from "@/lib/agents/refresh-schedule";
+import { enqueueResearch, queueRefreshes } from "@/lib/agents/refresh-schedule";
 import { RESEARCH_TOPICS } from "@/lib/agents/topics";
 import { enqueueWeeklyAnalyst } from "@/lib/analyst/schedule";
 import { isoWeekLabel } from "@/lib/analyst/week";
@@ -62,7 +62,8 @@ function queueRun(body: Body, login: string, config: Config): Queued | Response 
     return jsonError(400, "unknown_topic");
   }
   const topics = topic === "all" ? RESEARCH_TOPICS.map((t) => t.id) : [topic];
-  return { jobIds: topics.map((id) => enqueueJob(db, "research", { topic: id }, login).id) };
+  // A topic already being researched or refreshed keeps its run instead of gaining a second.
+  return { jobIds: enqueueResearch(db, topics, login) };
 }
 
 export async function POST(request: Request) {

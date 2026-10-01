@@ -59,6 +59,14 @@ export function topicAges(root: string): TopicAge[] {
   });
 }
 
+/**
+ * Whether a `researched` date is more than a day after `today`: a typo, not a real date, so it
+ * counts as unreadable (due). A day's grace covers a run dated in another time zone.
+ */
+export function isFutureDate(researched: string, today: string): boolean {
+  return parseDay(researched) > parseDay(today) + DAY_MS;
+}
+
 /** Pure: existing docs researched more than 30 days before `today` (or with no date), oldest first, ≤ `limit`. */
 export function staleTopics(
   ages: readonly TopicAge[],
@@ -66,10 +74,15 @@ export function staleTopics(
   limit = Number.POSITIVE_INFINITY,
 ): TopicAge[] {
   const cutoff = parseDay(today) - REFRESH_AFTER_DAYS * DAY_MS;
-  // An unknown date sorts first: it may be the oldest of all.
-  const sortKey = (age: TopicAge) => (age.researched === null ? "" : age.researched);
+  const readable = (age: TopicAge) =>
+    age.researched !== null && !isFutureDate(age.researched, today) ? age.researched : null;
+  // An unreadable date sorts first: it may be the oldest of all.
+  const sortKey = (age: TopicAge) => readable(age) ?? "";
   return ages
-    .filter((age) => age.exists && (age.researched === null || parseDay(age.researched) < cutoff))
+    .filter((age) => {
+      const day = readable(age);
+      return age.exists && (day === null || parseDay(day) < cutoff);
+    })
     .sort((a, b) => sortKey(a).localeCompare(sortKey(b)))
     .slice(0, limit);
 }

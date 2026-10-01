@@ -12,6 +12,7 @@ describe("refreshPanelView", () => {
       "research/seo/local-seo.md": "# No date\n",
       "research/seo/seo-fundamentals.md": doc("2025-11-03"),
       "00-start-here.md": doc("2026-09-30"),
+      "research/scoring-rationale.md": doc("2062-01-10"),
     });
   });
   afterEach(() => brain.cleanup());
@@ -30,10 +31,11 @@ describe("refreshPanelView", () => {
       total: 10,
       due: [
         { title: "Local SEO", age: "date unknown" },
+        { title: "Scoring rationale", age: "date in the future" },
         { title: "SEO fundamentals", age: "researched 3 Nov 2025" },
         { title: "Glossary", age: "researched 10 Jan" },
       ],
-      missing: 6,
+      missing: 5,
       tokenSet: true,
     });
   });

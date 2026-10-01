@@ -1,5 +1,11 @@
 import { makeBrain } from "@/tests/helpers/brain";
-import { REFRESH_AFTER_DAYS, staleTopics, type TopicAge, topicAges } from "./research-age";
+import {
+  isFutureDate,
+  REFRESH_AFTER_DAYS,
+  staleTopics,
+  type TopicAge,
+  topicAges,
+} from "./research-age";
 import { RESEARCH_TOPICS } from "./topics";
 
 const doc = (researched: string) => `---\ntitle: Example\nresearched: ${researched}\n---\n# Body\n`;
@@ -59,6 +65,17 @@ describe("staleTopics", () => {
   it("counts an unknown date as stale and never refreshes a missing document", () => {
     const ages = [age("unknown", null), age("missing", null, false), age("fresh", "2026-09-30")];
     expect(staleTopics(ages, "2026-10-01").map((a) => a.topicId)).toEqual(["unknown"]);
+  });
+
+  it("counts a date more than a day in the future as unreadable, so due", () => {
+    const ages = [
+      age("typo", "2062-01-10"),
+      age("tomorrow", "2026-10-02"),
+      age("ok", "2026-09-30"),
+    ];
+    expect(staleTopics(ages, "2026-10-01").map((a) => a.topicId)).toEqual(["typo"]);
+    expect(isFutureDate("2062-01-10", "2026-10-01")).toBe(true);
+    expect(isFutureDate("2026-10-02", "2026-10-01")).toBe(false);
   });
 
   it("orders oldest first, unknown dates first of all, and caps at the limit", () => {

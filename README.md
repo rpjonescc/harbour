@@ -109,7 +109,8 @@ Open **Agents** in the sidebar (`/agents`) to run research and discovery agents 
 your Second Brain:
 
 - **Research** — one run per topic (SEO, GEO, AEO, a glossary, a start-here guide and a scoring
-  rationale), or **Run all research topics** to queue them all. Each writes one document under
+  rationale), or **Run all research topics** to queue them all (a topic that already has a
+  research run or refresh queued or running keeps that run). Each writes one document under
   `research/` (or `00-start-here.md`).
 - **Discovery** — one run per product; it reads your `products/<id>/notes.md` and writes
   `products/<id>/discovery.md` and `products/<id>/proposals.json`.
@@ -181,7 +182,8 @@ what is new, sets `researched` to today and `review_by` 90 days later, and ends 
 "What changed in this refresh". It may change only that one document.
 
 - **What is due** — a document whose `researched` date is more than 30 days old, or has no
-  readable `researched` date ("date unknown"). This is earlier than the viewer's **stale** badge,
+  readable `researched` date ("date unknown"; a date more than a day in the future counts as
+  unreadable and shows as "date in the future"). This is earlier than the viewer's **stale** badge,
   which appears only after `review_by`. Documents not written yet are never refreshed: run the
   research sprint for them.
 - **How many** — at most 3 per round, oldest first (unknown dates count as oldest). A topic that

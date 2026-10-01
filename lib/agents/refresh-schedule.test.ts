@@ -2,7 +2,12 @@ import type { Db } from "@/lib/db/client";
 import { claimNextJob, enqueueJob, finishJob, listJobs } from "@/lib/jobs/queue";
 import { makeBrain } from "@/tests/helpers/brain";
 import { openTestDb } from "@/tests/helpers/db";
-import { makeRefreshSchedule, nextMonthlyRefresh, queueRefreshes } from "./refresh-schedule";
+import {
+  enqueueResearch,
+  makeRefreshSchedule,
+  nextMonthlyRefresh,
+  queueRefreshes,
+} from "./refresh-schedule";
 
 // Brisbane is UTC+10 all year: the first-Sunday 21:00 slots are 11:00 UTC on 6 Sep, 4 Oct and
 // 1 Nov 2026.
@@ -223,6 +228,44 @@ describe("queueRefreshes", () => {
     } finally {
       brain.cleanup();
     }
+  });
+});
+
+describe("queueRefreshes and the web", () => {
+  it("reads the active topics and queues in one immediate transaction", () => {
+    const brain = makeBrain(STALE_BRAIN);
+    try {
+      const db = openTestDb();
+      for (const topic of ["local-seo", "glossary", "seo-fundamentals", "scoring-rationale"]) {
+        enqueueJob(db, "research", { topic }, "owner");
+      }
+      const spy = vi.spyOn(db, "transaction"); // nothing left to enqueue: only the read's own
+
+      const now = new Date("2026-10-02T00:00:00Z");
+      queueRefreshes(db, {
+        root: brain.root,
+        today: "2026-10-02",
+        requestedBy: null,
+        month: null,
+        now,
+      });
+      expect(spy.mock.calls.map((call) => call[1])).toEqual([{ behavior: "immediate" }]);
+    } finally {
+      brain.cleanup();
+    }
+  });
+});
+
+describe("enqueueResearch", () => {
+  it("returns a topic's active research job instead of queueing a second one", () => {
+    const db = openTestDb();
+    const refresh = enqueueJob(db, "research", { topic: "glossary", mode: "refresh" }, null);
+    const ids = enqueueResearch(db, ["glossary", "local-seo"], "owner");
+    expect(ids[0]).toBe(refresh.id);
+    expect(listJobs(db).map((j) => j.params)).toEqual([
+      { topic: "local-seo" },
+      { topic: "glossary", mode: "refresh" },
+    ]);
   });
 });
 
