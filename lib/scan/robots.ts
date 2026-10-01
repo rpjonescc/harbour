@@ -119,12 +119,18 @@ export function isAllowed(robots: Robots, agent: string, path: string): boolean 
   return allowedBy(rulesFor(robots, agent), path);
 }
 
-/** Each AI crawler's access to the site root: blocked, allowed, or allowed with some paths disallowed. */
+/** A crawler's access to the site root: blocked, allowed, or allowed with some paths disallowed. */
+export function crawlerAccess(robots: Robots, agent: string): CrawlerAccess {
+  const rules = rulesFor(robots, agent);
+  if (!allowedBy(rules, "/")) return "blocked";
+  return rules.some((rule) => !rule.allow) ? "partial" : "allowed";
+}
+
+/** Each AI crawler's access to the site root (see `crawlerAccess`). */
 export function aiCrawlerAccess(robots: Robots): Record<AiCrawler, CrawlerAccess> {
-  const entries = AI_CRAWLERS.map((crawler): [AiCrawler, CrawlerAccess] => {
-    const rules = rulesFor(robots, crawler);
-    if (!allowedBy(rules, "/")) return [crawler, "blocked"];
-    return [crawler, rules.some((rule) => !rule.allow) ? "partial" : "allowed"];
-  });
+  const entries = AI_CRAWLERS.map((crawler): [AiCrawler, CrawlerAccess] => [
+    crawler,
+    crawlerAccess(robots, crawler),
+  ]);
   return Object.fromEntries(entries) as Record<AiCrawler, CrawlerAccess>;
 }

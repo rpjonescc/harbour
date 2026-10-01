@@ -1,5 +1,11 @@
 import { FetchError, type FetchErrorKind } from "../fetch-error";
-import { type AiCrawler, aiCrawlerAccess, type CrawlerAccess, parseRobots } from "../robots";
+import {
+  type AiCrawler,
+  aiCrawlerAccess,
+  type CrawlerAccess,
+  crawlerAccess,
+  parseRobots,
+} from "../robots";
 import type { SafeFetch, SafeFetchResponse } from "../types";
 import type { RobotsTxtState } from "./crawl-seeds";
 import { attempt } from "./fetch-attempt";
@@ -11,6 +17,8 @@ export type RobotsReadiness = {
   state: RobotsTxtState;
   /** Plain text with at least one user-agent group or sitemap line; null unless state is ok. */
   valid: boolean | null;
+  /** Googlebot's access to "/" (search indexing); null when the rules could not be read. */
+  googlebot: CrawlerAccess | null;
   /** Each AI crawler's access to "/"; null when the rules could not be read. */
   aiCrawlerAccess: Record<AiCrawler, CrawlerAccess> | null;
 };
@@ -60,20 +68,27 @@ export async function checkRobots(
   const response = await get(fetch, `${origin}/robots.txt`, signal, true);
   if (response instanceof FetchError) {
     const state = response.kind === "redirect" ? "unfollowable_redirect" : "unavailable";
-    return { state, valid: null, aiCrawlerAccess: null };
+    return { state, valid: null, googlebot: null, aiCrawlerAccess: null };
   }
   if (isUnknown(response.status)) {
-    return { state: "unavailable", valid: null, aiCrawlerAccess: null };
+    return { state: "unavailable", valid: null, googlebot: null, aiCrawlerAccess: null };
   }
   if (!isOk(response.status)) {
     // No robots.txt: every crawler may fetch everything.
-    return { state: "missing", valid: null, aiCrawlerAccess: aiCrawlerAccess(parseRobots("")) };
+    const none = parseRobots("");
+    return {
+      state: "missing",
+      valid: null,
+      googlebot: crawlerAccess(none, "Googlebot"),
+      aiCrawlerAccess: aiCrawlerAccess(none),
+    };
   }
   const robots = parseRobots(response.body);
   const hasContent = robots.groups.length > 0 || robots.sitemaps.length > 0;
   return {
     state: "ok",
     valid: hasContent && !looksLikeHtml(response),
+    googlebot: crawlerAccess(robots, "Googlebot"),
     aiCrawlerAccess: aiCrawlerAccess(robots),
   };
 }

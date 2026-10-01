@@ -1,4 +1,4 @@
-import { aiCrawlerAccess, isAllowed, parseRobots } from "./robots";
+import { aiCrawlerAccess, crawlerAccess, isAllowed, parseRobots } from "./robots";
 
 describe("parseRobots", () => {
   it("groups consecutive user-agents, ignores comments and collects sitemaps anywhere", () => {
@@ -146,5 +146,16 @@ describe("aiCrawlerAccess", () => {
   it("falls back to the * group for crawlers without their own group", () => {
     const access = aiCrawlerAccess(parseRobots("User-agent: *\nDisallow: /\n"));
     expect(Object.values(access).every((value) => value === "blocked")).toBe(true);
+  });
+});
+
+describe("crawlerAccess", () => {
+  it.each([
+    ["User-agent: *\nDisallow: /drafts/\n", "partial"],
+    ["User-agent: Googlebot\nDisallow: /\n\nUser-agent: *\nAllow: /\n", "blocked"],
+    ["User-agent: *\nDisallow: /\n\nUser-agent: googlebot\nAllow: /\n", "allowed"],
+    ["", "allowed"],
+  ])("reads Googlebot's access to / from %j as %s", (text, expected) => {
+    expect(crawlerAccess(parseRobots(text), "Googlebot")).toBe(expected);
   });
 });

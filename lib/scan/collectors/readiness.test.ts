@@ -34,6 +34,7 @@ describe("readiness on a recorded site", () => {
           robotsTxt: {
             state: "ok",
             valid: true,
+            googlebot: partial,
             aiCrawlerAccess: {
               GPTBot: "blocked",
               "OAI-SearchBot": partial,
@@ -141,7 +142,7 @@ describe("readiness on a recorded site", () => {
     });
     const [observation] = await readinessAfterCrawl(`${origin}/`);
     const robots = (observation?.value as Readiness | undefined)?.robotsTxt;
-    expect(robots).toMatchObject({ state: "missing", valid: null });
+    expect(robots).toMatchObject({ state: "missing", valid: null, googlebot: "allowed" });
     expect(new Set(Object.values(robots?.aiCrawlerAccess ?? {}))).toEqual(new Set(["allowed"]));
   });
 
@@ -151,7 +152,7 @@ describe("readiness on a recorded site", () => {
     });
     const [observation] = await readinessAfterCrawl(`${origin}/`, "failed");
     expect(observation?.value).toMatchObject({
-      robotsTxt: { state: "unavailable", valid: null, aiCrawlerAccess: null },
+      robotsTxt: { state: "unavailable", valid: null, googlebot: null, aiCrawlerAccess: null },
     });
   });
 });
