@@ -12,7 +12,11 @@ export function workerScanDeps(context: WorkerContext): ScanDeps {
     ...context,
     collectors: COLLECTORS,
     // One per scan: robots.txt is cached for the scan; the per-site limiter is process-wide.
-    fetch: createSafeFetch({ allowedHosts: outboundHosts(context.products) }),
+    fetch: createSafeFetch({
+      allowedHosts: outboundHosts(context.products),
+      // Only the E2E fixture site: config refuses this outside test mode on a loopback origin.
+      allowLoopback: context.config.HARBOUR_SCAN_ALLOW_LOOPBACK,
+    }),
     scoreScan,
   };
 }

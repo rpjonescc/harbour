@@ -8,6 +8,18 @@ function rpIdMatchesOrigin(rpId: string, origin: string): boolean {
   return hostname === rpId || hostname.endsWith(`.${rpId}`);
 }
 
+/** Whether Harbour is served on this machine only (http://localhost, 127.0.0.1 or [::1]). */
+function isLoopbackOrigin(origin: string): boolean {
+  if (!URL.canParse(origin)) return false;
+  const { protocol, hostname } = new URL(origin);
+  return protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
+}
+
+const flag = z
+  .enum(["0", "1"])
+  .default("0")
+  .transform((v) => v === "1");
+
 function isTimeZone(timeZone: string): boolean {
   try {
     new Intl.DateTimeFormat("en", { timeZone });
@@ -76,10 +88,23 @@ const schema = z
     HARBOUR_PAGESPEED_API_KEY: z.string().min(1).optional(),
     // Path to a Google credentials JSON file for Search Console (secret, mode 600). Worker only.
     HARBOUR_GSC_CREDENTIALS: z.string().min(1).optional(),
+    // Test only: marks the E2E environment. Refused unless Harbour runs on a loopback origin.
+    HARBOUR_TEST_MODE: flag,
+    // Test only: lets scans reach 127.0.0.1 / ::1 (the E2E fixture site). Needs HARBOUR_TEST_MODE.
+    HARBOUR_SCAN_ALLOW_LOOPBACK: flag,
   })
   .refine((c) => rpIdMatchesOrigin(c.HARBOUR_RP_ID, c.HARBOUR_ORIGIN), {
     message: "HARBOUR_RP_ID must equal HARBOUR_ORIGIN's hostname or be a parent domain of it",
     path: ["HARBOUR_RP_ID"],
+  })
+  // A deployed Harbour has an https tailnet origin, so it can never turn test mode on.
+  .refine((c) => !c.HARBOUR_TEST_MODE || isLoopbackOrigin(c.HARBOUR_ORIGIN), {
+    message: "HARBOUR_TEST_MODE is for tests only: HARBOUR_ORIGIN must be http://localhost",
+    path: ["HARBOUR_TEST_MODE"],
+  })
+  .refine((c) => !c.HARBOUR_SCAN_ALLOW_LOOPBACK || c.HARBOUR_TEST_MODE, {
+    message: "HARBOUR_SCAN_ALLOW_LOOPBACK is for tests only: it needs HARBOUR_TEST_MODE=1",
+    path: ["HARBOUR_SCAN_ALLOW_LOOPBACK"],
   })
   .refine((c) => !(c.NODE_ENV === "production" && c.HARBOUR_DEV_IDENTITY), {
     message: "HARBOUR_DEV_IDENTITY must not be set in production",

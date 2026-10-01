@@ -169,3 +169,41 @@ describe("Search Console settings", () => {
     expect(() => parseConfig({ ...base, HARBOUR_GSC_CREDENTIALS: "" })).toThrow();
   });
 });
+
+describe("test-only loopback scans", () => {
+  // The E2E environment: a loopback origin (never a tailnet one) and an explicit test mode.
+  const e2e = {
+    ...base,
+    HARBOUR_ORIGIN: "http://localhost:3401",
+    HARBOUR_RP_ID: "localhost",
+    HARBOUR_TEST_MODE: "1",
+  };
+
+  it("is off by default, in production and in test mode", () => {
+    expect(parseConfig(base).HARBOUR_SCAN_ALLOW_LOOPBACK).toBe(false);
+    expect(parseConfig(e2e).HARBOUR_SCAN_ALLOW_LOOPBACK).toBe(false);
+  });
+
+  it("is allowed only in test mode", () => {
+    const config = parseConfig({ ...e2e, HARBOUR_SCAN_ALLOW_LOOPBACK: "1" });
+    expect(config.HARBOUR_SCAN_ALLOW_LOOPBACK).toBe(true);
+  });
+
+  it("refuses to start production with loopback scans enabled", () => {
+    expect(() => parseConfig({ ...base, HARBOUR_SCAN_ALLOW_LOOPBACK: "1" })).toThrow(
+      /HARBOUR_SCAN_ALLOW_LOOPBACK.*HARBOUR_TEST_MODE/,
+    );
+  });
+
+  it("refuses test mode unless Harbour is served on a loopback origin", () => {
+    expect(() => parseConfig({ ...base, HARBOUR_TEST_MODE: "1" })).toThrow(/HARBOUR_TEST_MODE/);
+    expect(() =>
+      parseConfig({ ...base, HARBOUR_TEST_MODE: "1", HARBOUR_SCAN_ALLOW_LOOPBACK: "1" }),
+    ).toThrow(/HARBOUR_TEST_MODE/);
+  });
+
+  it("accepts only 0 or 1", () => {
+    expect(() => parseConfig({ ...e2e, HARBOUR_SCAN_ALLOW_LOOPBACK: "true" })).toThrow();
+    expect(() => parseConfig({ ...e2e, HARBOUR_TEST_MODE: "yes" })).toThrow();
+  });
+});

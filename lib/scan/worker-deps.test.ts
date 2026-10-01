@@ -1,18 +1,30 @@
-import { getConfig } from "@/lib/config";
+import { type Config, getConfig, parseConfig } from "@/lib/config";
 import { openTestDb } from "@/tests/helpers/db";
-import { fetchError } from "@/tests/helpers/http-site";
+import { closeSites, fetchError, site, text } from "@/tests/helpers/http-site";
 import { COLLECTORS } from "./registry";
 import { scoreScan } from "./score";
 import { workerScanDeps } from "./worker-deps";
 
-const deps = () =>
+const deps = (config: Config = getConfig(), url = "https://example.com/") =>
   workerScanDeps({
     db: openTestDb(),
-    config: getConfig(),
-    products: [{ id: "acme", name: "Acme Docs", url: "https://example.com/", hue: "teal" }],
+    config,
+    products: [{ id: "acme", name: "Acme Docs", url, hue: "teal" }],
     now: () => new Date(),
     stopping: () => false,
   });
+
+/** The E2E environment's settings: a loopback origin, test mode and loopback scans on. */
+const e2eConfig = () =>
+  parseConfig({
+    ...process.env,
+    HARBOUR_ORIGIN: "http://localhost:3401",
+    HARBOUR_RP_ID: "localhost",
+    HARBOUR_TEST_MODE: "1",
+    HARBOUR_SCAN_ALLOW_LOOPBACK: "1",
+  });
+
+afterEach(closeSites);
 
 describe("workerScanDeps", () => {
   it("runs the registered collectors and scores with formula v1", () => {
@@ -24,5 +36,21 @@ describe("workerScanDeps", () => {
     const error = await fetchError(deps().fetch("https://example.org/", { maxBytes: 64 }));
     expect(error.kind).toBe("network");
     expect(error.message).toContain("not an allowed host");
+  });
+
+  it("refuses a loopback product site by default", async () => {
+    const local = await site({ "/robots.txt": text(""), "/": text("home") });
+    const error = await fetchError(
+      deps(getConfig(), `${local.origin}/`).fetch(`${local.origin}/`, { maxBytes: 64 }),
+    );
+    expect(error.message).toContain("Refused non-public host");
+    expect(local.hits).toEqual([]);
+  });
+
+  it("reaches a loopback product site when the test-only setting allows it", async () => {
+    const local = await site({ "/robots.txt": text(""), "/": text("home") });
+    const fetch = deps(e2eConfig(), `${local.origin}/`).fetch;
+    const response = await fetch(`${local.origin}/`, { maxBytes: 64 });
+    expect(response.body).toBe("home");
   });
 });
