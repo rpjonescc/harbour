@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { makeBrain } from "@/tests/helpers/brain";
 import { openTestDb } from "@/tests/helpers/db";
 import { reindexAll } from "./indexer";
-import { backlinks, markViewed, newDocPaths, recentDocs } from "./views";
+import { backlinks, isNewDoc, markViewed, newDocPaths, recentDocs } from "./views";
 
 describe("view state", () => {
   it("treats never-viewed and changed-since-viewed documents as new", () => {
@@ -33,6 +33,20 @@ describe("view state", () => {
       utimesSync(join(brain.root, "a.md"), changedAt, changedAt);
       expect(reindexAll(db, brain.root)).toEqual({ indexed: 0, removed: 0, skipped: [] });
       expect([...newDocPaths(db)]).toEqual(["a.md"]);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("reports whether one document is new", () => {
+    const brain = makeBrain({ "a.md": "# A" });
+    const db = openTestDb();
+    try {
+      reindexAll(db, brain.root);
+      expect(isNewDoc(db, "a.md")).toBe(true);
+      markViewed(db, "a.md", new Date(Date.now() + 60_000));
+      expect(isNewDoc(db, "a.md")).toBe(false);
+      expect(isNewDoc(db, "missing.md")).toBe(false);
     } finally {
       brain.cleanup();
     }

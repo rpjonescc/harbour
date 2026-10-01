@@ -1,4 +1,4 @@
-import { desc, eq, gt, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, or } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { brainDocs, brainLinks } from "@/lib/db/schema";
 
@@ -7,14 +7,22 @@ export function markViewed(db: Db, path: string, now: Date = new Date()): void {
   db.update(brainDocs).set({ lastViewedAt: now }).where(eq(brainDocs.path, path)).run();
 }
 
+const isNew = or(isNull(brainDocs.lastViewedAt), gt(brainDocs.mtime, brainDocs.lastViewedAt));
+
 /** Documents never opened, or changed since they were last opened. */
 export function newDocPaths(db: Db): Set<string> {
-  const rows = db
+  const rows = db.select({ path: brainDocs.path }).from(brainDocs).where(isNew).all();
+  return new Set(rows.map((row) => row.path));
+}
+
+/** Whether one indexed document is new (unindexed paths are not). */
+export function isNewDoc(db: Db, path: string): boolean {
+  const row = db
     .select({ path: brainDocs.path })
     .from(brainDocs)
-    .where(or(isNull(brainDocs.lastViewedAt), gt(brainDocs.mtime, brainDocs.lastViewedAt)))
-    .all();
-  return new Set(rows.map((row) => row.path));
+    .where(and(eq(brainDocs.path, path), isNew))
+    .get();
+  return row !== undefined;
 }
 
 /** Documents that wiki-link to `path`, by title. */

@@ -5,15 +5,18 @@ import { usePathname } from "next/navigation";
 import type { TreeNode } from "@/lib/brain/tree";
 import { TREE_LIMIT } from "@/lib/brain/tree-limits";
 import { brainHref } from "@/lib/brain/wikilinks";
+import { useViewedPath } from "./ViewedDoc";
 
 function Nodes({
   nodes,
   current,
   fresh,
+  viewed,
 }: {
   nodes: TreeNode[];
   current: string;
   fresh: Set<string>;
+  viewed: string | null;
 }) {
   return (
     <ul className="flex flex-col gap-0.5 pl-2">
@@ -26,7 +29,7 @@ function Nodes({
                 <summary className="cursor-pointer rounded-sm px-1.5 py-1 text-sm font-medium">
                   {node.name}
                 </summary>
-                <Nodes nodes={node.children} current={current} fresh={fresh} />
+                <Nodes nodes={node.children} current={current} fresh={fresh} viewed={viewed} />
               </details>
             </li>
           );
@@ -41,7 +44,7 @@ function Nodes({
             >
               <span className="truncate">{node.name.replace(/\.md$/, "")}</span>
               {/* The open document has just been recorded as viewed, so it is never new. */}
-              {fresh.has(node.path) && !isCurrent && (
+              {fresh.has(node.path) && !isCurrent && node.path !== viewed && (
                 <span className="ml-auto size-1.5 shrink-0 rounded-full bg-accent">
                   <span className="sr-only">new</span>
                 </span>
@@ -65,9 +68,10 @@ export function BrainTree({
   truncated: boolean;
 }) {
   const current = usePathname();
+  const viewed = useViewedPath();
   return (
     <div className="-ml-2">
-      <Nodes nodes={nodes} current={current} fresh={new Set(freshPaths)} />
+      <Nodes nodes={nodes} current={current} fresh={new Set(freshPaths)} viewed={viewed} />
       {truncated && (
         <p className="px-2 pt-2 text-xs text-warn">
           Showing the first {TREE_LIMIT.toLocaleString("en")} documents.

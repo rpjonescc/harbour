@@ -24,6 +24,7 @@ const example: DocView = {
   backlinks: [{ path: "examples/start.md", title: "Start here" }],
   editorUrl: null,
   stale: false,
+  wasNew: false,
 };
 
 /** Fictional viewer states for checking components in both colour themes. */

@@ -23,6 +23,7 @@ function view(overrides: Partial<DocView["doc"]> = {}): DocView {
     backlinks: [],
     editorUrl: "vscode://file/example",
     stale: false,
+    wasNew: false,
   };
 }
 

@@ -4,6 +4,7 @@ import { BrainNav } from "@/components/brain/BrainNav";
 import { BrainSetupNotice } from "@/components/brain/BrainSetupNotice";
 import { BrainTree } from "@/components/brain/BrainTree";
 import { SearchDialog } from "@/components/brain/SearchDialog";
+import { ViewedDocProvider } from "@/components/brain/ViewedDoc";
 import { requireSession } from "@/lib/auth/guard";
 import { ensureBrain } from "@/lib/brain/runtime";
 import { listTree } from "@/lib/brain/tree";
@@ -22,12 +23,14 @@ export default async function BrainLayout({ children }: { children: ReactNode })
       <BrainHeader watchError={status.watchError} indexError={status.indexError}>
         <SearchDialog />
       </BrainHeader>
-      <div className="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
-        <BrainNav>
-          <BrainTree nodes={nodes} freshPaths={fresh} truncated={truncated} />
-        </BrainNav>
-        <div className="min-w-0">{children}</div>
-      </div>
+      <ViewedDocProvider>
+        <div className="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
+          <BrainNav>
+            <BrainTree nodes={nodes} freshPaths={fresh} truncated={truncated} />
+          </BrainNav>
+          <div className="min-w-0">{children}</div>
+        </div>
+      </ViewedDocProvider>
     </div>
   );
 }

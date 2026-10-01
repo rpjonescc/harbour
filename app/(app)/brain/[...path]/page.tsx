@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { DocArticle } from "@/components/brain/DocArticle";
+import { DocPage } from "@/components/brain/DocPage";
 import { requireSession } from "@/lib/auth/guard";
 import { BrainPathError } from "@/lib/brain/paths";
 import { ensureBrain } from "@/lib/brain/runtime";
@@ -25,5 +25,5 @@ export default async function BrainDocPage({ params }: { params: Promise<{ path:
     if (error instanceof BrainPathError) notFound();
     throw error;
   }
-  return <DocArticle view={view} />;
+  return <DocPage view={view} />;
 }

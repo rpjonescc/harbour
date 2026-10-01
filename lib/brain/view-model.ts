@@ -6,7 +6,7 @@ import { type BrainDoc, readDoc } from "./docs";
 import { editorUrlFor } from "./editor-url";
 import { type OutlineItem, renderMarkdown, stripLeadingTitle } from "./render";
 import { filePaths, listTree } from "./tree";
-import { backlinks, markViewed } from "./views";
+import { backlinks, isNewDoc, markViewed } from "./views";
 import { buildLinkIndex } from "./wikilinks";
 
 export type DocView = {
@@ -16,6 +16,8 @@ export type DocView = {
   backlinks: { path: string; title: string }[];
   editorUrl: string | null;
   stale: boolean;
+  /** New before this view recorded it, so the shell's counts are now out of date. */
+  wasNew: boolean;
 };
 
 /** Everything a document page needs. Throws BrainPathError for bad paths (render 404). */
@@ -29,6 +31,7 @@ export async function loadDocView(root: string, path: string, now = new Date()):
         stripLeadingTitle(doc.body, doc.title),
         buildLinkIndex(filePaths(listTree(root).nodes)),
       );
+  const wasNew = isNewDoc(db, path);
   markViewed(db, path, now);
   const reviewBy = doc.frontmatter.review_by;
   return {
@@ -38,5 +41,6 @@ export async function loadDocView(root: string, path: string, now = new Date()):
     backlinks: backlinks(db, path),
     editorUrl: editorUrlFor(config.HARBOUR_EDITOR_URL_TEMPLATE, doc.absolutePath),
     stale: reviewBy !== undefined && reviewBy < isoDateIn(config.HARBOUR_TIMEZONE, now),
+    wasNew,
   };
 }

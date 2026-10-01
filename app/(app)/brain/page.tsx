@@ -1,4 +1,4 @@
-import { DocArticle } from "@/components/brain/DocArticle";
+import { DocPage } from "@/components/brain/DocPage";
 import { RecentDocs } from "@/components/brain/RecentDocs";
 import { requireSession } from "@/lib/auth/guard";
 import { BrainPathError, resolveBrainPath } from "@/lib/brain/paths";
@@ -24,7 +24,7 @@ export default async function BrainHomePage() {
   const status = ensureBrain();
   if (!status.available) return null; // the layout shows the setup notice
   if (exists(status.root, START_DOC)) {
-    return <DocArticle view={await loadDocView(status.root, START_DOC)} />;
+    return <DocPage view={await loadDocView(status.root, START_DOC)} />;
   }
   return <RecentDocs docs={recentDocs(getDb())} />;
 }
