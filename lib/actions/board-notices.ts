@@ -1,9 +1,7 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { jobs, proposals, scanRuns } from "@/lib/db/schema";
-
-/** Prefix of a scan job's error when the scan was scored but its rule-action sync threw. */
-export const ACTION_SYNC_FAILED = "Action sync failed";
+import { ACTION_SYNC_FAILED } from "./sync-error";
 
 type ProductRef = { id: string; name: string };
 

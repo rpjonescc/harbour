@@ -19,8 +19,16 @@ export function Sidebar({ theme }: { theme: ThemePreference }) {
   );
   const badges = {
     "brain-new":
-      brainNew === null ? undefined : { count: brainNew, label: `${brainNew} new documents` },
-    "actions-open": { count: openActions, label: `${openActions} open actions` },
+      brainNew === null
+        ? undefined
+        : {
+            count: brainNew,
+            label: `${brainNew} new ${brainNew === 1 ? "document" : "documents"}`,
+          },
+    "actions-open": {
+      count: openActions,
+      label: `${openActions} open ${openActions === 1 ? "action" : "actions"}`,
+    },
   };
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-surface-sunk p-3">

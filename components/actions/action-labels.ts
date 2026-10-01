@@ -54,6 +54,9 @@ export const EMPTY_MESSAGE: Record<ActionFilter["status"], string> = {
   all: "No actions yet. New actions arrive with each scan and the weekly report.",
 };
 
+/** What a /design example says instead of changing anything. */
+export const DEMO_NOTE = "Example only — nothing changed";
+
 /** One status button: its label, the status it moves to, and what is announced after. */
 export type StatusControl = { label: string; to: OwnerChange["to"]; done: string };
 

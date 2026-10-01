@@ -28,7 +28,9 @@ export default async function ActionsPage({
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <header>
-        <h1 className="font-serif text-3xl">Actions</h1>
+        <h1 id="actions-heading" tabIndex={-1} className="font-serif text-3xl">
+          Actions
+        </h1>
         <p className="mt-1 text-sm text-ink-muted tabular-nums">
           {counts.open} open · {counts.in_progress} in progress · {counts.suggested} suggested
         </p>

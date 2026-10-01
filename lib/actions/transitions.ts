@@ -12,7 +12,8 @@ const ALLOWED: Record<ActionStatus, readonly ActionStatus[]> = {
   dismissed: ["open"],
 };
 
-const MAX_SNOOZE_DAYS = 365;
+/** Furthest a snooze may reach, in days from today. */
+export const MAX_SNOOZE_DAYS = 365;
 const DAY_MS = 86_400_000;
 
 /** Days since the epoch for a strict, real `YYYY-MM-DD` date; null otherwise. */

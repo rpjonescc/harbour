@@ -2,14 +2,13 @@
 
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { MAX_SNOOZE_DAYS } from "@/lib/actions/transitions";
 import { addIsoDays } from "@/lib/format/date";
-
-const MAX_SNOOZE_DAYS = 365;
 
 /**
  * Picks the day an action comes back: tomorrow at the earliest, a year at the latest (the
  * server checks the same range). Focus moves into the field when the form opens;
- * Escape cancels.
+ * Escape on the buttons cancels.
  */
 export function SnoozeForm({
   id,
@@ -56,7 +55,8 @@ export function SnoozeForm({
       id={`snooze-${id}`}
       onSubmit={submit}
       onKeyDown={(event) => {
-        if (event.key === "Escape") onCancel();
+        // In the date field Escape belongs to the browser's picker.
+        if (event.key === "Escape" && event.target !== input.current) onCancel();
       }}
       noValidate
       className="flex flex-wrap items-end gap-2 rounded-sm bg-surface-sunk p-2"

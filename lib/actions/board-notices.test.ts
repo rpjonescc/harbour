@@ -3,7 +3,8 @@ import type { Db } from "@/lib/db/client";
 import { jobs, proposals, scanRuns } from "@/lib/db/schema";
 import { openTestDb } from "@/tests/helpers/db";
 import { daysAfter, seedScan } from "@/tests/helpers/scan-views";
-import { ACTION_SYNC_FAILED, approvalsWaiting, syncFailures } from "./board-notices";
+import { approvalsWaiting, syncFailures } from "./board-notices";
+import { ACTION_SYNC_FAILED } from "./sync-error";
 
 const PRODUCTS = [
   { id: "acme-docs", name: "Acme Docs" },

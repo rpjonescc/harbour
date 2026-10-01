@@ -14,7 +14,7 @@ export function ActionExamples() {
   return (
     <div className="flex flex-col gap-6">
       <p className="text-xs text-ink-muted">
-        Illustrative actions; the buttons post to actions that do not exist.
+        Illustrative actions; the buttons are examples and change nothing.
       </p>
       <ActionFilters
         filter={{ productId: EXAMPLE_PRODUCT.id, area: null, status: "active" }}
@@ -33,7 +33,13 @@ export function ActionExamples() {
             <p className="text-2xs uppercase tracking-widest text-ink-muted">
               {STATUS_LABEL[status]}
             </p>
-            <ActionCard action={action} product={EXAMPLE_PRODUCT} today="2026-10-02" {...ZONE} />
+            <ActionCard
+              action={action}
+              product={EXAMPLE_PRODUCT}
+              today="2026-10-02"
+              demo
+              {...ZONE}
+            />
           </div>
         ))}
       </ActionAnnouncer>

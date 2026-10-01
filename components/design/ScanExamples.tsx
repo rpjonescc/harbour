@@ -34,7 +34,7 @@ export function ScanExamples() {
           <ScoreBar value={18} />
           <ScoreBar value={null} />
         </div>
-        <ScanNowButton productId={EXAMPLE_PRODUCT.id} active="running" />
+        <ScanNowButton productId={EXAMPLE_PRODUCT.id} active={null} demo />
       </div>
       <ScoreTiles scores={EXAMPLE_SCORES} />
       {EXAMPLE_SCAN_STATES.map(({ label, scan }) => (

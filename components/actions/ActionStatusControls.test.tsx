@@ -66,14 +66,39 @@ describe("ActionStatusControls", () => {
     expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 
-  it("says the action changed meanwhile on a 409 and refreshes", async () => {
-    api.postJson.mockResolvedValue({ ok: false, error: "stale" });
+  it.each(["stale", "not_allowed", "not_found"])(
+    "says the action changed meanwhile on %s and refreshes",
+    async (error) => {
+      api.postJson.mockResolvedValue({ ok: false, error });
+      renderControls("open");
+      fireEvent.click(screen.getByRole("button", { name: `Dismiss: ${TITLE}` }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "This action changed meanwhile — refreshed.",
+      );
+      expect(nav.refresh).toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["until_invalid", "Pick a date between tomorrow and a year from now."],
+    ["unauthenticated", "Your session ended — reload the page and sign in again."],
+  ])("explains %s without refreshing", async (error, message) => {
+    api.postJson.mockResolvedValue({ ok: false, error });
     renderControls("open");
-    fireEvent.click(screen.getByRole("button", { name: `Dismiss: ${TITLE}` }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "This action changed meanwhile — refreshed.",
-    );
-    expect(nav.refresh).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: `Start: ${TITLE}` }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(nav.refresh).not.toHaveBeenCalled();
+  });
+
+  it("never calls the API in demo mode", async () => {
+    render(<ActionStatusControls id={7} title={TITLE} status="open" today={TODAY} demo />);
+    fireEvent.click(screen.getByRole("button", { name: `Mark done: ${TITLE}` }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Example only — nothing changed");
+    fireEvent.click(screen.getByRole("button", { name: `Snooze…: ${TITLE}` }));
+    fireEvent.change(screen.getByLabelText("Snooze until"), { target: { value: "2026-10-12" } });
+    fireEvent.click(screen.getByRole("button", { name: `Snooze: ${TITLE}` }));
+    expect(api.postJson).not.toHaveBeenCalled();
+    expect(nav.refresh).not.toHaveBeenCalled();
   });
 
   it("reports other failures without refreshing", async () => {
@@ -111,6 +136,15 @@ describe("SnoozeForm in the status controls", () => {
   it("returns focus to the trigger on cancel", () => {
     const trigger = openSnooze();
     fireEvent.click(screen.getByRole("button", { name: `Cancel snooze: ${TITLE}` }));
+    expect(screen.queryByLabelText("Snooze until")).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("leaves Escape in the date field to the browser's picker; Escape elsewhere cancels", () => {
+    const trigger = openSnooze();
+    fireEvent.keyDown(screen.getByLabelText("Snooze until"), { key: "Escape" });
+    expect(screen.getByLabelText("Snooze until")).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("button", { name: `Snooze: ${TITLE}` }), { key: "Escape" });
     expect(screen.queryByLabelText("Snooze until")).toBeNull();
     expect(trigger).toHaveFocus();
   });

@@ -42,3 +42,14 @@ describe("ScanNowButton", () => {
     expect(button()).toBeDisabled();
   });
 });
+
+describe("ScanNowButton demo", () => {
+  afterEach(() => vi.resetAllMocks());
+
+  it("never queues a scan in demo mode", async () => {
+    render(<ScanNowButton productId="acme-docs" active={null} demo />);
+    fireEvent.click(button());
+    expect(await screen.findByRole("status")).toHaveTextContent("Example only — nothing changed");
+    expect(api.postJson).not.toHaveBeenCalled();
+  });
+});

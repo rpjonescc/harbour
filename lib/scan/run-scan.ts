@@ -1,4 +1,4 @@
-import { ACTION_SYNC_FAILED } from "@/lib/actions/board-notices";
+import { ACTION_SYNC_FAILED } from "@/lib/actions/sync-error";
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
 import { addEvent, type EventKind, finishJob, type Job } from "@/lib/jobs/queue";

@@ -1,10 +1,9 @@
 import Link from "next/link";
+import { IMPACT_LABEL } from "@/components/actions/action-labels";
 import { Panel } from "@/components/ui/Panel";
 import { Tag } from "@/components/ui/Tag";
 import { productById } from "@/lib/products/catalog";
 import type { ActionPreview } from "@/lib/today/types";
-
-const IMPACT_LABEL = { high: "High impact", medium: "Medium impact", low: "Low impact" } as const;
 
 /** Compact action summary for Today; a real one links to the product's issues. */
 export function ActionCard({ action, linked }: { action: ActionPreview; linked: boolean }) {

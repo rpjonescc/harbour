@@ -1,10 +1,9 @@
+import { IMPACT_LABEL } from "@/components/actions/action-labels";
 import { CopyPromptButton } from "@/components/ui/CopyPromptButton";
 import { Tag } from "@/components/ui/Tag";
 import type { Product } from "@/lib/products/catalog";
 import { handoffPrompt } from "@/lib/scan/handoff";
 import type { Issue } from "@/lib/scan/issues";
-
-const IMPACT = { high: "High impact", medium: "Medium impact", low: "Low impact" } as const;
 
 /** One issue: what is wrong, where, the fix, how to tell it is done, and the hand-off. */
 export function IssueItem({ issue, product }: { issue: Issue; product: Product }) {
@@ -13,7 +12,7 @@ export function IssueItem({ issue, product }: { issue: Issue; product: Product }
   return (
     <article aria-labelledby={headingId} className="flex flex-col gap-2 py-4">
       <div className="flex flex-wrap gap-1.5">
-        <Tag tone={issue.impact === "high" ? "warn" : "neutral"}>{IMPACT[issue.impact]}</Tag>
+        <Tag tone={issue.impact === "high" ? "warn" : "neutral"}>{IMPACT_LABEL[issue.impact]}</Tag>
         <Tag tone="accent">{issue.area}</Tag>
       </div>
       <h3 id={headingId} className="text-sm font-medium text-ink">

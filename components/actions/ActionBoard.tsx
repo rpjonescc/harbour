@@ -36,7 +36,7 @@ export function ActionBoard({
               aria-labelledby={`impact-${impact}`}
               className="flex flex-col gap-3"
             >
-              <h2 id={`impact-${impact}`} className="font-serif text-xl">
+              <h2 id={`impact-${impact}`} tabIndex={-1} className="font-serif text-xl">
                 {IMPACT_LABEL[impact]}
               </h2>
               {actions.map((action) => {

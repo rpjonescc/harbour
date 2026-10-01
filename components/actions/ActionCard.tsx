@@ -54,6 +54,7 @@ export function ActionCard({
   locale,
   timeZone,
   today,
+  demo = false,
 }: {
   action: ActionView;
   product: Product;
@@ -61,6 +62,8 @@ export function ActionCard({
   timeZone: string;
   /** YYYY-MM-DD in HARBOUR_TIMEZONE. */
   today: string;
+  /** /design examples: the controls never call the API. */
+  demo?: boolean;
 }) {
   const headingId = `action-${action.id}-title`;
   return (
@@ -68,6 +71,8 @@ export function ActionCard({
       <article
         id={`action-${action.id}`}
         aria-labelledby={headingId}
+        data-action-id={action.id}
+        data-impact={action.impact}
         className="flex flex-col gap-3"
       >
         <div className="flex flex-wrap items-center gap-1.5">
@@ -85,7 +90,7 @@ export function ActionCard({
           <span className="text-2xs text-ink-muted">{SOURCE_LABEL[action.source]}</span>
         </div>
         <div className="flex flex-col gap-1">
-          <h3 id={headingId} className="text-base font-medium text-ink">
+          <h3 id={headingId} tabIndex={-1} className="text-base font-medium text-ink">
             {action.title}
           </h3>
           <p className="text-sm text-ink-muted">{action.why}</p>
@@ -112,6 +117,7 @@ export function ActionCard({
             title={action.title}
             status={action.status}
             today={today}
+            demo={demo}
           />
           <CopyPromptButton prompt={actionHandoffPrompt(product, action)} title={action.title} />
         </div>
