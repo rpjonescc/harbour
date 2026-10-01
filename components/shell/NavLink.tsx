@@ -6,25 +6,17 @@ import type { ReactNode } from "react";
 
 const BASE = "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm";
 
-/** Sidebar link with active state, or a disabled "soon" placeholder. */
+/** Sidebar link with active state and an optional count badge. */
 export function NavLink({
   href,
   badge,
   children,
 }: {
-  href?: string;
+  href: string;
   badge?: { count: number; label: string };
   children: ReactNode;
 }) {
   const pathname = usePathname();
-  if (!href) {
-    return (
-      <span aria-disabled="true" className={`${BASE} cursor-default text-ink-muted opacity-60`}>
-        {children}
-        <span className="ml-auto text-2xs">soon</span>
-      </span>
-    );
-  }
   const active =
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
   return (

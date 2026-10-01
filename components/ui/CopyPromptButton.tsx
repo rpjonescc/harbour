@@ -5,10 +5,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 /**
- * "Hand to Claude": copies a ready-made prompt for one issue. If the clipboard is refused
+ * "Hand to Claude": copies a ready-made prompt for one issue or action. If the clipboard is refused
  * (e.g. an insecure context), the prompt is shown to copy by hand instead.
  */
-export function CopyPromptButton({ prompt, issueTitle }: { prompt: string; issueTitle: string }) {
+export function CopyPromptButton({ prompt, title }: { prompt: string; title: string }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
 
   async function copy() {
@@ -25,7 +25,7 @@ export function CopyPromptButton({ prompt, issueTitle }: { prompt: string; issue
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" onClick={copy} aria-label={`Hand to Claude: ${issueTitle}`}>
+        <Button variant="ghost" onClick={copy} aria-label={`Hand to Claude: ${title}`}>
           <ClipboardCopy aria-hidden="true" className="size-3.5" />
           Hand to Claude
         </Button>

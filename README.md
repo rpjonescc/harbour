@@ -4,13 +4,11 @@ A calm, private, self-hosted control centre for your own projects. Harbour runs 
 always-on machine at home, is reachable only over your Tailscale network, and opens only
 with a passkey.
 
-The secure shell, design system, Second Brain viewer, agents and the daily visibility scan are
-built. The scan measures how findable each product is in classic search (SEO), in AI assistants
+The secure shell, design system, Second Brain viewer, agents, the daily visibility scan and
+the Actions board are built. The scan measures how findable each product is in classic search (SEO), in AI assistants
 (GEO) and as direct answers (AEO), scored 0–100 with explainable breakdowns. The roadmap
 continues with:
 
-- **Actions board** — every issue the scan finds as a tracked action, resolved automatically
-  when the next scan no longer sees it.
 - **Weekly AI analyst** — turns the week's data into a report and a prioritised action plan.
 - **Paid sources** — AI engine mentions and citations, keyword rankings and featured snippets
   (they need API keys, so they show as "not connected" for now).
@@ -25,6 +23,11 @@ continues with:
   every sub-score (its weight, evidence, or why it is missing), the issues the scan found with
   a **Hand to Claude** button that copies a ready prompt, the crawled pages and their problems,
   and Search Console clicks, impressions and top queries.
+- **Actions board** — every issue the scan finds becomes a tracked action, grouped by impact,
+  with why it matters, the fix, how to tell it is done, effort, evidence, related Second Brain
+  docs and its history. Filter by product, area and status (a plain, bookmarkable form); move
+  an action through suggested → open → in progress → done, snooze it until a date or dismiss
+  it; **Hand to Claude** copies a ready prompt for it. The sidebar shows how many are open.
 - **Sources** — whether the daily scan is on, which data sources are connected (never their
   secrets), and each source's last run, status and reason per product.
 - **Products from config** — list your products in `harbour.config.json`; each gets a
@@ -44,6 +47,7 @@ continues with:
 |---|---|
 | `/` | Today |
 | `/products/<id>` | A product's scores, issues, pages and sources |
+| `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`) |
 | `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors) |
 | `/settings/sources` | Scan schedule, connections and each source's last run |
 | `/brain` | Second Brain |
@@ -323,8 +327,8 @@ product was last scanned and will be next.
   problem, a suggested fix and an acceptance check, to paste into Claude Code in the site's
   repository; it contains only the product's name and URL and the scan's findings. The
   **Pages** table lists the 50 crawled pages with the most problems.
-- **Actions** follow every scan that is not failed: each issue becomes one tracked action per
-  product and rule (the Actions page that shows them is on the roadmap). The next scan that no
+- **Actions** (`/actions`) follow every scan that is not failed: each issue becomes one tracked
+  action per product and rule. The next scan that no
   longer finds the issue marks its action done, with a dated note; if the issue comes back, or
   you marked an action done while the scan still finds it, the action reopens. A dismissed
   action stays dismissed while the issue persists and reopens only if the issue clears and
@@ -333,7 +337,17 @@ product was last scanned and will be next.
   failed, or the crawl was partial), its action is left exactly as it was: missing data never
   creates, resolves or reopens an action. The scan's job log ends with how many actions were
   new, resolved and reopened; if this step fails the job is marked failed with the reason, the
-  scan and its scores are kept, and the next scan tries again.
+  scan and its scores are kept, and the next scan tries again; until it does, the Actions page
+  says "Actions may be out of date: the last sync failed" with the time.
+- **The Actions board** shows open and in-progress actions by default, grouped high → low
+  impact, in-progress first, then the smallest effort. Filters (product, area, status) are a
+  normal form, so a filtered view can be bookmarked; at most 200 actions are shown, with a count
+  of the rest. Each card offers only the moves its status allows (for example **Start**,
+  **Mark done**, **Snooze…** with a date from tomorrow to a year ahead, **Dismiss**;
+  suggestions from the weekly analyst are **Accept**ed or **Reject**ed). Its **History** lists
+  every change with who made it, and **Hand to Claude** copies a prompt with the problem,
+  evidence (fenced as data), fix and acceptance check. When agents have proposed research
+  targets, a link per product leads to its settings page to approve them.
 - **Sources** (`/settings/sources`) shows each collector's latest run per product (ok, failed,
   not connected or skipped) with its reason, and whether PageSpeed and Search Console are
   connected — as connected or not, never the key or the credentials.

@@ -1,3 +1,4 @@
+import { ACTION_SYNC_FAILED } from "@/lib/actions/board-notices";
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
 import { addEvent, type EventKind, finishJob, type Job } from "@/lib/jobs/queue";
@@ -195,8 +196,8 @@ function scoreAndFinish(scan: Scan, statuses: Record<string, CollectorStatus>) {
   } catch (error) {
     // The scan and its scores stand; the next scan syncs again.
     console.error(`job ${job.id}: action sync failed`, error);
-    scan.event("error", `Action sync failed: ${message(error)}`);
-    return finish(deps, job, "failed", `Action sync failed: ${message(error)}`);
+    scan.event("error", `${ACTION_SYNC_FAILED}: ${message(error)}`);
+    return finish(deps, job, "failed", `${ACTION_SYNC_FAILED}: ${message(error)}`);
   }
   finish(deps, job, "ok");
 }

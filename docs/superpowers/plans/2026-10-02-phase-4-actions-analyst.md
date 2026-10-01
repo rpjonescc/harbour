@@ -357,7 +357,7 @@ export function actionHandoffPrompt(product: Pick<Product, "name" | "url">, acti
 - [ ] **Step 5: Docs**: README Features + Pages (Actions board, filters, statuses, Hand to Claude, approvals link).
 - [ ] **Step 6: Commit** `feat(actions): Actions board with filters, status changes and snooze`.
 
-**As built:** _(implementer)_
+**As built:** Page, filters (plain GET form; `<form aria-label="Filter actions">`), board grouped by impact, cards, status controls, snooze form, history, approvals link and sidebar badge as specified. Additions: `ActionEvidence.tsx` (split from the card), `ActionAnnouncer.tsx` (one polite live region for the board, so a confirmation survives the card leaving the filter on refresh; controls fall back to their own region outside a board), `SyncFailureNote.tsx` and `lib/actions/board-notices.ts` (`syncFailures`, `approvalsWaiting`, and `ACTION_SYNC_FAILED`, now also used by `run-scan.ts` for the job error), `addIsoDays` in `lib/format/date.ts` for the snooze range. `CopyPromptButton` moved to `components/ui/` (prop `issueTitle` → `title`). Announcements read "<done>: <title>" (e.g. "Marked done: 3 pages have no title"). The sync notice names the product: "Acme Docs — Actions may be out of date: the last sync failed (<time>)". `NavLink` no longer has the `soon` path; `NavItem.href` is required.
 
 ---
 

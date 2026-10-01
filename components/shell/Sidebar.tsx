@@ -1,5 +1,7 @@
 import { ProductDot } from "@/components/ui/ProductDot";
+import { openActionCount } from "@/lib/actions/views";
 import { brainNewCount } from "@/lib/brain/runtime";
+import { getDb } from "@/lib/db/client";
 import { getProductConfig } from "@/lib/products/catalog";
 import type { ThemePreference } from "@/lib/theme";
 import { LogoutButton } from "./LogoutButton";
@@ -11,20 +13,21 @@ import { ThemeToggle } from "./ThemeToggle";
 export function Sidebar({ theme }: { theme: ThemePreference }) {
   const { products, demo } = getProductConfig();
   const brainNew = brainNewCount();
+  const openActions = openActionCount(
+    getDb(),
+    products.map((p) => p.id),
+  );
+  const badges = {
+    "brain-new":
+      brainNew === null ? undefined : { count: brainNew, label: `${brainNew} new documents` },
+    "actions-open": { count: openActions, label: `${openActions} open actions` },
+  };
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-surface-sunk p-3">
       <p className="px-2 pb-4 pt-1 font-serif text-xl">Harbour</p>
       <nav aria-label="Main" className="flex flex-col gap-0.5">
         {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.label}
-            href={item.href}
-            badge={
-              item.badge === "brain-new" && brainNew !== null
-                ? { count: brainNew, label: `${brainNew} new documents` }
-                : undefined
-            }
-          >
+          <NavLink key={item.label} href={item.href} badge={item.badge && badges[item.badge]}>
             {item.label}
           </NavLink>
         ))}

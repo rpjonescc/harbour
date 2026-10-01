@@ -6,7 +6,7 @@ const writeText = vi.fn();
 const PROMPT = "Fix an SEO issue on Acme Docs (https://docs.example.com)…";
 
 function renderButton() {
-  render(<CopyPromptButton prompt={PROMPT} issueTitle="2 pages have no title" />);
+  render(<CopyPromptButton prompt={PROMPT} title="2 pages have no title" />);
   return screen.getByRole("button", { name: "Hand to Claude: 2 pages have no title" });
 }
 

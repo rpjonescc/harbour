@@ -1,4 +1,4 @@
-import { formatDateTime, formatIsoDay, formatLongDate, isoDateIn } from "./date";
+import { addIsoDays, formatDateTime, formatIsoDay, formatLongDate, isoDateIn } from "./date";
 
 // 05:00 UTC on 1 Oct is still 19:00 on 30 Sep in Honolulu (UTC-10, no DST).
 const instant = new Date("2026-10-01T05:00:00Z");
@@ -33,5 +33,13 @@ describe("formatIsoDay", () => {
   it("formats a calendar date (YYYY-MM-DD) in the locale, without shifting it by a zone", () => {
     expect(formatIsoDay("2026-09-01", "en-GB")).toBe("1 Sept 2026");
     expect(formatIsoDay("2026-09-01", "en-US")).toBe("Sep 1, 2026");
+  });
+});
+
+describe("addIsoDays", () => {
+  it("moves a calendar date across months and years", () => {
+    expect(addIsoDays("2026-10-02", 1)).toBe("2026-10-03");
+    expect(addIsoDays("2026-12-31", 1)).toBe("2027-01-01");
+    expect(addIsoDays("2026-10-02", 365)).toBe("2027-10-02");
   });
 });

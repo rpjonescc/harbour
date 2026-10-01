@@ -39,3 +39,10 @@ export function formatIsoDay(day: string, locale: string): string {
     new Date(`${day}T00:00:00Z`),
   );
 }
+
+/** The calendar date `days` after a YYYY-MM-DD date (computed in UTC, so no zone shifts it). */
+export function addIsoDays(day: string, days: number): string {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}

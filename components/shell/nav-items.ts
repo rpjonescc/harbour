@@ -1,9 +1,9 @@
-export type NavItem = { label: string; href?: string; soon?: boolean; badge?: "brain-new" };
+export type NavItem = { label: string; href: string; badge?: "brain-new" | "actions-open" };
 
-/** Primary navigation. Items marked `soon` render disabled until their phase ships. */
+/** Primary navigation; a badge names the count the sidebar shows next to the item. */
 export const NAV_ITEMS: NavItem[] = [
   { label: "Today", href: "/" },
-  { label: "Actions", soon: true },
+  { label: "Actions", href: "/actions", badge: "actions-open" },
   { label: "Second Brain", href: "/brain", badge: "brain-new" },
   { label: "Agents", href: "/agents" },
   { label: "Sources", href: "/settings/sources" },

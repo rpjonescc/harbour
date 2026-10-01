@@ -1,8 +1,8 @@
+import { CopyPromptButton } from "@/components/ui/CopyPromptButton";
 import { Tag } from "@/components/ui/Tag";
 import type { Product } from "@/lib/products/catalog";
 import { handoffPrompt } from "@/lib/scan/handoff";
 import type { Issue } from "@/lib/scan/issues";
-import { CopyPromptButton } from "./CopyPromptButton";
 
 const IMPACT = { high: "High impact", medium: "Medium impact", low: "Low impact" } as const;
 
@@ -37,7 +37,7 @@ export function IssueItem({ issue, product }: { issue: Issue; product: Product }
         <dt className="text-ink-muted">Done when</dt>
         <dd>{issue.check}</dd>
       </dl>
-      <CopyPromptButton prompt={handoffPrompt(product, issue)} issueTitle={issue.title} />
+      <CopyPromptButton prompt={handoffPrompt(product, issue)} title={issue.title} />
     </article>
   );
 }
