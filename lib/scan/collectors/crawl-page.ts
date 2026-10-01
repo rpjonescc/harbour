@@ -56,6 +56,7 @@ export function pageFromResponse(response: SafeFetchResponse): {
     return { page: { ...base, ...NO_HTML }, links: [] };
   }
   const { links, ...facts } = extractPage(response.body, finalUrl);
-  const noindex = facts.noindex || hasNoindex(headers["x-robots-tag"] ?? "");
+  const robotsHeaders = response.headerLines.filter(([name]) => name === "x-robots-tag");
+  const noindex = facts.noindex || robotsHeaders.some(([, value]) => hasNoindex(value));
   return { page: { ...base, ...facts, noindex }, links };
 }

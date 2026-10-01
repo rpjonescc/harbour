@@ -53,7 +53,8 @@ const OUR_AGENTS = new Set(["harbourbot", "googlebot"]);
 /**
  * Whether a robots meta value or X-Robots-Tag header keeps the page out of the index. An
  * agent prefix ("otherbot: noindex, nofollow") scopes the directives after it, up to the next
- * prefix; only unscoped directives and those for HarbourBot or Googlebot count.
+ * prefix; only unscoped directives and those for HarbourBot or Googlebot count. Pass each
+ * X-Robots-Tag header on its own: an agent prefix scopes only the header it is in.
  */
 export function hasNoindex(directives: string): boolean {
   let agent: string | null = null;
@@ -61,7 +62,8 @@ export function hasNoindex(directives: string): boolean {
     let directive = part.trim();
     const colon = directive.indexOf(":");
     const name = colon === -1 ? "" : directive.slice(0, colon).trim();
-    if (colon !== -1 && !VALUED_DIRECTIVES.has(name)) {
+    // An agent name is one token: "25-jun-10 15" (from a date's time) is not one.
+    if (colon !== -1 && !/\s/.test(name) && !VALUED_DIRECTIVES.has(name)) {
       agent = name;
       directive = directive.slice(colon + 1).trim();
     }

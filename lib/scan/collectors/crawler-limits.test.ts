@@ -1,5 +1,5 @@
 import { crawlContext as context, crawl, html, NO_HTML } from "@/tests/helpers/crawl";
-import { closeSites, never, redirect, site, text } from "@/tests/helpers/http-site";
+import { closeSites, type Handler, never, redirect, site, text } from "@/tests/helpers/http-site";
 import { createSafeFetch } from "../fetch";
 import { HostLimiter } from "../host-limiter";
 import { createCrawler } from "./crawler";
@@ -115,6 +115,24 @@ describe("crawler pages", () => {
     const { origin } = await site({ "/": html("Home", { "x-robots-tag": "noindex" }) });
     const { pages } = await crawl(context(`${origin}/`));
     expect(pages[0]?.value).toMatchObject({ noindex: true, robotsMeta: null });
+  });
+
+  it("reads each X-Robots-Tag header on its own", async () => {
+    const twoHeaders: Handler = (_req, res) => {
+      res.setHeader("content-type", "text/html");
+      res.setHeader("x-robots-tag", ["otherbot: noindex", "noindex"]);
+      res.end("<html><body>Two</body></html>");
+    };
+    const { origin } = await site({
+      "/": html('<a href="/two">Two</a><a href="/scoped">Scoped</a>'),
+      "/two": twoHeaders,
+      "/scoped": html("Scoped", { "x-robots-tag": "otherbot: noindex, nofollow" }),
+    });
+    const { pages } = await crawl(context(`${origin}/`));
+    const noindexOf = (path: string) =>
+      pages.find((p) => p.subject === `${origin}${path}`)?.value.noindex;
+    expect(noindexOf("/two")).toBe(true);
+    expect(noindexOf("/scoped")).toBe(false);
   });
 
   it("records other content types without HTML facts", async () => {

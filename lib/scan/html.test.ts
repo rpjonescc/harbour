@@ -150,6 +150,8 @@ describe("hasNoindex", () => {
     ["otherbot: noindex, googlebot: nofollow", false],
     ["max-snippet: 20, noindex", true],
     ["unavailable_after: 2026-12-31", false],
+    ["unavailable_after: Friday, 25-Jun-10 15:00:00 PST, noindex", true],
+    ["unavailable_after: Friday, 25-Jun-10 15:00:00 PST", false],
     ["index, follow", false],
     ["", false],
   ])("%s → %s", (value, expected) => {
