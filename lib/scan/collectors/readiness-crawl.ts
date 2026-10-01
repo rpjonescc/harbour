@@ -17,12 +17,15 @@ const MAX_BUTTON_PAGES = 10;
 export type SitemapReadiness = {
   /** At least one sitemap was read. */
   reachable: boolean;
-  /** Every fetched sitemap parsed; null when there is no sitemap to judge. */
+  /**
+   * False when a sitemap did not parse; true when some were read and all parsed; null when
+   * none was read for another reason (none listed, or none could be fetched).
+   */
   valid: boolean | null;
   sitemapsRead: number;
   /** Listed same-origin page URLs; null when no sitemap could be read. */
   urlCount: number | null;
-  /** Some sitemaps failed, so `urlCount` misses their URLs. */
+  /** Some same-origin sitemaps failed, so `urlCount` misses their URLs. */
   partial: boolean;
   errors: SitemapError[];
   /** Listed sitemaps on another origin (often the apex's, listed by a www site): not read. */
@@ -97,13 +100,15 @@ function sitemapOf(site: CrawlSiteFields, now: Date): SitemapReadiness {
   const { pagesInSitemap, sitemapsRead, sitemapErrors: errors, sitemapLastmods } = site;
   const offOrigin = errors.flatMap((e) => ("kind" in e && e.kind === "off_origin" ? [e.url] : []));
   const invalid = errors.some((e) => "kind" in e && e.kind === "invalid");
-  const judged = sitemapsRead > 0 || errors.length > offOrigin.length;
+  // A sitemap that could not be fetched says nothing about validity, and Google accepts
+  // sitemaps on another host when robots.txt lists them: neither makes the count partial.
+  const unread = errors.length - offOrigin.length;
   return {
     reachable: sitemapsRead > 0,
-    valid: judged ? sitemapsRead > 0 && !invalid : null,
+    valid: invalid ? false : sitemapsRead > 0 ? true : null,
     sitemapsRead,
     urlCount: pagesInSitemap,
-    partial: pagesInSitemap !== null && errors.length > 0,
+    partial: pagesInSitemap !== null && unread > 0,
     errors,
     offOrigin,
     datedUrls: sitemapLastmods?.dated ?? null,

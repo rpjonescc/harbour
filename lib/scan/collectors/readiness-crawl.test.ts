@@ -109,6 +109,19 @@ describe("readCrawl sitemap", () => {
     });
   });
 
+  it("has no validity verdict when no sitemap could be fetched", () => {
+    const errors = [{ url: `${origin}/sitemap.xml`, status: 503 }];
+    const value = { pagesInSitemap: null, sitemapsRead: 0, sitemapErrors: errors };
+    const { sitemap } = readCrawl([site({ ...value, sitemapLastmods: null })], now, noLog);
+    expect(sitemap).toMatchObject({ reachable: false, valid: null, partial: false, errors });
+  });
+
+  it("does not call a sitemap partial for off-origin sitemaps alone", () => {
+    const errors = [{ url: "https://example.com/sitemap.xml", kind: "off_origin" }];
+    const { sitemap } = readCrawl([site({ sitemapErrors: errors })], now, noLog);
+    expect(sitemap).toMatchObject({ valid: true, partial: false, offOrigin: [errors[0]?.url] });
+  });
+
   it("has no validity verdict when the site has no sitemap at all", () => {
     const value = { pagesInSitemap: 0, sitemapsRead: 0 };
     const { sitemap } = readCrawl([site(value)], now, noLog);

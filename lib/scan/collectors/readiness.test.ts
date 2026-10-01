@@ -54,7 +54,7 @@ describe("readiness on a recorded site", () => {
             valid: true,
             sitemapsRead: 1,
             urlCount: 5,
-            partial: true,
+            partial: false,
             errors: [{ url: "https://example.com/sitemap.xml", kind: "off_origin" }],
             offOrigin: ["https://example.com/sitemap.xml"],
             datedUrls: 4,
