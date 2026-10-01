@@ -16,7 +16,11 @@ vi.mock("@/lib/config", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/config")>();
   return {
     ...actual,
-    getConfig: () => ({ ...actual.getConfig(), HARBOUR_CLAUDE_OAUTH_TOKEN: mocks.token }),
+    getConfig: () => ({
+      ...actual.getConfig(),
+      HARBOUR_CLAUDE_OAUTH_TOKEN: mocks.token,
+      HARBOUR_TIMEZONE: "Australia/Brisbane",
+    }),
   };
 });
 vi.mock("@/lib/auth/guard", () => ({ getSession: mocks.getSession }));
@@ -71,6 +75,7 @@ describe("agents API routes", () => {
       for (const body of [
         { kind: "research", topic: "all" },
         { kind: "discovery", productId: "acme-docs" },
+        { kind: "weekly-analyst" },
       ]) {
         const response = await run(post("/api/agents/run", body));
         expect(response.status).toBe(409);
@@ -119,6 +124,45 @@ describe("agents API routes", () => {
         login: "owner@example.com",
         event: "agent_run_requested",
         detail: { kind: "discovery", productId: "acme-docs", jobIds: first.jobIds },
+      });
+    });
+
+    describe("weekly analyst", () => {
+      beforeEach(() => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        // Monday 5 October 2026, 00:30 in Brisbane: already ISO week 41 there (W40 in UTC).
+        vi.setSystemTime(new Date("2026-10-04T14:30:00Z"));
+      });
+      afterEach(() => vi.useRealTimers());
+
+      it("queues the current local week's report, once, and audits it", async () => {
+        const body = { kind: "weekly-analyst" };
+        const first = (await (await run(post("/api/agents/run", body))).json()) as {
+          jobIds: number[];
+        };
+        const second = (await (await run(post("/api/agents/run", body))).json()) as {
+          jobIds: number[];
+        };
+        expect(first.jobIds).toHaveLength(1);
+        expect(second.jobIds).toEqual(first.jobIds);
+        expect(getJob(db(), first.jobIds[0] ?? 0)).toMatchObject({
+          kind: "weekly-analyst",
+          params: { week: "2026-W41" },
+          requestedBy: "owner@example.com",
+        });
+        expect(auditEvents()[0]).toMatchObject({
+          login: "owner@example.com",
+          event: "agent_run_requested",
+          detail: { kind: "weekly-analyst", week: "2026-W41", jobIds: first.jobIds },
+        });
+      });
+
+      it("never takes the week from the request", async () => {
+        const response = await run(
+          post("/api/agents/run", { kind: "weekly-analyst", week: "2020-W01" }),
+        );
+        expect(response.status).toBe(400);
+        expect(listJobs(db())).toEqual([]);
       });
     });
   });

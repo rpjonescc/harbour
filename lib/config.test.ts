@@ -147,6 +147,14 @@ describe("scan settings", () => {
     );
     expect(() => parseConfig({ ...base, HARBOUR_SCHEDULED_SCANS: "no" })).toThrow();
   });
+
+  it("schedules the weekly analyst by default and accepts on or off", () => {
+    expect(parseConfig(base).HARBOUR_SCHEDULED_ANALYST).toBe("on");
+    expect(
+      parseConfig({ ...base, HARBOUR_SCHEDULED_ANALYST: "off" }).HARBOUR_SCHEDULED_ANALYST,
+    ).toBe("off");
+    expect(() => parseConfig({ ...base, HARBOUR_SCHEDULED_ANALYST: "no" })).toThrow();
+  });
 });
 
 describe("PageSpeed settings", () => {

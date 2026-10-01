@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import { actions, agentRuns } from "@/lib/db/schema";
 import { runOne, setup } from "@/tests/helpers/run-job";
-import { MAX_IMPORT_ATTEMPTS, makeImportRetry, retryPendingImports } from "./import-retry";
-import { eventsSince } from "./queue";
+import { makeImportRetry, retryPendingImports } from "./import-retry";
+import { eventsSince, MAX_IMPORT_ATTEMPTS } from "./queue";
 
 const BLOCK = sql`CREATE TRIGGER no_actions BEFORE INSERT ON actions BEGIN SELECT RAISE(ABORT, 'blocked'); END`;
 

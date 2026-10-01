@@ -27,6 +27,8 @@ const env = {
   // No scheduled scans: they would queue ahead of the agent runs under test, and the scan specs
   // run the only scan with Scan now. Shared, so Sources (web) reports what the worker does.
   HARBOUR_SCHEDULED_SCANS: "off",
+  // No scheduled weekly analyst either: it would queue ahead of the runs under test.
+  HARBOUR_SCHEDULED_ANALYST: "off",
   // Fictional token: the agent CLI is the fake below, so nothing is ever sent anywhere.
   HARBOUR_CLAUDE_OAUTH_TOKEN: "e2e-fake-token",
 };

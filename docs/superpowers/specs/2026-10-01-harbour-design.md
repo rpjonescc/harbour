@@ -384,9 +384,13 @@ stand, what improved, what got worse, top opportunities, and new competitors see
   attempt count, next attempt time, last error. A scan run is `partial` if some
   collectors fail; failures are visible per collector.
 - **Retries**: up to 3 attempts with exponential backoff, then terminal `failed`
-  plus a Today banner naming the collector and error. No unbounded loops.
+  plus a Today banner naming the collector and error. No unbounded loops. Agent jobs,
+  including the weekly analyst, are not retried automatically: a failed run is terminal and
+  the owner re-runs it (only the import of committed agent output is retried, at most 3
+  attempts in all).
 - **Missed schedules**: on worker start, any schedule whose last successful run is
-  older than its period runs once (catch-up), not once per missed slot.
+  older than its period runs once (catch-up), not once per missed slot. The weekly analyst
+  catches up the latest missed Sunday 20:00 slot once (a run created after that slot counts).
 - **Crash safety**: jobs left `running` by a dead worker are detected on start
   (stale heartbeat) and re-queued.
 - **Data gaps** are stored and charted as gaps, never zeros.

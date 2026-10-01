@@ -1,4 +1,11 @@
-import { addIsoDays, formatDateTime, formatIsoDay, formatLongDate, isoDateIn } from "./date";
+import {
+  addIsoDays,
+  formatDateTime,
+  formatIsoDay,
+  formatLongDate,
+  formatWeekdayTime,
+  isoDateIn,
+} from "./date";
 
 // 05:00 UTC on 1 Oct is still 19:00 on 30 Sep in Honolulu (UTC-10, no DST).
 const instant = new Date("2026-10-01T05:00:00Z");
@@ -41,5 +48,12 @@ describe("addIsoDays", () => {
     expect(addIsoDays("2026-10-02", 1)).toBe("2026-10-03");
     expect(addIsoDays("2026-12-31", 1)).toBe("2027-01-01");
     expect(addIsoDays("2026-10-02", 365)).toBe("2027-10-02");
+  });
+});
+
+describe("formatWeekdayTime", () => {
+  it("names the weekday, day, month and time in the zone", () => {
+    const at = new Date("2026-10-04T09:00:00Z"); // 20:00 in Sydney (daylight time)
+    expect(formatWeekdayTime(at, "Australia/Sydney", "en-GB")).toBe("Sunday 4 Oct, 20:00");
   });
 });

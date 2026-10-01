@@ -1,6 +1,7 @@
 import type { Db } from "@/lib/db/client";
 import { lastGoodScanAt } from "@/lib/scan/store";
 import { enqueueJob, jobsCreatedSince } from "./queue";
+import { makeThrottle } from "./throttle";
 
 /** The daily scan is due from 06:00 local time. */
 const DAILY_MINUTE = 6 * 60;
@@ -83,7 +84,7 @@ export type ScanScheduleDeps = {
  */
 export function makeScanSchedule(deps: ScanScheduleDeps) {
   const { db, timeZone, enabled, clock, productIds } = deps;
-  let lastCheck = Number.NEGATIVE_INFINITY;
+  const checkDue = makeThrottle(CHECK_MS);
 
   const queue = (ids: readonly string[], now: Date): QueuedScan[] =>
     ids.flatMap((productId) => {
@@ -110,10 +111,7 @@ export function makeScanSchedule(deps: ScanScheduleDeps) {
     tick(): QueuedScan[] {
       if (!enabled) return [];
       const nowMs = clock();
-      // A clock stepped backwards would otherwise hold off every check until it catches up.
-      if (nowMs < lastCheck) lastCheck = Number.NEGATIVE_INFINITY;
-      if (nowMs - lastCheck < CHECK_MS) return [];
-      lastCheck = nowMs;
+      if (!checkDue(nowMs)) return [];
       const now = new Date(nowMs);
       const today = localTime(timeZone, now);
       if (today.minute < DAILY_MINUTE) return [];

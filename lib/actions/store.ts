@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, lte, notInArray } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { actionEvents, actions } from "@/lib/db/schema";
+import { isoDateIn } from "@/lib/format/date";
+import { makeThrottle } from "@/lib/jobs/throttle";
 import type { ActionActor, ActionFields, ActionStatus, NewAction } from "./types";
 
 /** Events kept per action; older ones are pruned on insert. */
@@ -158,4 +160,18 @@ export function wakeDueSnoozes(db: Db, today: string, now: Date): number {
     },
     { behavior: "immediate" },
   );
+}
+
+/** The worker's snooze wake-ups: by the local date, on its first tick, then at most every 30 s. */
+export function makeSnoozeWaker(deps: { db: Db; timeZone: string; clock: () => number }) {
+  const due = makeThrottle(30_000);
+  return {
+    /** Returns how many snoozes it woke. */
+    tick(): number {
+      const nowMs = deps.clock();
+      if (!due(nowMs)) return 0;
+      const now = new Date(nowMs);
+      return wakeDueSnoozes(deps.db, isoDateIn(deps.timeZone, now), now);
+    },
+  };
 }

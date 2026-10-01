@@ -25,6 +25,7 @@
     "setup-token": "tsx --env-file=.env scripts/setup-token.ts",
     "agents:initial-run": "tsx --env-file=.env scripts/queue-initial-run.ts",
     "scan:now": "tsx --env-file=.env scripts/scan-now.ts",
+    "analyst:now": "tsx --env-file=.env scripts/analyst-now.ts",
     "worker": "tsx --env-file=.env worker/index.ts",
     "prepare": "lefthook install"
   },

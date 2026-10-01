@@ -84,6 +84,8 @@ const schema = z
     HARBOUR_CRAWL_MAX_PAGES: z.coerce.number().int().min(1).max(500).default(200),
     // "off" stops the worker queueing the daily and catch-up scans (`pnpm scan:now` still works).
     HARBOUR_SCHEDULED_SCANS: z.enum(["on", "off"]).default("on"),
+    // "off" stops the worker queueing the weekly analyst run (Run now and `pnpm analyst:now` still work).
+    HARBOUR_SCHEDULED_ANALYST: z.enum(["on", "off"]).default("on"),
     // Secret: Google API key for PageSpeed Insights; without one it is not connected. Worker only.
     HARBOUR_PAGESPEED_API_KEY: z.string().min(1).optional(),
     // Path to a Google credentials JSON file for Search Console (secret, mode 600). Worker only.

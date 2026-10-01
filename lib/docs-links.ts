@@ -5,5 +5,5 @@ export const DOCS_LINKS = {
   searchConsole: `${README}connect-search-console`,
   pagespeed: `${README}connect-pagespeed`,
   scores: `${README}how-scores-work`,
-  schedule: `${README}when-scans-run`,
+  schedule: `${README}when-things-run`,
 } as const;

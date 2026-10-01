@@ -15,6 +15,7 @@ import {
   getAgentRun,
   getJob,
   heartbeat,
+  importsGivenUp,
   isCancelRequested,
   listJobs,
   MAX_EVENTS,
@@ -226,5 +227,27 @@ describe("getAgentRun", () => {
       .values({ jobId: id, promptVersion: "v1", commitSha: "abc", filesChanged: ["a.md"] })
       .run();
     expect(getAgentRun(db, id)).toMatchObject({ commitSha: "abc", filesChanged: ["a.md"] });
+  });
+});
+
+describe("importsGivenUp", () => {
+  it("lists committed runs whose import ran out of attempts", () => {
+    const db = openTestDb();
+    const ids = [1, 2, 3, 4, 5].map(
+      (i) => enqueueJob(db, "weekly-analyst", { week: `2026-W4${i}` }, null, t0).id,
+    );
+    const [gaveUp, imported, retrying, uncommitted, other] = ids;
+    const run = (jobId: number | undefined, over: Partial<typeof agentRuns.$inferInsert>) =>
+      db
+        .insert(agentRuns)
+        .values({ jobId: jobId ?? 0, promptVersion: "4-v1", importAttempts: 3, ...over })
+        .run();
+    run(gaveUp, { commitSha: "abc" });
+    run(imported, { commitSha: "abc", importedAt: t0 });
+    run(retrying, { commitSha: "abc", importAttempts: 2 });
+    run(uncommitted, {});
+    run(other, { commitSha: "abc" });
+    expect(importsGivenUp(db, ids.slice(0, 4))).toEqual(new Set([gaveUp]));
+    expect(importsGivenUp(db, [])).toEqual(new Set());
   });
 });

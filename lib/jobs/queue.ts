@@ -7,6 +7,7 @@ import {
   gt,
   gte,
   inArray,
+  isNotNull,
   isNull,
   lt,
   lte,
@@ -37,6 +38,8 @@ export const MAX_STREAM_EVENTS = 180;
 const LIMIT_NOTE = "Activity limit reached — further agent steps not recorded";
 const STREAM_KINDS: EventKind[] = ["tool", "text"];
 const STALE_MS = 60_000;
+/** Import attempts per agent run, the run's own included; then the owner must run it again. */
+export const MAX_IMPORT_ATTEMPTS = 3;
 
 function dedupeKeyFor(kind: JobKind, params: Record<string, string>): string {
   const sorted = Object.keys(params)
@@ -217,6 +220,24 @@ export function getJob(db: Db, id: number): Job | undefined {
 /** The agent run record (commit, files changed) of a research or discovery job. */
 export function getAgentRun(db: Db, jobId: number): typeof agentRuns.$inferSelect | undefined {
   return db.select().from(agentRuns).where(eq(agentRuns.jobId, jobId)).get();
+}
+
+/** Of `jobIds`, the runs whose output was committed but never imported, out of attempts. */
+export function importsGivenUp(db: Db, jobIds: readonly number[]): Set<number> {
+  if (jobIds.length === 0) return new Set();
+  const rows = db
+    .select({ jobId: agentRuns.jobId })
+    .from(agentRuns)
+    .where(
+      and(
+        inArray(agentRuns.jobId, [...jobIds]),
+        isNotNull(agentRuns.commitSha),
+        isNull(agentRuns.importedAt),
+        gte(agentRuns.importAttempts, MAX_IMPORT_ATTEMPTS),
+      ),
+    )
+    .all();
+  return new Set(rows.map((row) => row.jobId));
 }
 
 function countEvents(db: Db, jobId: number, extra?: SQL): number {

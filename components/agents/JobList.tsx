@@ -19,11 +19,14 @@ export function JobList({
   products,
   timeZone,
   locale,
+  importsGivenUp = new Set(),
 }: {
   jobs: Job[];
   products: readonly Product[];
   timeZone: string;
   locale: string;
+  /** Runs whose committed suggestions were never imported (see `importsGivenUp`). */
+  importsGivenUp?: ReadonlySet<number>;
 }) {
   if (jobs.length === 0) return <p className="text-sm text-ink-muted">No runs yet.</p>;
   return (
@@ -51,6 +54,9 @@ export function JobList({
               <Link href={`/agents/${job.id}`} className="text-accent hover:underline">
                 {jobLabel(job, products)}
               </Link>
+              {importsGivenUp.has(job.id) && (
+                <p className="text-xs text-warn">Suggestions not imported — run the agent again</p>
+              )}
             </td>
             <td className="py-2 pr-3">
               <Tag tone={TONE[job.status]}>{job.status}</Tag>

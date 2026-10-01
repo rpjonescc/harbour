@@ -12,10 +12,9 @@ import {
   type OutputFile,
   parseAgentOutput,
 } from "./agent-output";
-import { addEvent, type Job } from "./queue";
+import { addEvent, type Job, MAX_IMPORT_ATTEMPTS } from "./queue";
+import { makeThrottle } from "./throttle";
 
-/** Import attempts per run, the run's own included. */
-export const MAX_IMPORT_ATTEMPTS = 3;
 const BATCH = 10;
 const RETRY_EVERY_MS = 60_000;
 
@@ -88,13 +87,11 @@ export function makeImportRetry(deps: {
   retry?: typeof retryPendingImports;
 }) {
   const retry = deps.retry ?? retryPendingImports;
-  let lastRun = Number.NEGATIVE_INFINITY;
+  const due = makeThrottle(RETRY_EVERY_MS);
   return {
     tick(): number {
       const now = deps.clock();
-      if (now < lastRun) lastRun = Number.NEGATIVE_INFINITY; // the clock stepped back
-      if (now - lastRun < RETRY_EVERY_MS) return 0;
-      lastRun = now;
+      if (!due(now)) return 0;
       return retry({ db: deps.db, root: deps.root, products: deps.products(), now: new Date(now) });
     },
   };

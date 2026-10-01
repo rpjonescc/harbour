@@ -4,13 +4,11 @@ A calm, private, self-hosted control centre for your own projects. Harbour runs 
 always-on machine at home, is reachable only over your Tailscale network, and opens only
 with a passkey.
 
-The secure shell, design system, Second Brain viewer, agents, the daily visibility scan and
-the Actions board are built. The scan measures how findable each product is in classic search (SEO), in AI assistants
+The secure shell, design system, Second Brain viewer, agents, the daily visibility scan, the
+Actions board and the weekly AI analyst are built. The scan measures how findable each product is in classic search (SEO), in AI assistants
 (GEO) and as direct answers (AEO), scored 0–100 with explainable breakdowns. The roadmap
 continues with:
 
-- **Weekly AI analyst schedule** — the analyst agent is built (see [Weekly analyst](#weekly-analyst));
-  its Sunday 20:00 schedule and a **Run now** button come next.
 - **Paid sources** — AI engine mentions and citations, keyword rankings and featured snippets
   (they need API keys, so they show as "not connected" for now).
 
@@ -160,6 +158,11 @@ git gate and Claude subscription as the other agents (no paid API calls).
 - **Where suggestions appear** — on the **Actions** board as **Suggested** (`/actions`), labelled
   as coming from the weekly analyst; accept or reject each one. An action the product already
   has (suggested, open, in progress, snoozed or rejected) is not suggested again.
+- **When it runs** — every Sunday at 20:00 in `HARBOUR_TIMEZONE`, for that week (see
+  [When things run](#when-things-run)). The **Weekly report** panel on **Agents** shows the next
+  scheduled run and links the latest report; **Run weekly report now** (or `pnpm analyst:now`)
+  queues a run for the current week straight away. A run whose suggestions could not be imported
+  after 3 attempts says "Suggestions not imported — run the agent again" in **Recent runs**.
 
 ### Install as an app
 
@@ -233,6 +236,7 @@ pnpm setup-token    # prints a one-time link; open it to create a passkey
 pnpm worker         # runs queued jobs (agents, scans), one at a time (reads .env)
 pnpm agents:initial-run  # once: queues every research topic, then discovery per product
 pnpm scan:now       # queues a visibility scan of every product now (or: pnpm scan:now <productId>)
+pnpm analyst:now    # queues the weekly analyst report for the current week now
 ```
 
 A deployed install runs the worker as the `harbour-worker` systemd user service (see
@@ -271,7 +275,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_RP_ID` | yes | — | WebAuthn relying-party id: the origin's hostname or a parent domain. |
 | `HARBOUR_DB_PATH` | no | `./data/harbour.db` | SQLite database file. |
 | `HARBOUR_CONFIG_PATH` | no | unset | Product config file; must exist if set. Unset reads `./harbour.config.json` and shows the example (demo) only if that file does not exist. |
-| `HARBOUR_TIMEZONE` | no | server's zone | IANA timezone for dates and for the daily scan at 06:00 local time (daylight saving included). |
+| `HARBOUR_TIMEZONE` | no | server's zone | IANA timezone for dates, the daily scan at 06:00 and the weekly analyst on Sundays at 20:00 local time (daylight saving included). |
 | `HARBOUR_LOCALE` | no | `en-US` | BCP 47 locale for dates. |
 | `HARBOUR_BRAIN_DIR` | no | `./brain` | Second Brain directory — point it at a separate private repo. The worker refuses all git work unless it is the root of its own git repository. |
 | `HARBOUR_EDITOR_URL_TEMPLATE` | no | `vscode://file/{path}` | Editor link for brain documents; `{path}` is the encoded absolute file path. Empty hides the link. |
@@ -282,6 +286,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_AGENT_TIMEOUT_MINUTES` | no | `30` | Maximum agent run length, 1 to 120 minutes. |
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility scan's crawler fetches per product per scan, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
 | `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing scans by itself (the daily 06:00 scan and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
+| `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Run weekly report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
 | `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
 | `HARBOUR_GSC_CREDENTIALS` | for Search Console | unset | Absolute path to a Google credentials JSON file — a service account key or an OAuth authorized-user file (see [Connect Search Console](#connect-search-console)). Keep it outside the repo with mode 600; Harbour warns in the scan if other users can read it. Read by the worker only; its contents and the access tokens are never logged, shown or stored. Restart the worker after changing it. |
 | `HARBOUR_TEST_MODE` | tests only | `0` | `1` marks the end-to-end test environment (`pnpm test:e2e` sets it). Refused unless `HARBOUR_ORIGIN` is a loopback origin (`http://localhost`, `127.0.0.1` or `[::1]`), so a deployed Harbour cannot turn it on. Never set it yourself. |
@@ -315,7 +320,9 @@ product shows as not connected; see [Connect Search Console](#connect-search-con
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.
 
-## When scans run
+## When things run
+
+### Daily scans
 
 The worker queues a visibility scan of every product each day at 06:00 in `HARBOUR_TIMEZONE`.
 If the worker is down at 06:00, it queues the day's scans at its first check after it starts.
@@ -334,6 +341,24 @@ now, choose **Scan now** on the product's page, or run `pnpm scan:now` (every pr
 read `harbour.config.json` once, so after changing it restart them
 (`systemctl --user restart harbour-worker harbour-web`) before scanning. The **Sources** page shows whether the daily scan is on and when each
 product was last scanned and will be next.
+
+### Weekly analyst
+
+The worker queues one weekly analyst run (see [Weekly analyst](#weekly-analyst)) each Sunday at
+20:00 in `HARBOUR_TIMEZONE`, for that Sunday's ISO week. Like the daily scan it is worked out from
+the job history, so a restart never queues it twice, and a worker that was down on Sunday evening
+queues exactly one run, for that Sunday's week, when it starts. A run you start by hand counts
+only if you start it after Sunday's 20:00: one earlier in the week does not stop the full-week
+report. The worker skips the week, and says so in its log, when `HARBOUR_CLAUDE_OAUTH_TOKEN` is
+not set ("weekly analyst skipped: no Claude token") or when no product has a scored scan in the
+last 7 days ("no scan data this week"). A failed run is not retried automatically: choose **Run
+weekly report now** on **Agents** or run `pnpm analyst:now`. Set `HARBOUR_SCHEDULED_ANALYST=off` to
+run it only by hand. Like every agent run it waits for the brain to be quiet first.
+
+### Snoozed actions
+
+Every 30 seconds between jobs the worker reopens snoozed actions whose date has come (in
+`HARBOUR_TIMEZONE`), with the note "Snooze ended".
 
 ## Reading the results
 

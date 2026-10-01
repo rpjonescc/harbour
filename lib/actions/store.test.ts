@@ -9,6 +9,7 @@ import {
   addActionEvent,
   insertAction,
   MAX_ACTION_EVENTS,
+  makeSnoozeWaker,
   normaliseTitle,
   setStatus,
   wakeDueSnoozes,
@@ -284,5 +285,21 @@ describe("wakeDueSnoozes", () => {
       note: "Snooze ended",
     });
     expect(wakeDueSnoozes(db, "2026-10-02", at(6))).toBe(0);
+  });
+});
+
+describe("makeSnoozeWaker", () => {
+  it("wakes snoozes by the local date, checking at most every 30 seconds", () => {
+    const db = openTestDb();
+    const id = insertAction(db, ruleAction(), "scan", null, t0);
+    setStatus(db, id, "open", "snoozed", { actor: "owner", snoozedUntil: "2026-10-03", now: t0 });
+    let now = Date.parse("2026-10-02T13:59:50Z"); // 23:59:50 on 2 Oct in Brisbane
+    const waker = makeSnoozeWaker({ db, timeZone: "Australia/Brisbane", clock: () => now });
+    expect(waker.tick()).toBe(0);
+    now = Date.parse("2026-10-02T14:00:10Z"); // 3 Oct locally, but only 20 s later
+    expect(waker.tick()).toBe(0);
+    now = Date.parse("2026-10-02T14:00:20Z");
+    expect(waker.tick()).toBe(1);
+    expect(rowOf(db, id)).toMatchObject({ status: "open", statusChangedAt: new Date(now) });
   });
 });

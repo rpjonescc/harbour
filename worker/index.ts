@@ -1,7 +1,10 @@
 // Harbour worker: runs queued jobs (agents, git sync, scans) one at a time. Started by systemd (`pnpm worker`).
 // Must not import any module that imports "server-only".
+
+import { makeSnoozeWaker } from "@/lib/actions/store";
 import { quarantineRootFor } from "@/lib/agents/brain-status";
 import { runProcess } from "@/lib/agents/process";
+import { makeAnalystSchedule } from "@/lib/analyst/schedule";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
@@ -46,6 +49,18 @@ async function main() {
     clock: Date.now,
     productIds: () => getProducts().map((p) => p.id),
   });
+  const analyst = makeAnalystSchedule({
+    db,
+    timeZone: config.HARBOUR_TIMEZONE,
+    enabled: config.HARBOUR_SCHEDULED_ANALYST === "on",
+    tokenSet: Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN),
+    clock: Date.now,
+    productIds: () => getProducts().map((p) => p.id),
+  });
+  const snoozes = makeSnoozeWaker({ db, timeZone: config.HARBOUR_TIMEZONE, clock: Date.now });
+  const logAnalyst = (why: string, queued: { jobId: number; week: string } | null) => {
+    if (queued) console.log(`${why}: queued weekly analyst #${queued.jobId} for ${queued.week}`);
+  };
   const imports = makeImportRetry({
     db,
     root,
@@ -55,6 +70,7 @@ async function main() {
   scheduler.startup();
   failInterruptedScans(db); // their jobs were just failed by startup()
   logQueued("catch-up", scans.catchUp());
+  logAnalyst("catch-up", analyst.tick());
   console.log("harbour-worker ready");
 
   const runJob = async (job: Job) => {
@@ -102,6 +118,9 @@ async function main() {
   while (!stopping) {
     scheduler.tick(); // between jobs only: never during a run
     logQueued("daily", scans.tick());
+    logAnalyst("weekly", analyst.tick());
+    const woken = snoozes.tick();
+    if (woken > 0) console.log(`woke ${woken} snoozed action(s)`);
     const reimported = imports.tick(); // committed agent output whose import failed
     if (reimported > 0) console.log(`re-imported the output of ${reimported} agent run(s)`);
     const job = claimNextJob(db);

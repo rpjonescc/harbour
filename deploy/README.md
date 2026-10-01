@@ -61,8 +61,9 @@ git pull && pnpm install --frozen-lockfile && pnpm build && systemctl --user res
 
 `install.sh` also installs `harbour-worker.service` (runs `pnpm worker`, restarts automatically).
 The worker is the only process that runs agents and touches the brain's git history: it runs
-queued research and discovery jobs one at a time, autosaves your brain edits and retries unpushed
-commits.
+queued research, discovery and weekly analyst jobs one at a time, autosaves your brain edits and
+retries unpushed commits. It queues the weekly analyst itself every Sunday at 20:00
+(`HARBOUR_TIMEZONE`) unless `HARBOUR_SCHEDULED_ANALYST=off`.
 
 1. Run `claude setup-token` and put the result in `.env` as `HARBOUR_CLAUDE_OAUTH_TOKEN=`.
    Without it agents stay disabled.
@@ -78,6 +79,10 @@ commits.
 5. Once, after the first deploy, queue the whole first run (all research topics, then discovery
    for every product): `pnpm agents:initial-run`. It is safe to repeat; jobs already queued or
    running are not duplicated.
+6. After a deploy that brings the weekly analyst, queue a first report straight away instead of
+   waiting for Sunday (it needs at least one scored scan in the last 7 days to say anything):
+   `pnpm analyst:now`. It prints the job id; a report already queued for this week is not
+   duplicated.
 
 Edit the brain only on the Harbour PC: the worker commits and pushes but never pulls. Give the
 brain a `.gitignore` for editor and OS files (`.DS_Store`, `*.swp`, `*~`,
