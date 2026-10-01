@@ -13,6 +13,9 @@ describe("isQuestion", () => {
     "How long does delivery take",
     "When should I renew",
     "Is it free?",
+    "Is it free",
+    "Can I self-host it",
+    "Does it work offline",
     "Pricing?",
   ])("treats %j as a question", (text) => {
     expect(isQuestion(text)).toBe(true);
