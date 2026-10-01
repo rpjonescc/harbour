@@ -1,4 +1,12 @@
-import { blob, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  blob,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 const timestamp = (name: string) => integer(name, { mode: "timestamp_ms" });
 
@@ -63,21 +71,25 @@ export const brainLinks = sqliteTable(
   (table) => [primaryKey({ columns: [table.fromPath, table.toPath] })],
 );
 
-export const jobs = sqliteTable("jobs", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  kind: text("kind", { enum: ["research", "discovery", "brain-push", "notes-sync"] }).notNull(),
-  params: text("params", { mode: "json" }).$type<Record<string, string>>().notNull(),
-  // Stable identity of the request, used to avoid queueing the same job twice.
-  dedupeKey: text("dedupe_key").notNull(),
-  status: text("status", { enum: ["queued", "running", "ok", "failed", "cancelled"] }).notNull(),
-  requestedBy: text("requested_by"),
-  createdAt: timestamp("created_at").notNull(),
-  startedAt: timestamp("started_at"),
-  finishedAt: timestamp("finished_at"),
-  heartbeatAt: timestamp("heartbeat_at"),
-  cancelRequested: integer("cancel_requested", { mode: "boolean" }).notNull().default(false),
-  error: text("error"),
-});
+export const jobs = sqliteTable(
+  "jobs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    kind: text("kind", { enum: ["research", "discovery", "brain-push", "notes-sync"] }).notNull(),
+    params: text("params", { mode: "json" }).$type<Record<string, string>>().notNull(),
+    // Stable identity of the request, used to avoid queueing the same job twice.
+    dedupeKey: text("dedupe_key").notNull(),
+    status: text("status", { enum: ["queued", "running", "ok", "failed", "cancelled"] }).notNull(),
+    requestedBy: text("requested_by"),
+    createdAt: timestamp("created_at").notNull(),
+    startedAt: timestamp("started_at"),
+    finishedAt: timestamp("finished_at"),
+    heartbeatAt: timestamp("heartbeat_at"),
+    cancelRequested: integer("cancel_requested", { mode: "boolean" }).notNull().default(false),
+    error: text("error"),
+  },
+  (t) => [index("jobs_status").on(t.status), index("jobs_dedupe_key").on(t.dedupeKey)],
+);
 
 export const agentRuns = sqliteTable("agent_runs", {
   jobId: integer("job_id")
@@ -92,15 +104,19 @@ export const agentRuns = sqliteTable("agent_runs", {
   stderrTail: text("stderr_tail"),
 });
 
-export const agentRunEvents = sqliteTable("agent_run_events", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  jobId: integer("job_id")
-    .notNull()
-    .references(() => jobs.id),
-  at: timestamp("at").notNull(),
-  kind: text("kind", { enum: ["status", "tool", "text", "error"] }).notNull(),
-  text: text("text").notNull(),
-});
+export const agentRunEvents = sqliteTable(
+  "agent_run_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobs.id),
+    at: timestamp("at").notNull(),
+    kind: text("kind", { enum: ["status", "tool", "text", "error"] }).notNull(),
+    text: text("text").notNull(),
+  },
+  (t) => [index("agent_run_events_job_id").on(t.jobId, t.id)],
+);
 
 export const proposals = sqliteTable(
   "proposals",

@@ -1,3 +1,8 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { sql } from "drizzle-orm";
+import { migrateDb, openDb } from "@/lib/db/client";
 import { openTestDb } from "@/tests/helpers/db";
 import {
   addEvent,
@@ -85,5 +90,59 @@ describe("job queue", () => {
     enqueueJob(db, "research", { topic: "a" }, null, t0);
     const newer = enqueueJob(db, "research", { topic: "b" }, null, at(1)).id;
     expect(listJobs(db)[0]?.id).toBe(newer);
+  });
+});
+
+describe("job queue transitions", () => {
+  it("finishJob only applies to running jobs", () => {
+    const db = openTestDb();
+    const id = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
+    expect(finishJob(db, id, "ok", null, at(1))).toBe(false);
+    claimNextJob(db, t0);
+    requestCancel(db, id, at(1));
+    expect(finishJob(db, id, "cancelled", null, at(2))).toBe(true);
+    expect(finishJob(db, id, "ok", null, at(3))).toBe(false);
+    expect(getJob(db, id)?.status).toBe("cancelled");
+    const failed = enqueueJob(db, "research", { topic: "b" }, null, t0).id;
+    claimNextJob(db, t0);
+    recoverStaleJobs(db, at(120_000));
+    expect(finishJob(db, failed, "ok", null, at(130_000))).toBe(false);
+    expect(getJob(db, failed)?.status).toBe("failed");
+  });
+
+  it("dedupes regardless of param order", () => {
+    const db = openTestDb();
+    const a = enqueueJob(db, "research", { x: "1", y: "2" }, null, t0);
+    const b = enqueueJob(db, "research", { y: "2", x: "1" }, null, t0);
+    expect(b).toEqual({ id: a.id, created: false });
+  });
+
+  it("treats a running job with no heartbeat as stale", () => {
+    const db = openTestDb();
+    const id = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
+    claimNextJob(db, t0);
+    db.run(sql`UPDATE jobs SET heartbeat_at = NULL WHERE id = ${id}`);
+    expect(recoverStaleJobs(db, at(1))).toBe(1);
+  });
+
+  it("stays consistent across two connections to one file", () => {
+    const dir = mkdtempSync(join(tmpdir(), "harbour-queue-"));
+    try {
+      const a = openDb(join(dir, "t.db"));
+      migrateDb(a);
+      const b = openDb(join(dir, "t.db"));
+      const first = enqueueJob(a, "research", { topic: "a" }, null, t0);
+      expect(enqueueJob(b, "research", { topic: "a" }, null, t0)).toEqual({
+        id: first.id,
+        created: false,
+      });
+      expect(claimNextJob(b, t0)?.id).toBe(first.id);
+      expect(enqueueJob(a, "research", { topic: "z" }, null, t0).created).toBe(true);
+      expect(claimNextJob(a, t0)?.id).not.toBe(first.id);
+      expect(requestCancel(b, first.id, t0)).toBe("requested");
+      expect(finishJob(a, first.id, "cancelled", null, t0)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

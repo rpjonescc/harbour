@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, inArray, lt } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { agentRunEvents, jobs } from "@/lib/db/schema";
 
@@ -26,41 +26,47 @@ export function enqueueJob(
   now = new Date(),
 ): { id: number; created: boolean } {
   const dedupeKey = dedupeKeyFor(kind, params);
-  return db.transaction((tx) => {
-    const active = tx
-      .select({ id: jobs.id })
-      .from(jobs)
-      .where(and(eq(jobs.dedupeKey, dedupeKey), inArray(jobs.status, ["queued", "running"])))
-      .get();
-    if (active) return { id: active.id, created: false };
-    const row = tx
-      .insert(jobs)
-      .values({ kind, params, dedupeKey, status: "queued", requestedBy, createdAt: now })
-      .returning({ id: jobs.id })
-      .get();
-    return { id: row.id, created: true };
-  });
+  return db.transaction(
+    (tx) => {
+      const active = tx
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(and(eq(jobs.dedupeKey, dedupeKey), inArray(jobs.status, ["queued", "running"])))
+        .get();
+      if (active) return { id: active.id, created: false };
+      const row = tx
+        .insert(jobs)
+        .values({ kind, params, dedupeKey, status: "queued", requestedBy, createdAt: now })
+        .returning({ id: jobs.id })
+        .get();
+      return { id: row.id, created: true };
+    },
+    { behavior: "immediate" },
+  );
 }
 
 /** Atomically moves the oldest queued job to running. */
 export function claimNextJob(db: Db, now = new Date()): Job | null {
-  return db.transaction((tx) => {
-    const next = tx
-      .select({ id: jobs.id })
-      .from(jobs)
-      .where(eq(jobs.status, "queued"))
-      .orderBy(asc(jobs.id))
-      .get();
-    if (!next) return null;
-    return (
-      tx
-        .update(jobs)
-        .set({ status: "running", startedAt: now, heartbeatAt: now })
-        .where(and(eq(jobs.id, next.id), eq(jobs.status, "queued")))
-        .returning()
-        .get() ?? null
-    );
-  });
+  return db.transaction(
+    (tx) => {
+      const next = tx
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(eq(jobs.status, "queued"))
+        .orderBy(asc(jobs.id))
+        .get();
+      if (!next) return null;
+      return (
+        tx
+          .update(jobs)
+          .set({ status: "running", startedAt: now, heartbeatAt: now })
+          .where(and(eq(jobs.id, next.id), eq(jobs.status, "queued")))
+          .returning()
+          .get() ?? null
+      );
+    },
+    { behavior: "immediate" },
+  );
 }
 
 export function heartbeat(db: Db, id: number, now = new Date()): void {
@@ -70,14 +76,22 @@ export function heartbeat(db: Db, id: number, now = new Date()): void {
     .run();
 }
 
+/** Moves a running job to a terminal state. Returns false if it was no longer running. */
 export function finishJob(
   db: Db,
   id: number,
   status: "ok" | "failed" | "cancelled",
   error: string | null,
   now = new Date(),
-): void {
-  db.update(jobs).set({ status, error, finishedAt: now }).where(eq(jobs.id, id)).run();
+): boolean {
+  return (
+    db
+      .update(jobs)
+      .set({ status, error, finishedAt: now })
+      .where(and(eq(jobs.id, id), eq(jobs.status, "running")))
+      .returning({ id: jobs.id })
+      .all().length > 0
+  );
 }
 
 /** Queued jobs are cancelled at once; running jobs are flagged for the worker. */
@@ -86,16 +100,20 @@ export function requestCancel(
   id: number,
   now = new Date(),
 ): "cancelled" | "requested" | "not-active" {
-  const job = getJob(db, id);
-  if (job?.status === "queued") {
-    finishJob(db, id, "cancelled", null, now);
-    return "cancelled";
-  }
-  if (job?.status === "running") {
-    db.update(jobs).set({ cancelRequested: true }).where(eq(jobs.id, id)).run();
-    return "requested";
-  }
-  return "not-active";
+  const cancelled = db
+    .update(jobs)
+    .set({ status: "cancelled", finishedAt: now })
+    .where(and(eq(jobs.id, id), eq(jobs.status, "queued")))
+    .returning({ id: jobs.id })
+    .all();
+  if (cancelled.length > 0) return "cancelled";
+  const flagged = db
+    .update(jobs)
+    .set({ cancelRequested: true })
+    .where(and(eq(jobs.id, id), eq(jobs.status, "running")))
+    .returning({ id: jobs.id })
+    .all();
+  return flagged.length > 0 ? "requested" : "not-active";
 }
 
 export function isCancelRequested(db: Db, id: number): boolean {
@@ -112,7 +130,9 @@ export function recoverStaleJobs(db: Db, now = new Date(), staleMs = STALE_MS): 
       finishedAt: now,
       error: "Worker stopped during run — check the brain repo for partial changes (git status)",
     })
-    .where(and(eq(jobs.status, "running"), lt(jobs.heartbeatAt, cutoff)))
+    .where(
+      and(eq(jobs.status, "running"), or(isNull(jobs.heartbeatAt), lt(jobs.heartbeatAt, cutoff))),
+    )
     .returning({ id: jobs.id })
     .all().length;
 }
