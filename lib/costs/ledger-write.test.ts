@@ -11,7 +11,6 @@ import {
 } from "./ledger-write";
 
 const NOW = new Date("2026-10-15T12:00:00Z");
-const LATER = new Date("2026-10-15T12:00:05Z");
 const OCTOBER = { start: new Date("2026-10-01T00:00:00Z"), end: new Date("2026-11-01T00:00:00Z") };
 const entry: CostEntry = {
   provider: "dataforseo",
@@ -120,7 +119,7 @@ describe("reserveCost", () => {
 });
 
 describe("settleCost", () => {
-  it("turns a reservation into the recorded call at its actual price and time", () => {
+  it("turns a reservation into the recorded call at its actual price, keeping its time", () => {
     const db = openTestDb();
     const id = reserveCost(
       db,
@@ -128,13 +127,14 @@ describe("settleCost", () => {
       NOW,
     );
     if (id === null) throw new Error("expected a reservation");
-    expect(
-      settleCost(db, id, { provider: "dataforseo", units: 2, amountMicroAud: 250 }, LATER),
-    ).toBe(true);
+    expect(settleCost(db, id, { provider: "dataforseo", units: 2, amountMicroAud: 250 })).toBe(
+      true,
+    );
     expect(db.select().from(costs).all()).toEqual([
       {
         id,
-        createdAt: LATER,
+        // The month the call was allowed in is the month it is charged to.
+        createdAt: NOW,
         status: "recorded",
         ...who,
         provider: "dataforseo",
@@ -143,9 +143,7 @@ describe("settleCost", () => {
       },
     ]);
     // Settled once only.
-    expect(settleCost(db, id, { provider: "dataforseo", units: 1, amountMicroAud: 1 }, LATER)).toBe(
-      false,
-    );
+    expect(settleCost(db, id, { provider: "dataforseo", units: 1, amountMicroAud: 1 })).toBe(false);
   });
 
   it("validates the actual cost like recordCost, leaving the reservation in place", () => {
@@ -156,9 +154,9 @@ describe("settleCost", () => {
       NOW,
     );
     if (id === null) throw new Error("expected a reservation");
-    expect(() =>
-      settleCost(db, id, { provider: "acme-api", units: 1, amountMicroAud: 1 }, LATER),
-    ).toThrow(/provider/);
+    expect(() => settleCost(db, id, { provider: "acme-api", units: 1, amountMicroAud: 1 })).toThrow(
+      /provider/,
+    );
     expect(db.select().from(costs).all()[0]?.status).toBe("reserved");
   });
 });
@@ -169,7 +167,7 @@ describe("dropReservations", () => {
     const reserve = () =>
       reserveCost(db, { ...who, amountMicroAud: 1, capMicroAud: 1000, window: OCTOBER }, NOW) ?? 0;
     const [a, b] = [reserve(), reserve()];
-    settleCost(db, a, { provider: "dataforseo", units: 1, amountMicroAud: 1 }, NOW);
+    settleCost(db, a, { provider: "dataforseo", units: 1, amountMicroAud: 1 });
     dropReservations(db, [a, b]);
     expect(
       db

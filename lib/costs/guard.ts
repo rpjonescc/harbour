@@ -2,7 +2,7 @@
 import type { Db } from "@/lib/db/client";
 import { monthWindow } from "@/lib/format/zoned-time";
 import type { CollectContext } from "@/lib/scan/types";
-import { budgetLevel, formatAud, MAX_CALL_MICRO_AUD } from "./budget";
+import { budgetLevel, formatAud, formatAudPrecise, MAX_CALL_MICRO_AUD } from "./budget";
 import { spentBetween } from "./ledger";
 import {
   dropReservations,
@@ -15,11 +15,12 @@ import {
 /** What a collector spends through, plus the runner's side: settle up and check for a lost cost. */
 export type Spend = Pick<CollectContext, "cost" | "budget"> & {
   /**
-   * Called once the collector's run ends; no call is allowed after it. A run that ended normally
-   * drops its unrecorded reservations; an abandoned one (timeout, cancel) keeps them counted,
-   * since its calls may still be in flight, until a late record settles them.
+   * Called once the collector's run ends; no call is allowed after it. When the collector
+   * returned a result, its unrecorded reservations are dropped (it made no such call). When it
+   * threw or was abandoned (timeout, cancel), they stay counted: a call may have been sent and
+   * billed, or still be in flight, and a late record settles it.
    */
-  release(abandoned: boolean): void;
+  release(ended: "returned" | "threw"): void;
   /** Why a cost was lost or recorded irregularly, even if the collector caught the error; else null. */
   failure(): string | null;
 };
@@ -29,6 +30,9 @@ const isPrice = (micro: number) =>
   Number.isSafeInteger(micro) && micro >= 1 && micro <= MAX_CALL_MICRO_AUD;
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+// Job events are stored text, read in any locale: "A$" is unambiguous.
+const REASON_LOCALE = "en-US";
 
 const UNASKED = "paid call made without budget.allow";
 
@@ -42,13 +46,13 @@ export function makeSpend(
     productId: string;
     collector: string;
     jobId: number;
-    /** Reports a cost refused after the run ended (it can no longer fail the collector). */
+    /** Job events: a cost above its estimate, or one refused after the run ended. */
     log?: (text: string) => void;
   },
 ): Spend {
   const who = { collector: input.collector, productId: input.productId, jobId: input.jobId };
   // This run's reservations not yet settled, oldest first.
-  const pending: number[] = [];
+  const pending: { id: number; estimate: number }[] = [];
   let closed = false;
   let failure: string | null = null;
   const fail = (text: string) => {
@@ -58,20 +62,26 @@ export function makeSpend(
 
   function record(call: PaidCall) {
     const now = input.now();
-    const id = pending[0];
+    // A refused cost leaves its reservation counted (the call may have been billed): it is
+    // taken out of `pending` first so the end of the run does not drop it.
+    const reservation = pending.shift();
     try {
-      if (id === undefined) {
+      if (reservation === undefined) {
         recordCost(db, { ...call, ...who }, now);
         fail(UNASKED);
         return;
       }
-      // A refused cost leaves its reservation counted (the call may have been billed): it is
-      // taken out of `pending` so the end of the run does not drop it.
-      pending.shift();
-      if (settleCost(db, id, call, now)) return;
-      // Never expected (only this run settles its rows), but a cost is never dropped.
-      recordCost(db, { ...call, ...who }, now);
-      fail(`reservation ${id} was gone; the cost was recorded on its own`);
+      if (!settleCost(db, reservation.id, call)) {
+        // Never expected (only this run settles its rows), but a cost is never dropped.
+        recordCost(db, { ...call, ...who }, now);
+        fail(`reservation ${reservation.id} was gone; the cost was recorded on its own`);
+        return;
+      }
+      if (call.amountMicroAud > reservation.estimate) {
+        const actual = formatAudPrecise(call.amountMicroAud, REASON_LOCALE);
+        const estimate = formatAudPrecise(reservation.estimate, REASON_LOCALE);
+        input.log?.(`Paid call cost ${actual}, above its ${estimate} estimate`);
+      }
     } catch (error) {
       fail(`Could not record a paid call's cost: ${message(error)}`);
       throw error;
@@ -90,14 +100,18 @@ export function makeSpend(
           now,
         );
         if (id === null) return false;
-        pending.push(id);
+        pending.push({ id, estimate: estimateMicroAud });
         return true;
       },
     },
     cost: { record },
-    release(abandoned) {
+    release(ended) {
       closed = true;
-      if (!abandoned) dropReservations(db, pending.splice(0));
+      if (ended === "returned")
+        dropReservations(
+          db,
+          pending.splice(0).map((r) => r.id),
+        );
     },
     failure: () => failure,
   };
@@ -118,9 +132,6 @@ export function noSpend(collector: string): Spend {
     failure: () => failure,
   };
 }
-
-// Job events are stored text, read in any locale: "A$" is unambiguous.
-const REASON_LOCALE = "en-US";
 
 /** Why a paid collector is skipped before it runs, or null. */
 export function budgetSkipReason(

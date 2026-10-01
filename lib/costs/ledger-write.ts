@@ -83,14 +83,15 @@ export function reserveCost(
 }
 
 /**
- * Turns reservation `id` into the recorded call at its actual price and time; false when it is
- * no longer reserved. Throws (changing nothing) when the call is not a valid cost.
+ * Turns reservation `id` into the recorded call at its actual price; false when it is no longer
+ * reserved. It keeps the reservation's time: the call is charged to the month it was allowed in.
+ * Throws (changing nothing) when the call is not a valid cost.
  */
-export function settleCost(db: Db, id: number, call: PaidCall, now: Date): boolean {
+export function settleCost(db: Db, id: number, call: PaidCall): boolean {
   const valid = parse(callSchema, call);
   const settled = db
     .update(costs)
-    .set({ ...valid, status: "recorded", createdAt: now })
+    .set({ ...valid, status: "recorded" })
     .where(and(eq(costs.id, id), eq(costs.status, "reserved")))
     .run();
   return settled.changes === 1;

@@ -132,23 +132,41 @@ describe("makeSpend", () => {
     spent(A$(0.97));
     const first = spend();
     expect(first.budget.allow(A$(0.02))).toBe(true);
-    first.release(false);
+    first.release("returned");
     expect(rows().filter((r) => r.status === "reserved")).toEqual([]);
     expect(first.budget.allow(1)).toBe(false);
     expect(spend().budget.allow(A$(0.02))).toBe(true);
   });
 
-  it("keeps an abandoned collector's reservations until its late record settles them", () => {
+  it("keeps the reservations of a collector that threw (or was abandoned) until a late record settles them", () => {
     const { spend, spent, rows } = setup(1);
     spent(A$(0.97));
     const abandoned = spend();
     expect(abandoned.budget.allow(A$(0.02))).toBe(true);
-    abandoned.release(true);
+    abandoned.release("threw");
     expect(abandoned.budget.allow(1)).toBe(false);
     expect(spend("aeo-serp").budget.allow(A$(0.02))).toBe(false);
     abandoned.cost.record({ provider: "dataforseo", units: 1, amountMicroAud: A$(0.015) });
     expect(rows().at(-1)).toMatchObject({ status: "recorded", amountMicroAud: A$(0.015) });
     expect(abandoned.failure()).toBeNull();
+  });
+
+  it("logs a call whose actual cost is above its estimate", () => {
+    const { spend, logged, rows } = setup(1);
+    const s = spend();
+    expect(s.budget.allow(1000)).toBe(true);
+    s.cost.record({ provider: "dataforseo", units: 1, amountMicroAud: 1500 });
+    expect(rows()).toMatchObject([{ status: "recorded", amountMicroAud: 1500 }]);
+    expect(logged).toEqual(["Paid call cost A$0.0015, above its A$0.001 estimate"]);
+    expect(s.failure()).toBeNull();
+  });
+
+  it("logs nothing when the actual cost is within the estimate", () => {
+    const { spend, logged } = setup(1);
+    const s = spend();
+    expect(s.budget.allow(1000)).toBe(true);
+    s.cost.record({ provider: "dataforseo", units: 1, amountMicroAud: 1000 });
+    expect(logged).toEqual([]);
   });
 
   it("keeps the reservation of a record the ledger refused, as the collector's failure", () => {
@@ -159,7 +177,7 @@ describe("makeSpend", () => {
       s.cost.record({ provider: "dataforseo", units: 1, amountMicroAud: A$(100) + 1 }),
     ).toThrow();
     expect(s.failure()).toMatch(/amountMicroAud/);
-    s.release(false);
+    s.release("returned");
     // The call may have been billed: its estimate stays counted, shown as unconfirmed.
     expect(rows()).toMatchObject([{ status: "reserved", amountMicroAud: 1000 }]);
   });
@@ -168,7 +186,7 @@ describe("makeSpend", () => {
     const { spend, logged } = setup(1);
     const s = spend();
     expect(s.budget.allow(1000)).toBe(true);
-    s.release(true);
+    s.release("threw");
     expect(() => s.cost.record({ provider: "acme-api", units: 1, amountMicroAud: 1 })).toThrow();
     expect(logged).toEqual([
       expect.stringMatching(/^Could not record a paid call's cost: .*provider/),

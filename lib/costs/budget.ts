@@ -48,3 +48,13 @@ export function formatAud(micro: number, locale: string): string {
     maximumFractionDigits: 2,
   }).format(micro / MICRO_PER_AUD);
 }
+
+/** Micro-AUD with fractions of a cent kept (to 1 micro-AUD), e.g. "A$0.0015" for one API call. */
+export function formatAudPrecise(micro: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: "AUD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 6,
+  }).format(micro / MICRO_PER_AUD);
+}

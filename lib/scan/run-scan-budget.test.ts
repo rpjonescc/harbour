@@ -176,4 +176,55 @@ describe("runScan budget guard", () => {
       amountMicroAud: A$(0.015),
     });
   });
+
+  it("keeps a reservation counted when its collector throws: the call may have been billed", async () => {
+    const throwsAfterAllow = fake("rankings", async (ctx) => {
+      if (ctx.budget.allow(A$(0.02))) throw new Error("connection reset");
+      return { status: "ok", observations: [] };
+    });
+    throwsAfterAllow.paid = true;
+    const next = fakePaidCollector({ id: "aeo-serp", pricePerCallMicro: A$(0.02), calls: 1 });
+    const { db, scan } = setup([throwsAfterAllow, next], budget(1));
+    spend(db, A$(0.97));
+    await scan();
+    expect(run(db, "rankings")).toMatchObject({ status: "failed", error: "connection reset" });
+    expect(db.select().from(costs).all().at(-1)).toMatchObject({ status: "reserved" });
+    expect(next.calls).toBe(0);
+  });
+
+  it("drops an unused reservation when its collector returns", async () => {
+    const asksOnly = fake("rankings", async (ctx) => {
+      ctx.budget.allow(A$(0.02));
+      return { status: "ok", observations: [] };
+    });
+    asksOnly.paid = true;
+    const next = fakePaidCollector({ id: "aeo-serp", pricePerCallMicro: A$(0.02), calls: 1 });
+    const { db, scan } = setup([asksOnly, next], budget(1));
+    spend(db, A$(0.97));
+    await scan();
+    expect(next.calls).toBe(1);
+    expect(
+      db
+        .select()
+        .from(costs)
+        .all()
+        .map((r) => r.status),
+    ).toEqual(["recorded", "recorded"]);
+  });
+
+  it("adds a job event when a call cost more than its estimate", async () => {
+    const over = fake("rankings", async (ctx) => {
+      if (ctx.budget.allow(1000)) {
+        ctx.cost.record({ provider: "dataforseo", units: 1, amountMicroAud: 1500 });
+      }
+      return { status: "ok", observations: [] };
+    });
+    over.paid = true;
+    const { db, scan } = setup([over], budget(1));
+    const job = await scan();
+    expect(texts(db, job)).toContain(
+      "rankings: Paid call cost A$0.0015, above its A$0.001 estimate",
+    );
+    expect(run(db, "rankings")?.status).toBe("ok");
+  });
 });

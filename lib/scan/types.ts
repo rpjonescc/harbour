@@ -78,7 +78,11 @@ export type CollectContext = {
   signal: AbortSignal;
   /** Results of the collectors that ran before this one in the same scan. */
   earlier: EarlierResults;
-  /** Writes a costs row for a paid call already made (product, collector and job filled in). */
+  /**
+   * Writes a costs row for a paid call already made (product, collector and job filled in). A
+   * call that was sent must always be recorded, even when it then fails or errors: record before
+   * throwing. An allowed call never recorded stays counted if the collector throws.
+   */
   cost: { record(entry: { provider: string; units: number; amountMicroAud: number }): void };
   /** Whether a paid call estimated at `estimateMicroAud` fits this month's budget. Ask before every paid call. */
   budget: { allow(estimateMicroAud: number): boolean };

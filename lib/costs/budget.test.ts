@@ -3,6 +3,7 @@ import {
   budgetLevel,
   canSpend,
   formatAud,
+  formatAudPrecise,
   MICRO_PER_AUD,
   projectMonth,
 } from "./budget";
@@ -75,5 +76,13 @@ describe("formatAud", () => {
     expect(formatAud(600, "en-GB")).toBe("A$0.00");
     expect(formatAud(A$(60.125), "en-US")).toBe("A$60.13");
     expect(formatAud(A$(1234.5), "en-AU")).toBe("$1,234.50");
+  });
+});
+
+describe("formatAudPrecise", () => {
+  it("keeps fractions of a cent, down to one micro-AUD", () => {
+    expect(formatAudPrecise(1500, "en-GB")).toBe("A$0.0015");
+    expect(formatAudPrecise(1, "en-GB")).toBe("A$0.000001");
+    expect(formatAudPrecise(A$(12.4), "en-GB")).toBe("A$12.40");
   });
 });

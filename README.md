@@ -516,7 +516,8 @@ spend what you allow.
   `HARBOUR_MONTHLY_BUDGET_AUD=60`) to allow them. A paid collector asks the budget before every
   call, and a call is only made if its price fits what is left this month. That estimate is
   written to the ledger as a *reservation* before the call and replaced by the actual price
-  after it, so two calls can never both use the last of the budget. If Harbour stops mid-call,
+  after it, so two calls can never both use the last of the budget. If Harbour stops mid-call
+  or the collector fails after the budget allowed a call,
   the reservation stays counted (the call may have been billed) and the meter shows it as
   "unconfirmed".
 - **At 80 %** Today's meter shows a warning tag.

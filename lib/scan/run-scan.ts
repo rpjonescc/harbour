@@ -118,8 +118,10 @@ async function attempt(scan: Scan, collector: Collector): Promise<CollectorResul
     timeoutMs,
     scan.signal,
   );
+  let returned = false;
   try {
     const result = await run.result;
+    returned = true;
     // A cost the ledger refused is a pricing bug: fail visibly even if the collector caught it.
     const lost = spend.failure();
     if (lost) throw new Error(lost);
@@ -130,8 +132,8 @@ async function attempt(scan: Scan, collector: Collector): Promise<CollectorResul
     // Prefer why we aborted (timeout, cancel) over the collector's own reaction to it.
     throw run.signal.reason;
   } finally {
-    // An abandoned run's calls may still be in flight: their reservations stay counted.
-    spend.release(run.signal.aborted);
+    // A run that threw or was abandoned may have sent calls: their reservations stay counted.
+    spend.release(returned ? "returned" : "threw");
   }
 }
 
