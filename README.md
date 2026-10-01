@@ -163,8 +163,9 @@ Start the app and register your first passkey:
 ```bash
 pnpm dev            # http://localhost:3400
 pnpm setup-token    # prints a one-time link; open it to create a passkey
-pnpm worker         # runs queued agent jobs, one at a time (reads .env)
+pnpm worker         # runs queued jobs (agents, scans), one at a time (reads .env)
 pnpm agents:initial-run  # once: queues every research topic, then discovery per product
+pnpm scan:now       # queues a visibility scan of every product now (or: pnpm scan:now <productId>)
 ```
 
 A deployed install runs the worker as the `harbour-worker` systemd user service (see
@@ -203,7 +204,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_RP_ID` | yes | — | WebAuthn relying-party id: the origin's hostname or a parent domain. |
 | `HARBOUR_DB_PATH` | no | `./data/harbour.db` | SQLite database file. |
 | `HARBOUR_CONFIG_PATH` | no | unset | Product config file; must exist if set. Unset reads `./harbour.config.json` and shows the example (demo) only if that file does not exist. |
-| `HARBOUR_TIMEZONE` | no | server's zone | IANA timezone for dates. |
+| `HARBOUR_TIMEZONE` | no | server's zone | IANA timezone for dates and for the daily scan at 06:00 local time (daylight saving included). |
 | `HARBOUR_LOCALE` | no | `en-US` | BCP 47 locale for dates. |
 | `HARBOUR_BRAIN_DIR` | no | `./brain` | Second Brain directory — point it at a separate private repo. The worker refuses all git work unless it is the root of its own git repository. |
 | `HARBOUR_EDITOR_URL_TEMPLATE` | no | `vscode://file/{path}` | Editor link for brain documents; `{path}` is the encoded absolute file path. Empty hides the link. |
@@ -243,6 +244,19 @@ product shows as not connected; see [Connect Search Console](#connect-search-con
 
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.
+
+## When scans run
+
+The worker queues a visibility scan of every product each day at 06:00 in `HARBOUR_TIMEZONE`.
+If the worker is down at 06:00, it queues the day's scans at its first check after it starts.
+On start it also catches up: any product without a successful (or partly successful) scan in
+the last 24 hours is scanned straight away. A product never has more than one scan queued or
+running, and the daily scan is queued once a day however often the worker restarts.
+
+Scans are ordinary jobs: they run one at a time, in queue order, between agent runs. Unlike
+agent runs they never wait for the brain to be quiet, because they don't touch it. To scan
+now — after changing `harbour.config.json`, say — run `pnpm scan:now`, or
+`pnpm scan:now <productId>` for one product; an unknown id is rejected with the configured ones.
 
 ## Connecting Google data
 
@@ -397,10 +411,10 @@ app/          routes (thin: parse input, call lib/, render)
 components/   UI components built on semantic tokens
 design/       tokens.css (primitives + semantic) and the token list for /design
 lib/          auth, agents, brain, config, db, jobs, products, security, formatting — logic + tests
-worker/       the job worker (`pnpm worker`): agent runs, autosave and push retries
+worker/       the job worker (`pnpm worker`): agent runs, scans, autosave and push retries
 deploy/       systemd unit template, install script, deployment guide
 drizzle/      SQL migrations
-scripts/      repo checks and the setup-token CLI
+scripts/      repo checks and the setup-token, initial-run and scan-now CLIs
 tests/        e2e specs and test helpers
 docs/         design spec and implementation plans
 ```

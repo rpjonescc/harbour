@@ -1,4 +1,18 @@
-import { and, asc, count, desc, eq, gt, inArray, isNull, lt, lte, or, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  or,
+  type SQL,
+} from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { agentRunEvents, agentRuns, jobs } from "@/lib/db/schema";
 
@@ -174,6 +188,16 @@ function failRunning(db: Db, now: Date, error: string, extra?: SQL): number[] {
     .returning({ id: jobs.id })
     .all()
     .map((row) => row.id);
+}
+
+/** Jobs of `kind` created at or after `since`, oldest first. */
+export function jobsCreatedSince(db: Db, kind: JobKind, since: Date): Job[] {
+  return db
+    .select()
+    .from(jobs)
+    .where(and(eq(jobs.kind, kind), gte(jobs.createdAt, since)))
+    .orderBy(asc(jobs.id))
+    .all();
 }
 
 export function listJobs(db: Db, limit = 30): Job[] {

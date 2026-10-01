@@ -9,6 +9,7 @@ import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
 import { keepAlive } from "@/lib/jobs/heartbeat";
 import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
+import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
 import { makeScheduler } from "@/lib/jobs/scheduler";
 import { getProducts } from "@/lib/products/catalog";
 import { runScan } from "@/lib/scan/run-scan";
@@ -27,14 +28,25 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const logQueued = (why: string, scans: readonly QueuedScan[]) => {
+  for (const s of scans) console.log(`${why}: queued scan #${s.jobId} for ${s.productId}`);
+};
+
 async function main() {
   const config = getConfig();
   const db = getDb();
   const root = config.HARBOUR_BRAIN_DIR;
   const quarantineRoot = quarantineRootFor(config.HARBOUR_DB_PATH);
   const scheduler = makeScheduler({ db, root, quarantineRoot, clock: Date.now });
+  const scans = makeScanSchedule({
+    db,
+    timeZone: config.HARBOUR_TIMEZONE,
+    clock: Date.now,
+    productIds: () => getProducts().map((p) => p.id),
+  });
   scheduler.startup();
   failInterruptedScans(db); // their jobs were just failed by startup()
+  logQueued("catch-up", scans.catchUp()); // after the line above, so a cut-short scan counts as failed
   console.log("harbour-worker ready");
 
   const runJob = async (job: Job) => {
@@ -45,7 +57,6 @@ async function main() {
       scheduler.notesSynced(runNotesSyncJob({ db, root, quarantineRoot, now }, job));
     } else if (job.kind === "scan") {
       // Scans never touch the brain, so they don't wait for it to be quiet.
-      // Scoring is a stand-in (replaced in Task 6); see workerScanDeps.
       const deps = workerScanDeps({
         db,
         config,
@@ -81,6 +92,7 @@ async function main() {
 
   while (!stopping) {
     scheduler.tick(); // between jobs only: never during a run
+    logQueued("daily", scans.tick());
     const job = claimNextJob(db);
     if (!job) {
       await sleep(IDLE_MS);

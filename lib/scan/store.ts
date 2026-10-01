@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, max, ne } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { collectorRuns, jobs, observations, scanRuns, scores } from "@/lib/db/schema";
 import type {
@@ -188,4 +188,14 @@ export function failInterruptedScans(db: Db, now = new Date()): number {
     .where(and(eq(scanRuns.status, "running"), inArray(scanRuns.jobId, endedJobs)))
     .returning({ id: scanRuns.id })
     .all().length;
+}
+
+/** When the product's last ok or partial scan finished, or null if it never had one. */
+export function lastGoodScanAt(db: Db, productId: string): Date | null {
+  const row = db
+    .select({ at: max(scanRuns.finishedAt) })
+    .from(scanRuns)
+    .where(and(eq(scanRuns.productId, productId), inArray(scanRuns.status, ["ok", "partial"])))
+    .get();
+  return row?.at ?? null;
 }
