@@ -24,7 +24,8 @@ The secure shell, design system, and Second Brain viewer are built. The roadmap 
 
 ## Second Brain
 
-Harbour reads Markdown files from `HARBOUR_BRAIN_DIR` and shows them at `/brain`. The viewer has
+Harbour reads Markdown files from `HARBOUR_BRAIN_DIR`. Open **Second Brain** in the sidebar or
+visit `/brain`. The sidebar shows the number of new documents. The viewer has
 a folder tree, a reading view with an outline, links between notes (`[[note-name]]` or
 `[[note-name|label]]`), backlinks, and sources from frontmatter. Press **⌘K** or **Ctrl+K** to
 search titles and document text. New and changed notes are marked

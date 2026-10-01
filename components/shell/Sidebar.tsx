@@ -1,4 +1,5 @@
 import { ProductDot } from "@/components/ui/ProductDot";
+import { brainNewCount } from "@/lib/brain/runtime";
 import { getProductConfig } from "@/lib/products/catalog";
 import type { ThemePreference } from "@/lib/theme";
 import { LogoutButton } from "./LogoutButton";
@@ -9,12 +10,21 @@ import { ThemeToggle } from "./ThemeToggle";
 /** Left rail: brand, navigation, products, and device controls. */
 export function Sidebar({ theme }: { theme: ThemePreference }) {
   const { products, demo } = getProductConfig();
+  const brainNew = brainNewCount();
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-surface-sunk p-3">
       <p className="px-2 pb-4 pt-1 font-serif text-xl">Harbour</p>
       <nav aria-label="Main" className="flex flex-col gap-0.5">
         {NAV_ITEMS.map((item) => (
-          <NavLink key={item.label} href={item.href}>
+          <NavLink
+            key={item.label}
+            href={item.href}
+            badge={
+              item.badge === "brain-new" && brainNew !== null
+                ? { count: brainNew, label: `${brainNew} new documents` }
+                : undefined
+            }
+          >
             {item.label}
           </NavLink>
         ))}

@@ -22,3 +22,25 @@ describe("NavLink", () => {
     expect(screen.getByRole("link").getAttribute("aria-current")).toBeNull();
   });
 });
+
+describe("NavLink badge", () => {
+  it("shows a count with an accessible label", () => {
+    render(
+      <NavLink href="/brain" badge={{ count: 3, label: "3 new documents" }}>
+        Second Brain
+      </NavLink>,
+    );
+    const link = screen.getByRole("link", { name: /Second Brain/ });
+    expect(link).toHaveTextContent("3");
+    expect(screen.getByText("3 new documents")).toHaveClass("sr-only");
+  });
+
+  it("hides the badge at zero", () => {
+    render(
+      <NavLink href="/brain" badge={{ count: 0, label: "0 new documents" }}>
+        Second Brain
+      </NavLink>,
+    );
+    expect(screen.queryByText("0 new documents")).not.toBeInTheDocument();
+  });
+});
