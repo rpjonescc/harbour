@@ -14,7 +14,7 @@
 
 - Public repo: never commit personal data. Tests/fixtures use fictional products (`acme-docs`, "Acme Docs", `example.com`).
 - The web process never spawns agents; it only inserts jobs / sets `cancel_requested`. Worker code must not import any module that imports `"server-only"` (`lib/auth/guard.ts`, `lib/brain/runtime.ts`, `lib/brain/view-model.ts`), because plain Node throws on it.
-- Agent CLI invocation is exactly the `claudeArgs()` of Task 2: tools `Read,Write,Edit,Glob,Grep,WebSearch,WebFetch` (no Bash), `--permission-mode acceptEdits`, `--setting-sources ""`, `--settings {"disableAllHooks":true}`, `--disable-slash-commands`, `--strict-mcp-config --mcp-config {"mcpServers":{}}`, `--no-session-persistence`, `--output-format stream-json --verbose`, `--model` from config. Environment is ONLY `HOME`, `PATH`, `CLAUDE_CODE_OAUTH_TOKEN`.
+- Agent CLI invocation is exactly the `claudeArgs()` of Task 2: tools `Read,Write,Edit,Glob,Grep,WebSearch,WebFetch` (no Bash) but ONLY `WebSearch,WebFetch` pre-approved via `--allowed-tools` — pre-approving file tools would allow them anywhere on the machine (verified live: an unscoped `Write` allowance wrote outside the brain). With `--permission-mode acceptEdits` and no file-tool allowances, Claude Code permits file reads/edits only inside the working directory (the brain) and denies everything else in headless mode (verified live for Read, Write, Edit, Grep, Glob). `--setting-sources ""`, `--settings {"disableAllHooks":true}`, `--disable-slash-commands`, `--strict-mcp-config --mcp-config {"mcpServers":{}}`, `--no-session-persistence`, `--output-format stream-json --verbose`, `--model` from config. Environment is ONLY `HOME`, `PATH`, `CLAUDE_CODE_OAUTH_TOKEN`.
 - `HARBOUR_CLAUDE_OAUTH_TOKEN` is a secret: server/worker only, never rendered, logged, audited or stored in the DB. UI shows only "set / not set".
 - One agent job at a time. Heartbeat 10 s; stale after 60 s. Cancel/timeout: SIGTERM to the process group, SIGKILL after 10 s. Default timeout 30 min (`HARBOUR_AGENT_TIMEOUT_MINUTES`, 1–120). Stdout/stderr tails capped at 16 KiB each; at most 200 events per job.
 - Git gate: a run may only change files under its allowed paths with extensions `.md` (and `.json` only for `products/<id>/proposals.json`). Any other change fails the run and is restored from git. The brain must be clean (no uncommitted changes) before a run starts.
@@ -423,9 +423,13 @@ describe("claudeArgs", () => {
 
   it("exposes only the research tools, never a shell", () => {
     expect(value("--tools")).toBe("Read,Write,Edit,Glob,Grep,WebSearch,WebFetch");
-    expect(value("--allowed-tools")).toBe(value("--tools"));
     expect(AGENT_TOOLS).not.toContain("Bash");
     expect(value("--permission-mode")).toBe("acceptEdits");
+  });
+
+  it("pre-approves only web tools, so file access stays inside the working directory", () => {
+    // Pre-approving Read/Write/Edit/Glob/Grep would allow them anywhere on disk.
+    expect(value("--allowed-tools")).toBe("WebSearch,WebFetch");
   });
 
   it("loads no user settings, hooks, skills or MCP servers", () => {
@@ -505,6 +509,11 @@ describe("summariseLine", () => {
 /** The only tools an agent gets: research and brain file editing. Never a shell. */
 export const AGENT_TOOLS = ["Read", "Write", "Edit", "Glob", "Grep", "WebSearch", "WebFetch"] as const;
 
+// Only web tools are pre-approved. File tools are deliberately NOT listed: in acceptEdits mode
+// Claude Code then allows them inside the working directory (the brain) and denies them
+// everywhere else. Listing them here would pre-approve them for the whole machine.
+const PRE_APPROVED = ["WebSearch", "WebFetch"] as const;
+
 /** Headless Claude Code invocation with no user settings, plugins, hooks, skills or MCP. */
 export function claudeArgs(prompt: string, model: string): string[] {
   const tools = AGENT_TOOLS.join(",");
@@ -515,7 +524,7 @@ export function claudeArgs(prompt: string, model: string): string[] {
     "--model", model,
     "--permission-mode", "acceptEdits",
     "--tools", tools,
-    "--allowed-tools", tools,
+    "--allowed-tools", PRE_APPROVED.join(","),
     "--setting-sources", "",
     "--settings", JSON.stringify({ disableAllHooks: true }),
     "--disable-slash-commands",
@@ -2415,6 +2424,7 @@ No code. After merging, the controller (with the owner's permission) runs `./dep
 
 - [ ] On `/agents`, run **Research: Glossary** only. Watch activity; confirm it finishes `ok`, the commit appears in the private brain repo (`git -C <brain> log -1`), and it pushed (no "not synced" banner). If the push fails under systemd, fix credentials per `deploy/README.md`.
 - [ ] Confirm the agent could not write outside its area: `git -C <brain> show --stat HEAD` lists only `research/glossary.md`.
+- [ ] Re-run the containment probe used during planning (a throwaway git dir as cwd, `claudeArgs()` flags, the real token from `.env` without printing it): reads/writes outside the cwd must appear in `permission_denials`; a read/write inside must succeed. Repeat after any Claude Code CLI upgrade.
 - [ ] Owner reviews the glossary for quality; adjust prompts (bump `PROMPT_VERSION`) before running all topics.
 - [ ] Run discovery for one product; review proposals in Settings.
 
