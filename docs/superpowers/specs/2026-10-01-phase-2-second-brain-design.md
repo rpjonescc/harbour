@@ -1,7 +1,7 @@
 # Harbour Phase 2 — Second Brain and Agents: Design Spec
 
 **Date:** 2026-10-01
-**Status:** Approved in brainstorming, pending written-spec review
+**Status:** Approved (2a built; 2b planned)
 **Refines:** `2026-10-01-harbour-design.md` §6 (Second Brain), §7 (Agents), §9 (UI), §14 phase 2
 
 Phase 2 ships in two parts with separate implementation plans:
@@ -147,8 +147,9 @@ Phase 2 ships in two parts with separate implementation plans:
     `--disallowed-tools` Bash and any shell or notebook tool;
   - `--strict-mcp-config` with no MCP servers and no user/project setting sources, so
     personal integrations, plugins and hooks are not available to agents;
-  - `--max-turns` and a wall-clock timeout per job kind; `--no-session-persistence`.
-  Exact flag spellings are verified against the installed CLI during planning.
+  - a wall-clock timeout (the installed CLI has no turn limit); `--no-session-persistence`;
+  - authentication only via `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`, stored as
+    `HARBOUR_CLAUDE_OAUTH_TOKEN`); the agent's environment contains only HOME, PATH and the token.
 - Runs in its own process group; cancel and timeout send SIGTERM to the group, then
   SIGKILL after 10s. Captured output is capped (stdout/stderr tails, max 200 events per
   run stored).
@@ -197,9 +198,10 @@ Phase 2 ships in two parts with separate implementation plans:
   `{ keywords: [{ term, intent, location?, why }], questions: [{ text, why }],
   competitors: [{ name, url, why }] }` — ~30 keywords, ~12 questions, 3–5 competitors.
 - The worker validates `proposals.json` with zod; invalid output fails the run and
-  imports nothing. Valid proposals are inserted as `proposed` into `keywords`,
-  `questions`, `competitors` (product_id, fields, why, status, source_run_id). Re-running
-  discovery adds new proposals and never overwrites approved or rejected items.
+  imports nothing. Valid proposals are inserted as `proposed` into one `proposals` table
+  (product_id, type keyword|question|competitor, value, normalised key, why, status,
+  source job). A unique (product, type, key) index means re-running discovery adds new
+  proposals and never overwrites approved or rejected items.
 
 ### B6. Approvals (`/settings/products/[id]`)
 
