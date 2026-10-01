@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Fake `claude -p` for tests and E2E. Behaviour chosen by FAKE_CLAUDE_SCENARIO.
+import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
@@ -29,7 +30,16 @@ function write(rel, content) {
 }
 
 out({ type: "system", subtype: "init", tools: ["Read", "Write"] });
-if (scenario === "slow") {
+if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
+  // Grandchild inherits our process group (not detached); its PID is written for the test.
+  const args =
+    scenario === "spawn-grandchild"
+      ? ["sleep", ["60"]]
+      : [process.execPath, ["-e", "process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"]];
+  const grandchild = spawn(args[0], args[1], { stdio: "ignore" });
+  writeFileSync(join(process.cwd(), "grandchild.pid"), String(grandchild.pid));
+  setInterval(() => {}, 1000);
+} else if (scenario === "slow") {
   setTimeout(
     () => out({ type: "result", subtype: "success", is_error: false, result: "late" }),
     60_000,

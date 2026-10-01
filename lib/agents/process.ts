@@ -2,7 +2,7 @@ import { type ChildProcessByStdio, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import type { Readable } from "node:stream";
 
-export const TAIL_BYTES = 16_384;
+export const TAIL_CHARS = 16_384;
 
 export type RunOptions = {
   bin: string;
@@ -45,6 +45,7 @@ export function runProcess(options: RunOptions): Promise<RunOutcome> {
     let stderrTail = "";
     let timedOut = false;
     let cancelled = false;
+    const stopping = () => timedOut || cancelled; // first cause wins
     let killTimer: NodeJS.Timeout | undefined;
 
     const stopGroup = () => {
@@ -64,11 +65,20 @@ export function runProcess(options: RunOptions): Promise<RunOutcome> {
     };
 
     const timeout = setTimeout(() => {
+      if (stopping()) return;
       timedOut = true;
       stopGroup();
     }, options.timeoutMs);
     const poll = setInterval(() => {
-      if (!cancelled && options.shouldCancel()) {
+      if (stopping()) return;
+      let cancel: boolean;
+      try {
+        cancel = options.shouldCancel();
+      } catch (error) {
+        console.error("agent runner: shouldCancel threw, stopping the run", error);
+        cancel = true;
+      }
+      if (cancel) {
         cancelled = true;
         stopGroup();
       }
@@ -77,12 +87,18 @@ export function runProcess(options: RunOptions): Promise<RunOutcome> {
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => {
-      stdoutTail = appendTail(stdoutTail, chunk, TAIL_BYTES);
+      stdoutTail = appendTail(stdoutTail, chunk, TAIL_CHARS);
     });
     child.stderr.on("data", (chunk: string) => {
-      stderrTail = appendTail(stderrTail, chunk, TAIL_BYTES);
+      stderrTail = appendTail(stderrTail, chunk, TAIL_CHARS);
     });
-    createInterface({ input: child.stdout }).on("line", options.onLine);
+    createInterface({ input: child.stdout }).on("line", (line) => {
+      try {
+        options.onLine(line);
+      } catch (error) {
+        console.error("agent runner: onLine threw, continuing", error);
+      }
+    });
 
     const cleanup = () => {
       clearTimeout(timeout);
@@ -94,6 +110,14 @@ export function runProcess(options: RunOptions): Promise<RunOutcome> {
       reject(new Error(`Agent CLI could not start (${options.bin}): ${error.message}`));
     });
     child.on("close", (exitCode, signal) => {
+      // Descendants that ignored SIGTERM must not outlive the run.
+      if ((timedOut || cancelled) && child.pid !== undefined) {
+        try {
+          process.kill(-child.pid, "SIGKILL");
+        } catch {
+          // group already gone
+        }
+      }
       cleanup();
       resolve({ exitCode, signal, timedOut, cancelled, stdoutTail, stderrTail });
     });

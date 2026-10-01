@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { appendTail, runProcess } from "./process";
@@ -59,6 +59,78 @@ describe("runProcess", () => {
     }
   });
 
+  it("survives a throwing shouldCancel by stopping the run", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const r = run("slow", {
+      shouldCancel: () => {
+        throw new Error("db down");
+      },
+    });
+    try {
+      expect((await r.promise).cancelled).toBe(true);
+      expect(errors).toHaveBeenCalled();
+    } finally {
+      errors.mockRestore();
+      r.cleanup();
+    }
+  });
+
+  it("keeps consuming output when onLine throws", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    let calls = 0;
+    const r = run("success", {
+      onLine: () => {
+        calls += 1;
+        if (calls === 1) throw new Error("boom");
+      },
+    });
+    try {
+      expect(await r.promise).toMatchObject({ exitCode: 0 });
+      expect(calls).toBeGreaterThan(1);
+    } finally {
+      errors.mockRestore();
+      r.cleanup();
+    }
+  });
+
+  it("does not report both timedOut and cancelled", async () => {
+    const r = run("slow", { timeoutMs: 100, shouldCancel: () => true, pollMs: 5000 });
+    try {
+      const o = await r.promise;
+      expect(o.timedOut && o.cancelled).toBe(false);
+    } finally {
+      r.cleanup();
+    }
+  });
+
+  it.each([
+    ["spawn-grandchild", 20_000],
+    ["spawn-grandchild-ignore", 20_000], // SIGTERM ignored: only the SIGKILL sweep can end it
+  ])("leaves no grandchild behind (%s)", async (scenario, killGraceMs) => {
+    const r = run(scenario, { timeoutMs: 1500, killGraceMs });
+    try {
+      const outcome = await r.promise;
+      expect(outcome.timedOut).toBe(true);
+      expect(outcome.signal).not.toBeNull();
+      const pidFile = join(r.cwd, "grandchild.pid");
+      expect(existsSync(pidFile)).toBe(true);
+      const pid = Number(readFileSync(pidFile, "utf8"));
+      let alive = true;
+      for (let i = 0; i < 40 && alive; i++) {
+        try {
+          process.kill(pid, 0);
+          await new Promise((res) => setTimeout(res, 50));
+        } catch {
+          alive = false;
+        }
+      }
+      if (alive) process.kill(pid, "SIGKILL"); // never leak, even when failing
+      expect(alive).toBe(false);
+    } finally {
+      r.cleanup();
+    }
+  });
+
   it("rejects when the binary cannot start", async () => {
     await expect(
       runProcess({
@@ -77,5 +149,10 @@ describe("runProcess", () => {
 describe("appendTail", () => {
   it("keeps only the last max characters", () => {
     expect(appendTail("abc", "defg", 5)).toBe("cdefg");
+  });
+
+  it("does not truncate below the limit or at the exact boundary", () => {
+    expect(appendTail("ab", "c", 5)).toBe("abc");
+    expect(appendTail("ab", "cde", 5)).toBe("abcde");
   });
 });
