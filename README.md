@@ -201,7 +201,8 @@ what is new, sets `researched` to today and `review_by` 90 days later, and ends 
   which appears only after `review_by`. Documents not written yet are never refreshed: run the
   research sprint for them.
 - **How many** — at most 3 per round, oldest first (unknown dates count as oldest). A topic that
-  already has a research run queued or running is skipped.
+  already has a research run queued or running is skipped. With 10 topics that means each one is
+  refreshed every few months, not every month.
 - **When** — on the first Sunday of each month at 21:00 in `HARBOUR_TIMEZONE` (see
   [When things run](#when-things-run)), and whenever you choose **Refresh stale research** on
   **Agents**. The **Research refresh** panel there shows the next scheduled refresh, which
@@ -276,7 +277,7 @@ Start the app and register your first passkey:
 ```bash
 pnpm dev            # http://localhost:3400
 pnpm setup-token    # prints a one-time link; open it to create a passkey
-pnpm worker         # runs queued jobs (agents, scans), one at a time (reads .env)
+pnpm worker         # runs queued jobs (agents, scans, backups, retention), one at a time (reads .env)
 pnpm agents:initial-run  # once: queues every research topic, then discovery per product
 pnpm scan:now       # queues a visibility scan of every product now (or: pnpm scan:now <productId>)
 pnpm analyst:now    # queues the weekly analyst report for the current week now

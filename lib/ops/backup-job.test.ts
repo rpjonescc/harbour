@@ -127,6 +127,9 @@ describe("runBackupJob when the backup cannot finish", () => {
     const row = getJob(db, job.id);
     expect(row?.status).toBe("failed");
     expect(row?.error).toMatch(/ENOTDIR/);
+    // The job page shows this text: the folder's absolute path is replaced.
+    expect(row?.error).not.toContain(dir);
+    expect(row?.error).toContain("the backup folder");
     expect(texts(db, job.id)).toEqual([
       ["status", "Backing up to harbour-2026-10-02.db"],
       ["error", row?.error],

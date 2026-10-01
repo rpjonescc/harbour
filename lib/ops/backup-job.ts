@@ -57,7 +57,8 @@ export async function runBackupJob(deps: OpsJobDeps, job: Job): Promise<void> {
     });
     addEvent(db, job.id, "status", describeBackup(result), now());
     if (result.pruneError) {
-      addEvent(db, job.id, "error", `Could not remove old backups: ${result.pruneError}`, now());
+      const reason = result.pruneError.replaceAll(backupDirFor(config), "the backup folder");
+      addEvent(db, job.id, "error", `Could not remove old backups: ${reason}`, now());
     }
     finishJob(db, job.id, "ok", null, now());
     queueRetention(deps, job, day);
@@ -68,7 +69,9 @@ export async function runBackupJob(deps: OpsJobDeps, job: Job): Promise<void> {
       finishJob(db, job.id, "cancelled", stopped ? STOPPED : null, now());
       return;
     }
-    const message = error instanceof Error ? error.message : String(error);
+    // The job page shows this text, so the folder's absolute path is not part of it.
+    const raw = error instanceof Error ? error.message : String(error);
+    const message = raw.replaceAll(backupDirFor(config), "the backup folder");
     addEvent(db, job.id, "error", message, now());
     finishJob(db, job.id, "failed", message, now());
   }
