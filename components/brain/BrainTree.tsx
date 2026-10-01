@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import type { TreeNode } from "@/lib/brain/tree";
 import { brainHref } from "@/lib/brain/wikilinks";
 
@@ -17,33 +16,39 @@ function Nodes({
 }) {
   return (
     <ul className="flex flex-col gap-0.5 pl-2">
-      {nodes.map((node) =>
-        node.kind === "dir" ? (
-          <li key={node.path}>
-            <details open={current.startsWith(brainHref(node.path))}>
-              <summary className="cursor-pointer rounded-sm px-1.5 py-1 text-sm font-medium">
-                {node.name}
-              </summary>
-              <Nodes nodes={node.children} current={current} fresh={fresh} />
-            </details>
-          </li>
-        ) : (
+      {nodes.map((node) => {
+        const href = brainHref(node.path);
+        if (node.kind === "dir") {
+          return (
+            <li key={node.path}>
+              <details open={current.startsWith(`${href}/`)}>
+                <summary className="cursor-pointer rounded-sm px-1.5 py-1 text-sm font-medium">
+                  {node.name}
+                </summary>
+                <Nodes nodes={node.children} current={current} fresh={fresh} />
+              </details>
+            </li>
+          );
+        }
+        const isCurrent = current === href;
+        return (
           <li key={node.path}>
             <Link
-              href={brainHref(node.path)}
-              aria-current={current === brainHref(node.path) ? "page" : undefined}
+              href={href}
+              aria-current={isCurrent ? "page" : undefined}
               className="flex items-center gap-1.5 rounded-sm px-1.5 py-1 text-sm text-ink-muted hover:text-ink aria-[current=page]:bg-surface aria-[current=page]:text-ink"
             >
               <span className="truncate">{node.name.replace(/\.md$/, "")}</span>
-              {fresh.has(node.path) && (
+              {/* The open document has just been recorded as viewed, so it is never new. */}
+              {fresh.has(node.path) && !isCurrent && (
                 <span className="ml-auto size-1.5 shrink-0 rounded-full bg-accent">
                   <span className="sr-only">new</span>
                 </span>
               )}
             </Link>
           </li>
-        ),
-      )}
+        );
+      })}
     </ul>
   );
 }
@@ -59,16 +64,6 @@ export function BrainTree({
   truncated: boolean;
 }) {
   const current = usePathname();
-  const router = useRouter();
-  const refreshedPath = useRef<string | null>(null);
-
-  useEffect(() => {
-    // Layouts persist across client navigation; refresh after the page records the view.
-    if (refreshedPath.current === current) return;
-    refreshedPath.current = current;
-    router.refresh();
-  }, [current, router]);
-
   return (
     <div className="-ml-2">
       <Nodes nodes={nodes} current={current} fresh={new Set(freshPaths)} />

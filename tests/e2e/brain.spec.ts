@@ -105,6 +105,8 @@ test("opening a new document clears its tree marker and sidebar count", async ({
   await doc.click();
   await expect(page.getByRole("heading", { level: 1, name: "Badge check" })).toBeVisible();
   await expect(doc).not.toContainText("new");
+  // The shared shell layout is not re-rendered on client navigation; the count is fresh on the next load.
+  await page.reload();
   if (before > 1) await expect(count).toHaveText(String(before - 1));
   else await expect(count).toHaveCount(0);
 });

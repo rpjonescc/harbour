@@ -1,4 +1,5 @@
 import { BrainHeader } from "@/components/brain/BrainHeader";
+import { BrainNav } from "@/components/brain/BrainNav";
 import { BrainSetupNotice } from "@/components/brain/BrainSetupNotice";
 import { BrainTree } from "@/components/brain/BrainTree";
 import { DocArticle } from "@/components/brain/DocArticle";
@@ -33,7 +34,7 @@ export function BrainExamples() {
         <SearchDialog />
       </BrainHeader>
       <div className="grid gap-4 lg:grid-cols-[12rem_minmax(0,1fr)]">
-        <nav aria-label="Example documents">
+        <BrainNav label="Example documents">
           <BrainTree
             nodes={[
               {
@@ -48,7 +49,7 @@ export function BrainExamples() {
             freshPaths={["examples/field-guide.md"]}
             truncated={false}
           />
-        </nav>
+        </BrainNav>
         <DocArticle view={example} />
       </div>
       <DocMeta frontmatter={{ tags: ["research"], review_by: "2026-02-01" }} stale />
