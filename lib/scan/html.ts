@@ -29,12 +29,37 @@ export type PageFacts = {
 
 const HIDDEN_TEXT = "script, style, noscript, template";
 
-/** Whether a robots meta value or X-Robots-Tag header keeps the page out of the index. */
+/** Directives that take a value after a colon (so the name before it is not a user agent). */
+const VALUED_DIRECTIVES = new Set([
+  "max-snippet",
+  "max-image-preview",
+  "max-video-preview",
+  "unavailable_after",
+]);
+/** Agents whose directives apply to this crawl's verdict: ours, and Google's (the SEO view). */
+const OUR_AGENTS = new Set(["harbourbot", "googlebot"]);
+
+/**
+ * Whether a robots meta value or X-Robots-Tag header keeps the page out of the index. An
+ * agent prefix ("otherbot: noindex, nofollow") scopes the directives after it, up to the next
+ * prefix; only unscoped directives and those for HarbourBot or Googlebot count.
+ */
 export function hasNoindex(directives: string): boolean {
-  return directives
-    .toLowerCase()
-    .split(/[\s,:]+/)
-    .some((token) => token === "noindex" || token === "none");
+  let agent: string | null = null;
+  for (const part of directives.toLowerCase().split(",")) {
+    let directive = part.trim();
+    const colon = directive.indexOf(":");
+    const name = colon === -1 ? "" : directive.slice(0, colon).trim();
+    if (colon !== -1 && !VALUED_DIRECTIVES.has(name)) {
+      agent = name;
+      directive = directive.slice(colon + 1).trim();
+    }
+    const applies = agent === null || OUR_AGENTS.has(agent);
+    // Some sites separate directives with spaces rather than commas.
+    const tokens = directive.split(/\s+/);
+    if (applies && tokens.some((t) => t === "noindex" || t === "none")) return true;
+  }
+  return false;
 }
 
 function collapse(text: string): string | null {
