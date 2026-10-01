@@ -17,7 +17,8 @@
 - Agent CLI invocation is exactly the `claudeArgs()` of Task 2: tools `Read,Write,Edit,Glob,Grep,WebSearch,WebFetch` (no Bash) but ONLY `WebSearch,WebFetch` pre-approved via `--allowed-tools` — pre-approving file tools would allow them anywhere on the machine (verified live: an unscoped `Write` allowance wrote outside the brain). With `--permission-mode acceptEdits` and no file-tool allowances, Claude Code permits file reads/edits only inside the working directory (the brain) and denies everything else in headless mode (verified live for Read, Write, Edit, Grep, Glob). `--setting-sources ""`, `--settings {"disableAllHooks":true}`, `--disable-slash-commands`, `--strict-mcp-config --mcp-config {"mcpServers":{}}`, `--no-session-persistence`, `--output-format stream-json --verbose`, `--model` from config. Environment is ONLY `HOME`, `PATH`, `CLAUDE_CODE_OAUTH_TOKEN`.
 - `HARBOUR_CLAUDE_OAUTH_TOKEN` is a secret: server/worker only, never rendered, logged, audited or stored in the DB. UI shows only "set / not set".
 - One agent job at a time. Heartbeat 10 s; stale after 60 s. Cancel/timeout: SIGTERM to the process group, SIGKILL after 10 s. Default timeout 30 min (`HARBOUR_AGENT_TIMEOUT_MINUTES`, 1–120). Stdout/stderr tails capped at 16 KiB each; at most 200 events per job.
-- Git gate: a run may only change files under its allowed paths with extensions `.md` (and `.json` only for `products/<id>/proposals.json`). Any other change fails the run and is restored from git. The brain must be clean (no uncommitted changes) before a run starts.
+- Automation (owner requirement — no manual commits or terminal commands): the worker autosaves the owner's brain edits (commit + push) once they have been quiet for 2 minutes, saves them automatically before any agent run, and retries unpushed commits automatically every 10 minutes. Manual buttons are optional extras, never required.
+- Git gate: a run may only change files under its allowed paths with extensions `.md` (and `.json` only for `products/<id>/proposals.json`). Any other change fails the run and is restored from git. Before a run starts, any uncommitted owner changes are committed as owner notes (never mixed into the agent commit).
 - Every page calls `requireSession()`; every API route checks `getSession()` (401); mutating routes call `rejectCrossSite()` first. Audit agent run requests, cancels and proposal decisions.
 - Semantic tokens only; rem text sizes; file-size limits (`.tsx` 300, `.ts` 400, tests 600). README updated in the same task as settings/commands/features.
 - Commits: conventional prefix, the attribution trailer your environment specifies, never `--no-verify`. Never `pkill`/`killall`. Do not run `deploy/install.sh`, `systemctl` or `tailscale` (the controller deploys).
@@ -1537,11 +1538,12 @@ git commit -m "feat(agents): validated discovery proposals with import and decis
 ### Task 7: Job orchestration and the worker
 
 **Files:**
-- Create: `lib/jobs/run-job.ts`, `lib/jobs/run-job.test.ts`, `worker/index.ts`
+- Create: `lib/jobs/run-job.ts`, `lib/jobs/run-job.test.ts`, `lib/jobs/housekeeping.ts`, `lib/jobs/housekeeping.test.ts`, `worker/index.ts`
 - Modify: `package.json` (script `worker`)
 
 **Interfaces:**
 - Consumes: Tasks 1–6; `getConfig`, `getDb`, `getProducts` (verify `lib/products/catalog.ts` has no `server-only` import), `checkBrainRoot`, `isoDateIn`.
+- Also produces `housekeepingAction(root: string, now: Date, opts: { quietMs: number; pushRetryDue: boolean }): "notes-sync" | "brain-push" | null` in `lib/jobs/housekeeping.ts`: returns `"notes-sync"` when the brain has uncommitted changes and the newest changed file's mtime is at least `quietMs` old (deleted files count as changed now → wait); else `"brain-push"` when `pushRetryDue` and `unpushedCount(root) > 0`; else null. Never throws: if the brain is missing or git fails, log once and return null. Tests (git temp brain, injected `now`): fresh edit → null; edit older than quietMs → "notes-sync"; clean brain with an unpushed commit and pushRetryDue → "brain-push"; pushRetryDue false → null; missing root → null.
 - Also produces `runNotesSyncJob(deps, job): void` (commit all owner changes, then push). Add tests: with an uncommitted note it commits with message `notes: owner update (1 file(s))` and pushes; with no changes it finishes ok with "Nothing to save"; a later agent run is no longer blocked by "uncommitted changes".
 - Produces: `type RunDeps = { db: Db; root: string; bin: string; token: string | undefined; model: string; timeoutMs: number; products: readonly Product[]; today: string; home: string; path: string; run: typeof runProcess; now: () => Date }`; `runAgentJob(deps, job): Promise<void>`; `runPushJob(deps, job): void`; script `pnpm worker`.
 
@@ -1633,12 +1635,25 @@ describe("runAgentJob", () => {
     }
   });
 
-  it("refuses discovery without owner notes, and any run on a dirty brain", async () => {
+  it("refuses discovery without owner notes", async () => {
     const a = setup("success");
     try {
       expect((await runOne(a.deps, "discovery", { productId: "acme-docs" })).error).toMatch(/notes\.md/);
+    } finally {
+      a.brain.cleanup();
+    }
+  });
+
+  it("saves the owner's unsaved notes in their own commit before running", async () => {
+    const a = setup("success");
+    try {
       writeFileSync(join(a.brain.root, "draft.md"), "# draft\n");
-      expect((await runOne(a.deps, "research", { topic: "glossary" })).error).toMatch(/uncommitted changes/i);
+      const job = await runOne(a.deps, "research", { topic: "glossary" });
+      expect(job.status).toBe("ok");
+      const subjects = a.brain.git("log", "--format=%s", "-2").trim().split("\n");
+      expect(subjects[1]).toMatch(/^notes: owner update \(1 file/);
+      expect(subjects[0]).toMatch(/^agent\(research\)/);
+      expect(a.brain.git("show", "--stat", "--format=", "HEAD")).not.toContain("draft.md");
     } finally {
       a.brain.cleanup();
     }
@@ -1741,7 +1756,12 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
     if (job.kind !== "research" && job.kind !== "discovery") throw new JobFailure(`Not an agent job: ${job.kind}`);
     const spec = specForJob(job.kind, job.params, deps.products, deps.today);
     if (!deps.token) throw new JobFailure("HARBOUR_CLAUDE_OAUTH_TOKEN is not set — run `claude setup-token` and add it to .env");
-    if (changedPaths(root).length > 0) throw new JobFailure("The brain has uncommitted changes — commit or discard them first");
+    const ownerChanges = changedPaths(root);
+    if (ownerChanges.length > 0) {
+      // Save the owner's edits first so they are never mixed into (or discarded with) agent work.
+      commitChanges(root, ownerChanges.map((c) => c.path), `notes: owner update (${ownerChanges.length} file(s))`);
+      event("status", `Saved ${ownerChanges.length} note file(s) before starting`);
+    }
     for (const file of spec.requiredFiles) {
       if (!existsSync(join(root, file))) throw new JobFailure(`Missing ${file} — write the owner's notes for this product first`);
     }
@@ -1867,12 +1887,16 @@ import { runProcess } from "@/lib/agents/process";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
-import { claimNextJob, heartbeat, recoverStaleJobs } from "@/lib/jobs/queue";
+import { housekeepingAction } from "@/lib/jobs/housekeeping";
+import { claimNextJob, enqueueJob, heartbeat, recoverStaleJobs } from "@/lib/jobs/queue";
 import { runAgentJob, runNotesSyncJob, runPushJob } from "@/lib/jobs/run-job";
 import { getProducts } from "@/lib/products/catalog";
 
 const IDLE_MS = 2000;
 const HEARTBEAT_MS = 10_000;
+const AUTOSAVE_CHECK_MS = 30_000;
+const AUTOSAVE_QUIET_MS = 2 * 60_000;
+const PUSH_RETRY_MS = 10 * 60_000;
 
 let stopping = false;
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
@@ -1890,7 +1914,21 @@ async function main() {
   if (recovered > 0) console.warn(`recovered ${recovered} stale job(s)`);
   console.log("harbour-worker ready");
 
+  let lastHousekeeping = 0;
+  let lastPushRetry = 0;
   while (!stopping) {
+    if (Date.now() - lastHousekeeping >= AUTOSAVE_CHECK_MS) {
+      lastHousekeeping = Date.now();
+      const action = housekeepingAction(config.HARBOUR_BRAIN_DIR, new Date(), {
+        quietMs: AUTOSAVE_QUIET_MS,
+        pushRetryDue: Date.now() - lastPushRetry >= PUSH_RETRY_MS,
+      });
+      if (action === "notes-sync") enqueueJob(db, "notes-sync", {}, null);
+      if (action === "brain-push") {
+        lastPushRetry = Date.now();
+        enqueueJob(db, "brain-push", {}, null);
+      }
+    }
     const job = claimNextJob(db);
     if (!job) {
       await sleep(IDLE_MS);
@@ -2121,7 +2159,7 @@ export async function POST(request: Request) {
 
 `components/agents/RunActivity.tsx` — client component (props: initial job + events). Polls `GET /api/agents/[id]?after=<lastEventId>` every 2 s while status is `queued` or `running`, appends events, stops when finished. Renders status line (`aria-live="polite"`), elapsed time, an ordered list of events (error kind in `text-bad`, tool in `text-ink-muted`, status in `text-ink`), and a "Cancel" ghost button (POST cancel) while active. Shows `job.error` in a `role="alert"` box when failed.
 
-`components/agents/BrainSyncBanner.tsx` — client component (props `unpushed: number`, `unsaved: number`). When `unsaved > 0`: "N note file(s) not saved yet — agents can't start until they're saved" + "Save & sync my notes" button → POST `/api/agents/notes-sync`, then `router.push("/agents/" + jobId)`. When `unpushed > 0`: "N brain commit(s) not yet pushed to GitHub" + "Retry sync" → POST `/api/agents/brain-push`, then `router.refresh()`. Render nothing when both are 0. Also render this banner at the top of the Second Brain layout (`app/(app)/brain/layout.tsx`), computing the counts with `changedPaths`/`unpushedCount` (both are plain modules without "server-only").
+`components/agents/BrainSyncBanner.tsx` — client component (props `unpushed: number`, `unsaved: number`). When `unsaved > 0`: "N note file(s) will be saved automatically in about 2 minutes" + an optional "Save now" button → POST `/api/agents/notes-sync`, then `router.push("/agents/" + jobId)`. When `unpushed > 0`: "N brain commit(s) waiting to sync to GitHub — retrying automatically" + an optional "Retry now" → POST `/api/agents/brain-push`, then `router.refresh()`. When both are 0 render a quiet "Saved · synced" line in `text-ink-muted`. Also render this banner at the top of the Second Brain layout (`app/(app)/brain/layout.tsx`), computing the counts with `changedPaths`/`unpushedCount` (both are plain modules without "server-only").
 
 Keep each file under 200 lines; use semantic tokens only.
 
@@ -2325,11 +2363,15 @@ Verify `bash -n deploy/install.sh`. Do NOT run it.
 
 - [ ] **Step 3: Docs** — `deploy/README.md`: a "Worker and agents" section: what the worker does, `claude setup-token` → `.env` (`HARBOUR_CLAUDE_OAUTH_TOKEN=`), `systemctl --user restart harbour-worker`, logs `journalctl --user -u harbour-worker -f`, and that the brain repo must be pushable non-interactively by the worker (test with `git -C <brain> push --dry-run` from a non-interactive shell; if it prompts, set up a credential helper or SSH remote). Update the "Updating" command to restart both services.
 
-- [ ] **Step 4: Gate and commit**
+- [ ] **Step 4: First-run script**
+
+`scripts/queue-initial-run.ts` (script `"agents:initial-run": "tsx --env-file=.env scripts/queue-initial-run.ts"`): enqueues every research topic, then discovery for every configured product (queue order = run order), printing the job ids. Idempotent thanks to `enqueueJob` dedupe. Add a unit test that calls its exported `queueInitialRun(db, products)` against an in-memory DB and asserts 10 research jobs followed by one discovery job per product. The controller runs it once after the first 2b deploy (owner chose "run everything").
+
+- [ ] **Step 5: Gate and commit**
 
 Run: `pnpm check` → PASS.
 ```bash
-git add deploy README.md
+git add deploy README.md scripts package.json
 git commit -m "chore(deploy): run the agent worker as a systemd user service"
 ```
 
@@ -2450,13 +2492,14 @@ git commit -m "test(e2e): agents run end to end with a fake CLI and approvals"
 
 ### Task 12: Live verification (controller + owner, after deploy)
 
-No code. After merging, the controller (with the owner's permission) runs `./deploy/install.sh` (installs the worker unit), and the owner adds `HARBOUR_CLAUDE_OAUTH_TOKEN` to `.env` and restarts `harbour-worker`. Then:
+No code. The owner has authorised the controller to deploy (build, `./deploy/install.sh`, restart harbour-web/harbour-worker, push) and to start the full first run. The token is already in `.env`. Then:
 
-- [ ] On `/agents`, run **Research: Glossary** only. Watch activity; confirm it finishes `ok`, the commit appears in the private brain repo (`git -C <brain> log -1`), and it pushed (no "not synced" banner). If the push fails under systemd, fix credentials per `deploy/README.md`.
+- [ ] Deploy; verify both services are active, locks hold (loopback 403, `/agents` → login without session).
+- [ ] Verify the worker can push the brain non-interactively: `systemd-run --user --wait --pipe git -C <brain> push --dry-run` (or equivalent under the service environment). Fix credentials per `deploy/README.md` if it prompts or fails.
+- [ ] Run `pnpm agents:initial-run`; watch the first job finish `ok`, its commit appear in the brain repo, and push succeed.
 - [ ] Confirm the agent could not write outside its area: `git -C <brain> show --stat HEAD` lists only `research/glossary.md`.
 - [ ] Re-run the containment probe used during planning (a throwaway git dir as cwd, `claudeArgs()` flags, the real token from `.env` without printing it): reads/writes outside the cwd must appear in `permission_denials`; a read/write inside must succeed. Repeat after any Claude Code CLI upgrade.
-- [ ] Owner reviews the glossary for quality; adjust prompts (bump `PROMPT_VERSION`) before running all topics.
-- [ ] Run discovery for one product; review proposals in Settings.
+- [ ] Monitor the run to completion; summarise results (docs written, proposals imported, any failures with causes) for the owner, who then reads the research and approves proposals in Settings.
 
 ---
 
