@@ -70,9 +70,12 @@ export function createSafeFetch(overrides: Partial<SafeFetchSettings> = {}): Saf
   const robotsCache = new Map<string, { robots: Promise<Robots>; expiresAt: number }>();
 
   async function hop(url: URL, options: SafeFetchOptions): Promise<Hop> {
-    const isPublic = await resolvePublicHost(url.hostname, settings).catch((error: unknown) => {
-      throw new FetchError("network", `Could not resolve ${url.hostname}`, { cause: error });
-    });
+    const isPublic = await resolvePublicHost(url.hostname, settings, options.signal).catch(
+      (error: unknown) => {
+        if (options.signal?.aborted) throw options.signal.reason;
+        throw new FetchError("network", `Could not resolve ${url.hostname}`, { cause: error });
+      },
+    );
     if (!isPublic) throw new FetchError("network", `Refused non-public host ${url.hostname}`);
     return settings.limiter.run(url.host, options.signal, () => request(url, options));
   }

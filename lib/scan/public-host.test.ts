@@ -15,6 +15,11 @@ describe("isPublicAddress", () => {
     "fd00::1",
     "fe80::1",
     "::ffff:7f00:1",
+    "64:ff9b::a00:1",
+    "2002:a00:1::1",
+    "192.0.0.8",
+    "198.18.0.1",
+    "198.19.255.255",
   ])("refuses the non-public address %s", (address) => {
     expect(isPublicAddress(address, { allowLoopback: false })).toBe(false);
   });
@@ -38,5 +43,11 @@ describe("resolvePublicHost", () => {
     await expect(resolvePublicHost("localhost", { allowLoopback: false })).resolves.toBe(false);
     await expect(resolvePublicHost("[::1]", { allowLoopback: false })).resolves.toBe(false);
     await expect(resolvePublicHost("127.0.0.1", { allowLoopback: true })).resolves.toBe(true);
+  });
+
+  it("stops waiting for DNS when the signal aborts", async () => {
+    const policy = { allowLoopback: false };
+    const signal = AbortSignal.abort(new Error("cancelled"));
+    await expect(resolvePublicHost("example.com", policy, signal)).rejects.toThrow("cancelled");
   });
 });
