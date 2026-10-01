@@ -8,6 +8,12 @@ const later = (ms: number) => new Date(t0.getTime() + ms);
 const DAY = 24 * 60 * 60 * 1000;
 
 describe("sessions", () => {
+  it("returns the passkey that signed the session in", () => {
+    const db = openTestDb();
+    const { token } = createSession(db, "owner@example.com", "cred-1", t0);
+    expect(validateSession(db, token, "owner@example.com", t0)?.passkeyId).toBe("cred-1");
+  });
+
   it("stores only a hash of the token", () => {
     const db = openTestDb();
     const { token } = createSession(db, "owner@example.com", null, t0);

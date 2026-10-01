@@ -7,10 +7,15 @@ export type DeviceSummary = {
   deviceLabel: string;
   createdAt: Date;
   lastUsedAt: Date | null;
+  current: boolean;
 };
 
 /** Passkeys registered for a login, oldest first. */
-export function listDevices(db: Db, login: string): DeviceSummary[] {
+export function listDevices(
+  db: Db,
+  login: string,
+  currentPasskeyId: string | null = null,
+): DeviceSummary[] {
   return db
     .select({
       id: passkeys.id,
@@ -21,7 +26,21 @@ export function listDevices(db: Db, login: string): DeviceSummary[] {
     .from(passkeys)
     .where(eq(passkeys.login, login))
     .orderBy(asc(passkeys.createdAt))
-    .all();
+    .all()
+    .map((device) => ({ ...device, current: device.id === currentPasskeyId }));
+}
+
+/** Return an unused device name, adding a numeric suffix when needed. */
+export function uniqueDeviceLabel(existing: string[], label: string): string {
+  const base = label.trim();
+  const taken = new Set(existing.map((name) => name.trim().toLowerCase()));
+  if (!taken.has(base.toLowerCase())) return base;
+  // At most `existing.length` suffixes can be occupied, so a free name is guaranteed.
+  for (let n = 2; n <= existing.length + 2; n += 1) {
+    const candidate = `${base} ${n}`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+  throw new Error("Could not allocate a unique device name");
 }
 
 /**

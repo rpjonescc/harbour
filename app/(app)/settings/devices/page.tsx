@@ -8,7 +8,7 @@ import { getDb } from "@/lib/db/client";
 
 export default async function DevicesPage() {
   const session = await requireSession();
-  const devices = listDevices(getDb(), session.login);
+  const devices = listDevices(getDb(), session.login, session.passkeyId);
   const { HARBOUR_TIMEZONE, HARBOUR_LOCALE } = getConfig();
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">

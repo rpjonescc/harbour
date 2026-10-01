@@ -8,6 +8,7 @@ import {
   SESSION_COOKIE,
   sessionCookieOptions,
 } from "@/lib/auth/cookies";
+import { listDevices, uniqueDeviceLabel } from "@/lib/auth/devices";
 import { finishRegistration } from "@/lib/auth/passkeys";
 import { relyingParty } from "@/lib/auth/relying-party";
 import { requestLogin } from "@/lib/auth/request";
@@ -38,11 +39,15 @@ export async function POST(request: Request) {
   if (!flowId) return jsonError(400, "expired_challenge");
 
   const db = getDb();
+  const deviceLabel = uniqueDeviceLabel(
+    listDevices(db, login).map((device) => device.deviceLabel),
+    body.data.deviceLabel,
+  );
   const result = await finishRegistration(db, relyingParty(config), {
     flowId,
     login,
     response: body.data.response as unknown as RegistrationResponseJSON,
-    deviceLabel: body.data.deviceLabel,
+    deviceLabel,
   });
   if (!result.ok) return jsonError(400, result.reason);
 
@@ -52,5 +57,9 @@ export async function POST(request: Request) {
   if (previous) revokeSession(db, previous);
   const session = createSession(db, login, result.credentialId);
   jar.set(SESSION_COOKIE, session.token, sessionCookieOptions());
-  return Response.json({ ok: true });
+  return Response.json({
+    ok: true,
+    deviceLabel,
+    renamed: deviceLabel !== body.data.deviceLabel.trim(),
+  });
 }

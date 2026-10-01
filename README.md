@@ -16,7 +16,8 @@ The secure shell, design system, and Second Brain viewer are built. The roadmap 
   sparklines, and the actions worth your attention (sample data until the scan ships).
 - **Products from config** — list your products in `harbour.config.json`; each gets a
   colour from a six-hue palette. Without it, a clearly labelled demo config is shown.
-- **Devices** — add a passkey to a new device with a one-time link, or remove a lost one.
+- **Devices** — add a passkey to a new device with a one-time link, see local sign-in times
+  and which device you are using, or remove a lost one. Reused device names get a number.
 - **Second Brain** — read Markdown notes with a document tree, frontmatter, links and backlinks.
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
   a living reference at `/design`.

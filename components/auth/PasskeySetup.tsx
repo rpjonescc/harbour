@@ -19,6 +19,7 @@ export function PasskeySetup({ setupToken }: { setupToken: string }) {
   const [deviceLabel, setDeviceLabel] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedAs, setSavedAs] = useState<string | null>(null);
 
   async function register(event: FormEvent) {
     event.preventDefault();
@@ -31,8 +32,15 @@ export function PasskeySetup({ setupToken }: { setupToken: string }) {
     if (!options.ok) return fail(options.error);
     try {
       const response = await startRegistration({ optionsJSON: options.data });
-      const verified = await postJson("/api/auth/register/verify", { response, deviceLabel });
+      const verified = await postJson<{ deviceLabel: string; renamed: boolean }>(
+        "/api/auth/register/verify",
+        { response, deviceLabel },
+      );
       if (!verified.ok) return fail(verified.error);
+      if (verified.data.renamed) {
+        setBusy(false);
+        return setSavedAs(verified.data.deviceLabel);
+      }
       router.replace("/");
     } catch {
       fail("cancelled");
@@ -42,6 +50,19 @@ export function PasskeySetup({ setupToken }: { setupToken: string }) {
   function fail(code: string) {
     setBusy(false);
     setError(MESSAGES[code] ?? "Passkey setup didn't complete. Create a new setup link and retry.");
+  }
+
+  if (savedAs) {
+    return (
+      <div className="space-y-4">
+        <p role="status" className="text-sm">
+          Saved as “{savedAs}” because that name was already used.
+        </p>
+        <Button onClick={() => router.replace("/")} className="w-full justify-center">
+          Continue
+        </Button>
+      </div>
+    );
   }
 
   return (
