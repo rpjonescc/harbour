@@ -23,6 +23,30 @@ describe("NavLink", () => {
   });
 });
 
+describe("NavLink among siblings", () => {
+  const HREFS = ["/settings/sources", "/settings/devices", "/settings"];
+
+  it("is not current when a longer sibling href matches", () => {
+    pathname = "/settings/devices";
+    render(
+      <NavLink href="/settings" hrefs={HREFS}>
+        Settings
+      </NavLink>,
+    );
+    expect(screen.getByRole("link").getAttribute("aria-current")).toBeNull();
+  });
+
+  it("is current on its own sub-pages no sibling claims", () => {
+    pathname = "/settings/products/acme-docs";
+    render(
+      <NavLink href="/settings" hrefs={HREFS}>
+        Settings
+      </NavLink>,
+    );
+    expect(screen.getByRole("link").getAttribute("aria-current")).toBe("page");
+  });
+});
+
 describe("NavLink badge", () => {
   it("shows a count with an accessible label", () => {
     render(

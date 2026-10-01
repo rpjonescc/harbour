@@ -1,71 +1,71 @@
+import type { ReactNode } from "react";
+import { BackupCard } from "@/components/settings/BackupCard";
+import { BudgetCard } from "@/components/settings/BudgetCard";
+import { KeyStatusCard } from "@/components/settings/KeyStatusCard";
+import { ProductsCard } from "@/components/settings/ProductsCard";
+import { SchedulesCard } from "@/components/settings/SchedulesCard";
+import { BackupNotice } from "@/components/today/BackupNotice";
 import { CostMeter } from "@/components/today/CostMeter";
-import { MICRO_PER_AUD } from "@/lib/costs/budget";
-import type { CostMeterView } from "@/lib/costs/meter-view";
+import type { BackupHealth } from "@/lib/ops/backup-status";
+import {
+  EXAMPLE_BACKUPS,
+  EXAMPLE_METERS,
+  EXAMPLE_SETTINGS,
+  EXAMPLE_ZONE,
+} from "./ops-example-data";
 
-const A$ = (aud: number) => Math.round(aud * MICRO_PER_AUD);
-const ZONE = { now: new Date("2026-10-16T09:00:00Z"), timeZone: "Europe/London", locale: "en-GB" };
+const HEALTHS: BackupHealth[] = ["ok", "none-yet", "failed", "stale", "off"];
+const { timeZone, locale, now } = EXAMPLE_ZONE;
 
-const METERS: { label: string; view: CostMeterView }[] = [
-  {
-    label: "No paid sources",
-    view: { state: "no-paid-sources", spentMicro: 0, unconfirmedMicro: 0 },
-  },
-  {
-    label: "Disconnected, with spend",
-    view: { state: "no-paid-sources", spentMicro: A$(1.23), unconfirmedMicro: 0 },
-  },
-  { label: "No budget", view: { state: "no-budget", spentMicro: 0, unconfirmedMicro: 0 } },
-  {
-    label: "On track",
-    view: {
-      state: "ok",
-      spentMicro: A$(12.4),
-      capMicro: A$(60),
-      projectedMicro: A$(31),
-      unconfirmedMicro: 0,
-    },
-  },
-  {
-    label: "80 % warning",
-    view: {
-      state: "warn",
-      spentMicro: A$(49.5),
-      capMicro: A$(60),
-      projectedMicro: A$(95.9),
-      unconfirmedMicro: 0,
-    },
-  },
-  {
-    label: "With unconfirmed spend",
-    view: {
-      state: "ok",
-      spentMicro: A$(20.5),
-      capMicro: A$(60),
-      projectedMicro: A$(42),
-      unconfirmedMicro: A$(0.5),
-    },
-  },
-  {
-    label: "Budget reached",
-    view: {
-      state: "reached",
-      spentMicro: A$(60.12),
-      capMicro: A$(60),
-      projectedMicro: A$(116),
-      unconfirmedMicro: 0,
-    },
-  },
-];
-
-/** Fictional operations pieces: Today's cost meter in each state. */
-export function OpsExamples() {
+function Example({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-4">
-      {METERS.map(({ label, view }) => (
-        <div key={label} className="flex flex-col gap-1">
-          <p className="text-2xs uppercase tracking-widest text-ink-muted">{label}</p>
-          <CostMeter view={view} {...ZONE} />
-        </div>
+    <div className="flex flex-col gap-1">
+      <p className="text-2xs uppercase tracking-widest text-ink-muted">{label}</p>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Fictional operations pieces: Today's cost meter and backup notices, and the Settings cards
+ * in each state. Back up now is demo-only here: it never calls the API.
+ */
+export function OpsExamples() {
+  const view = EXAMPLE_SETTINGS;
+  return (
+    <div className="flex flex-col gap-6">
+      {EXAMPLE_METERS.map(({ label, view: meter }) => (
+        <Example key={label} label={`Cost meter · ${label}`}>
+          <CostMeter view={meter} {...EXAMPLE_ZONE} />
+        </Example>
+      ))}
+      <Example label="Today backup notice · failed">
+        <BackupNotice backup={EXAMPLE_BACKUPS.failed} />
+      </Example>
+      <Example label="Today backup notice · stale">
+        <BackupNotice backup={EXAMPLE_BACKUPS.stale} />
+      </Example>
+      <ProductsCard products={view.products} isDemoConfig={false} />
+      <ProductsCard products={view.products.slice(0, 1)} isDemoConfig />
+      <SchedulesCard schedules={view.schedules} timeZone={timeZone} locale={locale} />
+      <KeyStatusCard keys={view.keys} />
+      <BudgetCard budget={view.budget} reservations={view.reservations} {...EXAMPLE_ZONE} />
+      <BudgetCard
+        budget={{ state: "no-budget", spentMicro: 0, unconfirmedMicro: 0, capMicro: 0 }}
+        reservations={[]}
+        now={now}
+        timeZone={timeZone}
+        locale={locale}
+      />
+      {HEALTHS.map((health) => (
+        <BackupCard
+          key={health}
+          backups={EXAMPLE_BACKUPS[health]}
+          backupDirSet={health === "off"}
+          timeZone={timeZone}
+          locale={locale}
+          demo
+        />
       ))}
     </div>
   );

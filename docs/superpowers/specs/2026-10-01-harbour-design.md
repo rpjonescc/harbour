@@ -364,15 +364,22 @@ runs set to 90 days).
 ## 9. UI surfaces
 
 - **Today** — date + scan status, one-line summary, score table per product with
-  30-day sparklines and deltas, top 3 actions, failing-collector banner, cost meter.
+  30-day sparklines and deltas, top 3 actions, failing-collector banner, cost meter, and a
+  backup notice when the last backup failed with no retry left or none succeeded in 48 hours.
 - **Product page** (per product) — SEO/GEO/AEO tabs with score breakdowns,
   keyword table, AI question matrix (question × engine: mentioned/cited/competitor),
   technical issues, history charts.
 - **Actions** — board/list with filters by product, area, status.
 - **Second Brain** — viewer (§6.2).
 - **Agents** — run history, logs, "run now" buttons, next scheduled runs.
-- **Settings** — products, keywords, questions, competitors (approve/reject),
-  schedules, budget cap, API key status (present/valid, never the value), passkeys.
+- **Settings** (`/settings`) — a read-only overview: products (with research targets waiting
+  for approval), schedules with their next runs, API key status, the budget (cap, month-to-date
+  spend, projection, unconfirmed reservations), backup health with **Back up now**, and links to
+  Sources, Devices and each product's approvals. Settings are changed in `.env` /
+  `harbour.config.json`; keywords, questions and competitors are approved on
+  `/settings/products/<id>`, passkeys on Devices. Key status is present / missing (and "file not
+  found" for the Search Console credentials file), never the value, a length or a path — not
+  "valid": whether a key works shows as the source's last run on Sources.
 - **/design** — living design system reference.
 
 ## 10. Security

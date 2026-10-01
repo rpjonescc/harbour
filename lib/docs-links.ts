@@ -7,4 +7,6 @@ export const DOCS_LINKS = {
   scores: `${README}how-scores-work`,
   schedule: `${README}when-things-run`,
   costs: `${README}costs-and-budget`,
+  backups: `${README}backups-and-restore`,
+  configuration: `${README}configuration`,
 } as const;

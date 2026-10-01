@@ -1,5 +1,5 @@
 import type { Db } from "@/lib/db/client";
-import { type LocalTime, localTime } from "@/lib/format/zoned-time";
+import { type LocalTime, localTime, nextDailySlot } from "@/lib/format/zoned-time";
 import { lastGoodScanAt } from "@/lib/scan/store";
 import { enqueueJob, jobsCreatedSince } from "./queue";
 import { makeThrottle } from "./throttle";
@@ -37,6 +37,11 @@ export function nextDailyScan(
   if (today.minute < DAILY_MINUTE) return "today";
   if (lastJobCreatedAt && inDailySlot(timeZone, lastJobCreatedAt, today)) return "tomorrow";
   return "due";
+}
+
+/** When the schedule next queues the daily scans (06:00 local), or null when it is off. */
+export function nextScheduledScans(now: Date, timeZone: string, enabled: boolean): Date | null {
+  return enabled ? nextDailySlot(now, timeZone, DAILY_MINUTE) : null;
 }
 
 /** Queues a scan of a product unless one is already queued or running. */

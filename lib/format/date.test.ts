@@ -3,6 +3,7 @@ import {
   formatDateTime,
   formatIsoDay,
   formatLongDate,
+  formatShortDateTime,
   formatWeekdayTime,
   isoDateIn,
 } from "./date";
@@ -55,5 +56,12 @@ describe("formatWeekdayTime", () => {
   it("names the weekday, day, month and time in the zone", () => {
     const at = new Date("2026-10-04T09:00:00Z"); // 20:00 in Sydney (daylight time)
     expect(formatWeekdayTime(at, "Australia/Sydney", "en-GB")).toBe("Sunday 4 Oct, 20:00");
+  });
+});
+
+describe("formatShortDateTime", () => {
+  it("gives the day, short month and time in the zone", () => {
+    const at = new Date("2026-10-02T02:15:00Z"); // 03:15 in London (BST)
+    expect(formatShortDateTime(at, "Europe/London", "en-GB")).toBe("2 Oct, 03:15");
   });
 });

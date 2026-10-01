@@ -1,5 +1,5 @@
 // Reading the cost ledger. Web-safe (Today reads it); writes live in ledger-write.ts (worker only).
-import { and, eq, gte, lt, type SQL, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lt, type SQL, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { costs } from "@/lib/db/schema";
 
@@ -23,4 +23,30 @@ export function spentBetween(db: Db, start: Date, end: Date): number {
 /** The part of `spentBetween` that is still only a reservation (estimate, not confirmed). */
 export function unconfirmedBetween(db: Db, start: Date, end: Date): number {
   return sumBetween(db, start, end, eq(costs.status, "reserved"));
+}
+
+export type Reservation = {
+  id: number;
+  createdAt: Date;
+  collector: string;
+  productId: string | null;
+  jobId: number | null;
+  amountMicroAud: number;
+};
+
+/** Reservations in [start, end), oldest first: calls in flight, or estimates a crash left behind. */
+export function reservationsBetween(db: Db, start: Date, end: Date): Reservation[] {
+  return db
+    .select({
+      id: costs.id,
+      createdAt: costs.createdAt,
+      collector: costs.collector,
+      productId: costs.productId,
+      jobId: costs.jobId,
+      amountMicroAud: costs.amountMicroAud,
+    })
+    .from(costs)
+    .where(and(gte(costs.createdAt, start), lt(costs.createdAt, end), eq(costs.status, "reserved")))
+    .orderBy(asc(costs.id))
+    .all();
 }

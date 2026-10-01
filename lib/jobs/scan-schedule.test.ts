@@ -2,7 +2,7 @@ import { localTime } from "@/lib/format/zoned-time";
 import { finishScan, startScan } from "@/lib/scan/store";
 import { openTestDb } from "@/tests/helpers/db";
 import { claimNextJob, enqueueJob, finishJob, listJobs } from "./queue";
-import { makeScanSchedule, nextDailyScan } from "./scan-schedule";
+import { makeScanSchedule, nextDailyScan, nextScheduledScans } from "./scan-schedule";
 
 const HOUR = 60 * 60_000;
 const PRODUCTS = ["acme-docs", "acme-blog"];
@@ -219,5 +219,18 @@ describe("nextDailyScan", () => {
   it("is due after 06:00 until today's scan job exists", () => {
     expect(nextDailyScan(local("12:00"), zone, true, null)).toBe("due");
     expect(nextDailyScan(local("12:00"), zone, true, local("05:59"))).toBe("due");
+  });
+});
+
+describe("nextScheduledScans", () => {
+  const zone = "Europe/London";
+  const local = (time: string) => new Date(`2026-10-01T${time}+01:00`);
+
+  it("is the next 06:00 local, or null when off", () => {
+    expect(nextScheduledScans(local("05:59"), zone, true)).toEqual(local("06:00"));
+    expect(nextScheduledScans(local("06:00"), zone, true)).toEqual(
+      new Date("2026-10-02T06:00:00+01:00"),
+    );
+    expect(nextScheduledScans(local("05:00"), zone, false)).toBeNull();
   });
 });

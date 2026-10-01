@@ -44,6 +44,17 @@ export function formatWeekdayTime(date: Date, timeZone: string, locale: string):
   }).format(date);
 }
 
+/** Day, short month and time, e.g. "2 Oct, 03:15" (en-GB). */
+export function formatShortDateTime(date: Date, timeZone: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  }).format(date);
+}
+
 /** A calendar date given as YYYY-MM-DD (e.g. Search Console's), in the locale's medium style. */
 export function formatIsoDay(day: string, locale: string): string {
   // Read and shown in UTC: a calendar date has no zone, so it must not move a day.

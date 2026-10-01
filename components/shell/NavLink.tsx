@@ -3,22 +3,26 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { activeNavHref } from "./nav-items";
 
 const BASE = "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm";
 
-/** Sidebar link with active state and an optional count badge. */
+/**
+ * Sidebar link with active state and an optional count badge. `hrefs` are the links it competes
+ * with, so only the one best matching the path is current (e.g. /settings vs /settings/devices).
+ */
 export function NavLink({
   href,
+  hrefs = [href],
   badge,
   children,
 }: {
   href: string;
+  hrefs?: readonly string[];
   badge?: { count: number; label: string };
   children: ReactNode;
 }) {
-  const pathname = usePathname();
-  const active =
-    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  const active = activeNavHref(usePathname(), hrefs) === href;
   return (
     <Link
       href={href}

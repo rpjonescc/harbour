@@ -7,6 +7,9 @@ import type { ThemePreference } from "@/lib/theme";
 import { LogoutButton } from "./LogoutButton";
 import { NavLink } from "./NavLink";
 import { NAV_ITEMS } from "./nav-items";
+
+const NAV_HREFS = NAV_ITEMS.map((item) => item.href);
+
 import { ThemeToggle } from "./ThemeToggle";
 
 /** Left rail: brand, navigation, products, and device controls. */
@@ -35,7 +38,12 @@ export function Sidebar({ theme }: { theme: ThemePreference }) {
       <p className="px-2 pb-4 pt-1 font-serif text-xl">Harbour</p>
       <nav aria-label="Main" className="flex flex-col gap-0.5">
         {NAV_ITEMS.map((item) => (
-          <NavLink key={item.label} href={item.href} badge={item.badge && badges[item.badge]}>
+          <NavLink
+            key={item.label}
+            href={item.href}
+            hrefs={NAV_HREFS}
+            badge={item.badge && badges[item.badge]}
+          >
             {item.label}
           </NavLink>
         ))}

@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
+import { EXAMPLE_BACKUPS } from "@/components/design/ops-example-data";
+import type { BackupStatus } from "@/lib/ops/backup-status";
 import { getProducts } from "@/lib/products/catalog";
 import { sampleToday } from "@/lib/today/sample";
 import type { TodaySummary } from "@/lib/today/types";
@@ -8,10 +10,11 @@ import { TodayView } from "./TodayView";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const NOW = new Date("2026-10-01T09:00:00Z");
-const renderToday = (today: TodaySummary) =>
+const renderToday = (today: TodaySummary, backup: BackupStatus = EXAMPLE_BACKUPS.ok) =>
   render(
     <TodayView
       today={today}
+      backup={backup}
       costMeter={{ state: "no-paid-sources", spentMicro: 0, unconfirmedMicro: 0 }}
       now={NOW}
       timeZone="UTC"
@@ -117,5 +120,16 @@ describe("TodayView", () => {
     unmount();
     renderToday(real);
     expect(screen.getByText("No paid sources connected")).toBeInTheDocument();
+  });
+
+  it("warns about a failed or stale backup, and says nothing when backups are fine", () => {
+    const { unmount } = renderToday(real, EXAMPLE_BACKUPS.failed);
+    expect(screen.getByText(/Last night's backup failed: No space left on device/)).toBeVisible();
+    unmount();
+    const stale = renderToday(real, EXAMPLE_BACKUPS.stale);
+    expect(screen.getByText(/No backup in the last 2 days/)).toBeVisible();
+    stale.unmount();
+    renderToday(real);
+    expect(screen.queryByText(/backup/i)).toBeNull();
   });
 });

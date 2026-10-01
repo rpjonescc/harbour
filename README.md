@@ -44,6 +44,12 @@ continues with:
   a living reference at `/design` showing every component in its main states.
 - **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14
   kept, with retries and a catch-up after downtime (see [Backups and restore](#backups-and-restore)).
+  Today warns when the last backup failed with no retry left, or when there has been none for
+  2 days.
+- **Settings** — one read-only page showing what Harbour is set up to do: products, schedules
+  and their next runs, whether each API key is set (never its value), the budget and this
+  month's spend, backup health with **Back up now**, and links to the other settings pages.
+  Values are changed in `.env` and `harbour.config.json`.
 - **Accessible by default** — keyboard paths, visible focus, accessible names, rem-based type.
 
 ### Pages
@@ -53,6 +59,7 @@ continues with:
 | `/` | Today |
 | `/products/<id>` | A product's scores, issues, pages and sources |
 | `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`) |
+| `/settings` | Settings overview: products, schedules, key status, budget and backups |
 | `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors) |
 | `/settings/sources` | Scan schedule, connections and each source's last run |
 | `/brain` | Second Brain |
@@ -60,11 +67,15 @@ continues with:
 | `/settings/devices` | Passkeys and devices |
 | `/design` | Design system reference |
 
-Three JSON endpoints change things; like every mutating route they take same-origin JSON from a
+Four JSON endpoints change things; like every mutating route they take same-origin JSON from a
 signed-in session:
 
 - `POST /api/scans` with `{"productId": "<id>"}` queues a scan for the worker (as **Scan now**
   does).
+- `POST /api/backups` with an empty body `{}` queues a backup of today for the worker (as
+  **Back up now** on Settings does), even when the nightly backup is off. It answers
+  `{"jobId": 12, "created": true}` (`created: false` when one is already queued or running) and
+  is written to the audit log.
 - `POST /api/agents/run` queues agent runs (as the buttons on **Agents** do), for example
   `{"kind": "refresh"}` to refresh up to 3 stale research documents. It answers
   `{"jobIds": [...], "stale": 4}` (an empty list when nothing is stale) and refuses with
@@ -450,8 +461,13 @@ thrown away and the job fails with the reason (see **Agents**). Details:
   hashes and the audit log, so **treat them like `.env`**: Harbour never sends them anywhere.
   Copying them off the machine (an encrypted disk, another host) is up to you, and is what
   protects you from losing the disk.
-- **Now:** `pnpm backup:now` queues a backup of today; the worker runs it next. The Agents page
+- **Now:** **Back up now** on Settings (or `pnpm backup:now`) queues a backup of today; the
+  worker runs it next. It works even when `HARBOUR_SCHEDULED_BACKUP=off`. The Agents page
   shows it as "Nightly backup: YYYY-MM-DD" with the size and how many backups are kept.
+- **Health:** the Backups section of **Settings** shows the last backup (time and size), how
+  many are kept, the last failure and what retention last removed. Today shows a notice when
+  the last backup failed and no retry is left (or it was a manual one), or when no backup is
+  newer than 48 hours (with none at all, once Harbour has been running for 48 hours).
 - **Bounded:** a backup gives up after 10 minutes. **Cancel** on **Agents** stops one in progress
   and removes the unfinished copy.
 
