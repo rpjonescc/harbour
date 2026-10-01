@@ -62,6 +62,12 @@ const schema = z
         message: "HARBOUR_EDITOR_URL_TEMPLATE must contain {path}, or be empty to hide the button",
       }),
     HARBOUR_DEV_IDENTITY: z.string().min(1).optional(),
+    HARBOUR_CLAUDE_BIN: z.string().min(1).default("claude"),
+    // Secret: long-lived subscription token from `claude setup-token`. Worker only.
+    HARBOUR_CLAUDE_OAUTH_TOKEN: z.string().min(1).optional(),
+    // Full model id (aliases like "sonnet" can resolve to an older model).
+    HARBOUR_AGENT_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
+    HARBOUR_AGENT_TIMEOUT_MINUTES: z.coerce.number().int().min(1).max(120).default(30),
   })
   .refine((c) => rpIdMatchesOrigin(c.HARBOUR_RP_ID, c.HARBOUR_ORIGIN), {
     message: "HARBOUR_RP_ID must equal HARBOUR_ORIGIN's hostname or be a parent domain of it",

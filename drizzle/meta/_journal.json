@@ -29,6 +29,13 @@
       "when": 1790832541178,
       "tag": "0003_brain_fts",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790846211317,
+      "tag": "0004_agents",
+      "breakpoints": true
     }
   ]
 }

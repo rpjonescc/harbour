@@ -109,3 +109,20 @@ describe("HARBOUR_EDITOR_URL_TEMPLATE", () => {
     );
   });
 });
+
+describe("agent settings", () => {
+  it("defaults the CLI, model and timeout, and leaves the token unset", () => {
+    const c = parseConfig(base);
+    expect(c.HARBOUR_CLAUDE_BIN).toBe("claude");
+    expect(c.HARBOUR_AGENT_MODEL).toBe("claude-sonnet-5-5");
+    expect(c.HARBOUR_AGENT_TIMEOUT_MINUTES).toBe(30);
+    expect(c.HARBOUR_CLAUDE_OAUTH_TOKEN).toBeUndefined();
+  });
+  it("bounds the timeout", () => {
+    expect(() => parseConfig({ ...base, HARBOUR_AGENT_TIMEOUT_MINUTES: "0" })).toThrow();
+    expect(() => parseConfig({ ...base, HARBOUR_AGENT_TIMEOUT_MINUTES: "121" })).toThrow();
+    expect(
+      parseConfig({ ...base, HARBOUR_AGENT_TIMEOUT_MINUTES: "5" }).HARBOUR_AGENT_TIMEOUT_MINUTES,
+    ).toBe(5);
+  });
+});

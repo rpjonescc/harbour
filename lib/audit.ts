@@ -8,7 +8,10 @@ export type AuditEvent =
   | "passkey_registered"
   | "passkey_removed"
   | "setup_token_issued"
-  | "setup_token_rejected";
+  | "setup_token_rejected"
+  | "agent_run_requested"
+  | "agent_run_cancelled"
+  | "proposal_decided";
 
 /** Appends a security-relevant event to the audit log. */
 export function audit(
