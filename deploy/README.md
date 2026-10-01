@@ -20,7 +20,10 @@ Never put `pnpm dev` behind Tailscale Serve (dev mode honours `HARBOUR_DEV_IDENT
    Optionally create `harbour.config.json` (copy `harbour.config.example.json`) to list your
    products (it is read at startup: after editing it run `systemctl --user restart harbour-web`), and point `HARBOUR_BRAIN_DIR` at a separate private directory.
 2. `./deploy/install.sh` (or `HARBOUR_HTTPS_PORT=<port> ./deploy/install.sh` for another port)
-3. `sudo loginctl enable-linger $USER` (once) so the service starts at boot.
+3. Let the service start at boot, before you log in: check `loginctl show-user $USER -p Linger`,
+   and if it says `Linger=no`, run `sudo loginctl enable-linger $USER` once.
+   The service runs in the background and restarts automatically (5 seconds after any exit), and
+   Tailscale keeps the Serve setting across reboots.
 4. `pnpm setup-token` and open the printed link on your first device to create a passkey.
    Any WebAuthn passkey provider works. With **Bitwarden**: in the browser extension, turn on
    *Settings → Notifications → Ask to save and use passkeys*, and pick Bitwarden (not the browser's

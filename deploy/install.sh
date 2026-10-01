@@ -70,5 +70,9 @@ fi
 
 echo
 echo "Harbour is running at https://$MAGIC_DNS:$HTTPS_PORT"
-echo "To keep it running after reboot without logging in, run once:  sudo loginctl enable-linger $USER"
+if [[ "$(loginctl show-user "$USER" -p Linger --value 2>/dev/null)" == "yes" ]]; then
+  echo "Harbour will start automatically at boot (user lingering is enabled)."
+else
+  echo "To start Harbour at boot without logging in, run once:  sudo loginctl enable-linger $USER"
+fi
 echo "Register your first passkey:  pnpm setup-token"

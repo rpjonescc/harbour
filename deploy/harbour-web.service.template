@@ -9,7 +9,7 @@ WorkingDirectory=__REPO__
 Environment=NODE_ENV=production
 Environment=PATH=__NODE_BIN__:/usr/bin:/bin
 ExecStart=__NODE_BIN__/pnpm start
-Restart=on-failure
+Restart=always
 RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
