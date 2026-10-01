@@ -1,0 +1,89 @@
+.brain-prose {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  max-width: 65ch;
+  color: var(--ink);
+}
+.brain-prose > * + * {
+  margin-top: 0.9em;
+}
+.brain-prose h2 {
+  font-size: 1.375rem;
+  font-weight: 500;
+  margin-top: 1.6em;
+  line-height: 1.3;
+}
+.brain-prose h3 {
+  font-size: 1.125rem;
+  font-weight: 500;
+  margin-top: 1.3em;
+}
+.brain-prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+.brain-prose a.wikilink {
+  text-decoration-style: dotted;
+}
+.brain-prose .wikilink-broken {
+  color: var(--ink-muted);
+  text-decoration: line-through;
+  font-style: normal;
+}
+.brain-prose ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}
+.brain-prose ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.brain-prose li + li {
+  margin-top: 0.25em;
+}
+.brain-prose blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 0.5em 1em;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+.brain-prose code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--surface-sunk);
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-sm);
+}
+.brain-prose pre {
+  background: var(--surface-sunk);
+  padding: 1em;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+.brain-prose pre code {
+  background: none;
+  padding: 0;
+}
+.brain-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+}
+.brain-prose th,
+.brain-prose td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+.brain-prose hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.brain-prose mark {
+  background: var(--warn-soft);
+  color: var(--ink);
+}

@@ -4,10 +4,8 @@ A calm, private, self-hosted control centre for your own projects. Harbour runs 
 always-on machine at home, is reachable only over your Tailscale network, and opens only
 with a passkey.
 
-Phase 1 is the secure shell and design system. The roadmap builds on it:
+The secure shell, design system, and Second Brain viewer are built. The roadmap continues with:
 
-- **Second Brain** — a markdown research library with search, backlinks and frontmatter,
-  stored in a separate private repo.
 - **Daily visibility scan** — how findable each product is in classic search (SEO), in AI
   assistants (GEO) and as direct answers (AEO), scored 0–100 with explainable breakdowns.
 - **Weekly AI analyst** — turns the week's data into a report and a prioritised action plan.
@@ -19,9 +17,35 @@ Phase 1 is the secure shell and design system. The roadmap builds on it:
 - **Products from config** — list your products in `harbour.config.json`; each gets a
   colour from a six-hue palette. Without it, a clearly labelled demo config is shown.
 - **Devices** — add a passkey to a new device with a one-time link, or remove a lost one.
+- **Second Brain** — read Markdown notes with a document tree, frontmatter, links and backlinks.
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
   a living reference at `/design`.
 - **Accessible by default** — keyboard paths, visible focus, accessible names, rem-based type.
+
+## Second Brain
+
+Harbour reads Markdown files from `HARBOUR_BRAIN_DIR` and shows them at `/brain`. The viewer has
+a folder tree, a reading view with an outline, links between notes (`[[note-name]]` or
+`[[note-name|label]]`), backlinks, and sources from frontmatter. New and changed notes are marked
+until you open them. If `00-start-here.md` exists, it opens at `/brain`; otherwise, the page lists
+recently changed documents.
+
+Keep the brain in its own **private** git repository. It holds research and plans that must never
+be committed to this public repo. Optional frontmatter looks like this:
+
+```yaml
+---
+title: How AI engines pick their sources
+tags: [geo]
+researched: 2026-10-01
+confidence: medium
+review_by: 2027-01-01
+sources: [https://example.com/article]
+---
+```
+
+Set `HARBOUR_EDITOR_URL_TEMPLATE` to a URL containing `{path}` to open a document in an editor.
+Its default is `vscode://file/{path}`; an empty value hides the link.
 
 ## Security model
 
@@ -101,6 +125,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_TIMEZONE` | no | server's zone | IANA timezone for dates. |
 | `HARBOUR_LOCALE` | no | `en-US` | BCP 47 locale for dates. |
 | `HARBOUR_BRAIN_DIR` | no | `./brain` | Second Brain directory — point it at a separate private repo. |
+| `HARBOUR_EDITOR_URL_TEMPLATE` | no | `vscode://file/{path}` | Editor link for brain documents; `{path}` is the encoded absolute file path. Empty hides the link. |
 | `HARBOUR_DEV_IDENTITY` | dev only | — | Stand-in Tailscale login for `next dev`; refused in production. |
 | `HARBOUR_HTTPS_PORT` | no | `8444` | Shell variable for `deploy/install.sh` (Tailscale Serve HTTPS port); the app itself does not read it. |
 
@@ -147,7 +172,7 @@ Before the first e2e run, install the browser once: `pnpm exec playwright instal
 app/          routes (thin: parse input, call lib/, render)
 components/   UI components built on semantic tokens
 design/       tokens.css (primitives + semantic) and the token list for /design
-lib/          auth, config, db, products, security, formatting — pure logic + tests
+lib/          auth, brain, config, db, products, security, formatting — pure logic + tests
 deploy/       systemd unit template, install script, deployment guide
 drizzle/      SQL migrations
 scripts/      repo checks and the setup-token CLI

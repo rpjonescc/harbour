@@ -95,3 +95,17 @@ describe("parseConfig", () => {
     expect(() => parseConfig({ ...base, HARBOUR_ORIGIN: "nope" })).toThrow(/HARBOUR_ORIGIN/);
   });
 });
+
+describe("HARBOUR_EDITOR_URL_TEMPLATE", () => {
+  it("defaults to VS Code and accepts an empty value to disable", () => {
+    expect(parseConfig(base).HARBOUR_EDITOR_URL_TEMPLATE).toBe("vscode://file/{path}");
+    expect(
+      parseConfig({ ...base, HARBOUR_EDITOR_URL_TEMPLATE: "" }).HARBOUR_EDITOR_URL_TEMPLATE,
+    ).toBe("");
+  });
+  it("requires a {path} placeholder when set", () => {
+    expect(() => parseConfig({ ...base, HARBOUR_EDITOR_URL_TEMPLATE: "vscode://file/" })).toThrow(
+      /\{path\}/,
+    );
+  });
+});

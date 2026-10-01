@@ -55,6 +55,12 @@ const schema = z
       .default("en-US")
       .refine(isLocale, { message: "HARBOUR_LOCALE must be a BCP 47 locale like en-GB" }),
     HARBOUR_BRAIN_DIR: z.string().min(1).default("./brain"),
+    HARBOUR_EDITOR_URL_TEMPLATE: z
+      .string()
+      .default("vscode://file/{path}")
+      .refine((v) => v === "" || v.includes("{path}"), {
+        message: "HARBOUR_EDITOR_URL_TEMPLATE must contain {path}, or be empty to hide the button",
+      }),
     HARBOUR_DEV_IDENTITY: z.string().min(1).optional(),
   })
   .refine((c) => rpIdMatchesOrigin(c.HARBOUR_RP_ID, c.HARBOUR_ORIGIN), {

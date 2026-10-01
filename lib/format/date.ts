@@ -12,3 +12,22 @@ export function formatLongDate(date: Date, timeZone: string, locale: string): st
   }).format(date);
   return `${weekday} ${dayMonth}`;
 }
+
+/** YYYY-MM-DD for `date` as seen in `timeZone`. */
+export function isoDateIn(timeZone: string, date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+/** Medium date and short time, e.g. "1 Oct 2026, 10:30". */
+export function formatDateTime(date: Date, timeZone: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone,
+  }).format(date);
+}
