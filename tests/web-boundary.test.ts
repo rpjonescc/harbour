@@ -7,11 +7,11 @@ const ROOT = resolve(__dirname, "..");
 const FORBIDDEN_FILES = [
   /^lib\/scan\/collectors\//,
   /^lib\/actions\/rule-sync-store\.ts$/,
-  /^lib\/costs\/guard\.ts$/,
+  /^lib\/costs\/(guard|ledger-write)\.ts$/,
   /^lib\/analyst\/(export|export-product)\.ts$/,
   /^lib\/jobs\/(agent-output|import-retry)\.ts$/,
   /^lib\/ops\/(backup|backup-job|retention)\.ts$/,
-  /^lib\/scan\/(registry|run-scan|collect-context|scan-bounds|worker-deps|fetch|http-request|robots-gate)\.ts$/,
+  /^lib\/scan\/(registry|run-scan|collect-context|skip-reason|scan-bounds|worker-deps|fetch|http-request|robots-gate)\.ts$/,
 ];
 const FORBIDDEN_PACKAGES = ["google-auth-library", "node:http", "node:https", "node-html-parser"];
 const EXTENSIONS = [".ts", ".tsx", "/index.ts", "/index.tsx"];

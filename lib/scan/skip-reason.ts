@@ -1,0 +1,37 @@
+// Why a collector does not run in this scan: its weekly cadence, or (paid) the monthly budget.
+import { budgetSkipReason } from "@/lib/costs/guard";
+import type { ScanDeps } from "./run-scan";
+import { lastOkRunAt } from "./store";
+import type { Collector } from "./types";
+
+// A weekly collector is due 7 days after its last ok run, less 12 h of slack so a daily scan
+// that starts a little earlier than last week's doesn't push the run back a whole day.
+const WEEKLY_DUE_MS = (7 * 24 - 12) * 60 * 60_000;
+
+function weeklySkipReason(
+  deps: Pick<ScanDeps, "db">,
+  productId: string,
+  collector: Collector,
+  now: Date,
+): string | null {
+  if (collector.cadence !== "weekly") return null;
+  const last = lastOkRunAt(deps.db, productId, collector.id);
+  if (!last || now.getTime() - last.getTime() >= WEEKLY_DUE_MS) return null;
+  return `runs weekly; last ran ${last.toISOString().slice(0, 10)}`;
+}
+
+/** Why the collector is skipped before it runs, or null; throws when the budget check fails. */
+export function skipReason(
+  deps: Pick<ScanDeps, "db" | "budget">,
+  productId: string,
+  collector: Collector,
+  now: Date,
+): string | null {
+  const weekly = weeklySkipReason(deps, productId, collector, now);
+  if (weekly || !collector.paid) return weekly;
+  try {
+    return budgetSkipReason(deps.db, deps.budget.capMicroAud, deps.budget.timeZone, now);
+  } catch (error) {
+    throw new Error(`budget check failed: ${error instanceof Error ? error.message : error}`);
+  }
+}

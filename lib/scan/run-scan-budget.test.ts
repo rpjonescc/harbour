@@ -1,5 +1,5 @@
 import { MICRO_PER_AUD } from "@/lib/costs/budget";
-import { recordCost } from "@/lib/costs/ledger";
+import { recordCost } from "@/lib/costs/ledger-write";
 import type { Db } from "@/lib/db/client";
 import { costs } from "@/lib/db/schema";
 import { fakePaidCollector } from "@/tests/helpers/fake-paid-collector";
@@ -127,5 +127,53 @@ describe("runScan budget guard", () => {
     await scan();
     expect(allowed).toBe(false);
     expect(db.select().from(costs).all()).toEqual([]);
+  });
+
+  it("fails only a paid collector whose budget check itself fails", async () => {
+    const paid = fakePaidCollector({ pricePerCallMicro: 600, calls: 1 });
+    const { db, scan } = setup([ok("crawler"), paid], {
+      budget: { capMicroAud: A$(1), timeZone: "Nowhere/Invalid" },
+    });
+    await scan();
+    expect(run(db, "rankings")?.status).toBe("failed");
+    expect(run(db, "rankings")?.error).toMatch(/^budget check failed: /);
+    expect(run(db, "crawler")?.status).toBe("ok");
+    expect(paid.calls).toBe(0);
+  });
+
+  it("keeps a timed-out collector's reservation counted until its late record settles it", async () => {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const late: { allowed?: boolean } = {};
+    let done = Promise.resolve();
+    const slow = fake("rankings", async (ctx) => {
+      if (!ctx.budget.allow(A$(0.02))) return { status: "skipped", reason: "budget: refused" };
+      done = gate.then(() => {
+        late.allowed = ctx.budget.allow(1);
+        ctx.cost.record({ provider: "dataforseo", units: 1, amountMicroAud: A$(0.015) });
+      });
+      await done;
+      return { status: "ok", observations: [] };
+    });
+    slow.paid = true;
+    const next = fakePaidCollector({ id: "aeo-serp", pricePerCallMicro: A$(0.02), calls: 1 });
+    const { db, scan } = setup([slow, next], { ...budget(1), timeoutMs: () => 30 });
+    spend(db, A$(0.97));
+    await scan();
+    expect(run(db, "rankings")).toMatchObject({ status: "failed" });
+    // The abandoned call may still be billed: the headroom stays reserved for it.
+    expect(run(db, "aeo-serp")).toMatchObject({ status: "skipped" });
+    expect(next.calls).toBe(0);
+    expect(db.select().from(costs).all().at(-1)).toMatchObject({ status: "reserved" });
+
+    release();
+    await done;
+    expect(late.allowed).toBe(false);
+    expect(db.select().from(costs).all().at(-1)).toMatchObject({
+      status: "recorded",
+      amountMicroAud: A$(0.015),
+    });
   });
 });

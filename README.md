@@ -514,12 +514,17 @@ spend what you allow.
 - **The budget.** `HARBOUR_MONTHLY_BUDGET_AUD` caps the spend per calendar month in
   `HARBOUR_TIMEZONE`. It defaults to **0, which means no paid calls at all**: set it (e.g.
   `HARBOUR_MONTHLY_BUDGET_AUD=60`) to allow them. A paid collector asks the budget before every
-  call, and a call is only made if its price fits what is left this month.
+  call, and a call is only made if its price fits what is left this month. That estimate is
+  written to the ledger as a *reservation* before the call and replaced by the actual price
+  after it, so two calls can never both use the last of the budget. If Harbour stops mid-call,
+  the reservation stays counted (the call may have been billed) and the meter shows it as
+  "unconfirmed".
 - **At 80 %** Today's meter shows a warning tag.
 - **At 100 %** paid collectors are skipped until the 1st of next month (the scan records them as
   "skipped — budget: …"). Free collectors, agents and everything else keep running.
 
-The meter on **Today** says one of:
+The meter on **Today** says one of the lines below. Amounts follow `HARBOUR_LOCALE`'s currency
+style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
 
 | Meter | Meaning |
 |---|---|

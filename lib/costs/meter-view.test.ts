@@ -1,7 +1,7 @@
 import { parseConfig } from "@/lib/config";
 import { openTestDb } from "@/tests/helpers/db";
 import { MICRO_PER_AUD } from "./budget";
-import { recordCost } from "./ledger";
+import { recordCost, reserveCost } from "./ledger-write";
 import { costMeterView } from "./meter-view";
 import type { PaidSource } from "./paid-sources";
 
@@ -55,10 +55,12 @@ describe("costMeterView", () => {
     expect(costMeterView(dbWithSpend(), config("60"), NOW)).toEqual({
       state: "no-paid-sources",
       spentMicro: 0,
+      unconfirmedMicro: 0,
     });
     expect(costMeterView(dbWithSpend(A$(1.23)), config("60"), NOW)).toEqual({
       state: "no-paid-sources",
       spentMicro: A$(1.23),
+      unconfirmedMicro: 0,
     });
   });
 
@@ -71,6 +73,7 @@ describe("costMeterView", () => {
     expect(costMeterView(dbWithSpend(), config("0"), NOW, [RANKINGS])).toEqual({
       state: "no-budget",
       spentMicro: 0,
+      unconfirmedMicro: 0,
     });
   });
 
@@ -81,6 +84,7 @@ describe("costMeterView", () => {
       spentMicro: A$(15),
       capMicro: A$(60),
       projectedMicro: A$(31),
+      unconfirmedMicro: 0,
     });
   });
 
@@ -95,5 +99,29 @@ describe("costMeterView", () => {
     const first = new Date("2026-10-01T12:00:00Z");
     const view = costMeterView(dbWithSpend(), config("60"), first, [RANKINGS]);
     expect(view).toMatchObject({ state: "ok", projectedMicro: null });
+  });
+
+  it("counts reserved rows as spend and shows them as unconfirmed", () => {
+    const db = dbWithSpend(A$(10));
+    const window = {
+      start: new Date("2026-10-01T00:00:00Z"),
+      end: new Date("2026-11-01T00:00:00Z"),
+    };
+    reserveCost(
+      db,
+      {
+        collector: "rankings",
+        productId: null,
+        jobId: null,
+        amountMicroAud: A$(0.5),
+        capMicroAud: A$(60),
+        window,
+      },
+      NOW,
+    );
+    expect(costMeterView(db, config("60"), NOW, [RANKINGS])).toMatchObject({
+      spentMicro: A$(10.5),
+      unconfirmedMicro: A$(0.5),
+    });
   });
 });

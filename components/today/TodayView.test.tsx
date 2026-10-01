@@ -12,7 +12,7 @@ const renderToday = (today: TodaySummary) =>
   render(
     <TodayView
       today={today}
-      costMeter={{ state: "no-paid-sources", spentMicro: 0 }}
+      costMeter={{ state: "no-paid-sources", spentMicro: 0, unconfirmedMicro: 0 }}
       now={NOW}
       timeZone="UTC"
       locale="en-GB"

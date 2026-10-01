@@ -181,8 +181,9 @@ interface Collector {
 `CollectContext` provides the product, logger, an HTTP client, earlier results, and for paid
 collectors the cost ledger (`cost.record({ provider, units, amountMicroAud })`, product,
 collector and job filled in) and the budget guard (`budget.allow(estimateMicroAud)`, asked
-before every paid call; an allowed estimate is reserved until the call is recorded, and an
-invalid or unknown price is refused). A free collector's `allow` is always false and its
+before every paid call; an allowed estimate is written as a `reserved` costs row in the same
+IMMEDIATE transaction as the budget check, and settled to `recorded` at the actual price; an
+invalid, unknown or zero price is refused, as is any call after the collector's run ended). A free collector's `allow` is always false and its
 `record` throws. Every `paid: true` collector is named by a `PAID_SOURCES` entry.
 Collectors write raw observations only; they never compute scores.
 
@@ -433,8 +434,10 @@ runs set to 90 days).
 
 ## 12. Cost control
 
-- Every paid call writes a `costs` row (provider, collector, product, units, amount,
-  job). Amounts are integer **micro-AUD** (1 AUD = 1,000,000) so per-call prices that are
+- Every paid call writes a `costs` row (status, provider, collector, product, units,
+  amount, job): `reserved` at its estimate before the call, `recorded` at the actual price
+  after. Both count against the cap; a reservation left by a crash or an abandoned
+  (timed-out) collector stays counted and Today shows it as "unconfirmed". Amounts are integer **micro-AUD** (1 AUD = 1,000,000) so per-call prices that are
   fractions of a cent sum exactly; a row above A$100 is refused as a pricing bug and fails
   the collector. The ledger is the complete record, so no rows is a real A$0.00.
 - Monthly cap `HARBOUR_MONTHLY_BUDGET_AUD`, default **0** = no paid calls (A$60 is an

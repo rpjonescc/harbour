@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a7cf1514-a5e3-467e-85d2-d14a9c3e2c15",
+  "id": "a138437d-e19c-43fc-a1ce-ba689d3b733c",
   "prevId": "3a26892b-6c34-4c6f-8ca1-434f1bcdb0d9",
   "tables": {
     "action_events": {
@@ -640,11 +640,18 @@
           "notNull": true,
           "autoincrement": false
         },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "provider": {
           "name": "provider",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "collector": {
@@ -710,6 +717,14 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
+        "costs_status": {
+          "name": "costs_status",
+          "value": "\"costs\".\"status\" IN ('reserved', 'recorded')"
+        },
+        "costs_provider": {
+          "name": "costs_provider",
+          "value": "\"costs\".\"status\" = 'reserved' OR \"costs\".\"provider\" IS NOT NULL"
+        },
         "costs_units": {
           "name": "costs_units",
           "value": "\"costs\".\"units\" >= 0"

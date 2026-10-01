@@ -2,41 +2,35 @@
 import type { Db } from "@/lib/db/client";
 import { monthWindow } from "@/lib/format/zoned-time";
 import type { CollectContext } from "@/lib/scan/types";
-import { budgetLevel, canSpend, formatAud } from "./budget";
-import { MAX_CALL_MICRO_AUD, recordCost, spentBetween } from "./ledger";
+import { budgetLevel, formatAud, MAX_CALL_MICRO_AUD } from "./budget";
+import { spentBetween } from "./ledger";
+import {
+  dropReservations,
+  type PaidCall,
+  recordCost,
+  reserveCost,
+  settleCost,
+} from "./ledger-write";
 
 /** What a collector spends through, plus the runner's side: settle up and check for a lost cost. */
 export type Spend = Pick<CollectContext, "cost" | "budget"> & {
-  /** Frees what this collector reserved but never recorded (call it once the collector ends). */
-  release(): void;
-  /** Why a cost could not be recorded, even if the collector caught the error; else null. */
+  /**
+   * Called once the collector's run ends; no call is allowed after it. A run that ended normally
+   * drops its unrecorded reservations; an abandoned one (timeout, cancel) keeps them counted,
+   * since its calls may still be in flight, until a late record settles them.
+   */
+  release(abandoned: boolean): void;
+  /** Why a cost was lost or recorded irregularly, even if the collector caught the error; else null. */
   failure(): string | null;
 };
 
-type Reservation = { amountMicro: number };
-
-// Estimates allowed but not yet recorded, per database, across every collector in this process:
-// a call in flight counts against the budget, so two calls cannot both pass a check only one
-// fits. Check and reserve run synchronously (better-sqlite3), so nothing interleaves; collectors
-// run only in the worker, so this process is the only one spending.
-const inFlight = new WeakMap<Db, Set<Reservation>>();
-
-function reservationsOf(db: Db): Set<Reservation> {
-  const existing = inFlight.get(db);
-  if (existing) return existing;
-  const created = new Set<Reservation>();
-  inFlight.set(db, created);
-  return created;
-}
-
-const reservedTotal = (set: Set<Reservation>) =>
-  [...set].reduce((sum, r) => sum + r.amountMicro, 0);
-
-// An unknown or invalid price never gets a call through.
+// An unknown or invalid price never gets a call through; every call costs at least 1 micro-AUD.
 const isPrice = (micro: number) =>
-  Number.isSafeInteger(micro) && micro >= 0 && micro <= MAX_CALL_MICRO_AUD;
+  Number.isSafeInteger(micro) && micro >= 1 && micro <= MAX_CALL_MICRO_AUD;
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+const UNASKED = "paid call made without budget.allow";
 
 /** Cost recording and the budget check for one collector's run in one scan. */
 export function makeSpend(
@@ -48,44 +42,62 @@ export function makeSpend(
     productId: string;
     collector: string;
     jobId: number;
+    /** Reports a cost refused after the run ended (it can no longer fail the collector). */
+    log?: (text: string) => void;
   },
 ): Spend {
-  const shared = reservationsOf(db);
-  const mine: Reservation[] = [];
+  const who = { collector: input.collector, productId: input.productId, jobId: input.jobId };
+  // This run's reservations not yet settled, oldest first.
+  const pending: number[] = [];
+  let closed = false;
   let failure: string | null = null;
+  const fail = (text: string) => {
+    failure ??= text;
+    if (closed) input.log?.(text);
+  };
+
+  function record(call: PaidCall) {
+    const now = input.now();
+    const id = pending[0];
+    try {
+      if (id === undefined) {
+        recordCost(db, { ...call, ...who }, now);
+        fail(UNASKED);
+        return;
+      }
+      // A refused cost leaves its reservation counted (the call may have been billed): it is
+      // taken out of `pending` so the end of the run does not drop it.
+      pending.shift();
+      if (settleCost(db, id, call, now)) return;
+      // Never expected (only this run settles its rows), but a cost is never dropped.
+      recordCost(db, { ...call, ...who }, now);
+      fail(`reservation ${id} was gone; the cost was recorded on its own`);
+    } catch (error) {
+      fail(`Could not record a paid call's cost: ${message(error)}`);
+      throw error;
+    }
+  }
+
   return {
     budget: {
       allow(estimateMicroAud) {
-        if (!isPrice(estimateMicroAud)) return false;
-        const { start, end } = monthWindow(input.now(), input.timeZone);
-        const committed = spentBetween(db, start, end) + reservedTotal(shared);
-        if (!canSpend(committed, input.capMicroAud, estimateMicroAud)) return false;
-        const reservation = { amountMicro: estimateMicroAud };
-        shared.add(reservation);
-        mine.push(reservation);
+        if (closed || !isPrice(estimateMicroAud)) return false;
+        const now = input.now();
+        const window = monthWindow(now, input.timeZone);
+        const id = reserveCost(
+          db,
+          { ...who, amountMicroAud: estimateMicroAud, capMicroAud: input.capMicroAud, window },
+          now,
+        );
+        if (id === null) return false;
+        pending.push(id);
         return true;
       },
     },
-    cost: {
-      record({ provider, units, amountMicroAud }) {
-        const { productId, collector, jobId } = input;
-        try {
-          recordCost(
-            db,
-            { provider, collector, productId, units, amountMicroAud, jobId },
-            input.now(),
-          );
-        } catch (error) {
-          failure ??= `Could not record a paid call's cost: ${message(error)}`;
-          throw error;
-        }
-        // The actual cost is in the ledger now: settle the oldest estimate it replaces.
-        const settled = mine.shift();
-        if (settled) shared.delete(settled);
-      },
-    },
-    release() {
-      for (const reservation of mine.splice(0)) shared.delete(reservation);
+    cost: { record },
+    release(abandoned) {
+      closed = true;
+      if (!abandoned) dropReservations(db, pending.splice(0));
     },
     failure: () => failure,
   };

@@ -4,6 +4,9 @@ import { monthWindow } from "@/lib/format/zoned-time";
 /** Micro-AUD in one Australian dollar. */
 export const MICRO_PER_AUD = 1_000_000;
 
+/** Most one call may cost: a single call above A$100 is a unit-price bug, not a real call. */
+export const MAX_CALL_MICRO_AUD = 100 * MICRO_PER_AUD;
+
 const DAY_MS = 24 * 60 * 60_000;
 
 /** Dollars to whole micro-AUD (rounded), so sums of fractions of a cent stay exact. */

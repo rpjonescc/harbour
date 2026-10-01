@@ -1,6 +1,6 @@
 import { ACTION_SYNC_FAILED } from "@/lib/actions/sync-error";
 import type { Config } from "@/lib/config";
-import { budgetSkipReason, makeSpend, noSpend, type Spend } from "@/lib/costs/guard";
+import { makeSpend, noSpend, type Spend } from "@/lib/costs/guard";
 import type { Db } from "@/lib/db/client";
 import { addEvent, type EventKind, finishJob, type Job } from "@/lib/jobs/queue";
 import type { Product } from "@/lib/products/catalog";
@@ -8,9 +8,9 @@ import { collectContext } from "./collect-context";
 import { collectorLabel } from "./labels";
 import { collectorTimeoutMs } from "./registry";
 import { runBounded, watchForStop } from "./scan-bounds";
+import { skipReason } from "./skip-reason";
 import {
   finishScan,
-  lastOkRunAt,
   recordCollectorRun,
   type ScanStatus,
   scanObservations,
@@ -51,9 +51,6 @@ export type AfterScoreInput = {
   statuses: Record<string, CollectorStatus>;
 };
 
-// A weekly collector is due 7 days after its last ok run, less 12 h of slack so a daily scan
-// that starts a little earlier than last week's doesn't push the run back a whole day.
-const WEEKLY_DUE_MS = (7 * 24 - 12) * 60 * 60_000;
 const MAX_OBSERVATIONS = 20_000;
 const STOPPED = "Worker stopped";
 
@@ -87,13 +84,6 @@ function finish(deps: ScanDeps, job: Job, status: "ok" | "failed" | "cancelled",
   }
 }
 
-function weeklySkipReason(scan: Scan, collector: Collector, now: Date): string | null {
-  if (collector.cadence !== "weekly") return null;
-  const last = lastOkRunAt(scan.deps.db, scan.product.id, collector.id);
-  if (!last || now.getTime() - last.getTime() >= WEEKLY_DUE_MS) return null;
-  return `runs weekly; last ran ${last.toISOString().slice(0, 10)}`;
-}
-
 function spendFor(scan: Scan, collector: Collector): Spend {
   const { deps } = scan;
   if (!collector.paid) return noSpend(collector.id);
@@ -103,6 +93,7 @@ function spendFor(scan: Scan, collector: Collector): Spend {
     productId: scan.product.id,
     collector: collector.id,
     jobId: scan.job.id,
+    log: (text) => scan.event("error", `${collectorLabel(collector.id)}: ${text}`),
   });
 }
 
@@ -139,16 +130,9 @@ async function attempt(scan: Scan, collector: Collector): Promise<CollectorResul
     // Prefer why we aborted (timeout, cancel) over the collector's own reaction to it.
     throw run.signal.reason;
   } finally {
-    spend.release();
+    // An abandoned run's calls may still be in flight: their reservations stay counted.
+    spend.release(run.signal.aborted);
   }
-}
-
-/** Why the collector is skipped before it runs (weekly cadence, or a paid one over budget). */
-function skipReason(scan: Scan, collector: Collector, now: Date): string | null {
-  const weekly = weeklySkipReason(scan, collector, now);
-  if (weekly || !collector.paid) return weekly;
-  const { db, budget } = scan.deps;
-  return budgetSkipReason(db, budget.capMicroAud, budget.timeZone, now);
 }
 
 /** Runs one collector and records its outcome; never throws for a collector's own failure. */
@@ -167,14 +151,15 @@ async function runCollector(scan: Scan, collector: Collector): Promise<Collector
       observations: items?.status === "ok" ? items.observations : undefined,
     });
 
-  const skip = skipReason(scan, collector, startedAt);
-  if (skip) {
-    record("skipped", skip);
-    scan.event("status", `${label}: skipped — ${skip}`);
-    return "skipped";
-  }
   let result: CollectorResult;
   try {
+    // Inside the try: a failed budget check fails this collector, not the scan.
+    const skip = skipReason(deps, scan.product.id, collector, startedAt);
+    if (skip) {
+      record("skipped", skip);
+      scan.event("status", `${label}: skipped — ${skip}`);
+      return "skipped";
+    }
     result = await attempt(scan, collector);
     const max = deps.maxObservations ?? MAX_OBSERVATIONS;
     if (result.status === "ok" && result.observations.length > max) {
