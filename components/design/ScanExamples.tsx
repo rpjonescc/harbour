@@ -1,0 +1,101 @@
+import { IssueItem } from "@/components/products/IssueItem";
+import { PagesTable } from "@/components/products/PagesTable";
+import { PaidSourcePanels } from "@/components/products/PaidSourcePanels";
+import { ScanNowButton } from "@/components/products/ScanNowButton";
+import { ScanStatusNote } from "@/components/products/ScanStatusNote";
+import { ScoreBreakdown } from "@/components/products/ScoreBreakdown";
+import { ScoreTiles } from "@/components/products/ScoreTiles";
+import { SearchConsolePanel } from "@/components/products/SearchConsolePanel";
+import { ScoreBar } from "@/components/ui/ScoreBar";
+import { ScoreValue } from "@/components/ui/ScoreValue";
+import { Tabs } from "@/components/ui/Tabs";
+import {
+  EXAMPLE_ISSUE,
+  EXAMPLE_PRODUCT,
+  EXAMPLE_SCAN_STATES,
+  EXAMPLE_SCORES,
+} from "./scan-example-data";
+
+const ZONE = { timeZone: "Europe/London", locale: "en-GB" };
+
+/** Fictional product-page states for checking the scan components in both themes. */
+export function ScanExamples() {
+  const breakdown = EXAMPLE_SCORES.latest?.breakdown ?? [];
+  return (
+    <div className="flex flex-col gap-6">
+      <p className="text-xs text-ink-muted">Illustrative scores, scans and issues.</p>
+      <div className="flex flex-wrap items-center gap-6 text-sm">
+        <ScoreValue value={78} delta={4} />
+        <ScoreValue value={46} delta={-2} complete={false} />
+        <ScoreValue value={null} />
+        <div className="flex w-40 flex-col gap-1">
+          <ScoreBar value={84} />
+          <ScoreBar value={52} />
+          <ScoreBar value={18} />
+          <ScoreBar value={null} />
+        </div>
+        <ScanNowButton productId={EXAMPLE_PRODUCT.id} active="running" />
+      </div>
+      <ScoreTiles scores={EXAMPLE_SCORES} />
+      {EXAMPLE_SCAN_STATES.map(({ label, scan }) => (
+        <div key={label} className="flex flex-col gap-1">
+          <p className="text-2xs uppercase tracking-widest text-ink-muted">{label}</p>
+          <ScanStatusNote scan={scan} latest={EXAMPLE_SCORES.latest} {...ZONE} />
+        </div>
+      ))}
+      <Tabs
+        label="Example score breakdown"
+        tabs={[
+          {
+            id: "seo",
+            label: "SEO",
+            panel: <ScoreBreakdown area="seo" entries={breakdown} complete />,
+          },
+          {
+            id: "geo",
+            label: "GEO",
+            panel: <ScoreBreakdown area="geo" entries={breakdown} complete={false} />,
+          },
+          {
+            id: "aeo",
+            label: "AEO",
+            panel: <ScoreBreakdown area="aeo" entries={[]} complete={false} />,
+          },
+        ]}
+      />
+      <IssueItem issue={EXAMPLE_ISSUE} product={EXAMPLE_PRODUCT} />
+      <PagesTable
+        total={2}
+        rows={[
+          {
+            url: "https://docs.example.com/pricing",
+            status: 200,
+            title: null,
+            problems: ["No title", "No description"],
+          },
+          { url: "https://docs.example.com/old", status: 404, title: null, problems: ["HTTP 404"] },
+        ]}
+      />
+      <SearchConsolePanel
+        search={{
+          state: "ok",
+          summary: {
+            startDate: "2026-09-01",
+            endDate: "2026-09-28",
+            days: [3, 5, 4, 7, 6, 9, 8].map((clicks, i) => ({
+              date: `2026-09-0${i + 1}`,
+              clicks,
+              impressions: clicks * 40,
+            })),
+            clicks: 42,
+            impressions: 1680,
+            topQueries: [{ query: "acme docs setup", clicks: 18, impressions: 300, position: 2.4 }],
+          },
+        }}
+      />
+      <div className="grid gap-3 md:grid-cols-2">
+        <PaidSourcePanels />
+      </div>
+    </div>
+  );
+}

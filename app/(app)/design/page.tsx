@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { BrainExamples } from "@/components/design/BrainExamples";
+import { ScanExamples } from "@/components/design/ScanExamples";
+import { SourcesExamples } from "@/components/design/SourcesExamples";
 import { TokenSwatches } from "@/components/design/TokenSwatches";
 import { Button } from "@/components/ui/Button";
 import { Delta } from "@/components/ui/Delta";
@@ -77,6 +79,12 @@ export default async function DesignPage() {
       </Section>
       <Section title="Second Brain examples">
         <BrainExamples />
+      </Section>
+      <Section title="Visibility scan examples">
+        <ScanExamples />
+      </Section>
+      <Section title="Sources examples">
+        <SourcesExamples productId={getProducts()[0]?.id ?? "acme-docs"} />
       </Section>
     </div>
   );
