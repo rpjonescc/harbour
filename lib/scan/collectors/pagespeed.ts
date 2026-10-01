@@ -5,14 +5,24 @@ import { readCoreWebVitals, readGoogleError } from "./pagespeed-response";
 const ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
 /** PSI runs Lighthouse before answering (15–40 s): a deliberate exception to the 15 s limit. */
 const PSI_TIMEOUT_MS = 90_000;
-/** Full Lighthouse results include screenshots; a few MiB is normal. */
-const PSI_MAX_BYTES = 10 * 1024 * 1024;
+/** With `fields` the answer is a few KiB; 1 MiB leaves room without trusting it. */
+const PSI_MAX_BYTES = 1024 * 1024;
+
+/**
+ * Partial-response mask: only what readCoreWebVitals reads (a full result carries
+ * screenshots and every audit, often several MiB). Keep it in step with pagespeed-response.ts.
+ */
+export const PSI_FIELDS =
+  "loadingExperience/metrics,lighthouseResult(runtimeError,categories/performance/score," +
+  "audits(largest-contentful-paint/numericValue,cumulative-layout-shift/numericValue," +
+  "first-contentful-paint/numericValue,total-blocking-time/numericValue))";
 
 function requestUrl(productUrl: string, key: string | undefined): string {
   const params = new URLSearchParams({
     url: productUrl,
     strategy: "mobile",
     category: "performance",
+    fields: PSI_FIELDS,
   });
   if (key) params.set("key", key);
   return `${ENDPOINT}?${params}`;
@@ -29,15 +39,15 @@ function fetchFailure(error: FetchError): Error {
   return new Error(`PageSpeed Insights request failed (${error.kind})`);
 }
 
-function httpFailure(status: number, body: string, redact: (text: string) => string): Error {
+function httpFailure(status: number, body: string, key: string | undefined): Error {
   const google = readGoogleError(body);
-  const detail = google ? `: ${redact(google.message)}` : "";
+  const message = google && key ? google.message.replaceAll(key, "[redacted]") : google?.message;
+  const detail = message ? `: ${message}` : ".";
   if (status === 429 || google?.quota) {
-    return new Error(
-      `PageSpeed Insights quota exceeded (HTTP ${status})${detail || "."} ` +
-        "Set HARBOUR_PAGESPEED_API_KEY " +
-        "for a higher quota, or wait for the next weekly run.",
-    );
+    const advice = key
+      ? "The API key's quota is used up: raise it in Google Cloud, or wait for the next weekly run."
+      : "Set HARBOUR_PAGESPEED_API_KEY for a higher quota, or wait for the next weekly run.";
+    return new Error(`PageSpeed Insights quota exceeded (HTTP ${status})${detail} ${advice}`);
   }
   return new Error(`PageSpeed Insights answered HTTP ${status}${detail}`);
 }
@@ -45,7 +55,6 @@ function httpFailure(status: number, body: string, redact: (text: string) => str
 async function collect(ctx: CollectContext): Promise<CollectorResult> {
   const subject = new URL(ctx.product.url).href;
   const key = ctx.config.HARBOUR_PAGESPEED_API_KEY;
-  const redact = (text: string) => (key ? text.replaceAll(key, "[redacted]") : text);
   let response: Awaited<ReturnType<CollectContext["fetch"]>>;
   try {
     response = await ctx.fetch(requestUrl(subject, key), {
@@ -61,7 +70,7 @@ async function collect(ctx: CollectContext): Promise<CollectorResult> {
     throw fetchFailure(error);
   }
   if (response.status < 200 || response.status >= 300) {
-    throw httpFailure(response.status, response.body, redact);
+    throw httpFailure(response.status, response.body, key);
   }
   const value = readCoreWebVitals(response.body);
   ctx.log(`performance ${value.performanceScore ?? "unknown"} (mobile)`);

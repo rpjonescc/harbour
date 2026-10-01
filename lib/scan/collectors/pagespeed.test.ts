@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { crawlContext as context } from "@/tests/helpers/crawl";
+import { applyFieldMask } from "@/tests/helpers/field-mask";
 import { DAY, runsOf, setup } from "@/tests/helpers/scan-run";
 import { FetchError } from "../fetch-error";
 import type { SafeFetch, SafeFetchOptions } from "../types";
-import { pagespeed } from "./pagespeed";
+import { PSI_FIELDS, pagespeed } from "./pagespeed";
 
 const FIXTURE = join(
   import.meta.dirname,
@@ -73,8 +74,30 @@ describe("pagespeed collector", () => {
       url: `${PRODUCT}/`,
       strategy: "mobile",
       category: "performance",
+      fields: PSI_FIELDS,
     });
-    expect(calls[0]?.options).toMatchObject({ ignoreRobots: true, timeoutMs: 90_000 });
+    expect(calls[0]?.options).toMatchObject({
+      ignoreRobots: true,
+      timeoutMs: 90_000,
+      maxBytes: 1024 * 1024,
+      onOverflow: "error",
+    });
+  });
+
+  it("asks only for the fields it reads: the masked response reads the same", async () => {
+    const masked = JSON.stringify(applyFieldMask(JSON.parse(recorded), PSI_FIELDS));
+    expect(masked.length).toBeLessThan(recorded.length / 4);
+    const full = await pagespeed.collect(contextWith(answering(recorded).fetch));
+    const trimmed = await pagespeed.collect(contextWith(answering(masked).fetch));
+    expect(trimmed).toEqual(full);
+    const failure = variant((json) => {
+      const lighthouse = json.lighthouseResult as Record<string, unknown>;
+      lighthouse.runtimeError = { code: "NO_FCP", message: "The page did not paint." };
+    });
+    const maskedFailure = JSON.stringify(applyFieldMask(JSON.parse(failure), PSI_FIELDS));
+    await expect(pagespeed.collect(contextWith(answering(maskedFailure).fetch))).rejects.toThrow(
+      "(NO_FCP): The page did not paint.",
+    );
   });
 
   it("reports INP as unknown when there is no field data", async () => {
@@ -92,18 +115,34 @@ describe("pagespeed collector", () => {
     const result = await pagespeed.collect(contextWith(ok.fetch, KEY));
     expect(new URL(ok.calls[0]?.url ?? "").searchParams.get("key")).toBe(KEY);
     expect(JSON.stringify(result)).not.toContain(KEY);
+  });
 
+  it("fails readably on a timeout, without the request URL or key", async () => {
     const failing: SafeFetch = async (url) => {
       throw new FetchError("timeout", `${url} took longer than 90000 ms`);
     };
-    const error = await pagespeed.collect(contextWith(failing, KEY)).catch((e: Error) => e);
+    const error = await pagespeed.collect(contextWith(failing, KEY)).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(Error);
-    expect((error as Error).message).toBe("PageSpeed Insights did not answer within 90 s");
-    expect(JSON.stringify(error)).not.toContain(KEY);
-    expect((error as Error).cause).toBeUndefined();
+    const { message, cause, stack } = error as Error;
+    expect(message).toBe("PageSpeed Insights did not answer within 90 s");
+    expect(`${message} ${stack} ${JSON.stringify(error)}`).not.toContain(KEY);
+    expect(cause).toBeUndefined();
   });
 
-  it("fails readably when the quota is used up", async () => {
+  it("says the key's own quota is used up when a key is set", async () => {
+    const body = googleError(
+      429,
+      "Quota exceeded for quota metric 'Queries'.",
+      "rateLimitExceeded",
+    );
+    const run = pagespeed.collect(contextWith(answering(body, 429).fetch, KEY));
+    await expect(run).rejects.toThrow(
+      "PageSpeed Insights quota exceeded (HTTP 429): Quota exceeded for quota metric 'Queries'. " +
+        "The API key's quota is used up: raise it in Google Cloud, or wait for the next weekly run.",
+    );
+  });
+
+  it("fails readably when the shared quota is used up (no key)", async () => {
     const body = googleError(
       429,
       "Quota exceeded for quota metric 'Queries'.",
