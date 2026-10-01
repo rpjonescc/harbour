@@ -4,6 +4,7 @@ import { addEvent, type EventKind, finishJob, isCancelRequested, type Job } from
 import type { Product } from "@/lib/products/catalog";
 import { collectorLabel, collectorTimeoutMs } from "./registry";
 import {
+  collectorObservations,
   finishScan,
   lastOkRunAt,
   recordCollectorRun,
@@ -47,6 +48,8 @@ type Scan = {
   signal: AbortSignal;
   /** Set once a stop cut a collector short or kept one from running. */
   interrupted: boolean;
+  /** How each collector that has run so far ended. */
+  statuses: Record<string, CollectorStatus>;
   event: (kind: EventKind, text: string) => void;
 };
 
@@ -137,6 +140,10 @@ async function attempt(scan: Scan, collector: Collector): Promise<CollectorResul
         fetch: deps.fetch,
         log: (text) => scan.event("status", `${label}: ${text}`),
         signal,
+        earlier: {
+          status: (id) => scan.statuses[id],
+          observations: (id) => collectorObservations(deps.db, scan.scanId, id),
+        },
       }),
     timeoutMs,
     scan.signal,
@@ -234,9 +241,18 @@ export async function runScan(deps: ScanDeps, job: Job): Promise<void> {
   }
   const scanId = startScan(deps.db, product.id, job.id, deps.now());
   const stop = watchForStop(deps, job.id);
-  const scan: Scan = { deps, job, product, scanId, signal: stop.signal, interrupted: false, event };
+  const statuses: Record<string, CollectorStatus> = {};
+  const scan: Scan = {
+    deps,
+    job,
+    product,
+    scanId,
+    signal: stop.signal,
+    interrupted: false,
+    event,
+    statuses,
+  };
   try {
-    const statuses: Record<string, CollectorStatus> = {};
     for (const collector of deps.collectors) {
       stop.check();
       if (stop.signal.aborted) {

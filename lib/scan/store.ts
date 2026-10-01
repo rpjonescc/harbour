@@ -92,13 +92,20 @@ export function latestOkObservations(
 ): { observations: Observation[]; finishedAt: Date } | null {
   const run = latestOkRun(db, productId, collector);
   if (!run) return null;
-  const rows = db
+  return {
+    observations: collectorObservations(db, run.scanId, collector),
+    finishedAt: run.finishedAt,
+  };
+}
+
+/** What one collector stored in a scan, in insertion order. */
+export function collectorObservations(db: Db, scanId: number, collector: string): Observation[] {
+  return db
     .select({ kind: observations.kind, subject: observations.subject, value: observations.value })
     .from(observations)
-    .where(and(eq(observations.scanId, run.scanId), eq(observations.collector, collector)))
+    .where(and(eq(observations.scanId, scanId), eq(observations.collector, collector)))
     .orderBy(observations.id)
     .all();
-  return { observations: rows, finishedAt: run.finishedAt };
 }
 
 /** Every observation a scan stored, with its collector. */

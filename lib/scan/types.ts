@@ -53,6 +53,14 @@ export type SafeFetchOptions = {
 /** Outbound HTTP for collectors: timeouts, redirect and size limits, robots, politeness. */
 export type SafeFetch = (url: string, options: SafeFetchOptions) => Promise<SafeFetchResponse>;
 
+/** What collectors that already ran in this scan ended with; read-only. */
+export type EarlierResults = {
+  /** How the collector ended in this scan; undefined when it has not run (yet). */
+  status(collector: string): CollectorStatus | undefined;
+  /** What the collector stored in this scan: empty unless it ended ok. */
+  observations(collector: string): Observation[];
+};
+
 export type CollectContext = {
   /** From harbour.config.json. */
   product: Product;
@@ -63,12 +71,16 @@ export type CollectContext = {
   log: (message: string) => void;
   /** Aborted on timeout, job cancel or worker shutdown. */
   signal: AbortSignal;
+  /** Results of the collectors that ran before this one in the same scan. */
+  earlier: EarlierResults;
 };
 
 export type Collector = {
   /** "crawler" | "readiness" | "pagespeed" | "search-console" */
   id: string;
   cadence: "daily" | "weekly";
+  /** Collectors whose results this one reads through `ctx.earlier`: they must run before it. */
+  dependsOn?: readonly string[];
   /** Throwing means the collector failed. */
   collect(ctx: CollectContext): Promise<CollectorResult>;
 };

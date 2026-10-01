@@ -28,6 +28,7 @@ export function crawlContext(url: string, overrides: Partial<CollectContext> = {
     }),
     log: () => {},
     signal: new AbortController().signal,
+    earlier: { status: () => undefined, observations: () => [] },
     ...overrides,
   };
   return ctx;
