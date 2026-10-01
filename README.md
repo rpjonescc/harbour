@@ -122,7 +122,13 @@ Start the app and register your first passkey:
 ```bash
 pnpm dev            # http://localhost:3400
 pnpm setup-token    # prints a one-time link; open it to create a passkey
+pnpm worker         # runs queued agent jobs, one at a time (reads .env)
 ```
+
+The worker is the only process that runs agents or touches the brain's git history. Between
+jobs it saves your own brain edits (commit + push) once they have been quiet for 2 minutes,
+and retries unpushed commits every 10 minutes. Files a failed or cancelled run leaves behind
+are moved to `quarantine/job-<id>` next to the database before the brain is restored.
 
 ## Configuration
 
@@ -197,7 +203,8 @@ Before the first e2e run, install the browser once: `pnpm exec playwright instal
 app/          routes (thin: parse input, call lib/, render)
 components/   UI components built on semantic tokens
 design/       tokens.css (primitives + semantic) and the token list for /design
-lib/          auth, brain, config, db, products, security, formatting — pure logic + tests
+lib/          auth, agents, brain, config, db, jobs, products, security, formatting — logic + tests
+worker/       the job worker (`pnpm worker`): agent runs, autosave and push retries
 deploy/       systemd unit template, install script, deployment guide
 drizzle/      SQL migrations
 scripts/      repo checks and the setup-token CLI
