@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { discardRun } from "@/lib/agents/brain-discard";
@@ -6,13 +6,16 @@ import { commitChanges, pushBrain, type RunSnapshot, snapshotRun } from "@/lib/a
 import { agentEnv, claudeArgs } from "@/lib/agents/claude-args";
 import type { RunOutcome, runProcess } from "@/lib/agents/process";
 import { PROMPT_VERSION } from "@/lib/agents/prompts";
-import { importProposals, type Proposals, parseProposals } from "@/lib/agents/proposals";
 import { type AgentSpec, specForJob } from "@/lib/agents/specs";
 import { type StreamResult, summariseLine } from "@/lib/agents/stream";
+import { buildWeeklyExport } from "@/lib/analyst/export";
+import { capExport } from "@/lib/analyst/export-cap";
+import { ANALYST_PROMPT_VERSION } from "@/lib/analyst/prompt";
 import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import type { Product } from "@/lib/products/catalog";
 import { gatedPaths, JobFailure, recordTouched } from "./agent-gate";
+import { checkRequiredOutputs, importAgentOutput } from "./agent-output";
 import { brainRootError, finish, recoveryBlock, saveOwnerNotes } from "./git-jobs";
 import { newestOwnerChange } from "./housekeeping";
 import { addEvent, deferJob, type EventKind, isCancelRequested, type Job } from "./queue";
@@ -30,6 +33,8 @@ export type RunDeps = {
   timeoutMs: number;
   products: readonly Product[];
   today: string;
+  /** HARBOUR_TIMEZONE: local dates in the weekly export. */
+  timeZone: string;
   home: string;
   path: string;
   run: typeof runProcess;
@@ -37,8 +42,6 @@ export type RunDeps = {
   /** True once the worker is shutting down: the run is cancelled and discarded. */
   stopping: () => boolean;
 };
-
-const MAX_PROPOSALS_BYTES = 1024 * 1024;
 
 // How long the brain must be unchanged before an agent run starts.
 const QUIET_MS = 3 * 60_000;
@@ -49,11 +52,14 @@ function describeDuration(ms: number): string {
 }
 
 function specOrFail(deps: RunDeps, job: Job): AgentSpec {
-  if (job.kind !== "research" && job.kind !== "discovery") {
+  if (job.kind !== "research" && job.kind !== "discovery" && job.kind !== "weekly-analyst") {
     throw new JobFailure(`Not an agent job: ${job.kind}`);
   }
+  const { db, products, timeZone } = deps;
+  const weeklyExport = (week: string) =>
+    capExport(buildWeeklyExport(db, { products, week, now: deps.now(), timeZone }));
   try {
-    return specForJob(job.kind, job.params, deps.products, deps.today);
+    return specForJob(job.kind, job.params, { products, today: deps.today, weeklyExport });
   } catch (error) {
     throw new JobFailure((error as Error).message);
   }
@@ -99,27 +105,10 @@ function checkOutcome(deps: RunDeps, outcome: RunOutcome, result: StreamResult |
   }
 }
 
-function readProposals(root: string, spec: AgentSpec, paths: string[]): Proposals | null {
-  if (!spec.proposalsPath) return null;
-  if (!paths.includes(spec.proposalsPath)) {
-    throw new JobFailure(`Agent did not write ${spec.proposalsPath}`);
-  }
-  const file = join(root, spec.proposalsPath);
-  const { size } = statSync(file);
-  if (size > MAX_PROPOSALS_BYTES) {
-    throw new JobFailure(`${spec.proposalsPath} is too large (${size} bytes; the limit is 1 MiB)`);
-  }
-  try {
-    return parseProposals(readFileSync(file, "utf8"));
-  } catch (error) {
-    throw new JobFailure((error as Error).message);
-  }
-}
-
 const STOPPED = "Cancelled — the worker was stopped";
 
 /**
- * Runs one research/discovery job end to end; always finishes the job row. `pushed` is whether
+ * Runs one agent job (research, discovery, weekly analyst) end to end; always finishes the job row. `pushed` is whether
  * the agent's commit reached the remote (null when nothing was committed), for the push backoff.
  */
 export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: boolean | null }> {
@@ -160,7 +149,8 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     const log = touchedLog(deps.quarantineRoot, job.id);
     touched = log;
 
-    db.insert(agentRuns).values({ jobId: job.id, promptVersion: PROMPT_VERSION }).run();
+    const promptVersion = spec.kind === "weekly-analyst" ? ANALYST_PROMPT_VERSION : PROMPT_VERSION;
+    db.insert(agentRuns).values({ jobId: job.id, promptVersion }).run();
     event("status", `Started ${spec.label}`);
     let result: StreamResult | undefined;
     const outcome = await deps.run({
@@ -201,22 +191,22 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     checkOutcome(deps, outcome, result);
 
     const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
-    const parsed = readProposals(root, spec, paths);
-    const sha = commitChanges(
-      root,
-      paths,
-      `agent(${spec.kind}): ${spec.label.replace(/^[^:]+:\s*/, "")}`,
+    checkRequiredOutputs(spec, paths); // a half-done run is discarded, never committed
+    // Import and commit together: invalid output or a failed commit leaves no rows behind.
+    const message = `agent(${spec.kind}): ${spec.label.replace(/^[^:]+:\s*/, "")}`;
+    const { imported, sha } = db.transaction(
+      () => {
+        const imported = importAgentOutput(db, root, spec, job, deps.products, deps.now());
+        return { imported, sha: commitChanges(root, paths, message) };
+      },
+      { behavior: "immediate" },
     );
     snapshot = undefined; // committed: nothing left to discard
     removeRunMarker(deps.quarantineRoot, job.id);
     setRun({ filesChanged: paths, commitSha: sha });
     event("status", `Committed ${paths.length} file(s)`);
 
-    if (parsed && job.kind === "discovery") {
-      const productId = job.params.productId ?? "";
-      const { added, skipped } = importProposals(db, productId, parsed, job.id, deps.now());
-      event("status", `Imported ${added} proposal(s); ${skipped} already known`);
-    }
+    if (imported) event("status", imported);
 
     const push = pushBrain(root);
     setRun({ pushed: push.ok });

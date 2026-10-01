@@ -28,6 +28,7 @@ export function setup(
     timeoutMs: 20_000,
     products,
     today: "2026-10-01",
+    timeZone: "Europe/London",
     home: brain.root,
     path: process.env.PATH ?? "",
     run: (o) =>
@@ -58,7 +59,7 @@ export function reload(deps: Pick<RunDeps, "db">, id: number): Job {
 
 export async function runOne(
   deps: RunDeps,
-  kind: "research" | "discovery",
+  kind: "research" | "discovery" | "weekly-analyst",
   params: Record<string, string>,
 ) {
   enqueueJob(deps.db, kind, params, null);

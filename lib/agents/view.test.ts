@@ -20,6 +20,9 @@ describe("jobLabel", () => {
     expect(jobLabel({ kind: "scan", params: { productId: "acme-docs" } }, products)).toBe(
       "Scan: Acme Docs",
     );
+    expect(jobLabel({ kind: "weekly-analyst", params: { week: "2026-W40" } }, products)).toBe(
+      "Weekly report: 2026-W40",
+    );
   });
 });
 

@@ -291,8 +291,10 @@ configurable `editor://` URL.
 
 The worker spawns `claude -p` with:
 
-- a prompt template from `lib/agents/prompts/` filled with context (paths, dates,
-  data export file),
+- a prompt template (`lib/agents/prompts.ts`, `lib/analyst/prompt.ts`) filled with context
+  (paths, dates; for the weekly analyst the data export itself, embedded in the prompt as
+  fenced JSON labelled as data, capped at 48 KiB with a `truncated` note — not a separate
+  file; the agent reads the research docs itself),
 - working directory: the brain directory (`HARBOUR_BRAIN_DIR`, referred to as `brain/` below),
 - an explicit allowed-tools list: web search/fetch, read anywhere in `brain/`,
   write within `brain/` only; no shell, no access to product repos,
@@ -315,7 +317,8 @@ invalid output is marked failed with the reason; nothing partial is imported.
 | Research refresh | Monthly + manual | updates stale research docs |
 
 The weekly analyst receives a JSON export of the last 7 days (scores, deltas, key
-observations, open actions) plus the research docs; its report covers: where we
+observations, open actions), embedded in its prompt and capped at 48 KiB, and reads the
+research docs itself; its report covers: where we
 stand, what improved, what got worse, top opportunities, and new competitors seen.
 
 ## 8. Actions board

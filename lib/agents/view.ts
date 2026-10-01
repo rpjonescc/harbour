@@ -13,6 +13,7 @@ export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly P
     const name = products.find((p) => p.id === id)?.name ?? id;
     return `${job.kind === "scan" ? "Scan" : "Discovery"}: ${name}`;
   }
+  if (job.kind === "weekly-analyst") return `Weekly report: ${job.params.week ?? ""}`;
   if (job.kind === "notes-sync") return "Save notes to GitHub";
   return "Sync brain to GitHub";
 }

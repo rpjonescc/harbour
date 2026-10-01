@@ -78,6 +78,7 @@ async function main() {
           timeoutMs: config.HARBOUR_AGENT_TIMEOUT_MINUTES * 60_000,
           products: getProducts(),
           today: isoDateIn(config.HARBOUR_TIMEZONE, new Date()),
+          timeZone: config.HARBOUR_TIMEZONE,
           home: process.env.HOME ?? "",
           path: process.env.PATH ?? "",
           run: runProcess,

@@ -9,7 +9,8 @@ the Actions board are built. The scan measures how findable each product is in c
 (GEO) and as direct answers (AEO), scored 0–100 with explainable breakdowns. The roadmap
 continues with:
 
-- **Weekly AI analyst** — turns the week's data into a report and a prioritised action plan.
+- **Weekly AI analyst schedule** — the analyst agent is built (see [Weekly analyst](#weekly-analyst));
+  its Sunday 20:00 schedule and a **Run now** button come next.
 - **Paid sources** — AI engine mentions and citations, keyword rankings and featured snippets
   (they need API keys, so they show as "not connected" for now).
 
@@ -116,7 +117,7 @@ run buttons disabled until it is. Agents only have web research (search and
 fetch) and file tools limited to the brain directory: no shell, no hooks, no MCP servers.
 
 The **git gate** checks every run: a run may change only its own target files (Markdown, plus
-`proposals.json` for discovery). Any other change fails the run, and everything the agent changed
+`proposals.json` for discovery and the weekly analyst). Any other change fails the run, and everything the agent changed
 is moved to quarantine and restored from git. An attempt to write outside the brain fails the run
 too, even though Claude Code denies the write; the error names the path it tried. The gate knows
 which files the agent wrote (every write it makes is listed in its output), so you can keep
@@ -135,6 +136,28 @@ Saving and syncing need no action. The Agents page and the Second Brain show uns
 ("saved automatically in about 2 minutes") and commits waiting to sync to GitHub ("retrying
 automatically"); **Save now** and **Retry now** are optional shortcuts. While an interrupted run
 is being recovered, a banner says so and autosave is paused.
+
+### Weekly analyst
+
+The weekly analyst is an agent that turns the week's data into a report and suggested actions.
+It runs as a `weekly-analyst` job for one ISO week (for example `2026-W40`), on the same runner,
+git gate and Claude subscription as the other agents (no paid API calls).
+
+- **What it reads** — a JSON export of the last 7 days that Harbour embeds in its prompt: each
+  product's scores and their change over the week, the latest sub-scores, issues, collector
+  results and Search Console totals, competitors you approved or that were proposed, and your
+  open and suggested actions. Missing data stays `null` (a gap, never a zero). The export holds no
+  secrets, and is capped at 48 KiB: when it is bigger, the least useful details are cut first and
+  the cuts are listed in its `truncated` field. The agent also reads your research documents,
+  your product notes and the previous weekly report, without changing them.
+- **What it writes** — exactly two files: `reports/weekly/<week>.md` (where we stand, what
+  improved, what got worse, top opportunities, competitors seen and data gaps) and
+  `reports/weekly/<week>.proposals.json` (at most 10 suggested actions). Anything else fails the
+  run, and a run that skips either file or writes an invalid proposals file is discarded with
+  nothing imported.
+- **Where suggestions appear** — on the **Actions** board as **Suggested** (`/actions`), labelled
+  as coming from the weekly analyst; accept or reject each one. An action the product already
+  has (suggested, open, in progress, snoozed or rejected) is not suggested again.
 
 ### Install as an app
 

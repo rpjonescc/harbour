@@ -9,7 +9,8 @@ function addDays(isoDate: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-const RULES = `Rules:
+/** Rules every agent prompt ends with. */
+export const RULES = `Rules:
 - Work only inside the current directory (the owner's private Second Brain).
 - Do not create, edit or delete any other file than the target file(s) above. Changes elsewhere are discarded and fail the run.
 - Use web search and web fetch to research. Prefer primary sources (official documentation, the platform's own announcements, peer-reviewed or large studies) over blogs.
@@ -17,16 +18,18 @@ const RULES = `Rules:
 - Write in plain English for a beginner. Explain jargon on first use.`;
 
 /** Collapses whitespace so interpolated values cannot start new prompt lines. */
-function oneLine(value: string): string {
+export function oneLine(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function assertDate(today: string): void {
+/** Throws unless `today` is YYYY-MM-DD. */
+export function assertDate(today: string): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(today))
     throw new Error(`Invalid date (expected YYYY-MM-DD): ${oneLine(today)}`);
 }
 
-function productContext(products: readonly Product[]): string {
+/** One line per product: name, URL and the owner's notes to read. */
+export function productContext(products: readonly Product[]): string {
   return products
     .map(
       (p) =>

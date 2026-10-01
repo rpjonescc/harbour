@@ -1,49 +1,95 @@
+import { weeklyAnalystPrompt, weeklyPaths } from "@/lib/analyst/prompt";
 import type { Product } from "@/lib/products/catalog";
 import type { AllowedPaths } from "./brain-git";
 import { discoveryPrompt, researchPrompt } from "./prompts";
 import { RESEARCH_TOPICS } from "./topics";
 
+export type AgentKind = "research" | "discovery" | "weekly-analyst";
+/** The structured file a run writes for Harbour to import, if any. */
+export type AgentOutput = { kind: "discovery" | "weekly"; path: string } | null;
+
 export type AgentSpec = {
-  kind: "research" | "discovery";
+  kind: AgentKind;
   label: string;
   prompt: string;
   allowed: AllowedPaths;
   targets: string[];
-  proposalsPath: string | null;
+  output: AgentOutput;
+  /** Brain files that must exist before the run starts. */
   requiredFiles: string[];
+  /** Brain files the run must write, or it fails and nothing is committed. */
+  requiredOutputs: string[];
 };
+
+export type SpecContext = {
+  products: readonly Product[];
+  today: string;
+  /** The weekly analyst's capped export for `week` (worker only). */
+  weeklyExport?: (week: string) => string;
+};
+
+function researchSpec(params: Record<string, string>, context: SpecContext): AgentSpec {
+  const topic = RESEARCH_TOPICS.find((t) => t.id === params.topic);
+  if (!topic) throw new Error(`Unknown research topic: ${params.topic ?? "(none)"}`);
+  return {
+    kind: "research",
+    label: `Research: ${topic.title}`,
+    prompt: researchPrompt(topic, context.products, context.today),
+    allowed: { prefixes: [], exact: [topic.path] },
+    targets: [topic.path],
+    output: null,
+    requiredFiles: [],
+    requiredOutputs: [],
+  };
+}
+
+function discoverySpec(params: Record<string, string>, context: SpecContext): AgentSpec {
+  const product = context.products.find((p) => p.id === params.productId);
+  if (!product) throw new Error(`Unknown product: ${params.productId ?? "(none)"}`);
+  const dir = `products/${product.id}`;
+  const proposals = `${dir}/proposals.json`;
+  const targets = [`${dir}/discovery.md`, proposals];
+  return {
+    kind: "discovery",
+    label: `Discovery: ${product.name}`,
+    prompt: discoveryPrompt(product, context.today),
+    allowed: { prefixes: [], exact: [...targets] },
+    targets,
+    output: { kind: "discovery", path: proposals },
+    requiredFiles: [`${dir}/notes.md`],
+    requiredOutputs: [proposals],
+  };
+}
+
+function weeklySpec(params: Record<string, string>, context: SpecContext): AgentSpec {
+  const week = params.week ?? "";
+  const paths = weeklyPaths(week); // throws on anything but YYYY-Www
+  if (!context.weeklyExport) throw new Error("The weekly export is not available");
+  const targets = [paths.report, paths.proposals];
+  return {
+    kind: "weekly-analyst",
+    label: `Weekly report: ${week}`,
+    prompt: weeklyAnalystPrompt({
+      week,
+      today: context.today,
+      products: context.products,
+      exportJson: context.weeklyExport(week),
+    }),
+    allowed: { prefixes: [], exact: [...targets] },
+    targets,
+    output: { kind: "weekly", path: paths.proposals },
+    requiredFiles: [],
+    requiredOutputs: [...targets],
+  };
+}
 
 /** Turns a queued job's params into exactly what the agent may do. */
 export function specForJob(
-  kind: "research" | "discovery",
+  kind: AgentKind,
   params: Record<string, string>,
-  products: readonly Product[],
-  today: string,
+  context: SpecContext,
 ): AgentSpec {
-  if (kind === "research") {
-    const topic = RESEARCH_TOPICS.find((t) => t.id === params.topic);
-    if (!topic) throw new Error(`Unknown research topic: ${params.topic ?? "(none)"}`);
-    return {
-      kind,
-      label: `Research: ${topic.title}`,
-      prompt: researchPrompt(topic, products, today),
-      allowed: { prefixes: [], exact: [topic.path] },
-      targets: [topic.path],
-      proposalsPath: null,
-      requiredFiles: [],
-    };
-  }
-  const product = products.find((p) => p.id === params.productId);
-  if (!product) throw new Error(`Unknown product: ${params.productId ?? "(none)"}`);
-  const dir = `products/${product.id}`;
-  const targets = [`${dir}/discovery.md`, `${dir}/proposals.json`];
-  return {
-    kind,
-    label: `Discovery: ${product.name}`,
-    prompt: discoveryPrompt(product, today),
-    allowed: { prefixes: [], exact: [...targets] },
-    targets,
-    proposalsPath: `${dir}/proposals.json`,
-    requiredFiles: [`${dir}/notes.md`],
-  };
+  if (kind === "research") return researchSpec(params, context);
+  if (kind === "discovery") return discoverySpec(params, context);
+  return weeklySpec(params, context);
 }

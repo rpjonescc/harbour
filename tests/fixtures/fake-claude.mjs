@@ -22,6 +22,23 @@ const sampleProposals = {
   ],
 };
 
+const weeklyProposals = (productId) => ({
+  actions: [
+    {
+      productId,
+      area: "GEO",
+      title: "Answer the top buyer question on the home page",
+      why: "AI assistants quote pages that answer the question directly.",
+      fix: "Add a two-sentence answer near the top of the home page.",
+      check: "The home page answers the question in its first paragraph.",
+      impact: "high",
+      effort: "small",
+      evidence: [{ url: "https://docs.example.com/", note: "No direct answer on the home page" }],
+      docs: ["research/geo/how-ai-engines-pick-sources.md"],
+    },
+  ],
+});
+
 function write(rel, content) {
   const abs = join(process.cwd(), rel);
   mkdirSync(dirname(abs), { recursive: true });
@@ -50,7 +67,12 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
   tool("WebSearch", { query: "fake research query" });
   if (scenario !== "noop") {
     for (const rel of targets) {
-      if (rel.endsWith("proposals.json")) {
+      if (/^reports\/weekly\/.+\.proposals\.json$/.test(rel)) {
+        const productId = scenario === "bad-weekly" ? "ghost-product" : "acme-docs";
+        write(rel, JSON.stringify(weeklyProposals(productId), null, 2));
+      } else if (rel.endsWith(".md") && scenario === "no-report") {
+        // Skips the report: a half-done run.
+      } else if (rel.endsWith("proposals.json")) {
         write(rel, scenario === "bad-json" ? "{ nope" : JSON.stringify(sampleProposals, null, 2));
       } else {
         write(
