@@ -6,6 +6,7 @@ import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
 import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
+import { keepAlive } from "@/lib/jobs/heartbeat";
 import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
 import { makeScheduler } from "@/lib/jobs/scheduler";
@@ -39,7 +40,7 @@ async function main() {
     } else if (job.kind === "notes-sync") {
       scheduler.notesSynced(runNotesSyncJob({ db, root, quarantineRoot, now }, job));
     } else {
-      await runAgentJob(
+      const { pushed } = await runAgentJob(
         {
           db,
           root,
@@ -58,6 +59,8 @@ async function main() {
         },
         job,
       );
+      // A failed agent push backs off like any other, instead of retrying at the next check.
+      if (pushed !== null) scheduler.pushed(pushed);
     }
   };
 
@@ -69,11 +72,11 @@ async function main() {
       continue;
     }
     console.log(`job ${job.id} (${job.kind}) started`);
-    const beat = setInterval(() => heartbeat(db, job.id), HEARTBEAT_MS);
+    const stopBeat = keepAlive(job.id, () => heartbeat(db, job.id), HEARTBEAT_MS);
     try {
       await runJob(job);
     } finally {
-      clearInterval(beat);
+      stopBeat();
       console.log(`job ${job.id} finished`);
     }
   }
