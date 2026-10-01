@@ -48,6 +48,20 @@ describe("deriveIssues", () => {
     });
   });
 
+  it("names every AI search agent in the robots.txt fix", () => {
+    const blocked = readiness({
+      robotsTxt: { state: "ok", aiCrawlerAccess: { PerplexityBot: "blocked" } },
+    });
+    expect(deriveIssues([blocked])[0]?.fix).toContain(
+      "(OAI-SearchBot, ChatGPT-User, PerplexityBot, Claude-SearchBot)",
+    );
+  });
+
+  it("raises no readiness issue for a malformed product URL", () => {
+    const bad = { ...readiness({ llmsTxt: { present: false } }), subject: "not a url" };
+    expect(deriveIssues([bad])).toEqual([]);
+  });
+
   it("finds missing titles and descriptions on HTML pages only", () => {
     const issues = deriveIssues([
       htmlPage("/a", { title: null, titleLength: 0, descriptionLength: 0 }),

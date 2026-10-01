@@ -4,9 +4,12 @@ import type { ScanObservation } from "./types";
 // The observation fields the UI reads, validated at the boundary: stored JSON is external data.
 // Each mirrors the collector's own type (CrawledPage, CrawlSite, Readiness, GscMetrics).
 
+// Stored URLs are parsed later (paths, robots.txt location): a malformed one is skipped here.
+const url = z.string().refine((value) => URL.canParse(value));
+
 const crawledPage = z.object({
   status: z.number(),
-  finalUrl: z.string(),
+  finalUrl: url,
   title: z.string().nullable(),
   titleLength: z.number().nullable(),
   descriptionLength: z.number().nullable(),
@@ -44,24 +47,29 @@ export type SiteFacts = z.infer<typeof crawlSite>;
 export type ReadinessFacts = z.infer<typeof readiness> & { url: string };
 export type GscMetricsFacts = z.infer<typeof gscMetrics> & { key: string };
 
-/** Observations of one kind that parse; anything malformed is left out (a gap, not a zero). */
+/**
+ * Observations of one kind that parse (and, with `urlSubject`, whose subject is a URL); anything
+ * malformed is left out (a gap, not a zero).
+ */
 function read<T extends z.ZodType>(
   observations: readonly ScanObservation[],
   collector: string,
   kind: string,
   shape: T,
+  urlSubject = false,
 ): { subject: string; value: z.infer<T> }[] {
   return observations.flatMap((o) => {
     if (o.collector !== collector || o.kind !== kind) return [];
     const parsed = shape.safeParse(o.value);
-    return parsed.success ? [{ subject: o.subject, value: parsed.data }] : [];
+    if (!parsed.success || (urlSubject && !URL.canParse(o.subject))) return [];
+    return [{ subject: o.subject, value: parsed.data }];
   });
 }
 
 /** Crawled pages, once each by final URL (a redirect and its target are one page). */
 export function crawledPages(observations: readonly ScanObservation[]): PageFacts[] {
   const seen = new Set<string>();
-  return read(observations, "crawler", "page", crawledPage).flatMap(({ subject, value }) => {
+  return read(observations, "crawler", "page", crawledPage, true).flatMap(({ subject, value }) => {
     if (seen.has(value.finalUrl)) return [];
     seen.add(value.finalUrl);
     return [{ ...value, url: subject }];
@@ -77,7 +85,7 @@ export function crawlSiteFacts(observations: readonly ScanObservation[]): SiteFa
 }
 
 export function readinessFacts(observations: readonly ScanObservation[]): ReadinessFacts | null {
-  const found = read(observations, "readiness", "readiness", readiness)[0];
+  const found = read(observations, "readiness", "readiness", readiness, true)[0];
   return found ? { ...found.value, url: found.subject } : null;
 }
 

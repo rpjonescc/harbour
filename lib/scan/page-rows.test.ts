@@ -25,6 +25,14 @@ describe("pageRows", () => {
     expect(rows[0]?.problems).toEqual(["No title", "No description", "No h1"]);
   });
 
+  it("leaves out a page whose stored URL is malformed rather than failing", () => {
+    const bad = { ...htmlPage("/a"), subject: "not a url" };
+    const badFinal = htmlPage("/b", { finalUrl: "::" });
+    const { rows, total } = pageRows([bad, badFinal, htmlPage("/c")]);
+    expect(rows.map((r) => r.url)).toEqual([at("/c")]);
+    expect(total).toBe(1);
+  });
+
   it("keeps the first 50 rows and reports the total", () => {
     const pages = Array.from({ length: 60 }, (_, i) => errorPage(`/p${i}`, 500));
     const { rows, total } = pageRows(pages);

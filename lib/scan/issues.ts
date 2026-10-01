@@ -142,7 +142,7 @@ const aiCrawlersBlocked: Rule = ({ readiness }) => {
       problem: search
         ? "AI search agents can't read the site, so AI answers can't cite it."
         : "Training-only AI crawlers are blocked; AI search agents can still read the site.",
-      fix: "Allow the AI search agents (OAI-SearchBot, ChatGPT-User, PerplexityBot, Claude-SearchBot) in robots.txt; blocking training-only crawlers is your choice.",
+      fix: `Allow the AI search agents (${[...AI_RETRIEVAL_AGENTS].join(", ")}) in robots.txt; blocking training-only crawlers is your choice.`,
       check: "robots.txt lets each AI search agent fetch /.",
     },
     blocked.length > 0 ? [atSite(readiness, "/robots.txt")] : [],
