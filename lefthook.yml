@@ -8,10 +8,12 @@ pre-commit:
     files:
       run: pnpm check:files
     private:
-      run: pnpm check:private
+      run: pnpm check:private --require-terms
 pre-push:
   commands:
     private:
       run: pnpm check:private --commits
+      # git passes the refs being pushed on stdin; the scan derives its commit ranges from them.
+      use_stdin: true
     check:
       run: pnpm check
