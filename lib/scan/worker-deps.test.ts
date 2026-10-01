@@ -20,6 +20,10 @@ describe("workerScanDeps", () => {
     expect(deps().scoreScan).toBe(noScoring);
   });
 
+  it("registers the crawler first: later collectors read its pages", () => {
+    expect(COLLECTORS.map((collector) => collector.id)).toEqual(["crawler"]);
+  });
+
   it("only lets the fetch reach configured product hosts", async () => {
     const error = await fetchError(deps().fetch("https://example.org/", { maxBytes: 64 }));
     expect(error.kind).toBe("network");

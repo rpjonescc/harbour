@@ -1,9 +1,10 @@
+import { crawler } from "./collectors/crawler";
 import type { Collector, ScoreScan } from "./types";
 
 const MINUTE = 60_000;
 
 /** Collectors a scan runs, in order (the crawler first: later collectors read its pages). */
-export const COLLECTORS: readonly Collector[] = [];
+export const COLLECTORS: readonly Collector[] = [crawler];
 
 const LABELS: Record<string, string> = {
   crawler: "Crawler",

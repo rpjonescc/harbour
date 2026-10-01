@@ -1,0 +1,150 @@
+import { crawlContext as context, crawl, html, NO_HTML } from "@/tests/helpers/crawl";
+import { closeSites, never, redirect, site, text } from "@/tests/helpers/http-site";
+import { createSafeFetch } from "../fetch";
+import { HostLimiter } from "../host-limiter";
+import { createCrawler } from "./crawler";
+
+afterEach(closeSites);
+
+describe("crawler robots.txt state", () => {
+  it("reports a robots.txt that redirects off the allowlist and crawls on", async () => {
+    const { origin } = await site({
+      "/robots.txt": redirect("https://cdn.example.net/robots.txt"),
+      "/": html("Home"),
+    });
+    const { pages, site: summary } = await crawl(context(`${origin}/`));
+    expect(pages).toHaveLength(1);
+    expect(summary).toMatchObject({ robotsTxt: "unfollowable_redirect", pagesCrawled: 1 });
+  });
+
+  it("reports a missing robots.txt", async () => {
+    const { origin } = await site({ "/": html("Home") });
+    const { site: summary } = await crawl(context(`${origin}/`));
+    expect(summary).toMatchObject({ robotsTxt: "missing", sitemapsRead: 0, pagesInSitemap: 0 });
+  });
+
+  it("fails readably when robots.txt keeps it off the product URL", async () => {
+    const { origin } = await site({
+      "/robots.txt": text("User-agent: HarbourBot\nDisallow: /\n"),
+      "/": html("Home"),
+    });
+    await expect(createCrawler().collect(context(`${origin}/`))).rejects.toThrow(
+      `Could not crawl ${origin}/: robots.txt disallows`,
+    );
+  });
+
+  it("fails readably when the product URL cannot be reached", async () => {
+    const { origin } = await site({ "/robots.txt": text(""), "/": never });
+    const fetch = createSafeFetch({
+      allowedHosts: new Set(["127.0.0.1"]),
+      allowLoopback: true,
+      timeoutMs: 50,
+      limiter: new HostLimiter({ concurrency: 2, spacingMs: 1 }),
+    });
+    await expect(createCrawler().collect(context(`${origin}/`, { fetch }))).rejects.toThrow(
+      `Could not crawl ${origin}/`,
+    );
+  });
+});
+
+describe("crawler pages", () => {
+  it("follows the product URL's redirect and resolves links against the final URL", async () => {
+    const { origin } = await site({
+      "/": redirect("/home/"),
+      "/home/": html('<a href="docs">Docs</a><a href="/home/">Home</a>'),
+      "/home/docs": html("Docs"),
+    });
+    const { pages } = await crawl(context(`${origin}/`));
+    expect(pages.map((p) => [p.subject, p.value.finalUrl])).toEqual([
+      [`${origin}/`, `${origin}/home/`],
+      [`${origin}/home/docs`, `${origin}/home/docs`],
+    ]);
+  });
+
+  it("stays on the product's origin", async () => {
+    const { origin } = await site({
+      "/": (req, res) =>
+        html(`<a href="http://localhost:${req.socket.localPort}/x">X</a>`)(req, res),
+    });
+    const { pages } = await crawl(context(`${origin}/`));
+    expect(pages).toHaveLength(1);
+    expect(pages[0]?.value).toMatchObject({ internalLinks: 0, externalLinks: 1 });
+  });
+
+  it("flags an X-Robots-Tag noindex header", async () => {
+    const { origin } = await site({ "/": html("Home", { "x-robots-tag": "noindex" }) });
+    const { pages } = await crawl(context(`${origin}/`));
+    expect(pages[0]?.value).toMatchObject({ noindex: true, robotsMeta: null });
+  });
+
+  it("records other content types without HTML facts", async () => {
+    const { origin } = await site({
+      "/": html('<a href="/notes.txt">Notes</a>'),
+      "/notes.txt": text("plain notes"),
+    });
+    const { pages } = await crawl(context(`${origin}/`));
+    expect(pages[1]).toEqual({
+      kind: "page",
+      subject: `${origin}/notes.txt`,
+      value: {
+        status: 200,
+        finalUrl: `${origin}/notes.txt`,
+        ms: expect.any(Number),
+        truncated: false,
+        ...NO_HTML,
+      },
+    });
+  });
+
+  it("records pages that could not be fetched as fetch errors, not pages", async () => {
+    const { origin } = await site({ "/": html('<a href="/slow">Slow</a>'), "/slow": never });
+    const fetch = createSafeFetch({
+      allowedHosts: new Set(["127.0.0.1"]),
+      allowLoopback: true,
+      timeoutMs: 200,
+      limiter: new HostLimiter({ concurrency: 2, spacingMs: 1 }),
+    });
+    const { pages, site: summary } = await crawl(context(`${origin}/`, { fetch }));
+    expect(pages).toHaveLength(1);
+    expect(summary).toMatchObject({ fetchErrors: [{ url: `${origin}/slow`, kind: "timeout" }] });
+  });
+});
+
+describe("crawler bounds", () => {
+  it("reads at most 5 sitemaps", async () => {
+    const lines = Array.from({ length: 8 }, (_, i) => `Sitemap: /s${i}.xml`).join("\n");
+    const { origin, hits } = await site({ "/robots.txt": text(lines), "/": html("Home") });
+    await crawl(context(`${origin}/`));
+    expect(hits.filter((path) => path.endsWith(".xml"))).toHaveLength(5);
+  });
+
+  it("reads at most 5,000 sitemap URLs", async () => {
+    const urls = Array.from({ length: 6000 }, (_, i) => `<url><loc>/p${i}</loc></url>`);
+    const sitemap = `<urlset>${urls.join("")}</urlset>`;
+    const { origin } = await site({ "/sitemap.xml": text(sitemap), "/": html("Home") });
+    const { site: summary } = await crawl(context(`${origin}/`, {}, 1));
+    expect(summary).toMatchObject({ pagesInSitemap: 5000, limitReached: "pages" });
+  });
+
+  it("stops once the crawl has read its byte budget", async () => {
+    const big = "word ".repeat(400);
+    const { origin } = await site({
+      "/": html(`<a href="/a">A</a><a href="/b">B</a>${big}`),
+      "/a": html(big),
+      "/b": html(big),
+    });
+    const result = await createCrawler({ maxBytes: 1000 }).collect(context(`${origin}/`));
+    const summary = result.status === "ok" ? result.observations.at(-1)?.value : null;
+    expect(summary).toMatchObject({ pagesCrawled: 1, limitReached: "bytes" });
+  });
+
+  it("stops promptly when aborted", async () => {
+    const { origin } = await site({ "/": html('<a href="/slow">Slow</a>'), "/slow": never });
+    const controller = new AbortController();
+    const started = performance.now();
+    const run = createCrawler().collect(context(`${origin}/`, { signal: controller.signal }));
+    setTimeout(() => controller.abort(new Error("Cancelled")), 100);
+    await expect(run).rejects.toThrow("Cancelled");
+    expect(performance.now() - started).toBeLessThan(1_000);
+  });
+});
