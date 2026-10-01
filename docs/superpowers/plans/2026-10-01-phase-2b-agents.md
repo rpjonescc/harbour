@@ -62,7 +62,7 @@ tests/e2e/prepare.ts, tests/e2e/agents.spec.ts
   - config: `HARBOUR_CLAUDE_BIN: string` (default `"claude"`), `HARBOUR_CLAUDE_OAUTH_TOKEN?: string`, `HARBOUR_AGENT_MODEL: string` (default `"claude-sonnet-5-5"`), `HARBOUR_AGENT_TIMEOUT_MINUTES: number` (default 30, int 1–120)
   - `AuditEvent` adds `"agent_run_requested" | "agent_run_cancelled" | "proposal_decided"`
   - tables `jobs`, `agentRuns`, `agentRunEvents`, `proposals` (see Step 3)
-  - `type JobKind = "research" | "discovery" | "brain-push"`; `type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled"`; `type Job = typeof jobs.$inferSelect`
+  - `type JobKind = "research" | "discovery" | "brain-push" | "notes-sync"`; `type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled"`; `type Job = typeof jobs.$inferSelect`
   - `enqueueJob(db, kind, params: Record<string, string>, requestedBy: string | null, now?): { id: number; created: boolean }`
   - `claimNextJob(db, now?): Job | null`; `heartbeat(db, id, now?)`; `finishJob(db, id, status: "ok" | "failed" | "cancelled", error: string | null, now?)`
   - `requestCancel(db, id, now?): "cancelled" | "requested" | "not-active"`; `isCancelRequested(db, id): boolean`
@@ -106,7 +106,7 @@ Run: `pnpm vitest run lib/config.test.ts` → PASS.
 ```ts
 export const jobs = sqliteTable("jobs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  kind: text("kind", { enum: ["research", "discovery", "brain-push"] }).notNull(),
+  kind: text("kind", { enum: ["research", "discovery", "brain-push", "notes-sync"] }).notNull(),
   params: text("params", { mode: "json" }).$type<Record<string, string>>().notNull(),
   // Stable identity of the request, used to avoid queueing the same job twice.
   dedupeKey: text("dedupe_key").notNull(),
@@ -250,7 +250,7 @@ import { and, asc, count, desc, eq, gt, inArray, lt } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { agentRunEvents, jobs } from "@/lib/db/schema";
 
-export type JobKind = "research" | "discovery" | "brain-push";
+export type JobKind = "research" | "discovery" | "brain-push" | "notes-sync";
 export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";
 export type Job = typeof jobs.$inferSelect;
 export type EventKind = "status" | "tool" | "text" | "error";
@@ -1542,6 +1542,7 @@ git commit -m "feat(agents): validated discovery proposals with import and decis
 
 **Interfaces:**
 - Consumes: Tasks 1–6; `getConfig`, `getDb`, `getProducts` (verify `lib/products/catalog.ts` has no `server-only` import), `checkBrainRoot`, `isoDateIn`.
+- Also produces `runNotesSyncJob(deps, job): void` (commit all owner changes, then push). Add tests: with an uncommitted note it commits with message `notes: owner update (1 file(s))` and pushes; with no changes it finishes ok with "Nothing to save"; a later agent run is no longer blocked by "uncommitted changes".
 - Produces: `type RunDeps = { db: Db; root: string; bin: string; token: string | undefined; model: string; timeoutMs: number; products: readonly Product[]; today: string; home: string; path: string; run: typeof runProcess; now: () => Date }`; `runAgentJob(deps, job): Promise<void>`; `runPushJob(deps, job): void`; script `pnpm worker`.
 
 - [ ] **Step 1: Failing tests `lib/jobs/run-job.test.ts`** (real fake CLI, real git brain, in-memory DB)
@@ -1821,6 +1822,29 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<void> {
   }
 }
 
+/**
+ * Saves the owner's own edits (queued from "Save & sync my notes"): commits every uncommitted
+ * change in the brain and pushes. Runs in the worker, so it never overlaps an agent's git work.
+ */
+export function runNotesSyncJob(deps: Pick<RunDeps, "db" | "root" | "now">, job: Job): void {
+  const changes = changedPaths(deps.root);
+  if (changes.length === 0) {
+    addEvent(deps.db, job.id, "status", "Nothing to save", deps.now());
+    finishJob(deps.db, job.id, "ok", null, deps.now());
+    return;
+  }
+  try {
+    commitChanges(deps.root, changes.map((c) => c.path), `notes: owner update (${changes.length} file(s))`);
+  } catch (error) {
+    const message = `Could not commit notes: ${(error as Error).message}`;
+    addEvent(deps.db, job.id, "error", message, deps.now());
+    finishJob(deps.db, job.id, "failed", message, deps.now());
+    return;
+  }
+  addEvent(deps.db, job.id, "status", `Saved ${changes.length} file(s)`, deps.now());
+  runPushJob(deps, job);
+}
+
 /** Retries pushing local brain commits (queued from the "not synced" banner). */
 export function runPushJob(deps: Pick<RunDeps, "db" | "root" | "now">, job: Job): void {
   const push = pushBrain(deps.root);
@@ -1844,7 +1868,7 @@ import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
 import { claimNextJob, heartbeat, recoverStaleJobs } from "@/lib/jobs/queue";
-import { runAgentJob, runPushJob } from "@/lib/jobs/run-job";
+import { runAgentJob, runNotesSyncJob, runPushJob } from "@/lib/jobs/run-job";
 import { getProducts } from "@/lib/products/catalog";
 
 const IDLE_MS = 2000;
@@ -1878,6 +1902,8 @@ async function main() {
       const now = () => new Date();
       if (job.kind === "brain-push") {
         runPushJob({ db, root: config.HARBOUR_BRAIN_DIR, now }, job);
+      } else if (job.kind === "notes-sync") {
+        runNotesSyncJob({ db, root: config.HARBOUR_BRAIN_DIR, now }, job);
       } else {
         await runAgentJob(
           {
@@ -1931,7 +1957,7 @@ git commit -m "feat(agents): job orchestration with git gate, proposals import a
 ### Task 8: Agents page and API
 
 **Files:**
-- Create: `app/api/agents/run/route.ts`, `app/api/agents/[id]/route.ts`, `app/api/agents/[id]/cancel/route.ts`, `app/api/agents/brain-push/route.ts`, `app/api/agents/routes.test.ts`, `app/(app)/agents/page.tsx`, `app/(app)/agents/[id]/page.tsx`, `components/agents/RunPanel.tsx`, `components/agents/JobList.tsx`, `components/agents/RunActivity.tsx`, `components/agents/BrainSyncBanner.tsx`, `lib/agents/view.ts`
+- Create: `app/api/agents/run/route.ts`, `app/api/agents/[id]/route.ts`, `app/api/agents/[id]/cancel/route.ts`, `app/api/agents/brain-push/route.ts`, `app/api/agents/notes-sync/route.ts`, `app/api/agents/routes.test.ts`, `app/(app)/agents/page.tsx`, `app/(app)/agents/[id]/page.tsx`, `components/agents/RunPanel.tsx`, `components/agents/JobList.tsx`, `components/agents/RunActivity.tsx`, `components/agents/BrainSyncBanner.tsx`, `lib/agents/view.ts`
 - Modify: `components/shell/nav-items.ts` (Agents → `/agents`), `app/(app)/brain/layout.tsx` (widen: replace `mx-auto max-w-6xl` with `max-w-7xl`), `README.md`
 
 **Interfaces:**
@@ -1941,6 +1967,7 @@ git commit -m "feat(agents): job orchestration with git gate, proposals import a
   - `GET /api/agents/[id]?after=<eventId>` → `{ job: { id, kind, status, error, label, createdAt, startedAt, finishedAt }, events: { id, at, kind, text }[] }`
   - `POST /api/agents/[id]/cancel` → `{ result: "cancelled" | "requested" | "not-active" }` (audits `agent_run_cancelled`)
   - `POST /api/agents/brain-push` → `{ jobId: number }`
+  - `POST /api/agents/notes-sync` → `{ jobId: number }` (same guards as brain-push; enqueues `notes-sync`)
   - `jobLabel(job: Job, products): string` in `lib/agents/view.ts`
 
 - [ ] **Step 1: Failing route tests `app/api/agents/routes.test.ts`**
@@ -1952,6 +1979,7 @@ Follow the existing pattern in `app/api/brain/routes.test.ts` (mock `@/lib/auth/
 // [id]: 401 without session; 404 unknown id; returns events after `after`.
 // cancel: 403 cross-site; queued job → "cancelled".
 // brain-push: queues a brain-push job.
+// notes-sync: 401 without session; 403 cross-site; queues a notes-sync job (deduped).
 ```
 Write each as a concrete `it(...)` with assertions on `response.status` and JSON bodies.
 
@@ -2093,7 +2121,7 @@ export async function POST(request: Request) {
 
 `components/agents/RunActivity.tsx` — client component (props: initial job + events). Polls `GET /api/agents/[id]?after=<lastEventId>` every 2 s while status is `queued` or `running`, appends events, stops when finished. Renders status line (`aria-live="polite"`), elapsed time, an ordered list of events (error kind in `text-bad`, tool in `text-ink-muted`, status in `text-ink`), and a "Cancel" ghost button (POST cancel) while active. Shows `job.error` in a `role="alert"` box when failed.
 
-`components/agents/BrainSyncBanner.tsx` — client component (prop `unpushed: number`), shown when > 0: "N brain commit(s) not yet pushed to GitHub" + "Retry sync" button → POST `/api/agents/brain-push` then `router.refresh()`.
+`components/agents/BrainSyncBanner.tsx` — client component (props `unpushed: number`, `unsaved: number`). When `unsaved > 0`: "N note file(s) not saved yet — agents can't start until they're saved" + "Save & sync my notes" button → POST `/api/agents/notes-sync`, then `router.push("/agents/" + jobId)`. When `unpushed > 0`: "N brain commit(s) not yet pushed to GitHub" + "Retry sync" → POST `/api/agents/brain-push`, then `router.refresh()`. Render nothing when both are 0. Also render this banner at the top of the Second Brain layout (`app/(app)/brain/layout.tsx`), computing the counts with `changedPaths`/`unpushedCount` (both are plain modules without "server-only").
 
 Keep each file under 200 lines; use semantic tokens only.
 
@@ -2104,7 +2132,7 @@ Keep each file under 200 lines; use semantic tokens only.
 import { BrainSyncBanner } from "@/components/agents/BrainSyncBanner";
 import { JobList } from "@/components/agents/JobList";
 import { RunPanel } from "@/components/agents/RunPanel";
-import { unpushedCount } from "@/lib/agents/brain-git";
+import { changedPaths, unpushedCount } from "@/lib/agents/brain-git";
 import { requireSession } from "@/lib/auth/guard";
 import { checkBrainRoot } from "@/lib/brain/docs";
 import { getConfig } from "@/lib/config";
@@ -2118,6 +2146,7 @@ export default async function AgentsPage() {
   const products = getProducts();
   const brainOk = checkBrainRoot(config.HARBOUR_BRAIN_DIR).ok;
   const unpushed = brainOk ? (unpushedCount(config.HARBOUR_BRAIN_DIR) ?? 0) : 0;
+  const unsaved = brainOk ? changedPaths(config.HARBOUR_BRAIN_DIR).length : 0;
   return (
     <div className="flex max-w-5xl flex-col gap-6">
       <header>
@@ -2126,7 +2155,7 @@ export default async function AgentsPage() {
           Research and discovery agents write into your Second Brain. One runs at a time.
         </p>
       </header>
-      <BrainSyncBanner unpushed={unpushed} />
+      <BrainSyncBanner unpushed={unpushed} unsaved={unsaved} />
       <RunPanel products={products.map(({ id, name }) => ({ id, name }))} tokenSet={Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN)} />
       <JobList jobs={listJobs(getDb())} products={products} timeZone={config.HARBOUR_TIMEZONE} locale={config.HARBOUR_LOCALE} />
     </div>
@@ -2144,7 +2173,7 @@ README: add an "Agents" section — what runs, the token setup (`claude setup-to
 
 - [ ] **Step 7: Run, gate, commit**
 
-Run: `pnpm vitest run app/api/agents && pnpm check && pnpm build` → PASS; build lists `/agents`, `/agents/[id]` and the four agent API routes.
+Run: `pnpm vitest run app/api/agents && pnpm check && pnpm build` → PASS; build lists `/agents`, `/agents/[id]` and the five agent API routes.
 ```bash
 git add app components lib README.md
 git commit -m "feat(agents): agents page with run buttons, live activity, cancel and sync retry"
@@ -2438,6 +2467,7 @@ No code. After merging, the controller (with the owner's permission) runs `./dep
 | B1 worker service, job table, status flow, atomic claim, heartbeat, stale recovery, web only enqueues | 1, 7, 10 |
 | B2 locked-down `claude -p` (tools, no settings/MCP/hooks), process group, cancel/timeout, capped output, event summary, git gate (restore out-of-area), commit + push, push-failure banner + retry | 2, 3, 4, 7, 8 |
 | B3 Agents page: runs list, run buttons, live feed (2 s poll), cancel, files changed, logs | 8 |
+| Owner notes: "Save & sync my notes" (commit + push via the worker), unsaved-notes banner on Agents and Second Brain | 7, 8 |
 | B4 research sprint (10 topics incl. Preferred Sources), cited, frontmatter, products section | 5 |
 | B5 discovery: notes required, discovery.md + proposals.json, zod validation, import as proposed, no overwrite | 5, 6, 7 |
 | B6 approvals per product: approve/edit/reject/approve-all, audited | 9 |
