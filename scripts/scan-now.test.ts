@@ -38,4 +38,8 @@ describe("queueScans", () => {
     expect(queueScans(db, products).every((q) => !q.created)).toBe(true);
     expect(listJobs(db)).toHaveLength(2);
   });
+
+  it("fails when no products are configured", () => {
+    expect(() => queueScans(openTestDb(), [])).toThrow("No products configured");
+  });
 });

@@ -6,9 +6,15 @@ import { localTime, makeScanSchedule } from "./scan-schedule";
 const HOUR = 60 * 60_000;
 const PRODUCTS = ["acme-docs", "acme-blog"];
 
-function harness(timeZone: string, db = openTestDb()) {
+function harness(timeZone: string, db = openTestDb(), enabled = true) {
   let now = 0;
-  const schedule = makeScanSchedule({ db, timeZone, clock: () => now, productIds: () => PRODUCTS });
+  const schedule = makeScanSchedule({
+    db,
+    timeZone,
+    enabled,
+    clock: () => now,
+    productIds: () => PRODUCTS,
+  });
   const scans = () =>
     listJobs(db, 100)
       .filter((j) => j.kind === "scan")
@@ -145,6 +151,23 @@ describe("daily scan", () => {
     expect(h.at("2026-10-01T20:00:10Z")).toEqual([]); // 20 s later: not checked
     expect(h.at("2026-10-01T20:00:20Z")).toHaveLength(2);
   });
+
+  it("checks again at once when the clock steps backwards", () => {
+    const h = harness("Australia/Brisbane");
+    expect(h.at("2026-10-02T19:00:00Z")).toEqual([]); // 05:00, 3 Oct
+    // The clock is corrected back a day: 06:00, 2 Oct is checked, not throttled.
+    expect(h.at("2026-10-01T20:00:00Z")).toHaveLength(2);
+  });
+});
+
+describe("scheduled scans turned off", () => {
+  it("queues neither the daily scan nor a catch-up", () => {
+    const h = harness("Australia/Brisbane", openTestDb(), false);
+    h.setNow("2026-10-02T02:00:00Z");
+    expect(h.schedule.catchUp()).toEqual([]);
+    expect(h.at("2026-10-02T02:00:00Z")).toEqual([]);
+    expect(h.scans()).toEqual([]);
+  });
 });
 
 describe("catch-up on start", () => {
@@ -154,6 +177,7 @@ describe("catch-up on start", () => {
     const schedule = makeScanSchedule({
       db: h.db,
       timeZone: "Australia/Brisbane",
+      enabled: true,
       clock: () => Date.parse("2026-10-02T02:00:00Z"),
       productIds: () => PRODUCT_IDS,
     });

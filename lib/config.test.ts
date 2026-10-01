@@ -127,7 +127,7 @@ describe("agent settings", () => {
   });
 });
 
-describe("crawl settings", () => {
+describe("scan settings", () => {
   it("caps a crawl at 200 pages by default", () => {
     expect(parseConfig(base).HARBOUR_CRAWL_MAX_PAGES).toBe(200);
   });
@@ -138,6 +138,14 @@ describe("crawl settings", () => {
     expect(parseConfig({ ...base, HARBOUR_CRAWL_MAX_PAGES: "500" }).HARBOUR_CRAWL_MAX_PAGES).toBe(
       500,
     );
+  });
+
+  it("schedules scans by default and accepts on or off", () => {
+    expect(parseConfig(base).HARBOUR_SCHEDULED_SCANS).toBe("on");
+    expect(parseConfig({ ...base, HARBOUR_SCHEDULED_SCANS: "off" }).HARBOUR_SCHEDULED_SCANS).toBe(
+      "off",
+    );
+    expect(() => parseConfig({ ...base, HARBOUR_SCHEDULED_SCANS: "no" })).toThrow();
   });
 });
 

@@ -12,6 +12,7 @@ export function queueScans(
   productId?: string,
 ): QueuedScanJob[] {
   const ids = products.map((p) => p.id);
+  if (ids.length === 0) throw new Error("No products configured");
   if (productId !== undefined && !ids.includes(productId)) {
     throw new Error(`Unknown product: ${productId} (configured: ${ids.join(", ")})`);
   }

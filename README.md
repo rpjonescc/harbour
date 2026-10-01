@@ -214,6 +214,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_AGENT_MODEL` | no | `claude-sonnet-5-5` | Full model id used for agent runs. |
 | `HARBOUR_AGENT_TIMEOUT_MINUTES` | no | `30` | Maximum agent run length, 1 to 120 minutes. |
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility scan's crawler fetches per product per scan, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
+| `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing scans by itself (the daily 06:00 scan and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
 | `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
 | `HARBOUR_GSC_CREDENTIALS` | for Search Console | unset | Absolute path to a Google credentials JSON file — a service account key or an OAuth authorized-user file (see [Connect Search Console](#connect-search-console)). Keep it outside the repo with mode 600; Harbour warns in the scan if other users can read it. Read by the worker only; its contents and the access tokens are never logged, shown or stored. Restart the worker after changing it. |
 | `HARBOUR_HTTPS_PORT` | no | `8444` | Shell variable for `deploy/install.sh` (Tailscale Serve HTTPS port); the app itself does not read it. |
@@ -251,7 +252,11 @@ The worker queues a visibility scan of every product each day at 06:00 in `HARBO
 If the worker is down at 06:00, it queues the day's scans at its first check after it starts.
 On start it also catches up: any product without a successful (or partly successful) scan in
 the last 24 hours is scanned straight away. A product never has more than one scan queued or
-running, and the daily scan is queued once a day however often the worker restarts.
+running, and the daily scan is queued once a day however often the worker restarts. A daily
+scan that fails or that you cancel still counts as that day's: the next try is the following
+day at 06:00, or the catch-up when the worker next starts. A catch-up that runs before 06:00
+is still followed by that day's 06:00 scan. Set `HARBOUR_SCHEDULED_SCANS=off` to queue scans
+only by hand.
 
 Scans are ordinary jobs: they run one at a time, in queue order, between agent runs. Unlike
 agent runs they never wait for the brain to be quiet, because they don't touch it. To scan

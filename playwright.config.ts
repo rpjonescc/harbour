@@ -67,6 +67,8 @@ export default defineConfig({
         ...env,
         HARBOUR_CLAUDE_BIN: `${process.cwd()}/tests/fixtures/fake-claude.mjs`,
         HARBOUR_AGENT_TIMEOUT_MINUTES: "1",
+        // No scans of the example products: they would queue ahead of the agent runs under test.
+        HARBOUR_SCHEDULED_SCANS: "off",
       },
     },
   ],

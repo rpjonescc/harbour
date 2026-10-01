@@ -41,12 +41,13 @@ async function main() {
   const scans = makeScanSchedule({
     db,
     timeZone: config.HARBOUR_TIMEZONE,
+    enabled: config.HARBOUR_SCHEDULED_SCANS === "on",
     clock: Date.now,
     productIds: () => getProducts().map((p) => p.id),
   });
   scheduler.startup();
   failInterruptedScans(db); // their jobs were just failed by startup()
-  logQueued("catch-up", scans.catchUp()); // after the line above, so a cut-short scan counts as failed
+  logQueued("catch-up", scans.catchUp());
   console.log("harbour-worker ready");
 
   const runJob = async (job: Job) => {

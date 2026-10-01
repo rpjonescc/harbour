@@ -50,6 +50,8 @@ export function enqueueScan(
 export type ScanScheduleDeps = {
   db: Db;
   timeZone: string;
+  /** False when HARBOUR_SCHEDULED_SCANS is off: nothing is queued automatically. */
+  enabled: boolean;
   clock: () => number;
   productIds: () => readonly string[];
 };
@@ -60,7 +62,7 @@ export type ScanScheduleDeps = {
  * the brain, so unlike agent runs they never wait for it to be quiet.
  */
 export function makeScanSchedule(deps: ScanScheduleDeps) {
-  const { db, timeZone, clock, productIds } = deps;
+  const { db, timeZone, enabled, clock, productIds } = deps;
   let lastCheck = Number.NEGATIVE_INFINITY;
 
   const queue = (ids: readonly string[], now: Date): QueuedScan[] =>
@@ -72,6 +74,7 @@ export function makeScanSchedule(deps: ScanScheduleDeps) {
   return {
     /** Queues a scan for every product whose last ok or partial scan is over 24 hours old. */
     catchUp(): QueuedScan[] {
+      if (!enabled) return [];
       const now = new Date(clock());
       const stale = productIds().filter((id) => {
         const at = lastGoodScanAt(db, id);
@@ -85,7 +88,10 @@ export function makeScanSchedule(deps: ScanScheduleDeps) {
      * that was down at 06:00 still queues it on its first check of the day.
      */
     tick(): QueuedScan[] {
+      if (!enabled) return [];
       const nowMs = clock();
+      // A clock stepped backwards would otherwise hold off every check until it catches up.
+      if (nowMs < lastCheck) lastCheck = Number.NEGATIVE_INFINITY;
       if (nowMs - lastCheck < CHECK_MS) return [];
       lastCheck = nowMs;
       const now = new Date(nowMs);
