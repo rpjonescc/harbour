@@ -1,11 +1,12 @@
 import { getConfig } from "@/lib/config";
 import { openTestDb } from "@/tests/helpers/db";
-import { COLLECTORS, noScoring, unavailableFetch } from "./registry";
+import { safeFetch } from "./fetch";
+import { COLLECTORS, noScoring } from "./registry";
 import { workerScanDeps } from "./worker-deps";
 
 describe("workerScanDeps", () => {
-  // Fails on purpose when Task 2 / Task 6 wire in the real fetch and scorer: update it then.
-  it("runs the registered collectors with the stand-in fetch and scorer", () => {
+  // Fails on purpose when Task 6 wires in the real scorer: update it then.
+  it("runs the registered collectors with the safe fetch and the stand-in scorer", () => {
     const deps = workerScanDeps({
       db: openTestDb(),
       config: getConfig(),
@@ -14,7 +15,7 @@ describe("workerScanDeps", () => {
       stopping: () => false,
     });
     expect(deps.collectors).toBe(COLLECTORS);
-    expect(deps.fetch).toBe(unavailableFetch);
+    expect(deps.fetch).toBe(safeFetch);
     expect(deps.scoreScan).toBe(noScoring);
   });
 });

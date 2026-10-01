@@ -1,4 +1,4 @@
-import type { Collector, SafeFetch, ScoreScan } from "./types";
+import type { Collector, ScoreScan } from "./types";
 
 const MINUTE = 60_000;
 
@@ -24,8 +24,3 @@ export function collectorTimeoutMs(id: string): number {
 
 /** Scoring until the v1 formula lands (replaced in Task 6): no score row is written. */
 export const noScoring: ScoreScan = () => null;
-
-/** Stand-in until the safe fetch exists (replaced in Task 2); no collector calls it yet. */
-export const unavailableFetch: SafeFetch = async () => {
-  throw new Error("Outbound fetch is not available yet");
-};

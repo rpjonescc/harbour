@@ -23,11 +23,17 @@ export type SafeFetchResponse = {
   ms: number;
 };
 
+export type SafeFetchOptions = {
+  /** Body cap; a longer streamed body is cut here and marked `truncated`. */
+  maxBytes: number;
+  accept?: string;
+  signal?: AbortSignal;
+  /** Refuse (FetchError "blocked_by_robots") any hop robots.txt disallows for HarbourBot. */
+  respectRobots?: boolean;
+};
+
 /** Outbound HTTP for collectors: timeouts, redirect and size limits, robots, politeness. */
-export type SafeFetch = (
-  url: string,
-  options: { maxBytes: number; accept?: string; signal?: AbortSignal },
-) => Promise<SafeFetchResponse>;
+export type SafeFetch = (url: string, options: SafeFetchOptions) => Promise<SafeFetchResponse>;
 
 export type CollectContext = {
   /** From harbour.config.json. */

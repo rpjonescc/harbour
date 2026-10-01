@@ -1,4 +1,5 @@
-import { COLLECTORS, noScoring, unavailableFetch } from "./registry";
+import { safeFetch } from "./fetch";
+import { COLLECTORS, noScoring } from "./registry";
 import type { ScanDeps } from "./run-scan";
 
 type WorkerContext = Pick<ScanDeps, "db" | "config" | "products" | "now" | "stopping">;
@@ -8,7 +9,7 @@ export function workerScanDeps(context: WorkerContext): ScanDeps {
   return {
     ...context,
     collectors: COLLECTORS,
-    fetch: unavailableFetch, // replaced in Task 2
+    fetch: safeFetch,
     scoreScan: noScoring, // replaced in Task 6
   };
 }
