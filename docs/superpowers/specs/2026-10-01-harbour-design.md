@@ -326,9 +326,14 @@ stand, what improved, what got worse, top opportunities, and new competitors see
 - Agent proposals arrive as `suggested`; the owner accepts (→ `open`) or rejects.
 - Status: `suggested → open → in_progress → done`, plus `snoozed(until)` and
   `dismissed`.
-- **Hand to Claude**: copies a prompt containing product, repo path, the problem,
-  evidence, the suggested fix and acceptance check, ready to paste into a Claude
-  Code session in that product's repo.
+- **Hand to Claude**: copies a prompt containing the product's name and public URL
+  (not a repo path: the product config has none, and the prompt is pasted into a
+  session already in that repo), the problem, evidence, the suggested fix and
+  acceptance check, ready to paste into a Claude Code session in that product's
+  repo. Evidence is fenced and labelled as data; an analyst's whole write-up is
+  fenced too and labelled "check it before acting".
+- The owner's "reject" of a suggestion is the `dismissed` status. Effort is
+  `small | medium | large`.
 - Done actions are re-verified by the next scan where a rule exists; if the
   condition persists the action reopens with a note.
 

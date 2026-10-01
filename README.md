@@ -51,9 +51,17 @@ continues with:
 | `/settings/devices` | Passkeys and devices |
 | `/design` | Design system reference |
 
-The one scan endpoint, `POST /api/scans` with `{"productId": "<id>"}`, queues a scan for the
-worker (as **Scan now** does); like every mutating route it takes same-origin JSON from a
-signed-in session.
+Two JSON endpoints change things; like every mutating route they take same-origin JSON from a
+signed-in session:
+
+- `POST /api/scans` with `{"productId": "<id>"}` queues a scan for the worker (as **Scan now**
+  does).
+- `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
+  moves an action to a new status. `from` is the status your page showed: if the action changed
+  since, the request is refused (`409 stale`) instead of overwriting it. `to` is `open`,
+  `in_progress`, `done`, `snoozed` (with an `until` date, at most a year ahead) or `dismissed`;
+  an optional `note` (up to 500 characters) goes into the action's history. Each change is
+  written to the audit log, without the note.
 
 ## Second Brain
 

@@ -133,8 +133,13 @@ export function actionHistory(
   id: number,
 ): { events: (typeof actionEvents.$inferSelect)[]; truncated: boolean } {
   const events = actionEventsFor(db, id);
-  const first = events[0];
-  return { events, truncated: first !== undefined && first.from !== null };
+  return { events, truncated: historyTruncated(events) };
+}
+
+/** Whether pruning removed an action's creation event (the only one with no `from`). */
+export function historyTruncated(oldestFirst: readonly { from: string | null }[]): boolean {
+  const first = oldestFirst[0];
+  return first !== undefined && first.from !== null;
 }
 
 /** Wakes snoozes whose date has come (snoozedUntil <= today) → open, note "Snooze ended". */
