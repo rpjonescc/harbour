@@ -22,6 +22,7 @@ describe("readEvidence", () => {
       "a url with credentials",
       { items: [{ text: "x", url: "https://u:p@example.com/" }], total: 1 },
     ],
+    ["a url that is not a URL", { items: [{ text: "x", url: "not a url" }], total: 1 }],
     ["text over 300 chars", { items: [{ text: "x".repeat(301), url: null }], total: 1 }],
     ["a total below the item count", { items: good.items, total: 1 }],
     [

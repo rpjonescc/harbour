@@ -5,12 +5,14 @@ export const MAX_EVIDENCE_ITEMS = 20;
 export const MAX_EVIDENCE_TEXT = 300;
 export const MAX_DOCS = 5;
 
-const httpUrl = z
+/** An http(s) URL of at most 2048 characters, without credentials. */
+export const httpUrl = z
   .url({ protocol: /^https?$/ })
   .max(2048)
   .refine((v) => {
-    const u = new URL(v);
-    return !u.username && !u.password;
+    // Refinements run even when the URL check failed: never let a parse error throw.
+    const u = URL.parse(v);
+    return u !== null && !u.username && !u.password;
   }, "URL must not contain credentials");
 
 export const evidenceSchema = z
