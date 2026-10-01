@@ -26,7 +26,8 @@ The secure shell, design system, and Second Brain viewer are built. The roadmap 
 
 Harbour reads Markdown files from `HARBOUR_BRAIN_DIR` and shows them at `/brain`. The viewer has
 a folder tree, a reading view with an outline, links between notes (`[[note-name]]` or
-`[[note-name|label]]`), backlinks, and sources from frontmatter. New and changed notes are marked
+`[[note-name|label]]`), backlinks, and sources from frontmatter. Press **⌘K** or **Ctrl+K** to
+search titles and document text. New and changed notes are marked
 until you open them. If `00-start-here.md` exists, it opens at `/brain`; otherwise, the page lists
 recently changed documents.
 
