@@ -2,11 +2,12 @@ import type { Job } from "@/lib/jobs/queue";
 import type { Product } from "@/lib/products/catalog";
 import { RESEARCH_TOPICS } from "./topics";
 
-/** Human label for a job, e.g. "Research: Glossary". */
+/** Human label for a job, e.g. "Research: Glossary" or "Refresh: Glossary". */
 export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly Product[]): string {
   if (job.kind === "research") {
     const topic = job.params.topic ?? "";
-    return `Research: ${RESEARCH_TOPICS.find((t) => t.id === topic)?.title ?? topic}`;
+    const title = RESEARCH_TOPICS.find((t) => t.id === topic)?.title ?? topic;
+    return `${job.params.mode === "refresh" ? "Refresh" : "Research"}: ${title}`;
   }
   if (job.kind === "discovery" || job.kind === "scan") {
     const id = job.params.productId ?? "";

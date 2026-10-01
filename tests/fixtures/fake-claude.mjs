@@ -10,6 +10,8 @@ const targets = (/^TARGET_FILES:\s*(.+)$/m.exec(prompt)?.[1] ?? "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
+// Dated like a real run: the prompt's "Today's date:" line (a refresh must move it forward).
+const today = /^Today's date:\s*(\d{4}-\d{2}-\d{2})$/m.exec(prompt)?.[1] ?? "2026-10-01";
 const out = (o) => process.stdout.write(`${JSON.stringify(o)}\n`);
 const tool = (name, input) =>
   out({ type: "assistant", message: { content: [{ type: "tool_use", name, input }] } });
@@ -84,14 +86,14 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
       } else if (/^reports\/weekly\/.+\.md$/.test(rel)) {
         write(
           rel,
-          `---\ntitle: Fake ${rel}\nresearched: 2026-10-01\nconfidence: low\n---\n# Fake ${rel}\n\nWritten by the fake CLI at ${runAt}.\n`,
+          `---\ntitle: Fake ${rel}\nresearched: ${today}\nconfidence: low\n---\n# Fake ${rel}\n\nWritten by the fake CLI at ${runAt}.\n`,
         );
       } else if (rel.endsWith("proposals.json")) {
         write(rel, scenario === "bad-json" ? "{ nope" : JSON.stringify(sampleProposals, null, 2));
       } else {
         write(
           rel,
-          `---\ntitle: Fake ${rel}\nresearched: 2026-10-01\nconfidence: low\n---\n# Fake ${rel}\n\nWritten by the fake CLI.\n`,
+          `---\ntitle: Fake ${rel}\nresearched: ${today}\nconfidence: low\n---\n# Fake ${rel}\n\nWritten by the fake CLI.\n`,
         );
       }
     }

@@ -9,6 +9,9 @@ describe("jobLabel", () => {
     expect(jobLabel({ kind: "research", params: { topic: "glossary" } }, products)).toBe(
       "Research: Glossary",
     );
+    expect(
+      jobLabel({ kind: "research", params: { topic: "glossary", mode: "refresh" } }, products),
+    ).toBe("Refresh: Glossary");
     expect(jobLabel({ kind: "research", params: { topic: "gone" } }, products)).toBe(
       "Research: gone",
     );

@@ -1,8 +1,10 @@
 import { BrainStatus } from "@/components/agents/BrainStatus";
 import { JobList } from "@/components/agents/JobList";
+import { ResearchRefreshPanel } from "@/components/agents/ResearchRefreshPanel";
 import { RunPanel } from "@/components/agents/RunPanel";
 import { WeeklyAnalystPanel } from "@/components/agents/WeeklyAnalystPanel";
 import { brainSyncStatus, quarantineRootFor } from "@/lib/agents/brain-status";
+import { refreshPanelView } from "@/lib/agents/refresh-view";
 import { weeklyPanelView } from "@/lib/analyst/panel-view";
 import { requireSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
@@ -31,18 +33,29 @@ export default async function AgentsPage() {
     },
     new Date(),
   );
+  const refresh = refreshPanelView(
+    {
+      root: config.HARBOUR_BRAIN_DIR,
+      timeZone: config.HARBOUR_TIMEZONE,
+      locale: config.HARBOUR_LOCALE,
+      enabled: config.HARBOUR_SCHEDULED_RESEARCH === "on",
+      tokenSet,
+    },
+    new Date(),
+  );
   return (
     <div className="flex max-w-5xl flex-col gap-6">
       <header>
         <h1 className="font-serif text-3xl">Agents</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Research, discovery and the weekly analyst write into your Second Brain. One runs at a
-          time.
+          Research, discovery, the weekly analyst and the research refresh write into your Second
+          Brain. One runs at a time.
         </p>
       </header>
       <BrainStatus status={status} />
       <RunPanel products={products.map(({ id, name }) => ({ id, name }))} tokenSet={tokenSet} />
       <WeeklyAnalystPanel view={weekly} />
+      <ResearchRefreshPanel view={refresh} />
       <section className="flex flex-col gap-3">
         <h2 className="font-serif text-xl">Recent runs</h2>
         <JobList

@@ -314,12 +314,23 @@ invalid output is marked failed with the reason; nothing partial is imported.
 | Research sprint | Manual (once, re-runnable per topic) | `brain/research/**` |
 | Product discovery | Manual per product | `brain/products/<p>/**` + proposed keywords/questions/competitors |
 | Weekly analyst | Sunday 20:00 (`HARBOUR_TIMEZONE`) + manual | `brain/reports/weekly/YYYY-Www.md` + proposed actions |
-| Research refresh | Monthly + manual | updates stale research docs |
+| Research refresh | First Sunday of the month 21:00 (`HARBOUR_TIMEZONE`) + manual | updates stale research docs |
 
 The weekly analyst receives a JSON export of the last 7 days (scores, deltas, key
 observations, open actions), embedded in its prompt and capped at 48 KiB, and reads the
 research docs itself; its report covers: where we
 stand, what improved, what got worse, top opportunities, and new competitors seen.
+
+The research refresh runs on the first Sunday of each month at 21:00 (an hour after the weekly
+analyst, which runs first in the queue) and on demand ("Refresh stale research" on Agents). A
+document is due when its `researched` date is more than 30 days old, or missing or unreadable.
+Each round queues at most 3 refreshes, oldest first, for existing documents only (missing ones
+are left to the research sprint); one scheduled round per month, and a failed refresh is not
+retried automatically. A refresh is a research run of the same topic with the same single
+allowed path and git gate: it re-checks the document, updates `researched` and `review_by`, and
+ends with "What changed in this refresh". This "due for refresh" (30 days after `researched`)
+is deliberately earlier than the viewer's "stale" badge (§6.2, past `review_by`, which research
+runs set to 90 days).
 
 ## 8. Actions board
 

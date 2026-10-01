@@ -1,8 +1,10 @@
 import {
   addDays,
   latestDailySlotDay,
+  latestMonthlySlot,
   monthWindow,
   nextDailySlot,
+  nextMonthlySlot,
   zonedInstant,
 } from "./zoned-time";
 
@@ -96,5 +98,65 @@ describe("monthWindow", () => {
       start: new Date("2026-12-01T00:00:00Z"),
       end: new Date("2027-01-01T00:00:00Z"),
     });
+  });
+});
+
+// First Sundays: 6 Sep, 4 Oct and 1 Nov 2026 (the 1st is a Sunday), 6 Dec 2026, 3 Jan 2027.
+describe("latestMonthlySlot", () => {
+  const at = (iso: string, timeZone = LONDON) => latestMonthlySlot(new Date(iso), timeZone);
+
+  it("is the previous month's slot until this month's first Sunday at 21:00", () => {
+    expect(at("2026-10-02T12:00:00Z")).toEqual({
+      at: new Date("2026-09-06T20:00:00Z"),
+      month: "2026-09",
+    });
+    expect(at("2026-10-04T19:59:00Z")).toMatchObject({ month: "2026-09" }); // 20:59 BST
+  });
+
+  it("is this month's slot from 21:00 on its first Sunday", () => {
+    const october = { at: new Date("2026-10-04T20:00:00Z"), month: "2026-10" };
+    expect(at("2026-10-04T20:00:00Z")).toEqual(october);
+    expect(at("2026-10-31T23:00:00Z")).toEqual(october);
+  });
+
+  it("finds the first Sunday when the 1st is a Sunday", () => {
+    expect(at("2026-11-01T20:59:00Z")).toMatchObject({ month: "2026-10" }); // 20:59 GMT
+    expect(at("2026-11-01T21:00:00Z")).toEqual({
+      at: new Date("2026-11-01T21:00:00Z"),
+      month: "2026-11",
+    });
+  });
+
+  it("keeps 21:00 local in the month Sydney changes to daylight time", () => {
+    // 4 October: 02:00 AEST becomes 03:00 AEDT, so 21:00 is 10:00 UTC (it was 11:00 in September).
+    expect(at("2026-10-04T09:59:00Z", SYDNEY)).toEqual({
+      at: new Date("2026-09-06T11:00:00Z"),
+      month: "2026-09",
+    });
+    expect(at("2026-10-04T10:00:00Z", SYDNEY)).toEqual({
+      at: new Date("2026-10-04T10:00:00Z"),
+      month: "2026-10",
+    });
+  });
+
+  it("reaches back across the year end", () => {
+    expect(at("2027-01-02T12:00:00Z")).toEqual({
+      at: new Date("2026-12-06T21:00:00Z"),
+      month: "2026-12",
+    });
+  });
+});
+
+describe("nextMonthlySlot", () => {
+  it("is this month's slot before it, then next month's", () => {
+    expect(nextMonthlySlot(new Date("2026-10-02T12:00:00Z"), LONDON)).toEqual(
+      new Date("2026-10-04T20:00:00Z"),
+    );
+    expect(nextMonthlySlot(new Date("2026-10-04T20:00:00Z"), LONDON)).toEqual(
+      new Date("2026-11-01T21:00:00Z"),
+    );
+    expect(nextMonthlySlot(new Date("2026-12-20T12:00:00Z"), LONDON)).toEqual(
+      new Date("2027-01-03T21:00:00Z"),
+    );
   });
 });

@@ -35,7 +35,8 @@ continues with:
   and which device you are using, or remove a lost one. Reused device names get a number.
 - **Second Brain** — read Markdown notes with a document tree, frontmatter, links and backlinks.
 - **Agents** — research and discovery agents that write into the Second Brain, one at a time,
-  with live activity, cancel, and automatic save and sync.
+  with live activity, cancel, and automatic save and sync; stale research is re-checked monthly
+  (see [Research refresh](#research-refresh)).
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
   a living reference at `/design` showing every component in its main states.
 - **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14
@@ -56,11 +57,15 @@ continues with:
 | `/settings/devices` | Passkeys and devices |
 | `/design` | Design system reference |
 
-Two JSON endpoints change things; like every mutating route they take same-origin JSON from a
+Three JSON endpoints change things; like every mutating route they take same-origin JSON from a
 signed-in session:
 
 - `POST /api/scans` with `{"productId": "<id>"}` queues a scan for the worker (as **Scan now**
   does).
+- `POST /api/agents/run` queues agent runs (as the buttons on **Agents** do), for example
+  `{"kind": "refresh"}` to refresh up to 3 stale research documents. It answers
+  `{"jobIds": [...], "stale": 4}` (an empty list when nothing is stale) and refuses with
+  `409 token_missing` while `HARBOUR_CLAUDE_OAUTH_TOKEN` is not set.
 - `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
   moves an action to a new status. `from` is the status your page showed: if the action changed
   since, the request is refused (`409 stale`) instead of overwriting it. `to` is `open`,
@@ -166,6 +171,25 @@ git gate and Claude subscription as the other agents (no paid API calls).
   runs are off or need a Claude token) and links the latest report; **Run weekly report now** (or `pnpm analyst:now`)
   queues a run for the current week straight away. A run whose suggestions could not be imported
   after 3 attempts says "Suggestions not imported — run the agent again" in **Recent runs**.
+
+### Research refresh
+
+Research goes out of date, so once a month Harbour re-checks the oldest documents. A refresh is a
+research run of the same topic, with the same rules and git gate: the agent reads the existing
+document, re-checks its claims and sources, keeps what still holds, corrects what changed, adds
+what is new, sets `researched` to today and `review_by` 90 days later, and ends with a section
+"What changed in this refresh". It may change only that one document.
+
+- **What is due** — a document whose `researched` date is more than 30 days old, or has no
+  readable `researched` date ("date unknown"). This is earlier than the viewer's **stale** badge,
+  which appears only after `review_by`. Documents not written yet are never refreshed: run the
+  research sprint for them.
+- **How many** — at most 3 per round, oldest first (unknown dates count as oldest). A topic that
+  already has a research run queued or running is skipped.
+- **When** — on the first Sunday of each month at 21:00 in `HARBOUR_TIMEZONE` (see
+  [When things run](#when-things-run)), and whenever you choose **Refresh stale research** on
+  **Agents**. The **Research refresh** panel there shows the next scheduled refresh, which
+  documents are due (with their dates) and how many are not written yet.
 
 ### Install as an app
 
@@ -293,6 +317,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing scans by itself (the daily 06:00 scan and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Run weekly report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
 | `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
+| `HARBOUR_SCHEDULED_RESEARCH` | no | `on` | `off` stops the worker queueing the monthly research refresh by itself (the first Sunday of each month at 21:00 and the catch-up on start); **Refresh stale research** on **Agents** still queues it by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
 | `HARBOUR_OBSERVATION_SCANS_KEPT` | no | `30` | How many of each product's newest scans keep their raw observations (7 to 365); older scans' observations are deleted after each verified backup (see [Data kept](#data-kept)). Scores and scan history are always kept. Restart the worker after changing it. |
 | `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
@@ -377,6 +402,20 @@ not set ("weekly analyst skipped: no Claude token") or when no product has a sco
 last 7 days ("no scan data this week"). A failed run is not retried automatically: choose **Run
 weekly report now** on **Agents** or run `pnpm analyst:now`. Set `HARBOUR_SCHEDULED_ANALYST=off` to
 run it only by hand. Like every agent run it waits for the brain to be quiet first.
+
+### Monthly research refresh
+
+On the first Sunday of each month at 21:00 in `HARBOUR_TIMEZONE` (an hour after the weekly
+analyst, so that runs first) the worker queues refreshes of up to 3 stale research documents (see
+[Research refresh](#research-refresh)). Each refresh job is labelled with its month, which is how
+the worker knows the month's round has run: a restart never queues it twice, a worker that was
+down over the slot queues one round, for the latest month, when it starts, and a round whose
+refreshes failed is not retried until the next month (choose **Refresh stale research** on
+**Agents** to retry by hand). When nothing is stale it logs "research refresh: nothing stale for
+2026-10" and queues nothing. It also queues nothing, and says so once in its log, when
+`HARBOUR_CLAUDE_OAUTH_TOKEN` is not set or the brain folder is missing. Set
+`HARBOUR_SCHEDULED_RESEARCH=off` to refresh only by hand. Like every agent run, refreshes wait for
+the brain to be quiet first.
 
 ### Snoozed actions
 

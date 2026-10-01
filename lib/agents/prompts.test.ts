@@ -1,5 +1,11 @@
 import { splitFrontmatter } from "@/lib/brain/frontmatter";
-import { discoveryPrompt, PROMPT_VERSION, researchPrompt } from "./prompts";
+import {
+  discoveryPrompt,
+  PROMPT_VERSION,
+  REFRESH_PROMPT_VERSION,
+  refreshPrompt,
+  researchPrompt,
+} from "./prompts";
 import { RESEARCH_TOPICS } from "./topics";
 
 const products = [
@@ -8,6 +14,7 @@ const products = [
 const product = products[0];
 const topic = RESEARCH_TOPICS.find((t) => t.id === "how-ai-engines-pick-sources");
 if (!product || !topic) throw new Error("expected fixtures");
+const RULES_TAIL = "Explain jargon on first use.";
 
 describe("researchPrompt", () => {
   const prompt = researchPrompt(topic, products, "2026-10-01");
@@ -28,6 +35,42 @@ describe("researchPrompt", () => {
   });
   it("is versioned", () => {
     expect(PROMPT_VERSION).toBe("2b-v1");
+  });
+});
+
+describe("refreshPrompt", () => {
+  const prompt = refreshPrompt(topic, products, "2026-10-04");
+  const research = researchPrompt(topic, products, "2026-10-04");
+
+  it("targets the same one document as the research prompt", () => {
+    expect(prompt.split("\n")[0]).toBe("TARGET_FILES: research/geo/how-ai-engines-pick-sources.md");
+    expect(prompt.split("\n").filter((l) => l.startsWith("TARGET_FILES"))).toHaveLength(1);
+  });
+
+  it("shares the research prompt's role and frontmatter, with today's dates", () => {
+    const frontmatter = (text: string) => /^---\n[\s\S]*?\n---$/m.exec(text)?.[0];
+    expect(frontmatter(prompt)).toBe(frontmatter(research));
+    expect(prompt).toContain("researched: 2026-10-04");
+    expect(prompt).toContain("review_by: 2027-01-02");
+    expect(prompt).toContain("You are a careful research analyst");
+  });
+
+  it("asks for a re-check of the existing document and a list of changes, then the rules", () => {
+    expect(prompt).toContain(
+      "This document already exists. Read it first. Re-check its claims and sources against current information: keep what still holds, correct what changed, add what is new, and remove anything you can no longer support with a source.",
+    );
+    expect(prompt).toContain("Set `researched` to today and `review_by` 90 days later.");
+    expect(prompt).toContain("## What changed in this refresh");
+    expect(prompt.endsWith(RULES_TAIL)).toBe(true);
+    expect(research).not.toContain("already exists");
+  });
+
+  it("is versioned separately", () => {
+    expect(REFRESH_PROMPT_VERSION).toBe("5-v1");
+  });
+
+  it("rejects a malformed date", () => {
+    expect(() => refreshPrompt(topic, products, "2026-10-4")).toThrow(/invalid date/i);
   });
 });
 

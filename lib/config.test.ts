@@ -236,6 +236,16 @@ describe("observation retention setting", () => {
   });
 });
 
+describe("research refresh setting", () => {
+  it("refreshes stale research monthly by default, and accepts on or off", () => {
+    expect(parseConfig(base).HARBOUR_SCHEDULED_RESEARCH).toBe("on");
+    expect(
+      parseConfig({ ...base, HARBOUR_SCHEDULED_RESEARCH: "off" }).HARBOUR_SCHEDULED_RESEARCH,
+    ).toBe("off");
+    expect(() => parseConfig({ ...base, HARBOUR_SCHEDULED_RESEARCH: "no" })).toThrow();
+  });
+});
+
 describe("backup settings", () => {
   it("backs up nightly by default into the default folder", () => {
     const config = parseConfig(base);

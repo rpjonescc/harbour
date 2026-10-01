@@ -74,17 +74,45 @@ export function nextDailySlot(now: Date, timeZone: string, minute: number): Date
   return today.getTime() > now.getTime() ? today : zonedInstant(addDays(day, 1), minute, timeZone);
 }
 
+/** Month label (YYYY-MM) `by` calendar months after `month`. */
+function shiftMonth(month: string, by: number): string {
+  const date = new Date(parseDay(`${month}-01`));
+  date.setUTCMonth(date.getUTCMonth() + by);
+  return toDay(date.getTime()).slice(0, 7);
+}
+
 /** The local calendar month containing `now`: { label: "2026-10", start, end } (start inclusive, end exclusive). */
 export function monthWindow(
   now: Date,
   timeZone: string,
 ): { label: string; start: Date; end: Date } {
   const label = localTime(timeZone, now).day.slice(0, 7);
-  const next = new Date(parseDay(`${label}-01`));
-  next.setUTCMonth(next.getUTCMonth() + 1);
   return {
     label,
     start: zonedInstant(`${label}-01`, 0, timeZone),
-    end: zonedInstant(toDay(next.getTime()), 0, timeZone),
+    end: zonedInstant(`${shiftMonth(label, 1)}-01`, 0, timeZone),
   };
+}
+
+/** The monthly slot is the first Sunday of the month at 21:00 local time. */
+const MONTHLY_SLOT_MINUTE = 21 * 60;
+
+function monthlySlotOf(month: string, timeZone: string): Date {
+  const first = `${month}-01`;
+  const weekday = new Date(parseDay(first)).getUTCDay(); // Sunday 0
+  return zonedInstant(addDays(first, (7 - weekday) % 7), MONTHLY_SLOT_MINUTE, timeZone);
+}
+
+/** The latest first-Sunday-of-the-month 21:00 local at or before `now`: { at, month: "2026-10" }. */
+export function latestMonthlySlot(now: Date, timeZone: string): { at: Date; month: string } {
+  const month = localTime(timeZone, now).day.slice(0, 7);
+  const at = monthlySlotOf(month, timeZone);
+  if (at.getTime() <= now.getTime()) return { at, month };
+  const previous = shiftMonth(month, -1);
+  return { at: monthlySlotOf(previous, timeZone), month: previous };
+}
+
+/** The first monthly slot strictly after `now`. */
+export function nextMonthlySlot(now: Date, timeZone: string): Date {
+  return monthlySlotOf(shiftMonth(latestMonthlySlot(now, timeZone).month, 1), timeZone);
 }

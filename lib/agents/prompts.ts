@@ -2,6 +2,7 @@ import type { Product } from "@/lib/products/catalog";
 import type { ResearchTopic } from "./topics";
 
 export const PROMPT_VERSION = "2b-v1";
+export const REFRESH_PROMPT_VERSION = "5-v1";
 
 function addDays(isoDate: string, days: number): string {
   const d = new Date(`${isoDate}T00:00:00Z`);
@@ -38,11 +39,12 @@ export function productContext(products: readonly Product[]): string {
     .join("\n");
 }
 
-/** Prompt for one research-sprint document. */
-export function researchPrompt(
+/** The research document prompt; `extra` (the refresh instructions) goes just before the rules. */
+function researchDocPrompt(
   topic: ResearchTopic,
   products: readonly Product[],
   today: string,
+  extra: string,
 ): string {
   assertDate(today);
   return `TARGET_FILES: ${topic.path}
@@ -73,7 +75,29 @@ ${productContext(products)}
 Link to related documents in this knowledge base with [[wiki-links]] using their file names
 (for example [[glossary]] or [[how-ai-engines-pick-sources]]).
 
-${RULES}`;
+${extra}${RULES}`;
+}
+
+/** Prompt for one research-sprint document. */
+export function researchPrompt(
+  topic: ResearchTopic,
+  products: readonly Product[],
+  today: string,
+): string {
+  return researchDocPrompt(topic, products, today, "");
+}
+
+const REFRESH = `This document already exists. Read it first. Re-check its claims and sources against current information: keep what still holds, correct what changed, add what is new, and remove anything you can no longer support with a source. Set \`researched\` to today and \`review_by\` 90 days later. End with a section \`## What changed in this refresh\` listing the changes (or saying nothing material changed).
+
+`;
+
+/** Prompt for re-checking an existing research document (the monthly refresh). */
+export function refreshPrompt(
+  topic: ResearchTopic,
+  products: readonly Product[],
+  today: string,
+): string {
+  return researchDocPrompt(topic, products, today, REFRESH);
 }
 
 /** Prompt for one product's discovery: keywords, AI questions and competitors. */

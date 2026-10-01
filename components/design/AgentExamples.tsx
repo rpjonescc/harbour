@@ -1,4 +1,5 @@
 import { JobList } from "@/components/agents/JobList";
+import { ResearchRefreshPanel } from "@/components/agents/ResearchRefreshPanel";
 import { WeeklyAnalystPanel } from "@/components/agents/WeeklyAnalystPanel";
 import type { Job } from "@/lib/jobs/queue";
 
@@ -21,7 +22,7 @@ const GIVEN_UP: Job = {
   error: null,
 };
 
-/** Fictional Agents page states: the weekly report panel and a run whose import gave up. */
+/** Fictional Agents page states: the weekly report and research refresh panels, and a run whose import gave up. */
 export function AgentExamples() {
   return (
     <div className="flex flex-col gap-6">
@@ -37,6 +38,27 @@ export function AgentExamples() {
           schedule: "Scheduled runs need a Claude token",
           latestReport: null,
           tokenSet: false,
+        }}
+      />
+      <ResearchRefreshPanel
+        view={{
+          schedule: "Next scheduled refresh: Sunday 1 Nov, 21:00",
+          total: 10,
+          due: [
+            { title: "Local SEO", age: "date unknown" },
+            { title: "Glossary", age: "researched 10 Jan" },
+          ],
+          missing: 2,
+          tokenSet: true,
+        }}
+      />
+      <ResearchRefreshPanel
+        view={{
+          schedule: "Scheduled refresh is off",
+          total: 10,
+          due: [],
+          missing: 0,
+          tokenSet: true,
         }}
       />
       <JobList

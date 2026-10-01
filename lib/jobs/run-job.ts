@@ -5,12 +5,10 @@ import { discardRun } from "@/lib/agents/brain-discard";
 import { commitChanges, pushBrain, type RunSnapshot, snapshotRun } from "@/lib/agents/brain-git";
 import { agentEnv, claudeArgs } from "@/lib/agents/claude-args";
 import type { RunOutcome, runProcess } from "@/lib/agents/process";
-import { PROMPT_VERSION } from "@/lib/agents/prompts";
 import { type AgentSpec, specForJob } from "@/lib/agents/specs";
 import { type StreamResult, summariseLine } from "@/lib/agents/stream";
 import { buildWeeklyExport } from "@/lib/analyst/export";
 import { capExport } from "@/lib/analyst/export-cap";
-import { ANALYST_PROMPT_VERSION } from "@/lib/analyst/prompt";
 import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import type { Product } from "@/lib/products/catalog";
@@ -52,9 +50,6 @@ function describeDuration(ms: number): string {
 }
 
 function specOrFail(deps: RunDeps, job: Job): AgentSpec {
-  if (job.kind !== "research" && job.kind !== "discovery" && job.kind !== "weekly-analyst") {
-    throw new JobFailure(`Not an agent job: ${job.kind}`);
-  }
   const { db, products, timeZone } = deps;
   const weeklyExport = (week: string) =>
     capExport(buildWeeklyExport(db, { products, week, now: deps.now(), timeZone }));
@@ -71,10 +66,12 @@ function checkPreconditions(deps: RunDeps, spec: AgentSpec): string {
       "HARBOUR_CLAUDE_OAUTH_TOKEN is not set — run `claude setup-token` and add it to .env",
     );
   }
+  const fix =
+    spec.kind === "research"
+      ? "run the research sprint to write it first"
+      : "write the owner's notes for this product first";
   for (const file of spec.requiredFiles) {
-    if (!existsSync(join(deps.root, file))) {
-      throw new JobFailure(`Missing ${file} — write the owner's notes for this product first`);
-    }
+    if (!existsSync(join(deps.root, file))) throw new JobFailure(`Missing ${file} — ${fix}`);
   }
   return deps.token;
 }
@@ -150,8 +147,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     const log = touchedLog(deps.quarantineRoot, job.id);
     touched = log;
 
-    const promptVersion = spec.kind === "weekly-analyst" ? ANALYST_PROMPT_VERSION : PROMPT_VERSION;
-    db.insert(agentRuns).values({ jobId: job.id, promptVersion }).run();
+    db.insert(agentRuns).values({ jobId: job.id, promptVersion: spec.promptVersion }).run();
     event("status", `Started ${spec.label}`);
     let result: StreamResult | undefined;
     const outcome = await deps.run({

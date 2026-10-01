@@ -4,6 +4,7 @@
 import { makeSnoozeWaker } from "@/lib/actions/store";
 import { quarantineRootFor } from "@/lib/agents/brain-status";
 import { runProcess } from "@/lib/agents/process";
+import { makeRefreshSchedule, type QueuedRefresh } from "@/lib/agents/refresh-schedule";
 import { makeAnalystSchedule } from "@/lib/analyst/schedule";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
@@ -61,6 +62,18 @@ async function main() {
     clock: Date.now,
     productIds: () => getProducts().map((p) => p.id),
   });
+  const refreshes = makeRefreshSchedule({
+    db,
+    root,
+    timeZone: config.HARBOUR_TIMEZONE,
+    enabled: config.HARBOUR_SCHEDULED_RESEARCH === "on",
+    tokenSet: Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN),
+    clock: Date.now,
+  });
+  const logRefreshes = (why: string, queued: readonly QueuedRefresh[]) => {
+    for (const r of queued)
+      console.log(`${why}: queued research refresh #${r.jobId} for ${r.topicId}`);
+  };
   const backupsOn = config.HARBOUR_SCHEDULED_BACKUP === "on";
   const backups = makeBackupSchedule({
     db,
@@ -85,6 +98,7 @@ async function main() {
   failInterruptedScans(db); // their jobs were just failed by startup()
   logQueued("catch-up", scans.catchUp());
   logAnalyst("catch-up", analyst.tick());
+  logRefreshes("catch-up", refreshes.tick());
   logBackup("catch-up", backups.tick());
   console.log(
     `harbour-worker ready; ${describeNextBackup(new Date(), config.HARBOUR_TIMEZONE, backupsOn)}`,
@@ -151,6 +165,7 @@ async function main() {
     scheduler.tick(); // between jobs only: never during a run
     logQueued("daily", scans.tick());
     logAnalyst("weekly", analyst.tick());
+    logRefreshes("monthly", refreshes.tick());
     logBackup("nightly", backups.tick());
     const woken = snoozes.tick();
     if (woken > 0) console.log(`woke ${woken} snoozed action(s)`);

@@ -1,7 +1,14 @@
-import { weeklyAnalystPrompt, weeklyPaths } from "@/lib/analyst/prompt";
+import { z } from "zod";
+import { ANALYST_PROMPT_VERSION, weeklyAnalystPrompt, weeklyPaths } from "@/lib/analyst/prompt";
 import type { Product } from "@/lib/products/catalog";
 import type { AllowedPaths } from "./brain-git";
-import { discoveryPrompt, researchPrompt } from "./prompts";
+import {
+  discoveryPrompt,
+  PROMPT_VERSION,
+  REFRESH_PROMPT_VERSION,
+  refreshPrompt,
+  researchPrompt,
+} from "./prompts";
 import { RESEARCH_TOPICS } from "./topics";
 
 export type AgentKind = "research" | "discovery" | "weekly-analyst";
@@ -19,6 +26,8 @@ export type AgentSpec = {
   requiredFiles: string[];
   /** Brain files the run must write, or it fails and nothing is committed. */
   requiredOutputs: string[];
+  /** Recorded with the run, so output can be traced to the prompt that produced it. */
+  promptVersion: string;
 };
 
 export type SpecContext = {
@@ -39,18 +48,33 @@ export function outputForJob(kind: AgentKind, params: Record<string, string>): A
   return null;
 }
 
+// `month` is the scheduled refresh round that queued the job (the schedule's once-a-month key).
+const ResearchParams = z.strictObject({
+  topic: z.string(),
+  mode: z.literal("refresh").optional(),
+  month: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+    .optional(),
+});
+
 function researchSpec(params: Record<string, string>, context: SpecContext): AgentSpec {
   const topic = RESEARCH_TOPICS.find((t) => t.id === params.topic);
   if (!topic) throw new Error(`Unknown research topic: ${params.topic ?? "(none)"}`);
+  const parsed = ResearchParams.safeParse(params);
+  if (!parsed.success) throw new Error(`Invalid research params for ${topic.id}`);
+  const refresh = parsed.data.mode === "refresh";
   return {
     kind: "research",
-    label: `Research: ${topic.title}`,
-    prompt: researchPrompt(topic, context.products, context.today),
+    label: `${refresh ? "Refresh" : "Research"}: ${topic.title}`,
+    prompt: (refresh ? refreshPrompt : researchPrompt)(topic, context.products, context.today),
     allowed: { prefixes: [], exact: [topic.path] },
     targets: [topic.path],
     output: null,
-    requiredFiles: [],
+    // A refresh re-checks an existing document; it never writes a first draft unasked.
+    requiredFiles: refresh ? [topic.path] : [],
     requiredOutputs: [],
+    promptVersion: refresh ? REFRESH_PROMPT_VERSION : PROMPT_VERSION,
   };
 }
 
@@ -70,6 +94,7 @@ function discoverySpec(params: Record<string, string>, context: SpecContext): Ag
     output,
     requiredFiles: [`${dir}/notes.md`],
     requiredOutputs: [proposals],
+    promptVersion: PROMPT_VERSION,
   };
 }
 
@@ -92,16 +117,18 @@ function weeklySpec(params: Record<string, string>, context: SpecContext): Agent
     output: outputForJob("weekly-analyst", { week }),
     requiredFiles: [],
     requiredOutputs: [...targets],
+    promptVersion: ANALYST_PROMPT_VERSION,
   };
 }
 
-/** Turns a queued job's params into exactly what the agent may do. */
+/** Turns a queued job's params into exactly what the agent may do; throws for any other kind. */
 export function specForJob(
-  kind: AgentKind,
+  kind: string,
   params: Record<string, string>,
   context: SpecContext,
 ): AgentSpec {
   if (kind === "research") return researchSpec(params, context);
   if (kind === "discovery") return discoverySpec(params, context);
-  return weeklySpec(params, context);
+  if (kind === "weekly-analyst") return weeklySpec(params, context);
+  throw new Error(`Not an agent job: ${kind}`);
 }

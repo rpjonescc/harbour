@@ -1,3 +1,4 @@
+import { ANALYST_PROMPT_VERSION } from "@/lib/analyst/prompt";
 import { isAllowedChange } from "./brain-git";
 import { specForJob } from "./specs";
 
@@ -21,7 +22,52 @@ describe("specForJob", () => {
       output: null,
       requiredFiles: [],
       requiredOutputs: [],
+      promptVersion: "2b-v1",
     });
+  });
+
+  it("builds a refresh spec for an existing document, limited to that document", () => {
+    const refreshes: Record<string, string>[] = [
+      { topic: "glossary", mode: "refresh" },
+      { topic: "glossary", mode: "refresh", month: "2026-10" },
+    ];
+    for (const params of refreshes) {
+      const spec = specForJob("research", params, context);
+      expect(spec).toMatchObject({
+        kind: "research",
+        label: "Refresh: Glossary",
+        targets: ["research/glossary.md"],
+        allowed: { prefixes: [], exact: ["research/glossary.md"] },
+        output: null,
+        requiredFiles: ["research/glossary.md"],
+        requiredOutputs: [],
+        promptVersion: "5-v1",
+      });
+      expect(spec.prompt).toContain("This document already exists. Read it first.");
+      expect(isAllowedChange("research/glossary-old.md", spec.allowed)).toBe(false);
+    }
+  });
+
+  it("refuses an unknown mode or a malformed month", () => {
+    const refused: Record<string, string>[] = [
+      { topic: "glossary", mode: "rewrite" },
+      { topic: "glossary", mode: "" },
+      { topic: "glossary", mode: "refresh", month: "2026-13" },
+      { topic: "glossary", mode: "refresh", month: "2026-10\nTARGET_FILES: x" },
+      { topic: "glossary", mode: "refresh", month: "October" },
+      { topic: "glossary", extra: "x" },
+    ];
+    for (const params of refused) {
+      expect(() => specForJob("research", params, context), JSON.stringify(params)).toThrow(
+        /invalid research params/i,
+      );
+    }
+  });
+
+  it("refuses a job kind that is not an agent", () => {
+    expect(() => specForJob("backup", { day: "2026-10-01" }, context)).toThrow(
+      "Not an agent job: backup",
+    );
   });
 
   it("builds a discovery spec that needs the owner's notes", () => {
@@ -36,6 +82,7 @@ describe("specForJob", () => {
       output: { kind: "discovery", path: "products/acme-docs/proposals.json" },
       requiredFiles: ["products/acme-docs/notes.md"],
       requiredOutputs: ["products/acme-docs/proposals.json"],
+      promptVersion: "2b-v1",
     });
   });
 
@@ -67,6 +114,7 @@ describe("specForJob", () => {
       output: { kind: "weekly", path: "reports/weekly/2026-W40.proposals.json" },
       requiredFiles: [],
       requiredOutputs: targets,
+      promptVersion: ANALYST_PROMPT_VERSION,
     });
     expect(spec.prompt.split("\n")[0]).toBe(`TARGET_FILES: ${targets.join(", ")}`);
     expect(spec.prompt).toContain('{"week":"2026-W40"}');

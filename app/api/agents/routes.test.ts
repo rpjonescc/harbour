@@ -1,5 +1,6 @@
 import { auditLog } from "@/lib/db/schema";
 import { addEvent, claimNextJob, enqueueJob, getJob, listJobs } from "@/lib/jobs/queue";
+import { makeBrain } from "@/tests/helpers/brain";
 import { openTestDb } from "@/tests/helpers/db";
 import { POST as cancel } from "./[id]/cancel/route";
 import { GET as getRun } from "./[id]/route";
@@ -11,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   db: undefined as unknown,
   token: "test-token" as string | undefined,
+  brainDir: "/nonexistent/harbour-example-brain",
 }));
 vi.mock("@/lib/config", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/config")>();
@@ -20,6 +22,7 @@ vi.mock("@/lib/config", async (importOriginal) => {
       ...actual.getConfig(),
       HARBOUR_CLAUDE_OAUTH_TOKEN: mocks.token,
       HARBOUR_TIMEZONE: "Australia/Brisbane",
+      HARBOUR_BRAIN_DIR: mocks.brainDir,
     }),
   };
 });
@@ -76,6 +79,7 @@ describe("agents API routes", () => {
         { kind: "research", topic: "all" },
         { kind: "discovery", productId: "acme-docs" },
         { kind: "weekly-analyst" },
+        { kind: "refresh" },
       ]) {
         const response = await run(post("/api/agents/run", body));
         expect(response.status).toBe(409);
@@ -164,6 +168,70 @@ describe("agents API routes", () => {
         expect(response.status).toBe(400);
         expect(listJobs(db())).toEqual([]);
       });
+    });
+  });
+
+  describe("POST /api/agents/run: research refresh", () => {
+    const doc = (researched: string) => `---\nresearched: ${researched}\n---\n# Doc\n`;
+    let brain: ReturnType<typeof makeBrain>;
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-02T00:00:00Z"));
+      brain = makeBrain({
+        "research/glossary.md": doc("2026-01-10"),
+        "research/seo/local-seo.md": "# No date\n",
+        "research/seo/seo-fundamentals.md": doc("2026-03-01"),
+        "research/scoring-rationale.md": doc("2026-05-01"),
+        "00-start-here.md": doc("2026-09-30"),
+      });
+      mocks.brainDir = brain.root;
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+      brain.cleanup();
+    });
+
+    it("queues the three oldest stale documents and audits them", async () => {
+      const response = await run(post("/api/agents/run", { kind: "refresh" }));
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { jobIds: number[]; stale: number };
+      expect(body.stale).toBe(4);
+      expect(body.jobIds).toHaveLength(3);
+      expect(body.jobIds.map((id) => getJob(db(), id)?.params)).toEqual([
+        { topic: "local-seo", mode: "refresh" },
+        { topic: "glossary", mode: "refresh" },
+        { topic: "seo-fundamentals", mode: "refresh" },
+      ]);
+      expect(getJob(db(), body.jobIds[0] ?? 0)?.requestedBy).toBe("owner@example.com");
+      expect(auditEvents()).toMatchObject([
+        {
+          login: "owner@example.com",
+          event: "agent_run_requested",
+          detail: {
+            kind: "refresh",
+            topics: ["local-seo", "glossary", "seo-fundamentals"],
+            jobIds: body.jobIds,
+          },
+        },
+      ]);
+    });
+
+    it("queues nothing when nothing is stale", async () => {
+      mocks.brainDir = "/nonexistent/harbour-example-brain";
+      const response = await run(post("/api/agents/run", { kind: "refresh" }));
+      expect(await response.json()).toEqual({ jobIds: [], stale: 0 });
+      expect(listJobs(db())).toEqual([]);
+    });
+
+    it("refuses extra keys", async () => {
+      for (const body of [
+        { kind: "refresh", topic: "glossary" },
+        { kind: "refresh", month: "2026-10" },
+      ]) {
+        expect((await run(post("/api/agents/run", body))).status).toBe(400);
+      }
+      expect(listJobs(db())).toEqual([]);
+      expect(auditEvents()).toEqual([]);
     });
   });
 

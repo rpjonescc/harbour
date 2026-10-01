@@ -112,6 +112,8 @@ const schema = z
     HARBOUR_SCHEDULED_SCANS: z.enum(["on", "off"]).default("on"),
     // "off" stops the worker queueing the weekly analyst run (Run now and `pnpm analyst:now` still work).
     HARBOUR_SCHEDULED_ANALYST: z.enum(["on", "off"]).default("on"),
+    // "off" stops the worker queueing the monthly research refresh (Refresh stale research still works).
+    HARBOUR_SCHEDULED_RESEARCH: z.enum(["on", "off"]).default("on"),
     // Where nightly backups go; default `<folder of HARBOUR_DB_PATH>/backups`. Never in the brain.
     HARBOUR_BACKUP_DIR: z.string().min(1).optional(),
     // "off" stops the worker queueing the nightly backup (`pnpm backup:now` still works).
