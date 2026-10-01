@@ -122,18 +122,6 @@ describe("safeFetch", () => {
     expect((await fetch(`${origin}/direct`, opts)).redirects).toEqual([]);
   });
 
-  it("lets one call override the timeout", async () => {
-    const { origin } = await site({
-      "/slow": never,
-      "/late": (_req, res) => setTimeout(() => res.end("late"), 300),
-    });
-    const short = await fetchError(testFetch()(`${origin}/slow`, { ...opts, timeoutMs: 100 }));
-    expect(short.kind).toBe("timeout");
-    expect(short.message).toContain("100 ms");
-    const long = testFetch({ timeoutMs: 100 })(`${origin}/late`, { ...opts, timeoutMs: 2_000 });
-    expect((await long).body).toBe("late");
-  });
-
   it("refuses a fourth redirect", async () => {
     const { origin } = await site({
       "/1": redirect("/2"),
@@ -236,6 +224,7 @@ describe("safeFetch", () => {
     for (const url of [`${origin}/page`, "http://localhost/", "http://10.0.0.1/"]) {
       const error = await fetchError(fetch(url, opts));
       expect(error.kind).toBe("network");
+      expect(error.message).toContain("Refused non-public host");
     }
     expect(hits).toEqual([]);
   });

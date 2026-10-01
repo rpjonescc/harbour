@@ -2,7 +2,8 @@ import { readCappedBody } from "./fetch-body";
 import { FetchError } from "./fetch-error";
 import { HostLimiter } from "./host-limiter";
 import { sendRequest } from "./http-request";
-import { resolvePublicHost } from "./public-host";
+import { GOOGLE_API_HOSTS } from "./outbound-hosts";
+import { isNonPublicLiteral, publicLookup, type ResolveHost, resolveWithDns } from "./public-host";
 import { createRobotsGate, NO_RULES, robotsForStatus } from "./robots-gate";
 import { sameSite, siteKey } from "./site";
 import type { SafeFetch, SafeFetchOptions, SafeFetchResponse } from "./types";
@@ -18,6 +19,8 @@ export type SafeFetchSettings = {
   /** Tests only: lets requests reach 127.0.0.1 / ::1. Private ranges stay refused. */
   allowLoopback: boolean;
   limiter: HostLimiter;
+  /** Resolves hostnames before connecting (tests inject fixed answers). */
+  resolveHost: ResolveHost;
   /**
    * Upper bound on reusing a fetched robots.txt for its origin. The worker builds one safe
    * fetch per scan, so in practice the cache also ends with the scan.
@@ -33,6 +36,7 @@ const DEFAULTS: Omit<SafeFetchSettings, "allowedHosts"> = {
   maxRedirects: 3,
   allowLoopback: false,
   limiter: sharedHostLimiter,
+  resolveHost: resolveWithDns,
   robotsTtlMs: 10 * 60_000,
 };
 
@@ -56,21 +60,26 @@ export function createSafeFetch(
   const settings: SafeFetchSettings = { ...DEFAULTS, ...overrides };
   const assertRobotsAllow = createRobotsGate(loadRobots, settings.robotsTtlMs);
 
+  const lookup = publicLookup(settings.resolveHost, settings);
+
   async function hop(url: URL, options: SafeFetchOptions): Promise<Hop> {
-    const isPublic = await resolvePublicHost(url.hostname, settings, options.signal).catch(
-      (error: unknown) => {
-        if (options.signal?.aborted) throw options.signal.reason;
-        throw new FetchError("network", `Could not resolve ${url.hostname}`, { cause: error });
-      },
-    );
-    if (!isPublic) throw new FetchError("network", `Refused non-public host ${url.hostname}`);
+    // Names are checked as they connect (publicLookup); Node never looks up an IP literal.
+    if (isNonPublicLiteral(url.hostname, settings)) {
+      throw new FetchError("network", `Refused non-public host ${url.hostname}`);
+    }
     const key = siteKey(url.hostname);
     return settings.limiter.run(key, options.signal, () => request(url, options));
   }
 
+  /** A per-call timeout counts only for Google API calls (PageSpeed runs Lighthouse first). */
+  function timeoutFor(url: URL, options: SafeFetchOptions): number {
+    const google = GOOGLE_API_HOSTS.includes(url.hostname);
+    return google && options.timeoutMs !== undefined ? options.timeoutMs : settings.timeoutMs;
+  }
+
   async function request(url: URL, options: SafeFetchOptions): Promise<Hop> {
     const started = performance.now();
-    const timeoutMs = options.timeoutMs ?? settings.timeoutMs;
+    const timeoutMs = timeoutFor(url, options);
     const timeout = new AbortController();
     const timer = setTimeout(() => timeout.abort(new Error("timeout")), timeoutMs);
     const signal = options.signal
@@ -82,6 +91,7 @@ export function createSafeFetch(
         url,
         { "user-agent": HARBOUR_USER_AGENT, accept: options.accept ?? "*/*" },
         signal,
+        lookup,
       );
       const { status, headers, headerLines } = response;
       const location = status >= 300 && status < 400 ? headers.location : undefined;

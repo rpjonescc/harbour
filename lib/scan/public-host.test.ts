@@ -1,4 +1,5 @@
-import { isPublicAddress, resolvePublicHost } from "./public-host";
+import type { LookupAddress } from "node:dns";
+import { isNonPublicLiteral, isPublicAddress, publicLookup } from "./public-host";
 
 describe("isPublicAddress", () => {
   it.each([
@@ -38,16 +39,41 @@ describe("isPublicAddress", () => {
   });
 });
 
-describe("resolvePublicHost", () => {
-  it("resolves names and literals, refusing any that reach a private address", async () => {
-    await expect(resolvePublicHost("localhost", { allowLoopback: false })).resolves.toBe(false);
-    await expect(resolvePublicHost("[::1]", { allowLoopback: false })).resolves.toBe(false);
-    await expect(resolvePublicHost("127.0.0.1", { allowLoopback: true })).resolves.toBe(true);
+describe("isNonPublicLiteral", () => {
+  it("refuses private IP literals and leaves names to the lookup", () => {
+    const policy = { allowLoopback: false };
+    expect(isNonPublicLiteral("[::1]", policy)).toBe(true);
+    expect(isNonPublicLiteral("10.0.0.1", policy)).toBe(true);
+    expect(isNonPublicLiteral("93.184.216.34", policy)).toBe(false);
+    expect(isNonPublicLiteral("localhost", policy)).toBe(false);
+    expect(isNonPublicLiteral("127.0.0.1", { allowLoopback: true })).toBe(false);
+  });
+});
+
+describe("publicLookup", () => {
+  const lookupWith = (addresses: LookupAddress[], all: boolean, family = 0) =>
+    new Promise<unknown>((resolve) => {
+      const lookup = publicLookup(async () => addresses, { allowLoopback: false });
+      lookup("docs.example.com", { all, family }, (error, address, fam) =>
+        resolve(error ? error.message : { address, fam }),
+      );
+    });
+
+  it("answers in the form Node asked for", async () => {
+    const both: LookupAddress[] = [
+      { address: "2606:2800:220:1::1", family: 6 },
+      { address: "93.184.216.34", family: 4 },
+    ];
+    expect(await lookupWith(both, true)).toEqual({ address: both, fam: undefined });
+    expect(await lookupWith(both, false)).toEqual({ address: "2606:2800:220:1::1", fam: 6 });
+    expect(await lookupWith(both, false, 4)).toEqual({ address: "93.184.216.34", fam: 4 });
   });
 
-  it("stops waiting for DNS when the signal aborts", async () => {
-    const policy = { allowLoopback: false };
-    const signal = AbortSignal.abort(new Error("cancelled"));
-    await expect(resolvePublicHost("example.com", policy, signal)).rejects.toThrow("cancelled");
+  it("refuses a name with any non-public address", async () => {
+    const mixed: LookupAddress[] = [
+      { address: "93.184.216.34", family: 4 },
+      { address: "127.0.0.1", family: 4 },
+    ];
+    expect(await lookupWith(mixed, true)).toBe("Refused non-public host docs.example.com");
   });
 });

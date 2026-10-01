@@ -44,8 +44,8 @@ export type SafeFetchOptions = {
    */
   ignoreRobots?: true;
   /**
-   * Overrides the 15 s per-request timeout. Only Google API calls use it: PageSpeed Insights
-   * runs Lighthouse before answering, which takes 15–40 s.
+   * Overrides the 15 s per-request timeout, honoured only for Google API hosts: PageSpeed
+   * Insights runs Lighthouse before answering, which takes 15–40 s. Ignored for other hosts.
    */
   timeoutMs?: number;
 };

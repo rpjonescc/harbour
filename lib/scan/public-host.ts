@@ -1,6 +1,7 @@
+import type { LookupAddress } from "node:dns";
 import { lookup } from "node:dns/promises";
-import { BlockList, isIPv6 } from "node:net";
-import { raceAbort } from "./abort";
+import { BlockList, isIP, isIPv6, type LookupFunction } from "node:net";
+import { FetchError } from "./fetch-error";
 
 export type HostPolicy = { allowLoopback: boolean };
 
@@ -44,17 +45,46 @@ export function isPublicAddress(address: string, policy: HostPolicy): boolean {
   return policy.allowLoopback || !LOOPBACK.check(address, type);
 }
 
-/**
- * Resolves a URL hostname and checks every address it maps to. The later connection resolves
- * again, so this guards against misconfiguration rather than a hostile DNS server.
- */
-export async function resolvePublicHost(
-  hostname: string,
-  policy: HostPolicy,
-  signal?: AbortSignal,
-): Promise<boolean> {
-  signal?.throwIfAborted();
+/** Every address a hostname resolves to (tests inject a fake resolver). */
+export type ResolveHost = (hostname: string) => Promise<LookupAddress[]>;
+
+export const resolveWithDns: ResolveHost = (hostname) =>
+  lookup(hostname, { all: true, verbatim: true });
+
+/** Whether `hostname` is an IP literal (bracketed IPv6 included) outside the public internet. */
+export function isNonPublicLiteral(hostname: string, policy: HostPolicy): boolean {
   const bare = hostname.replace(/^\[(.*)\]$/, "$1");
-  const addresses = await raceAbort(lookup(bare, { all: true, verbatim: true }), signal);
-  return addresses.length > 0 && addresses.every(({ address }) => isPublicAddress(address, policy));
+  return isIP(bare) !== 0 && !isPublicAddress(bare, policy);
+}
+
+/**
+ * A `lookup` for http(s).request that refuses a name unless every address it resolves to is
+ * public. Checking at connect time, on the addresses the socket then uses, leaves no window
+ * for DNS rebinding. Node skips `lookup` for IP literals: check those with isNonPublicLiteral.
+ */
+export function publicLookup(resolve: ResolveHost, policy: HostPolicy): LookupFunction {
+  return (hostname, options, callback) => {
+    resolve(hostname).then(
+      (addresses) => {
+        if (addresses.length === 0 || !addresses.every((a) => isPublicAddress(a.address, policy))) {
+          callback(new FetchError("network", `Refused non-public host ${hostname}`), "");
+          return;
+        }
+        const family = options.family === 4 || options.family === 6 ? options.family : null;
+        const usable = family ? addresses.filter((a) => a.family === family) : addresses;
+        const [first] = usable;
+        if (!first) {
+          callback(new FetchError("network", `No IPv${family} address for ${hostname}`), "");
+        } else if (options.all) {
+          callback(null, usable);
+        } else {
+          callback(null, first.address, first.family);
+        }
+      },
+      (error: unknown) => {
+        const cause = error instanceof Error ? error : new Error(String(error));
+        callback(new FetchError("network", `Could not resolve ${hostname}`, { cause }), "");
+      },
+    );
+  };
 }
