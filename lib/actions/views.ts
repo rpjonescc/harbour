@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { actionEvents, actions, brainDocs } from "@/lib/db/schema";
 import type { Impact } from "@/lib/scan/issues";
@@ -17,7 +17,6 @@ const STATUSES: readonly ActionStatus[] = [
   "dismissed",
 ];
 const IMPACTS: readonly Impact[] = ["high", "medium", "low"];
-const EFFORTS = ["small", "medium", "large"] as const;
 
 export type ActionFilter = {
   /** null = all configured products. */
@@ -50,36 +49,53 @@ function statusesFor(filter: ActionFilter["status"]): readonly ActionStatus[] {
   return [filter];
 }
 
+const impactRank = sql`CASE ${actions.impact} WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`;
+const startedFirst = sql`CASE WHEN ${actions.status} = 'in_progress' THEN 0 ELSE 1 END`;
+const effortRank = sql`CASE ${actions.effort} WHEN 'small' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`;
 /** Board order: impact high → low, in progress first, effort small → large, then oldest. */
-function boardOrder(a: ActionRow, b: ActionRow): number {
-  return (
-    IMPACTS.indexOf(a.impact) - IMPACTS.indexOf(b.impact) ||
-    Number(b.status === "in_progress") - Number(a.status === "in_progress") ||
-    EFFORTS.indexOf(a.effort) - EFFORTS.indexOf(b.effort) ||
-    a.createdAt.getTime() - b.createdAt.getTime() ||
-    a.id - b.id
+const BOARD_ORDER = [impactRank, startedFirst, effortRank, asc(actions.createdAt), asc(actions.id)];
+/** Finished work (done, dismissed): impact high → low, then the latest status change first. */
+const RECENT_ORDER = [impactRank, desc(actions.statusChangedAt), desc(actions.id)];
+
+type Selection = {
+  productIds: readonly string[];
+  statuses: readonly ActionStatus[];
+  area?: ActionFilter["area"];
+  recentFirst?: boolean;
+};
+
+function whereOf({ productIds, statuses, area = null }: Selection) {
+  return and(
+    inArray(actions.productId, [...productIds]),
+    inArray(actions.status, [...statuses]),
+    area === null ? undefined : eq(actions.area, area),
   );
 }
 
+/** At most `limit` matching actions in board order, and how many matched in all. */
 function selectActions(
   db: Db,
-  productIds: readonly string[],
-  statuses: readonly ActionStatus[],
-  area: ActionFilter["area"] = null,
-): ActionRow[] {
-  if (productIds.length === 0) return [];
-  const rows = db
-    .select()
-    .from(actions)
-    .where(
-      and(
-        inArray(actions.productId, [...productIds]),
-        inArray(actions.status, [...statuses]),
-        area === null ? undefined : eq(actions.area, area),
-      ),
-    )
-    .all();
-  return rows.sort(boardOrder);
+  selection: Selection,
+  limit: number,
+): { rows: ActionRow[]; total: number } {
+  if (selection.productIds.length === 0) return { rows: [], total: 0 };
+  const rows =
+    limit < 1
+      ? []
+      : db
+          .select()
+          .from(actions)
+          .where(whereOf(selection))
+          .orderBy(...(selection.recentFirst ? RECENT_ORDER : BOARD_ORDER))
+          .limit(limit)
+          .all();
+  // Only a full page can have more behind it; skip the count otherwise.
+  return { rows, total: rows.length < limit ? rows.length : countActions(db, selection) };
+}
+
+function countActions(db: Db, selection: Selection): number {
+  const row = db.select({ n: count() }).from(actions).where(whereOf(selection)).get();
+  return row?.n ?? 0;
 }
 
 function eventsByAction(db: Db, ids: number[]): Map<number, ActionEventView[]> {
@@ -132,19 +148,37 @@ function toViews(db: Db, rows: ActionRow[]): ActionView[] {
   });
 }
 
-/** Configured products only; grouped high → low; within a group in_progress first, then effort small → large, then oldest. */
+/** Most actions the board shows at once; the rest are counted ("N more — narrow the filter"). */
+export const MAX_BOARD_ACTIONS = 200;
+
+/**
+ * Configured products only, at most MAX_BOARD_ACTIONS; grouped high → low; within a group
+ * in_progress first, then effort small → large, then oldest (done and dismissed: latest
+ * status change first). `more` counts matching actions not shown.
+ */
 export function boardActions(
   db: Db,
   filter: ActionFilter,
   productIds: readonly string[],
-): ActionGroup[] {
+): { groups: ActionGroup[]; more: number } {
   const products =
     filter.productId === null ? productIds : productIds.filter((id) => id === filter.productId);
-  const views = toViews(db, selectActions(db, products, statusesFor(filter.status), filter.area));
-  return IMPACTS.map((impact) => ({
+  const { rows, total } = selectActions(
+    db,
+    {
+      productIds: products,
+      statuses: statusesFor(filter.status),
+      area: filter.area,
+      recentFirst: filter.status === "done" || filter.status === "dismissed",
+    },
+    MAX_BOARD_ACTIONS,
+  );
+  const views = toViews(db, rows);
+  const groups = IMPACTS.map((impact) => ({
     impact,
     actions: views.filter((view) => view.impact === impact),
   })).filter((group) => group.actions.length > 0);
+  return { groups, more: total - rows.length };
 }
 
 /** How many actions each status holds, for configured products. */
@@ -173,8 +207,8 @@ export function topActiveActions(
   productIds: readonly string[],
   n: number,
 ): { actions: ActionRow[]; more: number } {
-  const rows = selectActions(db, productIds, ACTIVE);
-  return { actions: rows.slice(0, n), more: Math.max(0, rows.length - n) };
+  const { rows, total } = selectActions(db, { productIds, statuses: ACTIVE }, n);
+  return { actions: rows, more: total - rows.length };
 }
 
 /** ruleKey → { id, status, snoozedUntil } for one product's rule actions. */

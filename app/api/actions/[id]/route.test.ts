@@ -3,7 +3,7 @@ import { actionEventsFor, insertAction, setStatus } from "@/lib/actions/store";
 import { getConfig } from "@/lib/config";
 import { actions, auditLog } from "@/lib/db/schema";
 import { isoDateIn } from "@/lib/format/date";
-import { ruleAction } from "@/tests/helpers/actions";
+import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { POST } from "./route";
 
@@ -88,6 +88,8 @@ describe("POST /api/actions/[id]", () => {
     ["unknown from", { from: "lost", to: "done" }],
     ["extra key", { from: "open", to: "done", status: "done" }],
     ["long note", { from: "open", to: "done", note: "x".repeat(501) }],
+    ["until not a date", { from: "open", to: "snoozed", until: "next week" }],
+    ["until not zero-padded", { from: "open", to: "snoozed", until: "2026-1-5" }],
   ])("400s for a malformed body (%s)", async (_label, body) => {
     const id = seed();
     const response = await send(id, body);
@@ -113,6 +115,34 @@ describe("POST /api/actions/[id]", () => {
     expect(noDate.status).toBe(409);
     expect(await noDate.json()).toEqual({ error: "until_required" });
     expect(audits()).toEqual([]);
+  });
+
+  it.each([
+    ["today", () => daysAhead(0)],
+    ["an impossible date", () => "2026-13-01"],
+  ])("409s until_invalid for a snooze until %s", async (_label, until) => {
+    const id = seed();
+    const response = await send(id, { from: "open", to: "snoozed", until: until() });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "until_invalid" });
+    expect(statusOf(id)).toBe("open");
+    expect(audits()).toEqual([]);
+  });
+
+  it("accepts an analyst's suggestion (suggested → open)", async () => {
+    const id = insertAction(
+      db(),
+      agentAction(analystJob(db()), "Add a pricing FAQ"),
+      "agent",
+      null,
+      t0,
+    );
+    const response = await send(id, { from: "suggested", to: "open" });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ id, status: "open", snoozedUntil: null });
+    expect(audits()).toEqual([
+      ["action_status_changed", { id, from: "suggested", to: "open", until: null }],
+    ]);
   });
 
   it("409s stale when the page showed an older status, without overwriting it", async () => {

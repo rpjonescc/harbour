@@ -12,7 +12,10 @@ const Body = z
   .object({
     from: z.enum(["suggested", "open", "in_progress", "done", "snoozed", "dismissed"]),
     to: z.enum(["open", "in_progress", "done", "snoozed", "dismissed"]),
-    until: z.string().optional(),
+    until: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
     note: z.string().trim().max(500).optional(),
   })
   .strict();

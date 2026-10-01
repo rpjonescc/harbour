@@ -38,10 +38,12 @@ export function applyOwnerChange(db: Db, req: OwnerChangeRequest): OwnerChangeRe
       const { to, until } = req.change;
       const snoozedUntil = until ?? null;
       const note = req.change.note || null;
-      if (
-        !setStatus(tx, req.id, req.from, to, { actor: "owner", note, snoozedUntil, now: req.now })
-      )
+      const opts = { actor: "owner" as const, note, snoozedUntil, now: req.now };
+      // Unreachable today (the read above holds the IMMEDIATE lock); kept so a future change that
+      // moves the read out of this transaction still refuses instead of writing a stale audit.
+      if (!setStatus(tx, req.id, req.from, to, opts)) {
         return { ok: false, error: "conflict", conflict: true };
+      }
       audit(
         tx,
         {

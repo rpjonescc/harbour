@@ -7,8 +7,10 @@ import { insertAction, MAX_ACTION_EVENTS, setStatus } from "./store";
 import type { ActionStatus, NewAction } from "./types";
 import {
   type ActionFilter,
+  type ActionGroup,
   actionCounts,
   boardActions,
+  MAX_BOARD_ACTIONS,
   openActionCount,
   parseActionFilter,
   ruleActionStatuses,
@@ -26,7 +28,7 @@ function add(db: Db, over: Partial<NewAction>, key = `rule-${minute}`): number {
   return insertAction(db, ruleAction({ ruleKey: key, ...over }), "scan", null, at(minute));
 }
 
-const titles = (groups: ReturnType<typeof boardActions>) =>
+const titles = (groups: ActionGroup[]) =>
   groups.map((g) => [g.impact, g.actions.map((a) => a.title)]);
 
 describe("boardActions", () => {
@@ -42,7 +44,7 @@ describe("boardActions", () => {
     add(db, { title: "high small new", impact: "high", effort: "small" });
     add(db, { title: "high started", impact: "high", effort: "large", status: "in_progress" });
     add(db, { title: "medium", impact: "medium", effort: "medium" });
-    expect(titles(boardActions(db, ACTIVE_ALL, PRODUCTS))).toEqual([
+    expect(titles(boardActions(db, ACTIVE_ALL, PRODUCTS).groups)).toEqual([
       ["high", ["high started", "high small old", "high small new", "high large"]],
       ["medium", ["medium"]],
       ["low", ["low"]],
@@ -62,7 +64,7 @@ describe("boardActions", () => {
     insertAction(db, agentAction(job, "suggested"), "agent", null, at(99));
     const list = (filter: Partial<ActionFilter>) =>
       boardActions(db, { ...ACTIVE_ALL, ...filter }, PRODUCTS)
-        .flatMap((g) => g.actions.map((a) => a.title))
+        .groups.flatMap((g) => g.actions.map((a) => a.title))
         .sort();
 
     expect(list({})).toEqual(["docs geo", "docs seo", "shop seo"]);
@@ -87,8 +89,36 @@ describe("boardActions", () => {
   it("leaves out empty groups and returns nothing without configured products", () => {
     const db = openTestDb();
     add(db, { title: "only", impact: "medium" });
-    expect(titles(boardActions(db, ACTIVE_ALL, PRODUCTS))).toEqual([["medium", ["only"]]]);
-    expect(boardActions(db, ACTIVE_ALL, [])).toEqual([]);
+    expect(titles(boardActions(db, ACTIVE_ALL, PRODUCTS).groups)).toEqual([["medium", ["only"]]]);
+    expect(boardActions(db, ACTIVE_ALL, [])).toEqual({ groups: [], more: 0 });
+  });
+
+  it("shows at most MAX_BOARD_ACTIONS and counts the rest", () => {
+    const db = openTestDb();
+    for (let i = 0; i < MAX_BOARD_ACTIONS + 5; i += 1) {
+      add(db, { title: `a${i}`, impact: i < 3 ? "high" : "low" });
+    }
+    const { groups, more } = boardActions(db, ACTIVE_ALL, PRODUCTS);
+    expect(more).toBe(5);
+    expect(groups.flatMap((g) => g.actions)).toHaveLength(MAX_BOARD_ACTIONS);
+    expect(titles(groups)[0]).toEqual(["high", ["a0", "a1", "a2"]]);
+    // The oldest low-impact actions are shown; the newest five are not.
+    const shown = groups.flatMap((g) => g.actions.map((a) => a.title));
+    expect(shown).toContain(`a${MAX_BOARD_ACTIONS - 1}`);
+    expect(shown).not.toContain(`a${MAX_BOARD_ACTIONS}`);
+  });
+
+  it("lists done and dismissed actions by their latest status change, newest first", () => {
+    const db = openTestDb();
+    const first = add(db, { title: "done first", impact: "high", effort: "large" });
+    const second = add(db, { title: "done second", impact: "high" });
+    const third = add(db, { title: "done third", impact: "high" });
+    setStatus(db, second, "open", "done", { actor: "owner", now: at(100) });
+    setStatus(db, first, "open", "done", { actor: "owner", now: at(101) });
+    setStatus(db, third, "open", "done", { actor: "owner", now: at(102) });
+    const done = boardActions(db, { ...ACTIVE_ALL, status: "done" }, PRODUCTS);
+    expect(titles(done.groups)).toEqual([["high", ["done third", "done first", "done second"]]]);
+    expect(done.more).toBe(0);
   });
 
   it("carries the history and links only docs the brain has", () => {
@@ -98,7 +128,7 @@ describe("boardActions", () => {
       .run();
     const id = add(db, { docs: ["research/seo/meta.md", "research/seo/missing.md"] });
     setStatus(db, id, "open", "in_progress", { actor: "owner", note: "Starting", now: at(50) });
-    const [view] = boardActions(db, ACTIVE_ALL, PRODUCTS).flatMap((g) => g.actions);
+    const [view] = boardActions(db, ACTIVE_ALL, PRODUCTS).groups.flatMap((g) => g.actions);
     expect(view?.docLinks).toEqual([
       { path: "research/seo/meta.md", exists: true },
       { path: "research/seo/missing.md", exists: false },
@@ -120,7 +150,7 @@ describe("boardActions", () => {
         i % 2 === 0 ? ["open", "in_progress"] : ["in_progress", "open"];
       setStatus(db, id, from, to, { actor: "owner", now: at(10 + i) });
     }
-    const [view] = boardActions(db, { ...ACTIVE_ALL, status: "all" }, PRODUCTS).flatMap(
+    const [view] = boardActions(db, { ...ACTIVE_ALL, status: "all" }, PRODUCTS).groups.flatMap(
       (g) => g.actions,
     );
     expect(view?.events).toHaveLength(MAX_ACTION_EVENTS);
@@ -137,7 +167,7 @@ describe("boardActions", () => {
       })
       .where(eq(actions.id, id))
       .run();
-    const [view] = boardActions(db, ACTIVE_ALL, PRODUCTS).flatMap((g) => g.actions);
+    const [view] = boardActions(db, ACTIVE_ALL, PRODUCTS).groups.flatMap((g) => g.actions);
     expect(view?.evidence).toEqual({ items: [], total: 0 });
     expect(view?.evidenceInvalid).toBe(true);
     expect(view?.docLinks).toEqual([]);
@@ -177,7 +207,9 @@ describe("counts and summaries", () => {
     const top = topActiveActions(db, PRODUCTS, 3);
     expect(top.actions.map((a) => a.title)).toEqual(["c", "b", "d"]);
     expect(top.more).toBe(1);
-    expect(topActiveActions(db, PRODUCTS, 10).more).toBe(0);
+    expect(topActiveActions(db, PRODUCTS, 10)).toMatchObject({ more: 0 });
+    expect(topActiveActions(db, PRODUCTS, 10).actions).toHaveLength(4);
+    expect(topActiveActions(db, [], 3)).toEqual({ actions: [], more: 0 });
   });
 
   it("maps one product's rule keys to their action status", () => {
