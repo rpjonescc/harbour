@@ -11,6 +11,11 @@ describe("claudeArgs", () => {
     expect(value("--model")).toBe("sonnet");
   });
 
+  it("passes the prompt right after -p and never skips permissions", () => {
+    expect(args[args.indexOf("-p") + 1]).toBe("Do the thing");
+    expect(args).not.toContain("--dangerously-skip-permissions");
+  });
+
   it("exposes only the research tools, never a shell", () => {
     expect(value("--tools")).toBe("Read,Write,Edit,Glob,Grep,WebSearch,WebFetch");
     expect(AGENT_TOOLS).not.toContain("Bash");

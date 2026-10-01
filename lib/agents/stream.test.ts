@@ -67,4 +67,49 @@ describe("summariseLine", () => {
     expect(summariseLine("not json", root)).toEqual({ events: [] });
     expect(summariseLine(line({ type: "system", subtype: "init" }), root)).toEqual({ events: [] });
   });
+
+  it("never throws on malformed lines", () => {
+    const bad = [
+      assistant([null, 1, "x"]),
+      line({ type: "assistant", message: null }),
+      line({ type: "user", message: null }),
+      line("str"),
+      line(null),
+      tool("Write", { file_path: 42 }),
+      assistant([{ type: "tool_use", name: "Write", input: "str" }]),
+      assistant([{ type: "tool_use", name: "WebSearch", input: null }]),
+    ];
+    for (const l of bad) expect(() => summariseLine(l, root)).not.toThrow();
+    expect(summariseLine(tool("Write", { file_path: 42 }), root).events).toEqual([]);
+    expect(summariseLine(assistant([null, 1, "x"]), root).events).toEqual([]);
+  });
+
+  it("extracts text from array tool-result content", () => {
+    const err = line({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            is_error: true,
+            content: [
+              { type: "text", text: "Denied" },
+              { type: "text", text: "outside root" },
+            ],
+          },
+        ],
+      },
+    });
+    expect(summariseLine(err, root).events).toEqual([
+      { kind: "error", text: "Tool error: Denied\noutside root" },
+    ]);
+  });
+
+  it("clips the final result text", () => {
+    const out = summariseLine(
+      line({ type: "result", subtype: "success", result: "y".repeat(5000) }),
+      root,
+    ).result;
+    expect(out?.text.length).toBeLessThanOrEqual(1001);
+  });
 });
