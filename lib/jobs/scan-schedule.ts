@@ -37,6 +37,26 @@ function inDailySlot(timeZone: string, at: Date, today: LocalTime): boolean {
   return local.day === today.day && local.minute >= DAILY_MINUTE;
 }
 
+export type NextDailyScan = "off" | "today" | "tomorrow" | "due";
+
+/**
+ * When the product's next daily scan is queued: "today" before 06:00 local, "tomorrow" once a
+ * scan job was created since today's 06:00 (by the schedule or by hand, as `tick` counts it),
+ * "due" until then (the worker queues it at its next check), or "off".
+ */
+export function nextDailyScan(
+  now: Date,
+  timeZone: string,
+  enabled: boolean,
+  lastJobCreatedAt: Date | null,
+): NextDailyScan {
+  if (!enabled) return "off";
+  const today = localTime(timeZone, now);
+  if (today.minute < DAILY_MINUTE) return "today";
+  if (lastJobCreatedAt && inDailySlot(timeZone, lastJobCreatedAt, today)) return "tomorrow";
+  return "due";
+}
+
 /** Queues a scan of a product unless one is already queued or running. */
 export function enqueueScan(
   db: Db,

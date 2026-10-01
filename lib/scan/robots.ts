@@ -21,6 +21,18 @@ export const AI_CRAWLERS = [
 
 export type AiCrawler = (typeof AI_CRAWLERS)[number];
 
+/**
+ * Agents that fetch pages to answer a question or build an AI search index: being blocked
+ * keeps a site out of AI answers. The other AI crawlers (GPTBot, ClaudeBot, Google-Extended,
+ * CCBot, Bytespider) collect training data only, which owners may block on purpose.
+ */
+export const AI_RETRIEVAL_AGENTS: ReadonlySet<string> = new Set<AiCrawler>([
+  "OAI-SearchBot",
+  "ChatGPT-User",
+  "PerplexityBot",
+  "Claude-SearchBot",
+]);
+
 /** "HarbourBot/0.1" and "harbourbot" name the same crawler. */
 function agentToken(agent: string): string {
   return (agent.split("/")[0] ?? "").trim().toLowerCase();

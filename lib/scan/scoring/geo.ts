@@ -1,3 +1,4 @@
+import { AI_RETRIEVAL_AGENTS } from "../robots";
 import { hasSchemaFamily } from "../schema-types";
 import type { Crawl, Readiness } from "./inputs";
 import { type HtmlPage, htmlPages } from "./pages";
@@ -16,27 +17,16 @@ const CITATION_TARGET = 0.5;
 const ORGANIZATION_POINTS = 60;
 const WEBSITE_POINTS = 40;
 
-/**
- * Agents that fetch pages to answer a question or build an AI search index: being blocked
- * keeps a site out of AI answers. Everything else listed (GPTBot, ClaudeBot, Google-Extended,
- * CCBot, Bytespider) collects training data only, which owners may block on purpose.
- */
-const RETRIEVAL_AGENTS = new Set([
-  "OAI-SearchBot",
-  "ChatGPT-User",
-  "PerplexityBot",
-  "Claude-SearchBot",
-]);
 /** A retrieval or search agent counts three times as much as a training-only crawler. */
 const RETRIEVAL_WEIGHT = 3;
 const TRAINING_WEIGHT = 1;
 
 const weightOf = (name: string) =>
-  RETRIEVAL_AGENTS.has(name) ? RETRIEVAL_WEIGHT : TRAINING_WEIGHT;
+  AI_RETRIEVAL_AGENTS.has(name) ? RETRIEVAL_WEIGHT : TRAINING_WEIGHT;
 
 /** "4 of 4 search and retrieval agents" for one class of crawler. */
 function classNote(entries: [string, string][], retrieval: boolean): string | null {
-  const members = entries.filter(([name]) => RETRIEVAL_AGENTS.has(name) === retrieval);
+  const members = entries.filter(([name]) => AI_RETRIEVAL_AGENTS.has(name) === retrieval);
   if (members.length === 0) return null;
   const allowed = members.filter(([, access]) => access !== "blocked").length;
   const what = retrieval
@@ -65,7 +55,8 @@ export function aiCrawlerAccess(readiness: Readiness): SubScore {
   const notes = [
     `${allowed} of ${entries.length} AI crawlers may fetch the home page: ${classes.join(", ")}`,
   ];
-  const label = (name: string) => (RETRIEVAL_AGENTS.has(name) ? name : `${name} (training only)`);
+  const label = (name: string) =>
+    AI_RETRIEVAL_AGENTS.has(name) ? name : `${name} (training only)`;
   if (blocked.length > 0) notes.push(`blocked: ${blocked.map(label).join(", ")}`);
   if (partial.length > 0) notes.push(`some paths disallowed for: ${partial.join(", ")}`);
   return measured((100 * allowedWeight) / total, `${notes.join("; ")}.`);

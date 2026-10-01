@@ -1,7 +1,7 @@
 import { finishScan, startScan } from "@/lib/scan/store";
 import { openTestDb } from "@/tests/helpers/db";
 import { claimNextJob, enqueueJob, finishJob, listJobs } from "./queue";
-import { localTime, makeScanSchedule } from "./scan-schedule";
+import { localTime, makeScanSchedule, nextDailyScan } from "./scan-schedule";
 
 const HOUR = 60 * 60_000;
 const PRODUCTS = ["acme-docs", "acme-blog"];
@@ -195,5 +195,28 @@ describe("catch-up on start", () => {
     enqueueJob(h.db, "scan", { productId: "acme-docs" }, null);
     expect(h.schedule.catchUp().map((s) => s.productId)).toEqual(["acme-blog"]);
     expect(h.scans()).toEqual(["acme-blog", "acme-docs"]);
+  });
+});
+
+describe("nextDailyScan", () => {
+  const zone = "Europe/London";
+  // 2026-10-01 is in British Summer Time: 06:00 local is 05:00 UTC.
+  const local = (time: string) => new Date(`2026-10-01T${time}+01:00`);
+
+  it("is off when scheduled scans are off", () => {
+    expect(nextDailyScan(local("12:00"), zone, false, null)).toBe("off");
+  });
+
+  it("is today before 06:00 local", () => {
+    expect(nextDailyScan(local("05:59"), zone, true, local("05:30"))).toBe("today");
+  });
+
+  it("is tomorrow once a scan job was created since today's 06:00", () => {
+    expect(nextDailyScan(local("12:00"), zone, true, local("06:00"))).toBe("tomorrow");
+  });
+
+  it("is due after 06:00 until today's scan job exists", () => {
+    expect(nextDailyScan(local("12:00"), zone, true, null)).toBe("due");
+    expect(nextDailyScan(local("12:00"), zone, true, local("05:59"))).toBe("due");
   });
 });
