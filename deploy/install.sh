@@ -20,6 +20,14 @@ if [[ ! -f "$REPO/.env" ]]; then
 fi
 chmod 600 "$REPO/.env"
 
+# The worker runs agents with the Claude Code CLI. systemd starts it with a minimal PATH, so
+# remember where `claude` is now; render-unit.mjs adds its directory to the worker's PATH.
+CLAUDE_PATH="$(command -v claude || true)"
+if [[ -z "$CLAUDE_PATH" ]] && ! grep -q "^HARBOUR_CLAUDE_BIN=." "$REPO/.env"; then
+  echo "Warning: the Claude Code CLI (claude) is not on PATH, so agent runs will fail." >&2
+  echo "  Install it, or set HARBOUR_CLAUDE_BIN=/absolute/path/to/claude in .env, then re-run this script." >&2
+fi
+
 # URL.origin drops the default port, so the config must not carry :443.
 if [[ "$HTTPS_PORT" == "443" ]]; then ORIGIN_HOST="$MAGIC_DNS"; else ORIGIN_HOST="$MAGIC_DNS:$HTTPS_PORT"; fi
 EXPECTED_ORIGIN="HARBOUR_ORIGIN=https://$ORIGIN_HOST"
@@ -55,10 +63,10 @@ esac
 (cd "$REPO" && pnpm install --frozen-lockfile && pnpm build)
 
 mkdir -p "$UNIT_DIR"
-sed -e "s|__REPO__|$REPO|g" -e "s|__NODE_BIN__|$NODE_BIN|g" \
-  "$REPO/deploy/harbour-web.service.template" > "$UNIT_DIR/harbour-web.service"
-sed -e "s|__REPO__|$REPO|g" -e "s|__NODE_BIN__|$NODE_BIN|g" \
-  "$REPO/deploy/harbour-worker.service.template" > "$UNIT_DIR/harbour-worker.service"
+node "$REPO/deploy/render-unit.mjs" "$REPO/deploy/harbour-web.service.template" "$REPO" "$NODE_BIN" \
+  > "$UNIT_DIR/harbour-web.service"
+node "$REPO/deploy/render-unit.mjs" "$REPO/deploy/harbour-worker.service.template" "$REPO" "$NODE_BIN" "$CLAUDE_PATH" \
+  > "$UNIT_DIR/harbour-worker.service"
 systemctl --user daemon-reload
 systemctl --user enable --now harbour-web.service harbour-worker.service
 # enable --now does nothing for a running unit; restart so a re-run serves the new build.
@@ -78,4 +86,4 @@ else
   echo "To start Harbour at boot without logging in, run once:  sudo loginctl enable-linger $USER"
 fi
 echo "Register your first passkey:  pnpm setup-token"
-grep -q "^HARBOUR_CLAUDE_OAUTH_TOKEN=." "$REPO/.env" || echo "Agents are disabled until you add HARBOUR_CLAUDE_OAUTH_TOKEN to .env (run: claude setup-token), then: systemctl --user restart harbour-worker"
+grep -q "^HARBOUR_CLAUDE_OAUTH_TOKEN=." "$REPO/.env" || echo "Agents are disabled until you add HARBOUR_CLAUDE_OAUTH_TOKEN to .env (run: claude setup-token), then: systemctl --user restart harbour-web harbour-worker"

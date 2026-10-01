@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 WorkingDirectory=__REPO__
 Environment=NODE_ENV=production
-Environment=PATH=__NODE_BIN__:/usr/bin:/bin
+Environment=PATH=__EXTRA_PATH____NODE_BIN__:%h/.local/bin:/usr/bin:/bin
 ExecStart=__NODE_BIN__/pnpm worker
 Restart=always
 RestartSec=5
