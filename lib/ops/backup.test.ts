@@ -1,4 +1,5 @@
 import {
+  chmodSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -15,7 +16,7 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { connectionOf, type Db, migrateDb, openDb } from "@/lib/db/client";
 import { enqueueJob } from "@/lib/jobs/queue";
-import { runBackup } from "./backup";
+import { BackupStopped, finaliseCopy, runBackup } from "./backup";
 
 const DAY = "2026-10-02";
 const MINUTE = 60_000;
@@ -153,8 +154,52 @@ describe("runBackup", () => {
     expect(readdirSync(dir)).toEqual([]);
   });
 
+  it("never prunes the backup it has just written, even when it is the oldest", async () => {
+    mkdirSync(dir, { recursive: true });
+    for (let d = 3; d <= 16; d++) {
+      writeFileSync(join(dir, `harbour-2026-10-${String(d).padStart(2, "0")}.db`), "newer");
+    }
+    const result = await runBackup(db, { dir, day: DAY, now: fixedClock });
+    expect(result.pruned).toEqual([]);
+    expect(existsSync(join(dir, "harbour-2026-10-02.db"))).toBe(true);
+  });
+
+  it("stops when asked, removing the partial", async () => {
+    await expect(
+      runBackup(db, { dir, day: DAY, now: fixedClock, pagesPerStep: 1, shouldStop: () => true }),
+    ).rejects.toBeInstanceOf(BackupStopped);
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
+  it("removes leftover partials and their journal, wal and shm files, and nothing else", async () => {
+    mkdirSync(dir, { recursive: true });
+    for (const suffix of ["", "-journal", "-wal", "-shm"]) {
+      writeFileSync(join(dir, `harbour-2026-10-01.db.partial${suffix}`), "x");
+    }
+    mkdirSync(join(dir, "harbour-2026-09-01.db.partial"));
+    writeFileSync(join(dir, "harbour-2026-09-02.db.partial-old"), "x");
+    await runBackup(db, { dir, day: DAY, now: fixedClock });
+    expect(readdirSync(dir).sort()).toEqual([
+      "harbour-2026-09-01.db.partial",
+      "harbour-2026-09-02.db.partial-old",
+      "harbour-2026-10-02.db",
+    ]);
+  });
+
   it("refuses a malformed day before touching the disk", async () => {
     await expect(runBackup(db, { dir, day: "../x", now: fixedClock })).rejects.toThrow();
     expect(existsSync(dir)).toBe(false);
+  });
+});
+
+describe("finaliseCopy", () => {
+  it("refuses a copy it cannot switch to a single file", () => {
+    const path = join(root, "wal-copy.db");
+    const wal = new Database(path);
+    wal.pragma("journal_mode = WAL");
+    wal.exec("create table t (x)");
+    wal.close();
+    chmodSync(path, 0o400);
+    expect(() => finaliseCopy(path)).toThrow(/could not be switched to a single file/);
   });
 });

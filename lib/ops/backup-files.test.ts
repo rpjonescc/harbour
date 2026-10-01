@@ -21,7 +21,11 @@ describe("backup names", () => {
   it("names a backup by its local day", () => {
     expect(backupFileName("2026-10-02")).toBe("harbour-2026-10-02.db");
     expect(BACKUP_NAME.test("harbour-2026-10-02.db")).toBe(true);
-    expect(PARTIAL_NAME.test("harbour-2026-10-02.db.partial")).toBe(true);
+    for (const suffix of ["", "-journal", "-wal", "-shm"]) {
+      expect(PARTIAL_NAME.test(`harbour-2026-10-02.db.partial${suffix}`)).toBe(true);
+    }
+    expect(PARTIAL_NAME.test("harbour-2026-10-02.db-wal")).toBe(false);
+    expect(PARTIAL_NAME.test("harbour-2026-10-02.db.partial-old")).toBe(false);
   });
 
   it("refuses anything that is not a YYYY-MM-DD day", () => {

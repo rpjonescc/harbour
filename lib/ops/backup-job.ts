@@ -2,8 +2,8 @@
 
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
-import { addEvent, finishJob, type Job } from "@/lib/jobs/queue";
-import { type BackupResult, runBackup } from "./backup";
+import { addEvent, finishJob, isCancelRequested, type Job } from "@/lib/jobs/queue";
+import { type BackupResult, BackupStopped, runBackup } from "./backup";
 import { backupDirFor, backupFileName } from "./backup-files";
 
 export type OpsJobDeps = {
@@ -26,9 +26,15 @@ export function describeBackup(result: BackupResult): string {
   return `Backup verified: ${mb} MB, ${pages} pages in ${seconds} s; ${result.kept} kept${removed}`;
 }
 
-/** Backs up the database for the job's `day`; a failure fails the job with its reason. */
+const STOPPED = "Worker stopped";
+
+/**
+ * Backs up the database for the job's `day`; a failure fails the job with its reason. Cancel
+ * and worker stop abandon the copy: cancelled, with "Worker stopped" as the error for a stop
+ * (the schedule retries that one, but not an owner's cancel).
+ */
 export async function runBackupJob(deps: OpsJobDeps, job: Job): Promise<void> {
-  const { db, config, now } = deps;
+  const { db, config, now, stopping } = deps;
   try {
     const day = job.params.day ?? "";
     addEvent(db, job.id, "status", `Backing up to ${backupFileName(day)}`, now());
@@ -36,10 +42,20 @@ export async function runBackupJob(deps: OpsJobDeps, job: Job): Promise<void> {
       dir: backupDirFor(config),
       day,
       now: () => now().getTime(),
+      shouldStop: () => stopping() || isCancelRequested(db, job.id),
     });
     addEvent(db, job.id, "status", describeBackup(result), now());
+    if (result.pruneError) {
+      addEvent(db, job.id, "error", `Could not remove old backups: ${result.pruneError}`, now());
+    }
     finishJob(db, job.id, "ok", null, now());
   } catch (error) {
+    if (error instanceof BackupStopped) {
+      const stopped = stopping();
+      addEvent(db, job.id, "status", stopped ? STOPPED : "Cancelled", now());
+      finishJob(db, job.id, "cancelled", stopped ? STOPPED : null, now());
+      return;
+    }
     const message = error instanceof Error ? error.message : String(error);
     addEvent(db, job.id, "error", message, now());
     finishJob(db, job.id, "failed", message, now());

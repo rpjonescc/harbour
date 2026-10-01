@@ -2,8 +2,10 @@
 
 import {
   chmodSync,
+  closeSync,
   lstatSync,
   mkdirSync,
+  openSync,
   readdirSync,
   renameSync,
   statSync,
@@ -29,6 +31,8 @@ export type BackupResult = {
   ms: number;
   kept: number;
   pruned: string[];
+  /** Why pruning failed after the backup was kept; the backup itself still stands. */
+  pruneError: string | null;
 };
 
 export type BackupOptions = {
@@ -39,18 +43,38 @@ export type BackupOptions = {
   deadlineMs?: number;
   /** Pages copied per step; the event loop runs between steps. Default 256. */
   pagesPerStep?: number;
+  /** Checked between steps: true abandons the copy with BackupStopped (cancel or worker stop). */
+  shouldStop?: () => boolean;
   /** Test seam: finalises the copy and returns its integrity_check rows. */
   verify?: (path: string) => string[];
 };
 
+/** The copy was abandoned because the job was cancelled or the worker is stopping. */
+export class BackupStopped extends Error {
+  constructor() {
+    super("Cancelled");
+    this.name = "BackupStopped";
+  }
+}
+
 /**
- * Makes the copy one self-contained file (it carries the source's WAL flag) and returns its
- * integrity_check rows: exactly ["ok"] when it is sound.
+ * Makes the copy one self-contained file (it carries the source's WAL flag, and a restore must
+ * not need `-wal`/`-shm` files) and returns its integrity_check rows: exactly ["ok"] when sound.
  */
-function finaliseAndCheck(path: string): string[] {
+export function finaliseCopy(path: string): string[] {
   const copy = new Database(path);
   try {
-    copy.pragma("journal_mode = DELETE");
+    let mode: unknown;
+    try {
+      mode = copy.pragma("journal_mode = DELETE", { simple: true });
+    } catch (error) {
+      mode = error instanceof Error ? error.message : String(error);
+    }
+    if (mode !== "delete") {
+      throw new Error(`Backup could not be switched to a single file (${String(mode)})`);
+    }
+    // Synchronous and outside the copy's deadline: it reads the whole file once, which is
+    // bounded by the database size and blocks the worker (not the web) meanwhile.
     const rows = copy.pragma("integrity_check") as { integrity_check: string }[];
     return rows.map((row) => row.integrity_check);
   } finally {
@@ -67,32 +91,41 @@ function removeIfOurs(dir: string, name: string, pattern: RegExp): boolean {
   return true;
 }
 
-function prune(dir: string): string[] {
-  return backupsToPrune(listBackups(dir).map((f) => f.name)).filter((name) =>
-    removeIfOurs(dir, name, BACKUP_NAME),
-  );
+/** Unfinished copies of earlier (crashed) or failed runs, with their journal files. */
+function removePartials(dir: string): void {
+  for (const name of readdirSync(dir)) removeIfOurs(dir, name, PARTIAL_NAME);
+}
+
+/** Keeps the newest backups; never the one just written (`keep`), even if it is the oldest. */
+function prune(dir: string, keep: string): string[] {
+  return backupsToPrune(listBackups(dir).map((f) => f.name))
+    .filter((name) => name !== keep)
+    .filter((name) => removeIfOurs(dir, name, BACKUP_NAME));
 }
 
 /** Copies the live database into `<dir>/harbour-<day>.db`, verified, then keeps the newest 14. */
 export async function runBackup(db: Db, opts: BackupOptions): Promise<BackupResult> {
   const { dir, day, now, deadlineMs = 10 * MINUTE_MS, pagesPerStep = 256 } = opts;
-  const verify = opts.verify ?? finaliseAndCheck;
+  const verify = opts.verify ?? finaliseCopy;
+  const shouldStop = opts.shouldStop ?? (() => false);
   const name = backupFileName(day); // validates `day` before anything touches the disk
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   // mkdir's mode only applies to new directories; tighten one that already existed too.
   chmodSync(dir, 0o700);
-  // A crashed earlier run leaves its partial behind.
-  for (const leftover of readdirSync(dir)) removeIfOurs(dir, leftover, PARTIAL_NAME);
+  removePartials(dir);
 
   const partial = join(dir, `${name}.partial`);
   const final = join(dir, name);
   const started = now();
   let pages: number;
   try {
+    // Created private before any byte is copied; "wx" refuses anything already at that path.
+    closeSync(openSync(partial, "wx", 0o600));
     // Steps run on setImmediate, so the worker's heartbeat keeps beating; a write by another
     // connection restarts the copy at the next step, which the deadline bounds.
     const progress = await connectionOf(db).backup(partial, {
       progress: () => {
+        if (shouldStop()) throw new BackupStopped();
         if (now() - started > deadlineMs) {
           throw new Error(`Backup took longer than ${Math.round(deadlineMs / MINUTE_MS)} minutes`);
         }
@@ -108,7 +141,7 @@ export async function runBackup(db: Db, opts: BackupOptions): Promise<BackupResu
     renameSync(partial, final); // atomic; replaces an earlier backup of the same day
   } catch (error) {
     try {
-      removeIfOurs(dir, `${name}.partial`, PARTIAL_NAME);
+      removePartials(dir);
     } catch {
       // Best effort: the original error is what matters, and the next run removes the partial.
     }
@@ -116,6 +149,12 @@ export async function runBackup(db: Db, opts: BackupOptions): Promise<BackupResu
   }
   const ms = now() - started;
   const bytes = statSync(final).size;
-  const pruned = prune(dir);
-  return { name, bytes, pages, ms, kept: listBackups(dir).length, pruned };
+  let pruned: string[] = [];
+  let pruneError: string | null = null;
+  try {
+    pruned = prune(dir, name);
+  } catch (error) {
+    pruneError = error instanceof Error ? error.message : String(error);
+  }
+  return { name, bytes, pages, ms, kept: listBackups(dir).length, pruned, pruneError };
 }

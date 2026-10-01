@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
 import { parseConfig } from "./config";
 
 const base = {
@@ -247,6 +250,31 @@ describe("backup settings", () => {
       expect(() =>
         parseConfig({ ...base, HARBOUR_BRAIN_DIR: "./brain", HARBOUR_BACKUP_DIR: dir }),
       ).toThrow(/HARBOUR_BACKUP_DIR/);
+    }
+  });
+
+  it("refuses a shared folder: the home folder, / or the temp folder", () => {
+    for (const dir of [homedir(), `${homedir()}/`, "/", tmpdir(), "/tmp"]) {
+      expect(() => parseConfig({ ...base, HARBOUR_BACKUP_DIR: dir })).toThrow(
+        /HARBOUR_BACKUP_DIR must be a dedicated folder/,
+      );
+    }
+  });
+
+  it("refuses a backup folder that reaches the brain through a symlink", () => {
+    const root = mkdtempSync(join(tmpdir(), "harbour-config-"));
+    try {
+      mkdirSync(join(root, "brain"));
+      symlinkSync(join(root, "brain"), join(root, "link"));
+      expect(() =>
+        parseConfig({
+          ...base,
+          HARBOUR_BRAIN_DIR: join(root, "brain"),
+          HARBOUR_BACKUP_DIR: join(root, "link", "backups"),
+        }),
+      ).toThrow(/HARBOUR_BACKUP_DIR must not be inside HARBOUR_BRAIN_DIR/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 });

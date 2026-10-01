@@ -16,6 +16,7 @@ import {
 } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { agentRunEvents, agentRuns, jobs } from "@/lib/db/schema";
+import { AGENT_JOB_KINDS } from "./job-kinds";
 
 export type JobKind =
   | "research"
@@ -181,12 +182,11 @@ export function recoverStaleJobs(db: Db, now = new Date(), staleMs = STALE_MS): 
  * heartbeat says. Returns their ids so their partial changes can be recovered.
  */
 export function recoverRunningJobs(db: Db, now = new Date()): number[] {
-  const agentKinds: JobKind[] = ["research", "discovery", "weekly-analyst"];
   const agent = failRunning(
     db,
     now,
     "Worker stopped during run — partial changes moved to quarantine",
-    inArray(jobs.kind, agentKinds),
+    inArray(jobs.kind, [...AGENT_JOB_KINDS]),
   );
   return [...agent, ...failRunning(db, now, "Worker stopped")].sort((a, b) => a - b);
 }

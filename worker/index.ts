@@ -11,10 +11,12 @@ import { isoDateIn } from "@/lib/format/date";
 import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
 import { keepAlive } from "@/lib/jobs/heartbeat";
 import { makeImportRetry } from "@/lib/jobs/import-retry";
+import { isAgentJobKind } from "@/lib/jobs/job-kinds";
 import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
 import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
 import { makeScheduler } from "@/lib/jobs/scheduler";
+import { failUnknownJob } from "@/lib/jobs/unknown-job";
 import { runBackupJob } from "@/lib/ops/backup-job";
 import { describeNextBackup, makeBackupSchedule } from "@/lib/ops/backup-schedule";
 import { getProducts } from "@/lib/products/catalog";
@@ -105,7 +107,6 @@ async function main() {
       });
       await runScan(deps, job);
     } else if (job.kind === "backup") {
-      // Before the agent fallback below, which every other kind reaches.
       await runBackupJob(
         {
           db,
@@ -116,7 +117,7 @@ async function main() {
         },
         job,
       );
-    } else {
+    } else if (isAgentJobKind(job.kind)) {
       const { pushed } = await runAgentJob(
         {
           db,
@@ -139,6 +140,9 @@ async function main() {
       );
       // A failed agent push backs off like any other, instead of retrying at the next check.
       if (pushed !== null) scheduler.pushed(pushed);
+    } else {
+      // A kind with no runner here (e.g. queued by a newer version) fails instead of reaching an agent.
+      failUnknownJob(db, job, now());
     }
   };
 

@@ -43,8 +43,12 @@ export function describeNextBackup(now: Date, timeZone: string, enabled: boolean
 /** The attempt to queue now for a slot day with these jobs, or null when none is due. */
 function dueAttempt(jobs: readonly Job[], nowMs: number): number | null {
   if (jobs.length === 0) return 1;
-  // Queued, running or done: nothing to add. Cancelled counts as an attempt that ended.
-  if (jobs.some((job) => ["queued", "running", "ok"].includes(job.status))) return null;
+  // Queued, running, done or cancelled by the owner: nothing to add. A cancel by the worker's
+  // stop ("Worker stopped") counts as an attempt that ended, like a failure.
+  const settled = (job: Job) =>
+    ["queued", "running", "ok"].includes(job.status) ||
+    (job.status === "cancelled" && job.error === null);
+  if (jobs.some(settled)) return null;
   if (jobs.length >= MAX_BACKUP_ATTEMPTS) return null;
   const last = jobs.at(-1);
   const endedAt = (last?.finishedAt ?? last?.createdAt)?.getTime() ?? nowMs;

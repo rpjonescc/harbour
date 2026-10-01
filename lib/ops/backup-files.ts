@@ -7,7 +7,8 @@ import { parseDay } from "@/lib/format/zoned-time";
 
 export const BACKUPS_KEPT = 14;
 export const BACKUP_NAME = /^harbour-(\d{4}-\d{2}-\d{2})\.db$/;
-export const PARTIAL_NAME = /^harbour-(\d{4}-\d{2}-\d{2})\.db\.partial$/;
+/** An unfinished copy, or the journal / WAL files SQLite left beside one. */
+export const PARTIAL_NAME = /^harbour-(\d{4}-\d{2}-\d{2})\.db\.partial(?:-journal|-wal|-shm)?$/;
 
 /** "harbour-2026-10-02.db"; throws unless `day` is a real YYYY-MM-DD date. */
 export function backupFileName(day: string): string {

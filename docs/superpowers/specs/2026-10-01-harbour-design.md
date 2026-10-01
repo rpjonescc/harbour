@@ -401,8 +401,9 @@ stand, what improved, what got worse, top opportunities, and new competitors see
   (default `<db dir>/backups`; never inside the brain) as `harbour-YYYY-MM-DD.db`. Each copy
   is switched to a single self-contained file (journal mode DELETE), verified with
   `integrity_check` and only then renamed into place, mode 600 in a mode-700 folder; 14 kept
-  (pruning deletes only regular files named exactly like a backup). Up to 3 attempts per night
-  (10 and 40 minutes apart), then a Today notice; one catch-up for the latest missed night
+  (pruning deletes only regular files named exactly like a backup, never the one just written;
+  the folder must be dedicated). Up to 3 attempts per night (10 and 40 minutes apart; a worker
+  stop counts as an attempt, an owner's cancel ends the night), then a Today notice; one catch-up for the latest missed night
   only, never one per missed night; each backup is bounded to 10 minutes. The brain directory
   is its own git repo.
 

@@ -1,4 +1,6 @@
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { existsSync, realpathSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 
 /** WebAuthn requires the RP id to be the origin's host or a registrable suffix of it. */
@@ -16,10 +18,27 @@ function isLoopbackOrigin(origin: string): boolean {
   return protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
 }
 
-/** Whether `path` is `dir` or inside it, compared as resolved absolute paths. */
+/** `path` absolute with symlinks resolved, through its nearest existing ancestor if it does not exist yet. */
+function realPath(path: string): string {
+  let existing = resolve(path);
+  const rest: string[] = [];
+  while (!existsSync(existing) && dirname(existing) !== existing) {
+    rest.unshift(basename(existing));
+    existing = dirname(existing);
+  }
+  return join(existsSync(existing) ? realpathSync(existing) : existing, ...rest);
+}
+
+/** Whether `path` is `dir` or inside it, compared as real absolute paths. */
 function isInside(path: string, dir: string): boolean {
-  const rel = relative(resolve(dir), resolve(path));
+  const rel = relative(realPath(dir), realPath(path));
   return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+/** Backups are pruned by name, so they need a folder of their own, not a shared one. */
+function isSharedFolder(path: string): boolean {
+  const real = realPath(path);
+  return ["/", homedir(), tmpdir(), "/tmp"].some((shared) => realPath(shared) === real);
 }
 
 const flag = z
@@ -118,6 +137,11 @@ const schema = z
   .refine((c) => !c.HARBOUR_SCAN_ALLOW_LOOPBACK || c.HARBOUR_TEST_MODE, {
     message: "HARBOUR_SCAN_ALLOW_LOOPBACK is for tests only: it needs HARBOUR_TEST_MODE=1",
     path: ["HARBOUR_SCAN_ALLOW_LOOPBACK"],
+  })
+  .refine((c) => !c.HARBOUR_BACKUP_DIR || !isSharedFolder(c.HARBOUR_BACKUP_DIR), {
+    message:
+      "HARBOUR_BACKUP_DIR must be a dedicated folder, not /, your home folder or the temp folder",
+    path: ["HARBOUR_BACKUP_DIR"],
   })
   // The brain is pushed to a remote; backups hold session hashes and the audit log.
   .refine((c) => !c.HARBOUR_BACKUP_DIR || !isInside(c.HARBOUR_BACKUP_DIR, c.HARBOUR_BRAIN_DIR), {

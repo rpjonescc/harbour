@@ -104,6 +104,25 @@ describe("backup schedule", () => {
     expect(h.at("2026-10-03T02:15:00Z")).toMatchObject({ day: "2026-10-03", attempt: 1 });
   });
 
+  it("leaves the night alone after the owner cancels its backup", () => {
+    const h = harness();
+    h.at("2026-10-02T02:15:00Z");
+    const job = claimNextJob(h.db, new Date("2026-10-02T02:15:30Z"));
+    if (!job) throw new Error("nothing queued");
+    finishJob(h.db, job.id, "cancelled", null, new Date("2026-10-02T02:16:00Z"));
+    expect(h.at("2026-10-02T09:00:00Z")).toBeNull();
+    expect(h.days()).toEqual(["2026-10-02"]);
+  });
+
+  it("retries a backup that the worker's stop cancelled", () => {
+    const h = harness();
+    h.at("2026-10-02T02:15:00Z");
+    const job = claimNextJob(h.db, new Date("2026-10-02T02:15:30Z"));
+    if (!job) throw new Error("nothing queued");
+    finishJob(h.db, job.id, "cancelled", "Worker stopped", new Date("2026-10-02T02:16:00Z"));
+    expect(h.at("2026-10-02T02:26:00Z")).toMatchObject({ day: "2026-10-02", attempt: 2 });
+  });
+
   it("counts a manual backup of today as today's backup", () => {
     const db = backedUp("2026-10-01", "2026-10-01T02:16:00Z");
     enqueueBackup(db, "2026-10-02", "owner@example.com", new Date("2026-10-02T01:00:00Z"));

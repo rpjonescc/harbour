@@ -126,7 +126,8 @@ backups never reach git. The newest 14 are kept, each verified and mode 600. Tre
 `pnpm backup:now` queues one now. The worker's start-up line in its log names the next backup
 ("next backup 2026-10-03 03:15 Europe/London", or "nightly backup off").
 
-To restore a backup (see "Backups and restore" in the main README for details):
+To restore a backup (see "Backups and restore" in the main README for details), run these from
+the Harbour folder (the paths below are relative to it):
 
 ```bash
 systemctl --user stop harbour-worker harbour-web

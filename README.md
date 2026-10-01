@@ -291,7 +291,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility scan's crawler fetches per product per scan, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
 | `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing scans by itself (the daily 06:00 scan and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Run weekly report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
-| `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Refused if it is inside `HARBOUR_BRAIN_DIR`, because the brain is pushed to a remote. Restart the worker after changing it. |
+| `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
 | `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
 | `HARBOUR_GSC_CREDENTIALS` | for Search Console | unset | Absolute path to a Google credentials JSON file — a service account key or an OAuth authorized-user file (see [Connect Search Console](#connect-search-console)). Keep it outside the repo with mode 600; Harbour warns in the scan if other users can read it. Read by the worker only; its contents and the access tokens are never logged, shown or stored. Restart the worker after changing it. |
@@ -335,8 +335,10 @@ The worker backs up the database each night at 03:15 in `HARBOUR_TIMEZONE` (see
 history: a restart never queues it twice, and a worker that was down at 03:15 queues that
 night's backup at its first check; one that was down for several nights queues only the latest
 night's, never one per missed night. A failed backup is tried again 10 minutes later, then 40
-minutes after that; after three failures the worker waits for the next night. A backup you
-queue by hand (`pnpm backup:now`) counts as that day's. Set `HARBOUR_SCHEDULED_BACKUP=off` to
+minutes after that; after three failures the worker waits for the next night. A backup the
+worker's own stop interrupts counts as a failed attempt and is retried the same way; one you
+cancel on **Agents** stays cancelled until the next night. A backup you queue by hand
+(`pnpm backup:now`) counts as that day's. Set `HARBOUR_SCHEDULED_BACKUP=off` to
 back up only by hand. The worker's start-up line says when the next backup is due.
 
 ### Daily scans
@@ -384,18 +386,20 @@ online backup: the web stays usable throughout). Before it is kept, the copy is 
 single self-contained file and checked with SQLite's `integrity_check`; a copy that fails is
 thrown away and the job fails with the reason (see **Agents**). Details:
 
-- **Where:** `HARBOUR_BACKUP_DIR`, by default a `backups` folder next to the database
-  (`data/backups`, inside the gitignored data folder). Files are named by local day,
+- **Where:** `HARBOUR_BACKUP_DIR` (a folder used only for backups), by default a `backups`
+  folder next to the database (`data/backups`, inside the gitignored data folder). Files are named by local day,
   `harbour-YYYY-MM-DD.db`; a second backup on the same day replaces the first.
-- **How many:** the newest 14 are kept. Pruning only ever deletes files named exactly like a
-  backup; anything else you put in the folder is left alone.
+- **How many:** the newest 14 are kept. Pruning only ever deletes regular files named exactly
+  like a backup (never through a symlink, never the backup just written), plus unfinished
+  `.partial` copies of a failed run; anything else in the folder is left alone.
 - **Private:** backups are written with mode 600 in a folder with mode 700. They hold session
   hashes and the audit log, so **treat them like `.env`**: Harbour never sends them anywhere.
   Copying them off the machine (an encrypted disk, another host) is up to you, and is what
   protects you from losing the disk.
 - **Now:** `pnpm backup:now` queues a backup of today; the worker runs it next. The Agents page
   shows it as "Nightly backup: YYYY-MM-DD" with the size and how many backups are kept.
-- **Bounded:** a backup gives up after 10 minutes.
+- **Bounded:** a backup gives up after 10 minutes. **Cancel** on **Agents** stops one in progress
+  and removes the unfinished copy.
 
 To restore one:
 
