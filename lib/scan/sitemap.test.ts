@@ -28,4 +28,23 @@ describe("parseSitemap", () => {
       locs: [],
     });
   });
+
+  it("reads CDATA-wrapped and namespace-prefixed entries", () => {
+    const xml = `<sm:urlset xmlns:sm="http://www.sitemaps.org/schemas/sitemap/0.9">
+      <sm:url><sm:loc>https://docs.example.com/a</sm:loc></sm:url>
+      <url><loc><![CDATA[ https://docs.example.com/b?x=1&y=2 ]]></loc></url>
+    </sm:urlset>`;
+    expect(parseSitemap(xml)).toEqual({
+      kind: "urlset",
+      locs: ["https://docs.example.com/a", "https://docs.example.com/b?x=1&y=2"],
+    });
+  });
+
+  it("stops reading once it has the most entries asked for", () => {
+    const urls = ["a", "b", "c"].map((p) => `<url><loc>https://docs.example.com/${p}</loc></url>`);
+    expect(parseSitemap(`<urlset>${urls.join("")}</urlset>`, 2).locs).toEqual([
+      "https://docs.example.com/a",
+      "https://docs.example.com/b",
+    ]);
+  });
 });

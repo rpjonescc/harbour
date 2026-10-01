@@ -47,6 +47,46 @@ describe("crawler robots.txt state", () => {
   });
 });
 
+describe("crawler sitemap failures", () => {
+  it("records a listed sitemap that fails and leaves the sitemap count unknown", async () => {
+    const { origin } = await site({
+      "/robots.txt": text("Sitemap: /pages.xml\n"),
+      "/pages.xml": (_req, res) => res.writeHead(503).end(),
+      "/": html("Home"),
+    });
+    const { site: summary } = await crawl(context(`${origin}/`));
+    expect(summary).toMatchObject({
+      pagesInSitemap: null,
+      sitemapsRead: 0,
+      sitemapErrors: [{ url: `${origin}/pages.xml`, status: 503 }],
+    });
+  });
+
+  it("records an invalid sitemap and an off-origin one by kind", async () => {
+    const { origin } = await site({
+      "/robots.txt": text("Sitemap: /a.xml\nSitemap: https://cdn.example.net/b.xml\n"),
+      "/a.xml": text("<html>not a sitemap</html>"),
+      "/sitemap.xml": text("<urlset><url><loc>/one</loc></url></urlset>"),
+      "/": html("Home"),
+      "/one": html("One"),
+    });
+    const { site: summary } = await crawl(context(`${origin}/`));
+    expect(summary).toMatchObject({
+      pagesInSitemap: 1,
+      sitemapErrors: [
+        { url: `${origin}/a.xml`, kind: "invalid" },
+        { url: "https://cdn.example.net/b.xml", kind: "off_origin" },
+      ],
+    });
+  });
+
+  it("treats a missing default /sitemap.xml as no sitemap, not an error", async () => {
+    const { origin } = await site({ "/": html("Home") });
+    const { site: summary } = await crawl(context(`${origin}/`));
+    expect(summary).toMatchObject({ pagesInSitemap: 0, sitemapErrors: [] });
+  });
+});
+
 describe("crawler pages", () => {
   it("follows the product URL's redirect and resolves links against the final URL", async () => {
     const { origin } = await site({

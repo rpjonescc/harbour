@@ -60,6 +60,7 @@ describe("crawler on a recorded site", () => {
       avgMs: ms,
       robotsTxt: "ok",
       sitemapsRead: 3,
+      sitemapErrors: [],
       blockedByRobots: 1,
       fetchErrors: [],
       limitReached: null,

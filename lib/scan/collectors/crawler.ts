@@ -122,15 +122,16 @@ async function collect(ctx: CollectContext, limits: CrawlLimits): Promise<Collec
   frontier.markKnown(product.finalUrl);
   // Seeds first (the product URL, then its sitemaps), then links breadth-first.
   const seeds = await discoverSeeds(ctx.fetch, product.origin, ctx.signal);
-  for (const url of seeds.urls) frontier.add(url);
+  for (const url of seeds.urls ?? []) frontier.add(url);
   for (const link of product.links) frontier.add(link, start);
   await crawlFrontier(crawl, frontier);
 
   const site = {
     ...summarisePages(crawl.pages, (url) => frontier.referrersOf(url)),
-    pagesInSitemap: seeds.urls.length,
+    pagesInSitemap: seeds.urls?.length ?? null,
     robotsTxt: seeds.robotsTxt,
     sitemapsRead: seeds.sitemapsRead,
+    sitemapErrors: seeds.sitemapErrors,
     blockedByRobots: crawl.blockedByRobots,
     fetchErrors: crawl.fetchErrors,
     limitReached: limitReached(crawl, frontier),
