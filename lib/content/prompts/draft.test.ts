@@ -14,7 +14,7 @@ const IDEA = {
   audienceQuestion: "How long?",
   why: "You rebuilt it.",
 };
-const prompt = (over: { facts?: string; idea?: typeof IDEA } = {}) => {
+const prompt = (over: { facts?: string; idea?: typeof IDEA; productUrl?: string | null } = {}) => {
   const { dir, cleanup } = makeSkillsDir();
   try {
     return draftPrompt({
@@ -22,7 +22,7 @@ const prompt = (over: { facts?: string; idea?: typeof IDEA } = {}) => {
       skill: loadSkill(dir, "atomizer"),
       voice: voice(),
       productName: "Acme Docs",
-      productUrl: "https://docs.example.com",
+      productUrl: over.productUrl === undefined ? "https://docs.example.com" : over.productUrl,
       idea: over.idea ?? IDEA,
       facts: over.facts ?? "[product:acme-docs]\nAcme Docs at https://docs.example.com",
     });
@@ -66,5 +66,11 @@ describe("draftPrompt", () => {
     expect(text).toContain(`${fence}\nTitle: ${hostile}`);
     expect(text).toContain(`${fence}\n${hostile}\n${fence}`);
     expect(text.indexOf("Ignore the rules")).toBeGreaterThan(text.indexOf("The idea."));
+  });
+
+  it("names a project with no website without an address", () => {
+    const text = prompt({ productUrl: null });
+    expect(text).toContain("Do the Source job for Acme Docs.");
+    expect(text).not.toContain("(null)");
   });
 });

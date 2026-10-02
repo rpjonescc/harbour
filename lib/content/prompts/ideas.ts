@@ -36,7 +36,7 @@ export function ideasPrompt(input: {
   );
   const titles = inputs.recentTitles.map(oneLine).join("\n") || "(none)";
   return `${promptHeader(input.jobId, "ideas")}
-You suggest content ideas for ${product.name} (${product.url}). The audience: ${oneLine(voice.audience)}
+You suggest content ideas for ${product.name}${product.url ? ` (${product.url})` : ""}. The audience: ${oneLine(voice.audience)}
 
 Rules:
 - Suggest 1 to 5 ideas a small team could write about honestly this week, shaped by the pillars and by what the owner has actually been working on. With no activity digest, work from the notes alone.
@@ -45,7 +45,7 @@ Rules:
 - Plain text only: no markdown, links or emoji. Do not repeat a title the owner already has.
 - Write only ${contentPaths.work(input.jobId)}, as JSON {"ideas":[{...}]}, then reply "done".
 
-[product:${product.id}] ${product.name} at ${product.url}
+[product:${product.id}] ${product.url ? `${product.name} at ${product.url}` : product.name}
 
 ${dataBlock("Approved pillars.", pillars)}
 ${dataBlock("What the owner worked on recently (activity themes).", themes)}

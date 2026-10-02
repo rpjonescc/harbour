@@ -6,7 +6,7 @@ import { requireSession } from "@/lib/auth/guard";
 import { brainHref } from "@/lib/brain/wikilinks";
 import { getDb } from "@/lib/db/client";
 import { eventsSince, getAgentRun, getJob } from "@/lib/jobs/queue";
-import { getProducts } from "@/lib/products/catalog";
+import { getNamedProducts } from "@/lib/products/catalog";
 
 const iso = (date: Date | null) => (date ? date.toISOString() : null);
 
@@ -16,7 +16,7 @@ export default async function AgentRunPage({ params }: { params: Promise<{ id: s
   const db = getDb();
   const job = Number.isInteger(id) ? getJob(db, id) : undefined;
   if (!job) notFound();
-  const label = jobLabel(job, getProducts());
+  const label = jobLabel(job, getNamedProducts());
   const events = eventsSince(db, id, 0).map((event) => ({ ...event, at: event.at.toISOString() }));
   const run = getAgentRun(db, id);
   const files = run?.commitSha ? (run.filesChanged ?? []) : [];

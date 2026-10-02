@@ -70,7 +70,14 @@ export type ContentView = {
   tabs: { id: TabId; label: string; count: number }[];
   defaultTab: TabId;
   ideas: IdeaView[];
-  voice: { productId: string; name: string; state: VoiceState["state"]; reason?: string }[];
+  voice: {
+    productId: string;
+    name: string;
+    state: VoiceState["state"];
+    reason?: string;
+    /** products/<id>/notes.md is missing: ideas cannot start without it. */
+    notesMissing: boolean;
+  }[];
   digest: { gap: boolean };
   unreadable: string[];
   /** Which cap cut the list short (200 ideas or 600 pieces), if one did. */

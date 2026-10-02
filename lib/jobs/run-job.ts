@@ -98,7 +98,9 @@ function checkPreconditions(deps: RunDeps, spec: AgentSpec): string {
       ? "run the research sprint to write it first"
       : "write the owner's notes for this product first";
   for (const file of spec.requiredFiles) {
-    if (!existsSync(join(deps.root, file))) throw new JobFailure(`Missing ${file} — ${fix}`);
+    if (!existsSync(join(deps.root, file))) {
+      throw new JobFailure(spec.missingFileMessage ?? `Missing ${file} — ${fix}`);
+    }
   }
   return deps.token;
 }

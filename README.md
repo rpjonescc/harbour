@@ -305,9 +305,9 @@ working on. It is **off by default** and **never publishes anything**: you read,
 approve or discard each piece on the **Content** page, and you post it yourself.
 
 **How it works.** Each morning Harbour asks your local [Screenpipe](https://screenpi.pe) (a
-recorder of your own screen) for a small sample of yesterday's on-screen text, **keeps only text
-that mentions a product you listed**, strips anything private, and has an agent turn what is left
-into a few general themes ("Rewrote the getting-started guide"). Only those themes are stored
+recorder of your own screen) for yesterday's windows and a small sample of its on-screen text,
+**keeps only short excerpts that mention a product you listed**, strips anything private, and has
+an agent turn what is left into a few general themes ("Rewrote the getting-started guide"). Only those themes are stored
 (the **digest**). On Mondays it suggests ideas for each product from the themes, your notes, your
 voice profile and the product's content pillars. When you press **Write this** on an idea, Harbour
 writes one source piece, turns it into six platform pieces (LinkedIn, X, Instagram, Facebook, a
@@ -319,12 +319,26 @@ Second Brain; the Copy buttons give you the text without any of Harbour's notes.
 
 **Privacy.** Screenpipe sees everything on your screen, so Harbour asks for as little as it can:
 
-- One request per product, to Screenpipe on this machine only (the address must be `127.0.0.1`,
-  `[::1]` or `localhost`, so its key never leaves it).
+- A few requests per product, to Screenpipe on this machine only (the address must be `127.0.0.1`,
+  `[::1]` or `localhost`, so its key never leaves it): one for the list of windows you used, and
+  one text search for each of the product's terms (at most 10), all within 60 seconds.
+- Screenpipe's text search returns whole screens with no app or window name, so Harbour never uses
+  a hit as it is. A screen that shows a private-context cue (wording such as inbox, password,
+  sign in, bank, invoice, calendar, patient portal or private browsing) is dropped whole, which
+  also drops some harmless screens on purpose, as is a screen that shows an email address, a phone
+  or card-like number or a link with a password. Cues are also matched through common scanner
+  mistakes ("passw0rd", "Iog in"). From the rest it keeps only about 120 characters either side of
+  your term, at most 30 excerpts per product and 24 KiB, picked evenly across the day. Each
+  product's reading is bounded: 10 searches, 60 seconds of requests, about a second of filtering.
 - Filtered in memory before any model sees it: password managers, email, chat, calls, banking and
-  private windows are dropped whole; links, email addresses, phone numbers, tokens, card-like
-  numbers, handles and anything on your never-mention list (`content/never-mention.md`, one term
-  per line) are removed. Text with no window title is dropped, because it cannot be checked.
+  private windows are dropped whole when the app or window name is known (a window row needs both
+  an app and a title); links, email addresses, phone numbers, tokens, card-like numbers, handles
+  and anything on your never-mention list (`content/never-mention.md`, one term per line) are
+  removed. Dropping on wording is weaker than dropping on an app name, because a private screen
+  may not show any cue, so excerpts are short and redacted and you should read the first digests.
+- Accepted residuals, which is why the first digests must be read: a chat line with a person's name
+  and no cue word, a medical value, a street address, a password shown on its own, and a
+  20-character hex string can all get through an excerpt.
 - The agent that reads it has one tool, to write one file. Raw screen text is never written to the
   brain, the database, the logs or the backups, and the run record of the digest keeps no model
   text and no file names.
@@ -342,7 +356,8 @@ Second Brain; the Copy buttons give you the text without any of Harbour's notes.
 2. In `harbour.config.json` add a `content` block that lists, for each product, the words that
    appear on your screen when you work on it (`terms`, 1 to 10) and optionally which `platforms`
    to write for (all six by default). Add `excludeApps` for any app Harbour must never read. See
-   `harbour.config.example.json`.
+   `harbour.config.example.json`. For something you write about that has no website, add it under
+   `content.projects` instead (see [Projects without a website](#projects-without-a-website)).
 3. For each product, write a **voice profile** at `content/voices/<product id>.md` in your Second
    Brain. The format and a fictional example are in `skills/atomizer/voice-profile.md`; the
    Content page shows the template too. Harbour refuses to write for a product without one.
@@ -351,6 +366,32 @@ Second Brain; the Copy buttons give you the text without any of Harbour's notes.
    Harbour, and `HARBOUR_CLAUDE_OAUTH_TOKEN` must be set.
 5. Optional: have **Discovery** (Agents page) propose content pillars for a product, then approve
    them on the product's research targets page. At most six pillars are kept per product.
+
+#### Projects without a website
+
+A project that is not a site you monitor (a side project, a book, a talk) can still get content.
+List it under `content.projects` in `harbour.config.json`, with a `name`, 1 to 10 `terms` and
+optionally `platforms` (every platform but the website section by default, since there is no site to put one on; list `"website"` yourself if you want it):
+
+```json
+{
+  "content": {
+    "projects": {
+      "acme-tools": { "name": "Acme Tools", "terms": ["acme tools"], "platforms": ["linkedin", "blog"] }
+    }
+  }
+}
+```
+
+The `id` (here `acme-tools`) is a lowercase slug of up to 40 characters, and it must not be the id
+of one of your products. A project is not a product: Harbour does not check or score it, and it
+does not appear on Today, Actions or the product pages, so it needs no `url`, `hue` or Search
+Console property. Everywhere else it works like a site: the digest looks for its terms, ideas are
+suggested for it, and it needs a voice profile at `content/voices/<id>.md` and notes at
+`products/<id>/notes.md` in your Second Brain. Both files are written by hand: a project has no
+Discovery run, no content pillars and no settings page, and the Content page tells you in plain
+words when either file is missing. Because it has no website, a piece for it may carry
+no links at all: any link is refused.
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -571,7 +612,7 @@ Optionally, `ownerName` (at most 40 characters: letters, spaces, apostrophes, do
 used only as a first name in the daily note's greeting; it stays in this gitignored file and is
 never logged.
 
-Optionally `content` (see [Content machine](#content-machine)) turns the content machine on per product with its `terms`.
+Optionally `content` (see [Content machine](#content-machine)) turns the content machine on per product with its `terms`, and `content.projects` does the same for a project with no website.
 
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.

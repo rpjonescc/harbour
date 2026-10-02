@@ -1,29 +1,29 @@
 import { isLoopbackHttpOrigin } from "@/lib/config";
-import { type Activity, activitySchema, healthSchema } from "./schema";
+import { type FailureKind, ScreenpipeError } from "./errors";
+import {
+  type Activity,
+  activitySchema,
+  healthSchema,
+  readActivityLists,
+  readSearchHits,
+  SEARCH_LIMIT,
+  type Search,
+  searchSchema,
+} from "./schema";
 
 export const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
-const TIMEOUT_MS = 15_000;
+export const REQUEST_TIMEOUT_MS = 15_000;
+/** At most this many of a product's content terms are searched (one request each). */
+export const MAX_TERMS = 10;
 
-export type FailureKind =
-  | "not-running"
-  | "key-refused"
-  | "not-recording"
-  | "no-capture"
-  | "too-large"
-  | "redirected"
-  | "bad-response";
-
-/** A Screenpipe problem with a kind the digest job turns into a plain sentence. */
-export class ScreenpipeError extends Error {
-  constructor(readonly kind: FailureKind) {
-    super(kind);
-  }
-}
+export { type FailureKind, ScreenpipeError } from "./errors";
 
 export type ScreenpipeSettings = {
   baseUrl: string;
   apiKey: string;
   timeoutMs?: number;
+  /** All of one product's requests together must finish within this (default 60 s). */
+  productBudgetMs?: number;
   fetchFn?: typeof fetch;
 };
 
@@ -73,7 +73,7 @@ async function get(
     const response = await (settings.fetchFn ?? fetch)(url, {
       headers,
       redirect: "manual",
-      signal: AbortSignal.timeout(settings.timeoutMs ?? TIMEOUT_MS),
+      signal: AbortSignal.timeout(settings.timeoutMs ?? REQUEST_TIMEOUT_MS),
     });
     if (response.status >= 300 && response.status < 400) {
       await response.body?.cancel();
@@ -138,14 +138,35 @@ export async function checkHealth(settings: ScreenpipeSettings): Promise<void> {
   if (health.status !== "healthy") throw new ScreenpipeError("not-running");
 }
 
-/** One bounded /activity-summary call for a product's terms over `range` (spec §5.2). */
+/** Terms with something in them, trimmed and without repeats: an empty `q` could match everything. */
+export function usableTerms(terms: readonly string[]): string[] {
+  return [...new Set(terms.map((term) => term.trim()).filter((term) => term !== ""))];
+}
+
+/** A GET with the key, whose body must parse; a refusal or odd status is the matching failure. */
+async function getParsed<T>(
+  settings: ScreenpipeSettings,
+  path: string,
+  query: URLSearchParams,
+  parse: (raw: unknown) => T | null,
+): Promise<T> {
+  const response = await get(settings, path, query, true);
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new ScreenpipeError(
+      response.status === 401 || response.status === 403 ? "key-refused" : "bad-response",
+    );
+  }
+  return readJson(response, parse);
+}
+
+/** One bounded /activity-summary call for a product's terms over `range` (spec §5.2, §18). */
 export async function fetchActivity(
   settings: ScreenpipeSettings,
   range: { start: Date; end: Date },
   terms: readonly string[],
 ): Promise<Activity> {
-  // An empty `q` could return unfiltered screen text, so no terms means no request.
-  const usable = terms.map((term) => term.trim()).filter((term) => term !== "");
+  const usable = usableTerms(terms).slice(0, MAX_TERMS);
   if (usable.length === 0) throw new Error("Screenpipe needs at least one content term");
   const query = new URLSearchParams({
     start_time: range.start.toISOString(),
@@ -156,28 +177,39 @@ export async function fetchActivity(
     include_recording: "false",
     include_guidance: "false",
     include_apps: "false",
+    include_windows: "true",
     max_snippets: "30",
     max_snippet_chars: "240",
   });
-  const response = await get(settings, "/activity-summary", query, true);
-  if (!response.ok) {
-    await response.body?.cancel();
-    throw new ScreenpipeError(
-      response.status === 401 || response.status === 403 ? "key-refused" : "bad-response",
-    );
-  }
-  const parsed = await readJson(response, (raw) => {
+  const parsed = await getParsed(settings, "/activity-summary", query, (raw) => {
     const result = activitySchema.safeParse(raw);
     return result.success ? result.data : null;
   });
   if (parsed.data_status === "not_recording") throw new ScreenpipeError("not-recording");
   if (parsed.data_status === "no_capture_in_range") throw new ScreenpipeError("no-capture");
-  return {
-    dataStatus: parsed.data_status,
-    snippets: parsed.snippets.map((s) => ({
-      app: s.app_name,
-      window: s.window_name ?? null,
-      text: s.text,
-    })),
-  };
+  const { snippets, windows } = readActivityLists(parsed);
+  return { dataStatus: parsed.data_status, snippets, windows };
+}
+
+/** One /search call for a single term: OCR rows only, the first page, no paging (spec §18). */
+export async function fetchSearch(
+  settings: ScreenpipeSettings,
+  range: { start: Date; end: Date },
+  term: string,
+): Promise<Search> {
+  const q = term.trim();
+  if (q === "") throw new Error("Screenpipe needs a content term to search for");
+  const query = new URLSearchParams({
+    content_type: "ocr",
+    q,
+    start_time: range.start.toISOString(),
+    end_time: range.end.toISOString(),
+    limit: String(SEARCH_LIMIT),
+    offset: "0",
+  });
+  const parsed = await getParsed(settings, "/search", query, (raw) => {
+    const result = searchSchema.safeParse(raw);
+    return result.success ? result.data : null;
+  });
+  return readSearchHits(parsed);
 }

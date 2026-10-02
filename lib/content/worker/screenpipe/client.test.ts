@@ -43,12 +43,42 @@ const kindOf = async (promise: Promise<unknown>) => {
 };
 
 describe("fetchActivity", () => {
+  it("returns the window list with app, title and minutes, and skips rows it cannot read", async () => {
+    const windows = [
+      { app_name: "Editor", window_name: "guide.md", minutes: 12.5 },
+      { app_name: "Browser", window_name: "Acme Docs - Home", minutes: 3 },
+    ];
+    await withServer({ windows }, async (url, fake) => {
+      const activity = await fetchActivity(settings(url), RANGE, ["acme"]);
+      expect(activity.windows.items).toEqual([
+        { app: "Editor", window: "guide.md", minutes: 12.5 },
+        { app: "Browser", window: "Acme Docs - Home", minutes: 3 },
+      ]);
+      expect(fake.requests.find((r) => r.path === "/activity-summary")?.query.include_windows).toBe(
+        "true",
+      );
+    });
+    await withServer(
+      { windows: [{ app_name: "Editor", window_name: "x", minutes: -4 }, ...windows] },
+      async (url) => {
+        const activity = await fetchActivity(settings(url), RANGE, ["acme"]);
+        expect(activity.windows.items).toHaveLength(2);
+        expect(activity.windows).toMatchObject({ rows: 3, dropped: 1 });
+      },
+    );
+  });
+
   it("asks for the narrowest call, with the key and fixed client headers, and keeps only what it needs", async () => {
     await withServer({ snippets: [SNIPPET] }, async (url, fake) => {
       const activity = await fetchActivity(settings(url), RANGE, ["acme docs", "acme-docs"]);
       expect(activity).toEqual({
         dataStatus: "ok",
-        snippets: [{ app: "Editor", window: "guide.md", text: SNIPPET.text }],
+        snippets: {
+          items: [{ app: "Editor", window: "guide.md", text: SNIPPET.text, timestamp: null }],
+          rows: 1,
+          dropped: 0,
+        },
+        windows: { items: [], rows: 0, dropped: 0 },
       });
       const request = fake.requests.find((r) => r.path === "/activity-summary");
       expect(request?.query).toEqual({
@@ -60,6 +90,7 @@ describe("fetchActivity", () => {
         include_recording: "false",
         include_guidance: "false",
         include_apps: "false",
+        include_windows: "true",
         max_snippets: "30",
         max_snippet_chars: "240",
       });
@@ -75,15 +106,36 @@ describe("fetchActivity", () => {
     await withServer({ mode: "empty" }, async (url) => {
       expect(await fetchActivity(settings(url), RANGE, ["acme"])).toEqual({
         dataStatus: "empty_but_recording",
-        snippets: [],
+        snippets: { items: [], rows: 0, dropped: 0 },
+        windows: { items: [], rows: 0, dropped: 0 },
       });
     });
   });
 
-  it("treats a snippet with no app or window as an unnamed one, and drops every unknown field", async () => {
-    await withServer({ snippets: [{ text: "Acme Docs note" } as never] }, async (url) => {
-      const { snippets } = await fetchActivity(settings(url), RANGE, ["acme"]);
-      expect(snippets).toEqual([{ app: "", window: null, text: "Acme Docs note" }]);
+  it("keeps only screen text that names its app and window: audio, unknown or missing sources and unnamed rows are skipped", async () => {
+    const snippets = [
+      SNIPPET,
+      { ...SNIPPET, text: "Acme Docs spoken", source: "audio", speaker: "x" },
+      { ...SNIPPET, text: "Acme Docs mystery", source: "new-thing" },
+      { ...SNIPPET, text: "Acme Docs no app", app_name: "" },
+      { text: "Acme Docs bare", app_name: "Editor", window_name: null },
+      { ...SNIPPET, text: "Acme Docs no source", source: undefined },
+    ];
+    await withServer({ snippets }, async (url, fake) => {
+      const { snippets: read } = await fetchActivity(settings(url), RANGE, ["acme"]);
+      expect(read.items.map((h) => h.text)).toEqual([SNIPPET.text]);
+      expect(read).toMatchObject({ rows: 6, dropped: 5 });
+      expect(fake.requests).toHaveLength(1);
+    });
+  });
+
+  it("fails as a bad response when the snippets or windows came but none could be read", async () => {
+    const odd = [{ text: 5 }, { nope: true }];
+    await withServer({ snippets: odd as never }, async (url) => {
+      expect(await kindOf(fetchActivity(settings(url), RANGE, ["acme"]))).toBe("bad-response");
+    });
+    await withServer({ windows: [{ minutes: "x" }] as never }, async (url) => {
+      expect(await kindOf(fetchActivity(settings(url), RANGE, ["acme"]))).toBe("bad-response");
     });
   });
 

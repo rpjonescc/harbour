@@ -1235,7 +1235,6 @@ Each is a call made while building, one bullet each.
 - Number check, found in the final review: a year inside an ISO date in a source note (`2026-03-14`) is not counted as known, so "in March 2026" can fail and go to Needs you (it errs the safe way); a number followed by `m` reads as millions, so "5m" never matches "5 minutes"; "3rd" does not match "third".
 - A file too large to quarantine is reported by count only, for every run, because the error is thrown before the quarantine manifest is written; run `git status` in the brain to find it.
 - `lib/agents/pillars.ts` and `lib/actions/store.ts` keep their own narrower hidden-character checks; neither is in the content data path.
-- If Screenpipe ever returns snippets with no app name (for example audio), a day with only those fails with "Screenpipe's answer didn't look as expected" instead of reading as quiet. Check on the first real digest.
 
 These are accepted for the MVP. Each is a limit of a check, not a hole in a promise.
 
@@ -1259,8 +1258,24 @@ These are accepted for the MVP. Each is a limit of a check, not a hole in a prom
   short unlabelled secrets, tokens split by spaces, homoglyphs outside Cyrillic and Greek, and
   prompt-injection wording are not caught by the filters; the last is the prompt fence's job. Window
   titles that merely look private ("Meet the team" in a browser) are dropped: the safe failure.
-- **Null window titles drop the snippet.** A Screenpipe response without window titles yields an
-  empty digest, by design (fail closed): a snippet that cannot be checked is private.
+- **Text hits are checked by their wording, not by an app name (§18).** Screenpipe's text search
+  returns OCR rows with an empty app and window name, so a hit is no longer dropped for lacking a
+  window title; a private-context cue in its text drops it instead, and only short redacted excerpts
+  around a content term are kept. This is a weaker guarantee than dropping on an app name: a private
+  screen with none of the listed cues gets through as an excerpt, and a harmless screen that shows a
+  cue ("syntax" is not one, "inbox" is) is dropped. The window source still requires an app and a
+  title. Over-excluding is the intended failure; the owner reads the first digests. Added after the
+  privacy review: cues are also matched on copies with scanner mistakes folded (0 as o; 1, | and
+  capital I as l, or 1, | and l as i; rn as m), and short cues may be split by one character. A screen
+  (or window title) that shows an email address, a credential link or query parameter, a Luhn-valid
+  card number starting 2 to 6, or a phone number in a clear phone shape (country code, bracketed
+  area code, grouped or unseparated national number) is dropped whole before redaction; dates,
+  clocks, versions, counts and plain numbers do not count. Audio transcripts and rows of unknown or
+  missing source in `/activity-summary` snippets are never used. A reply with rows where none can be
+  read fails as `bad-response`. Frames are deduplicated on their letters only (not on canonical text,
+  so a changed clock does not make a new frame) and spread over the day before the work budget
+  (10,000 characters a frame, 100,000 a product, one second of filtering) is spent. Residuals the owner accepts: a chat line naming a person with no cue, a
+  medical value, an address, a password alone on screen, a 20-character hex string.
 - **Crash recovery keeps files.** After a worker crash, startup recovery has no spec and so
   quarantines, and keeps, the files a digest agent wrote, outside the brain; the owner can delete the
   quarantine folder. A failed discard keeps the run's touched-file log in the quarantine's `active`
@@ -1281,20 +1296,31 @@ These are accepted for the MVP. Each is a limit of a check, not a hole in a prom
 
 Two assumptions could not be tested without a real Screenpipe and a real model, and are not tests:
 
-- **Screenpipe's `/activity-summary` field names are unconfirmed.** `lib/content/worker/screenpipe/schema.ts`
-  reads snippets as `text`, `app_name` and `window_name` and the status as `data_status`
-  (`ok`, `empty_but_recording`, `no_capture_in_range`, `not_recording`), and is tolerant of what it
-  does not know. The installed Screenpipe's OpenAPI document needs its key and was not read. If a
-  name differs the first real digest fails with "Screenpipe's answer didn't look as expected" when no
-  snippet carries an app or window name, or comes out empty with a count event saying how many
-  snippets were returned and kept (never a leak); read the
-  first digest before leaving the schedule on, and adjust `schema.ts`, the one place that knows the
-  names.
+- **Screenpipe's field names are confirmed (v0.4.52, §18).** `lib/content/worker/screenpipe/schema.ts`
+  reads `/activity-summary` as `data_status` (`ok`, `empty_but_recording`, `no_capture_in_range`,
+  `not_recording`), `snippets` (`text`, `app_name`, `window_name`, `timestamp`) and `windows`
+  (`app_name`, `window_name`, `minutes`), and `/search?content_type=ocr` as `data` items
+  `{ type, content: { text, timestamp, app_name, window_name } }`, tolerant of every other field. What
+  stays unconfirmed is that the answer wraps its items in `data`: if a different Screenpipe names it
+  otherwise, the first digest fails with "Screenpipe's answer wasn't in the expected shape" (a
+  `/search` reply with no `data` array), and `schema.ts` is the one place that knows the name.
 - **`claude -p` reading its prompt from stdin is unverified against the real CLI.** `claude --help`
   says the prompt argument is optional and `-p` is "useful for pipes", and the fake CLI reads stdin
   when no prompt follows `-p`, but a prompt-less call spends subscription tokens, so it was not
   run. If the real CLI does not read stdin the first content run fails with a plain sentence; the
   fix is in `claudeArgs`.
+
+### 17.4a Content-only projects, as built
+
+`lib/products/content.ts` is the one accessor: `contentProducts(config)` returns every content
+product as `{ id, name, kind: "site" | "project", url (null for a project), terms, platforms,
+allowedHosts }`, sites first, then projects in config order. `getContentProducts()` is the only
+way the content code, the worker and the pages obtain them, so no call site branches on the config
+shape. `allowedHosts` replaces the old `ownHosts(url)`: the site's own host (without `www.`), or
+`[]` for a project, so every link in a draft, piece or edit is rejected. Prompts and the facts pack
+name a project without an address. The config check rejects a project id that is a product id or a
+`content.products` key. `getProducts()` is unchanged, so scans, scores, the analyst and the weekly
+report never see a project. A project still needs `products/<id>/notes.md` for ideas, as a site does.
 
 ### 17.5 Not built
 
@@ -1303,3 +1329,70 @@ Postiz drafts (§11), the Search Console and approved-target inputs to ideas, a 
 90 days, the Agents page skills panel and its "skill was updated" note, the "What Harbour noticed"
 panel with "Leave this out", any scheduling other than the daily digest and Monday ideas, images,
 analytics and the feedback loop.
+
+## 18. Amendment 2026-10-03: the digest reads Screenpipe's text search, and projects without a website
+
+Found on the first real run against Screenpipe v0.4.52 (the answers below were read from the API's own
+schema and from the shape of its replies, never from the owner's screen text).
+
+**What the real API does.**
+
+- `GET /activity-summary` returns `windows` (`app_name`, `window_name`, `browser_url`, `minutes`,
+  `frame_count`) with real app and window names, but its `snippets` stayed empty for every query,
+  including common words. Its snippet item shape is `{ source, text, app_name, window_name, speaker,
+  timestamp }`.
+- `GET /search?content_type=ocr&q=<term>&start_time&end_time&limit&offset` does match text
+  (`pagination.total` counts matches; items are `{ type: "OCR", content: { text, timestamp, app_name,
+  window_name, browser_url, ... } }`) but the OCR rows carry an **empty `app_name` and `window_name`**.
+
+**Decision (owner, 2026-10-03).** The digest takes text from `/search` and filters on the text itself, and
+also uses the window list from `/activity-summary`. Section 5.3's rule "text with no window title is
+dropped" is replaced by the rules below. Everything else in §5 stands (loopback only, key sent only to the
+local API, no redirects, 15 s timeout per request, 2 MiB cap, redaction, themes validated, canary rules).
+
+**Sources, per product, for the local day being digested.**
+
+1. *Window source.* The `windows` list from `/activity-summary` (requests keep `include_windows` on). A
+   window row is a candidate only when its app and title are present, it passes the existing app and
+   window deny-lists (§5.3 step 1), and its title contains one of the product's content terms. The
+   candidate text is `<window title> (<minutes> min)`, with the app name as its `app`.
+2. *Text source.* One `/search` request per content term (at most 10 terms per product, so at most 10
+   requests; each bounded as in §5.2, `limit` 25, `content_type=ocr`, `q` the single term, no retries). Each
+   hit's `text` is a whole-screen dump, so Harbour never forwards a hit as it is: it keeps only the
+   **excerpts around the term** (about 120 characters either side, merged when they overlap), and only
+   after the frame passes the frame-level checks below.
+
+**Frame-level checks (the replacement for the app and window deny-list on text hits).** A hit is dropped
+whole, before any excerpt is cut, when its full text contains a *private-context cue*: password-manager,
+email, chat, calendar, banking, payments, health-portal, tax or government-portal wording (for example
+"inbox", "compose", "unread", "password", "sign in", "log in", "one-time code", "verification code", "bank",
+"BSB", "account balance", "card number", "invoice", "private browsing", "incognito"). The cue list is one
+data file in `lib/content/worker/screenpipe/`, matched on the canonical (NFKC, case-folded, hidden
+characters removed) text, and over-excluding is the intended failure. If the hit has an `app_name` or
+`window_name` (other Screenpipe versions), the app and window deny-lists apply as well, and an *empty* app
+or window no longer drops the hit by itself.
+
+**Excerpts then follow §5.3 steps 2 to 4 unchanged** (content-term check, redaction of URLs, emails,
+phone numbers, tokens, card-like numbers and handles, never-mention terms, normalisation and caps). The
+verbatim-run theme check (§17) applies to excerpts and to window rows alike.
+
+**Sampling and bounds.** Near-duplicate excerpts (the same frame text seen many times a minute) are
+dropped by comparing their letters only (canonical text with everything but letters removed); the remaining excerpts are spread evenly over the day, at most 30
+per product, and at most 24 KiB of excerpt text in total per product. A product's `/search` or
+`/activity-summary` failure fails the digest with the same plain sentences as §5.6. Per-product counts
+are recorded as events, as now: "Screenpipe returned N text hit(s) and M window(s) for <product>; K kept
+after filtering" (counts only, never text).
+
+**Failure modes.** Zero hits from every source is "No on-topic activity" (quiet day), not an error. A
+reply whose shape does not parse is `bad-response` with the plain sentence already in §5.6.
+
+**Privacy honesty.** Dropping on text cues is weaker than dropping on app names, because a cue can be
+absent from a private screen. That is why excerpts are short, redacted, validated twice, never stored raw
+(canary tests stay in force), and why the README keeps telling the owner to read the first few digests.
+
+**Projects without a website (content-only).** `harbour.config.json` `content.projects` may list
+`<id>: { name, terms, platforms? }` for a project that is not a monitored website: Harbour does not
+crawl, score or list it on Today, and it gets no site-based checks. It is a content product in every other
+way: digests, ideas, voice profile (`content/voices/<id>.md`), drafting, gates, approvals. A content-only
+project has no site host, so the only links an owner-facing piece may carry are none (the link allow-list
+for it is empty). The id must not collide with a product id. `content.products` is unchanged.

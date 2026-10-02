@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
 import { jsonError } from "@/lib/http/responses";
 import { eventsSince, getJob } from "@/lib/jobs/queue";
-import { getProducts } from "@/lib/products/catalog";
+import { getNamedProducts } from "@/lib/products/catalog";
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!(await getSession())) return jsonError(401, "unauthenticated");
@@ -19,7 +19,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       kind,
       status,
       error,
-      label: jobLabel(job, getProducts()),
+      label: jobLabel(job, getNamedProducts()),
       createdAt,
       startedAt,
       finishedAt,

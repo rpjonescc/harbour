@@ -35,12 +35,6 @@ const MARKDOWN = [
   /\*[^\s*][^*]*\*/, // emphasis
 ];
 
-/** The host of the product's own site, the only one a draft may link to (none when the URL is odd). */
-export function ownHosts(productUrl: string): string[] {
-  if (!URL.canParse(productUrl)) return [];
-  return [new URL(productUrl).hostname.toLowerCase().replace(/^www\./, "")];
-}
-
 /** One line of plain text: nothing hidden, no markup or markdown, and links only to `hosts`. */
 function isPlainLine(value: string, hosts: readonly string[]): boolean {
   const clean = sanitiseText(value, "markdown", { allowedHosts: hosts });

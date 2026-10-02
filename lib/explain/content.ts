@@ -2,6 +2,10 @@
 export const voiceMissingMessage = (productName: string) =>
   `Write ${productName}'s voice profile first. The template is on the Content page.`;
 
+/** A content product's notes file is hand-written; the id is a validated slug, never a raw path. */
+export const notesMissingMessage = (productName: string, productId: string) =>
+  `Harbour needs a short notes file for ${productName} before it can suggest ideas. Add products/${productId}/notes.md to your Second Brain (a few lines about what it is and who it is for).`;
+
 export const voiceInvalidMessage = (productName: string, reason: string) =>
   `${productName}'s voice profile can't be used: ${reason}`;
 

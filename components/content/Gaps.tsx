@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/explain/EmptyState";
 import type { ContentView } from "@/lib/content/read/view-types";
+import { notesMissingMessage } from "@/lib/explain/content";
 
 /** The calm gap states (fixed wording, spec §10.1). */
 export function Gaps({ view, template }: { view: ContentView; template: string | null }) {
@@ -28,6 +29,13 @@ export function Gaps({ view, template }: { view: ContentView; template: string |
           why="Save it in your Second Brain under content/voices. The template is below."
         />
       ))}
+      {view.voice
+        .filter((v) => v.notesMissing)
+        .map((v) => (
+          <p key={v.productId} className="text-sm text-ink-muted">
+            {notesMissingMessage(v.name, v.productId)}
+          </p>
+        ))}
       {unusable.length > 0 && (
         <details className="text-sm">
           <summary className="w-fit cursor-pointer rounded-sm text-ink-muted hover:text-ink">

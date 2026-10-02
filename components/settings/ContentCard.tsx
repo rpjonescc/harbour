@@ -15,7 +15,8 @@ export function ContentCard({
     <SettingsSection {...section} title="Content machine" purpose={SETTINGS_PURPOSE.content}>
       {content.products.length === 0 ? (
         <p className="text-sm text-ink-muted">
-          No site has content switched on yet. Add it to harbour.config.json, then restart Harbour.
+          No site or project has content switched on yet. Add it to harbour.config.json, then
+          restart Harbour.
         </p>
       ) : (
         <ul className="flex flex-col divide-y divide-line">

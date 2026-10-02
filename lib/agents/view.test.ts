@@ -52,6 +52,14 @@ describe("jobLabel", () => {
   it("labels the content jobs in plain words", () => {
     const label = (kind: string, params: Record<string, string>) =>
       jobLabel({ kind, params } as never, [{ id: "acme-docs", name: "Acme Docs" } as never]);
+    const project = jobLabel(
+      { kind: "content-ideas", params: { productId: "acme-tools" } } as never,
+      [
+        { id: "acme-docs", name: "Acme Docs" },
+        { id: "acme-tools", name: "Acme Tools" },
+      ],
+    );
+    expect(project).toBe("Ideas: Acme Tools");
     expect(label("content-digest", { day: "2026-10-01" })).toBe("Activity digest: 2026-10-01");
     expect(label("content-ideas", { productId: "acme-docs" })).toBe("Ideas: Acme Docs");
     const ideaId = "acme-docs-20261002-five-minutes-to-a-first-deploy";

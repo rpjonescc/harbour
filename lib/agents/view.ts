@@ -1,7 +1,9 @@
 import type { Job } from "@/lib/jobs/queue";
 import { describeStamp, isNoteStamp } from "@/lib/note/stamp";
-import type { Product } from "@/lib/products/catalog";
 import { RESEARCH_TOPICS } from "./topics";
+
+/** What a job label needs of a product or content project: its id and name. */
+export type Named = { id: string; name: string };
 
 // A Map: a gate param of "constructor" must not find an inherited property.
 const GATE_LABEL = new Map([
@@ -15,7 +17,7 @@ function ideaWords(ideaId: string | undefined): string {
   return (ideaId ?? "").replace(/^[a-z0-9-]+?-\d{8}-/, "").replaceAll("-", " ");
 }
 
-function contentJobLabel(job: Pick<Job, "kind" | "params">, products: readonly Product[]): string {
+function contentJobLabel(job: Pick<Job, "kind" | "params">, products: readonly Named[]): string {
   const { params } = job;
   const words = ideaWords(params.ideaId);
   if (job.kind === "content-digest") return `Activity digest: ${params.day ?? ""}`;
@@ -32,7 +34,7 @@ function contentJobLabel(job: Pick<Job, "kind" | "params">, products: readonly P
 }
 
 /** Human label for a job, e.g. "Research: Glossary" or "Update: Glossary". */
-export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly Product[]): string {
+export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly Named[]): string {
   if (job.kind === "research") {
     const topic = job.params.topic ?? "";
     const title = RESEARCH_TOPICS.find((t) => t.id === topic)?.title ?? topic;

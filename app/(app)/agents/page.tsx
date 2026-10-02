@@ -11,7 +11,7 @@ import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
 import { AGENT_PURPOSE, AGENTS_INTRO } from "@/lib/explain/agents";
 import { importsGivenUp, listJobs } from "@/lib/jobs/queue";
-import { getProducts } from "@/lib/products/catalog";
+import { getNamedProducts, getProducts } from "@/lib/products/catalog";
 
 export default async function AgentsPage() {
   await requireSession();
@@ -59,7 +59,7 @@ export default async function AgentsPage() {
         <p className="text-sm text-ink-muted">{AGENT_PURPOSE.recent}</p>
         <JobList
           jobs={jobs}
-          products={products}
+          products={getNamedProducts()}
           timeZone={config.HARBOUR_TIMEZONE}
           locale={config.HARBOUR_LOCALE}
           importsGivenUp={importsGivenUp(

@@ -16,7 +16,6 @@ import {
   draftWorkSchema,
   inventedNumbers,
   inventedNumbersNote,
-  ownHosts,
 } from "./draft-check";
 import { buildFactsPack, FactsPackError, factsPackText } from "./facts-pack";
 import { requireContent } from "./run-context";
@@ -194,7 +193,7 @@ function buildSpec(params: Record<string, string>, context: SpecContext): AgentS
         parse: (raw) => {
           const parsed = parseWorkJson(raw, draftWorkSchema);
           if (!parsed.ok) return parsed;
-          const reason = draftProblem(parsed.value, pack, ownHosts(product.url));
+          const reason = draftProblem(parsed.value, pack, product.allowedHosts);
           return reason ? { ok: false, reason } : parsed;
         },
         files,

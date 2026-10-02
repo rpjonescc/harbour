@@ -61,7 +61,7 @@ export const view = (over: Partial<ContentView> = {}): ContentView => ({
     idea({ tab: null, pieces: [piece()], rollup: "1 ready" }),
     idea({ id: "acme-docs-20261002-two", title: "Two steps people miss" }),
   ],
-  voice: [{ productId: "acme-docs", name: "Acme Docs", state: "ok" }],
+  voice: [{ productId: "acme-docs", name: "Acme Docs", state: "ok", notesMissing: false }],
   digest: { gap: false },
   unreadable: [],
   capped: null,

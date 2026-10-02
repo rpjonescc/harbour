@@ -59,3 +59,13 @@ export function getContentProducts(): readonly ContentProduct[] {
 export function getExcludeApps(): readonly string[] {
   return getProductConfig().content?.excludeApps ?? [];
 }
+
+/** Products and content-only projects by id and name, for labelling jobs (a project has no other list). */
+export function getNamedProducts(): readonly { id: string; name: string }[] {
+  const seen = new Set<string>();
+  return [...getProducts(), ...getContentProducts()].flatMap(({ id, name }) => {
+    if (seen.has(id)) return [];
+    seen.add(id);
+    return [{ id, name }];
+  });
+}

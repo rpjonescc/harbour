@@ -97,7 +97,15 @@ describe("specForJob", () => {
     const content = {
       root: "/tmp/brain",
       skillsDir: "/tmp/skills",
-      products: products.map((p) => ({ ...p, terms: ["docs"], platforms: ["blog" as const] })),
+      products: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        kind: "site" as const,
+        url: p.url,
+        terms: ["docs"],
+        platforms: ["blog" as const],
+        allowedHosts: [],
+      })),
       excludeApps: [],
       approvedPillars: () => [],
     };

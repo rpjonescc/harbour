@@ -19,7 +19,6 @@ import {
   type DecisionContext,
   DecisionRefusal,
 } from "./decision-types";
-import { ownHosts } from "./draft-check";
 import { buildFactsPack, FactsPackError, factsCheckText } from "./facts-pack";
 
 const NOT_SAVED = "This piece wasn't saved:";
@@ -31,7 +30,7 @@ function shaped(ctx: DecisionContext, piece: ReadPiece, body: string): PieceCont
     throw new DecisionRefusal(tooLongMessage(platform));
   }
   const withText = withPrimaryText(platform, piece.content as PieceContent, body);
-  const clean = sanitiseContent(platform, withText, ownHosts(ctx.product.url));
+  const clean = sanitiseContent(platform, withText, ctx.product.allowedHosts);
   if (!clean.ok) throw new DecisionRefusal(`${NOT_SAVED} ${clean.reason}`);
   // A shape the edit breaks is refused, not stored: a piece that does not fit it cannot be read back.
   const fit = contentSchemas[platform].safeParse(clean.content);
@@ -75,7 +74,7 @@ function checks(ctx: DecisionContext, piece: ReadPiece, content: PieceContent) {
     claims: [],
     paragraphIds: source?.front.paragraphs ?? [],
     factRefs: pack.map((f) => f.ref),
-    allowedHosts: ownHosts(ctx.product.url),
+    allowedHosts: ctx.product.allowedHosts,
   });
   const platform = checkPlatform({
     platform: piece.front.platform,

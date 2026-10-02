@@ -12,6 +12,7 @@ import { sanitiseText } from "@/lib/content/sanitise";
 import { refSchema } from "@/lib/content/schema";
 import {
   IDEA_FILE_IN_THE_WAY,
+  notesMissingMessage,
   voiceInvalidMessage,
   voiceMissingMessage,
 } from "@/lib/explain/content";
@@ -144,6 +145,7 @@ export function ideasSpec(params: Record<string, string>, context: SpecContext):
     targets: [contentPaths.work(context.jobId)],
     output: null,
     requiredFiles: [`products/${product.id}/notes.md`],
+    missingFileMessage: notesMissingMessage(product.name, product.id),
     requiredOutputs: [],
     promptVersion: IDEAS_PROMPT_VERSION,
     tools: ["Write"],

@@ -47,3 +47,103 @@ describe("content config", () => {
     ).toThrow();
   });
 });
+
+describe("content-only projects (spec 18)", () => {
+  const project = { name: "Acme Tools", terms: ["acme tools"] };
+  const parse = (projects: unknown, extra: Record<string, unknown> = {}) =>
+    parseProductConfig({ products, content: { projects, ...extra } });
+
+  it("lists a project after the sites, with no URL, no allowed host and every platform but website by default", () => {
+    const config = parseProductConfig({
+      products,
+      content: {
+        products: { "acme-docs": { terms: ["acme docs"] } },
+        projects: { "acme-tools": project },
+      },
+    });
+    expect(contentProducts(config).map((p) => [p.id, p.kind])).toEqual([
+      ["acme-docs", "site"],
+      ["acme-tools", "project"],
+    ]);
+    const [site, tools] = contentProducts(config);
+    expect(site).toMatchObject({
+      url: "https://docs.example.com",
+      allowedHosts: ["docs.example.com"],
+    });
+    expect(tools).toMatchObject({
+      name: "Acme Tools",
+      url: null,
+      allowedHosts: [],
+      platforms: ["linkedin", "x", "instagram", "facebook", "blog"],
+    });
+  });
+
+  it("lets a project list website explicitly", () => {
+    const config = parse({ "acme-tools": { ...project, platforms: ["website"] } });
+    expect(contentProducts(config)[0]?.platforms).toEqual(["website"]);
+  });
+
+  it("strips www. from a site's allowed host and allows none for an odd URL's host check", () => {
+    const config = parseProductConfig({
+      products: [{ ...products[0], url: "https://www.docs.example.com/guide" }],
+      content: { products: { "acme-docs": { terms: ["acme docs"] } } },
+    });
+    expect(contentProducts(config)[0]?.allowedHosts).toEqual(["docs.example.com"]);
+  });
+
+  it("is not a product: the product list is unchanged", () => {
+    const config = parse({ "acme-tools": project });
+    expect(config.products.map((p) => p.id)).toEqual(["acme-docs", "lighthouse-cafe"]);
+  });
+
+  it.each([
+    ["a product id", { "acme-docs": project }],
+    ["an uppercase id", { Acme: project }],
+    ["a path id", { "../x": project }],
+    ["a 41-character id", { [`a${"b".repeat(40)}`]: project }],
+    ["no name", { "acme-tools": { terms: ["acme tools"] } }],
+    ["an empty name", { "acme-tools": { ...project, name: " " } }],
+    ["no terms", { "acme-tools": { ...project, terms: [] } }],
+    ["a one-character term", { "acme-tools": { ...project, terms: ["a"] } }],
+    ["a url", { "acme-tools": { ...project, url: "https://example.com" } }],
+    ["an unknown platform", { "acme-tools": { ...project, platforms: ["tiktok"] } }],
+  ])("rejects %s", (_label, projects) => {
+    expect(() => parse(projects)).toThrow();
+  });
+
+  it("accepts `constructor` as a project id without a false collision, and never lists `__proto__`", () => {
+    expect(contentProducts(parse({ constructor: project })).map((p) => p.id)).toEqual([
+      "constructor",
+    ]);
+    // Either refused or ignored: never a project named __proto__.
+    const ids = (() => {
+      try {
+        return contentProducts(parse(JSON.parse('{"__proto__": {"name": "X", "terms": ["xx"]}}')));
+      } catch {
+        return [];
+      }
+    })().map((p) => p.id);
+    expect(ids).not.toContain("__proto__");
+  });
+
+  const hidden = ["a\nb", "a\u200bb", "a\u202eb", "a\u0000b", "a\u0085b"];
+  it.each(hidden)(
+    "rejects control or hidden characters in a project name and terms (%j)",
+    (bad) => {
+      expect(() => parse({ "acme-tools": { ...project, name: `Acme${bad}` } })).toThrow();
+      expect(() => parse({ "acme-tools": { ...project, terms: [`acme${bad}`] } })).toThrow();
+    },
+  );
+
+  it.each(hidden)("rejects them in content.products terms and a product name too (%j)", (bad) => {
+    expect(() =>
+      parseProductConfig({
+        products,
+        content: { products: { "acme-docs": { terms: [`acme${bad}`] } } },
+      }),
+    ).toThrow();
+    expect(() =>
+      parseProductConfig({ products: [{ ...products[0], name: `Acme${bad}` }] }),
+    ).toThrow();
+  });
+});

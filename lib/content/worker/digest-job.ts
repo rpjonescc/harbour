@@ -7,16 +7,12 @@ import { type DigestInputs, requireContent } from "./run-context";
 import {
   checkHealth,
   describeFailure,
-  fetchActivity,
   ScreenpipeError,
   type ScreenpipeSettings,
 } from "./screenpipe/client";
-import { filterSnippets } from "./screenpipe/redact";
+import { gatherProduct, type ProductSource } from "./screenpipe/sources";
 
 export type DigestJobDeps = RunDeps & { screenpipe: ScreenpipeSettings | null };
-
-const UNEXPECTED_ANSWER =
-  "Screenpipe's answer didn't look as expected: its text came with no app or window names, so Harbour can't check it is safe to use. Check that Harbour and Screenpipe are on compatible versions, then try again.";
 
 /** "1 October", for a day the owner reads about. */
 function dayLabel(day: string): string {
@@ -27,9 +23,9 @@ function dayLabel(day: string): string {
   }).format(new Date(`${day}T12:00:00Z`));
 }
 
-/** What one product's request returned and what survived the filters: counts only. */
-type Report = { productId: string; received: number; kept: number };
-type Gathered = { inputs: DigestInputs; reports: Report[]; unlabelled: boolean };
+/** What one product's requests returned and what survived the filters: counts only. */
+type Report = { productId: string; source: ProductSource };
+type Gathered = { inputs: DigestInputs; reports: Report[] };
 
 async function gather(
   deps: DigestJobDeps,
@@ -45,24 +41,24 @@ async function gather(
   await checkHealth(settings);
   const products: DigestInputs["products"] = [];
   const reports: Report[] = [];
-  let received = 0;
-  let named = 0;
   for (const product of content.products) {
-    const activity = await fetchActivity(settings, window, product.terms);
     const rules = {
       excludeApps: content.excludeApps,
       terms: product.terms,
-      productHost: new URL(product.url).hostname,
+      productHost: product.allowedHosts[0] ?? "",
       neverMention,
     };
-    const { kept, truncated } = filterSnippets(activity.snippets, rules);
-    received += activity.snippets.length;
-    named += activity.snippets.filter((s) => s.app !== "" || (s.window ?? "") !== "").length;
-    reports.push({ productId: product.id, received: activity.snippets.length, kept: kept.length });
-    if (kept.length > 0) products.push({ productId: product.id, snippets: kept, truncated });
+    const source = await gatherProduct(settings, window, product.terms, rules);
+    reports.push({ productId: product.id, source });
+    if (source.snippets.length > 0) {
+      products.push({
+        productId: product.id,
+        snippets: source.snippets,
+        truncated: source.truncated,
+      });
+    }
   }
-  // Text with no app and no window name at all is how a renamed field would look: not a quiet day.
-  return { inputs: { day, window, products }, reports, unlabelled: received > 0 && named === 0 };
+  return { inputs: { day, window, products }, reports };
 }
 
 /**
@@ -86,7 +82,7 @@ function waitsForOwner(deps: DigestJobDeps, job: Job): boolean {
 
 /**
  * The digest job: fetch and filter Screenpipe text in memory, then hand only the filtered
- * snippets to the agent through the normal runner. Raw text lives in this function's locals and
+ * excerpts to the agent through the normal runner. Raw text lives in this function's locals and
  * the agent's stdin and nowhere else (spec §9.4). A Screenpipe problem fails the job with a plain
  * sentence before any agent starts; nothing on topic finishes it with an event and no file.
  */
@@ -119,11 +115,14 @@ export async function runDigestJob(
     return fail(gatherFailure(error, day));
   }
   const { inputs, reports } = gathered;
-  for (const r of reports) {
-    const text = `Screenpipe returned ${r.received} snippet(s) for ${r.productId}; ${r.kept} kept after filtering`;
+  for (const { productId, source: s } of reports) {
+    const text = `Screenpipe returned ${s.hits} text hit(s) and ${s.windows} window(s) for ${productId}; ${s.snippets.length} kept after filtering`;
     addEvent(db, job.id, "status", text, deps.now());
+    if (s.skipped > 0) {
+      const skipped = `${s.skipped} item(s) for ${productId} were too long or unreadable and were skipped`;
+      addEvent(db, job.id, "status", skipped, deps.now());
+    }
   }
-  if (gathered.unlabelled) return fail(UNEXPECTED_ANSWER);
   if (inputs.products.length === 0) {
     addEvent(
       db,

@@ -7,6 +7,13 @@
         "terms": ["acme docs", "acme-docs"],
         "platforms": ["linkedin", "x", "instagram", "facebook", "blog", "website"]
       }
+    },
+    "projects": {
+      "acme-tools": {
+        "name": "Acme Tools",
+        "terms": ["acme tools"],
+        "platforms": ["linkedin", "blog"]
+      }
     }
   },
   "products": [

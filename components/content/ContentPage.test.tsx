@@ -36,7 +36,7 @@ describe("ContentPage", () => {
   it("shows the no-voice gap with the template, and the digest gap line", () => {
     const gap = view({
       digest: { gap: true },
-      voice: [{ productId: "acme-docs", name: "Acme Docs", state: "missing" }],
+      voice: [{ productId: "acme-docs", name: "Acme Docs", state: "missing", notesMissing: false }],
     });
     render(<ContentPage view={gap} template={"---\nproduct: acme-docs\n---"} />);
     expect(

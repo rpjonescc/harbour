@@ -161,7 +161,9 @@ export function ContentExamples() {
         <Gaps
           view={view({
             digest: { gap: true },
-            voice: [{ productId: "acme-docs", name: "Acme Docs", state: "missing" }],
+            voice: [
+              { productId: "acme-docs", name: "Acme Docs", state: "missing", notesMissing: false },
+            ],
           })}
           template={null}
         />
