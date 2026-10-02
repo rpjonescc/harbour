@@ -1,4 +1,5 @@
 import { isLoopbackHttpOrigin } from "@/lib/config";
+import { type FailureKind, ScreenpipeError } from "./errors";
 import {
   type Activity,
   activitySchema,
@@ -15,21 +16,7 @@ export const REQUEST_TIMEOUT_MS = 15_000;
 /** At most this many of a product's content terms are searched (one request each). */
 export const MAX_TERMS = 10;
 
-export type FailureKind =
-  | "not-running"
-  | "key-refused"
-  | "not-recording"
-  | "no-capture"
-  | "too-large"
-  | "redirected"
-  | "bad-response";
-
-/** A Screenpipe problem with a kind the digest job turns into a plain sentence. */
-export class ScreenpipeError extends Error {
-  constructor(readonly kind: FailureKind) {
-    super(kind);
-  }
-}
+export { type FailureKind, ScreenpipeError } from "./errors";
 
 export type ScreenpipeSettings = {
   baseUrl: string;
@@ -201,12 +188,7 @@ export async function fetchActivity(
   if (parsed.data_status === "not_recording") throw new ScreenpipeError("not-recording");
   if (parsed.data_status === "no_capture_in_range") throw new ScreenpipeError("no-capture");
   const { snippets, windows } = readActivityLists(parsed);
-  return {
-    dataStatus: parsed.data_status,
-    snippets: snippets.items,
-    windows: windows.items,
-    dropped: snippets.dropped + windows.dropped,
-  };
+  return { dataStatus: parsed.data_status, snippets, windows };
 }
 
 /** One /search call for a single term: OCR rows only, the first page, no paging (spec §18). */

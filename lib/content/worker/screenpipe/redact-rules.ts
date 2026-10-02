@@ -3,6 +3,15 @@ import { matchKey, skeleton } from "./canonical";
 
 // The redaction rules for screen text (spec §5.3 step 3): links, emails, numbers, secrets, paths.
 
+// Also read on their own by the frame check, which drops a whole screen that shows one.
+// The lookbehind on EMAIL starts a match only at the start of a run: the same matches, but a long
+// run with no "@" is read once instead of once per character.
+export const EMAIL = /(?<![^\s@<>"'()])[^\s@<>"'()]+@[^\s@<>"'()]+(?:\s\.[a-z]{2,})*/gi;
+export const CARD = /(?<!\d)\d(?:[\s.,\-_/]?\d){12,}(?!\d)/g;
+export const PHONE = /(?<!\d)\+?\d[\d\s().,-]{6,}\d(?!\d)/g;
+/** A link that carries a user name and password ("https://user:secret@host"). */
+export const CREDENTIAL_URL = /[a-z][a-z0-9+.-]{1,15}:\/\/[^\s/@]+:[^\s/@]*@/i;
+
 const SLUG = "[\\w.~@%+=-]+";
 
 export type Replacement = string | ((match: string) => string);
@@ -42,9 +51,7 @@ export function linkRules(host: string): Rule[] {
     [/\b(?:mailto|data|javascript|file|tel):\S+/gi, "[link]"],
     [/\bwww\.\S+/gi, "[link]"],
     // No TLD needed ("sam@localhost"); a domain split off by a line break is taken with it.
-    // The lookbehind starts a match only at the start of a run: the same matches, but a long run with
-    // no "@" is read once instead of once per character.
-    [/(?<![^\s@<>"'()])[^\s@<>"'()]+@[^\s@<>"'()]+(?:\s\.[a-z]{2,})*/gi, "[email]"],
+    [EMAIL, "[email]"],
     [
       // A listed TLD makes a bare host a link; any TLD does once a path, query or port follows.
       new RegExp(
@@ -61,8 +68,8 @@ export const NUMBER_RULES: Rule[] = [
   [/(?<![\d.])\d{1,3}(?:\.\d{1,3}){3}(?![\d.]\d)/g, "[ip]"],
   [/(?<![0-9a-f:])(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}(?![0-9a-f:])/gi, "[ip]"],
   // Any separator between digits: a card number split by dots, slashes or underscores is still one.
-  [/(?<!\d)\d(?:[\s.,\-_/]?\d){12,}(?!\d)/g, "[number]"],
-  [/(?<!\d)\+?\d[\d\s().,-]{6,}\d(?!\d)/g, "[phone]"],
+  [CARD, "[number]"],
+  [PHONE, "[phone]"],
 ];
 
 export const SECRET_RULES: Rule[] = [

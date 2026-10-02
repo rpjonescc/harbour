@@ -4,7 +4,8 @@
  * wide: over-excluding is the intended failure, because a hit has no app name to check.
  *
  * Matched as whole words (a trailing "s" or "es" is allowed) on canonical text, with other
- * characters allowed between the letters of a cue of four or more letters. A cue therefore does not
+ * characters allowed between the letters of a cue of four or more letters and one between those of
+ * a shorter cue ("t a x"), and also on a copy with scanner mistakes folded (see frame-checks.ts). A cue therefore does not
  * fire inside another word ("tax" is not "syntax"), so list each form that should match.
  */
 export const PRIVATE_CUES = [
@@ -103,7 +104,7 @@ export const PRIVATE_CUES = [
   "tax",
   "tax return",
   "tax file number",
-  "ato",
+  "tax office",
   "irs",
   "hmrc",
   "mygov",
@@ -132,4 +133,47 @@ export const PRIVATE_CUES = [
   "private window",
   "incognito",
   "inprivate",
+  // Plain words that mark everyday private use, and short forms.
+  "email",
+  "messages",
+  "chat",
+  "dm",
+  "signal",
+  "payment",
+  "checkout",
+  "billing",
+  "statement",
+  "balance",
+  "otp",
+  "username",
+  "credential",
+  "pin",
+  "ssn",
+  "wallet",
+  "seed phrase",
+  "date of birth",
+  "dob",
+  "medical",
+  "doctor",
+  "signing in",
+  "logging in",
+  "signing up",
+  // Other languages (accents are stripped before matching).
+  "passwort",
+  "posteingang",
+  "anmelden",
+  "kennwort",
+  "contraseña",
+  "correo",
+  "bandeja de entrada",
+  "iniciar sesion",
+  "mot de passe",
+  "connexion",
+  "boite de reception",
+  "banque",
+  "banco",
+  "senha",
+  "konto",
+  "kontostand",
+  "bankkonto",
 ] as const;

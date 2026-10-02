@@ -46,6 +46,14 @@ describe("gatherProduct: the window source", () => {
     expect((await run({ windows: [row] })).snippets).toEqual([]);
   });
 
+  it("lists a page once however many addresses it had, adding up the minutes", async () => {
+    const out = await run({
+      windows: [win("Editor", "Acme Docs - guide.md", 3), win("Editor", "Acme Docs - guide.md", 4)],
+    });
+    expect(out.snippets).toEqual(["Acme Docs - guide.md (7 min)"]);
+    expect(out.windows).toBe(2);
+  });
+
   it("counts every window it was given, kept or not", async () => {
     const out = await run({ windows: [win("Slack", "Acme Docs"), win("Editor", "x")] });
     expect(out.windows).toBe(2);

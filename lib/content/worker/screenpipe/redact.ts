@@ -1,6 +1,6 @@
 import { redactSensitive } from "@/lib/analyst/scrub";
 import { canonicalise, matchKey, termPattern } from "./canonical";
-import { BUILT_IN_EXCLUDED_APPS, isDeniedByNames } from "./deny-lists";
+import { BUILT_IN_EXCLUDED_APPS, containsAny, isDeniedByNames } from "./deny-lists";
 import {
   bareHost,
   linkRules,
@@ -69,9 +69,6 @@ export function redactFull(canonical: string, compiled: Compiled): string {
 /** Step 4 for one snippet: redact, then cap at 240 characters. */
 const redact = (canonical: string, compiled: Compiled): string =>
   Array.from(redactFull(canonical, compiled)).slice(0, SNIPPET_CHARS).join("");
-
-export const containsAny = (haystack: string, needles: readonly string[]): boolean =>
-  needles.some((n) => haystack.includes(n));
 
 /**
  * Step 1 for a snippet: whole snippets from apps and windows that must never be read. An app or

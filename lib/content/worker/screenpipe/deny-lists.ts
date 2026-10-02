@@ -90,7 +90,7 @@ const hasWord = (haystack: string, word: string): boolean =>
 
 const isBrowser = (appKey: string): boolean => BROWSERS.some((name) => hasWord(appKey, name));
 
-const containsAny = (haystack: string, needles: readonly string[]): boolean =>
+export const containsAny = (haystack: string, needles: readonly string[]): boolean =>
   needles.some((n) => haystack.includes(n));
 
 /**

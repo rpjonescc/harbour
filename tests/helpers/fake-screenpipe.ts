@@ -16,7 +16,14 @@ export type FakeMode =
   | "unknown-status"
   | "redirect"
   | "second-forbidden";
-export type FakeSnippet = { text: string; app_name: string; window_name?: string | null };
+export type FakeSnippet = {
+  text: string;
+  app_name: string;
+  window_name?: string | null;
+  /** "ocr" unless given ("audio" rows carry a speaker and no app or window). */
+  source?: string;
+  speaker?: string;
+};
 /** A /search hit: Screenpipe's OCR rows carry empty app and window names unless given here. */
 export type FakeHit = {
   text: string;
@@ -120,7 +127,7 @@ export async function startFakeScreenpipe(options: FakeOptions = {}) {
       query_status: "matched",
       snippets:
         mode === "ok" || mode === "second-forbidden"
-          ? snippets.map((s) => ({ ...s, frame_id: 1 }))
+          ? snippets.map((s) => ({ source: "ocr", ...s, frame_id: 1 }))
           : [],
       windows: mode === "ok" || mode === "second-forbidden" ? windows.map(windowRow) : [],
       apps: [{ name: "Ignored", minutes: 3 }],

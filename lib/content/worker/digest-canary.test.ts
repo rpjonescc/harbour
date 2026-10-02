@@ -211,6 +211,24 @@ describe("the canary", () => {
       }
     });
 
+    it("never reaches the model, or anywhere, from an audio transcript in the activity snippets", async () => {
+      const audio = {
+        source: "audio",
+        speaker: "x",
+        text: `Acme Docs ${CANARY} said aloud`,
+        app_name: "",
+        window_name: "",
+      };
+      const r = await digest({ snippets: [audio], hits: [{ text: "Acme Docs sidebar fixed" }] });
+      try {
+        expect(r.job.status).toBe("ok");
+        expect(r.calls[0]?.prompt).not.toContain(CANARY);
+        expect(leaks(r)).toEqual([]);
+      } finally {
+        await r.cleanup();
+      }
+    });
+
     it("is nowhere when the agent echoes it, or fails, or the work file is bad", async () => {
       for (const options of [
         { echo: { text: CANARY } },

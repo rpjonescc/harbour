@@ -211,15 +211,19 @@ describe("filterHits: sampling and bounds", () => {
     expect(kept.length).toBeLessThanOrEqual(5);
   });
 
-  it("skips hits past the work bound and says so", () => {
-    const hits = Array.from({ length: 400 }, (_, i) => hit(`Acme Docs unique frame ${i}`));
+  it("skips frames past the work bound and says so", () => {
+    const word = (i: number) =>
+      `zq${i.toString(26).replace(/\d/g, (d) => String.fromCharCode(113 + Number(d)))}zq`;
+    const hits = Array.from({ length: 400 }, (_, i) => hit(`Acme Docs unique frame ${word(i)}`));
     expect(filterHits(hits, RULES).truncated).toBe(true);
-    const big = Array.from({ length: 20 }, (_, i) => hit(`Acme Docs ${i} ${"y".repeat(19_000)}`));
+    const big = Array.from({ length: 20 }, (_, i) =>
+      hit(`Acme Docs ${word(i)} ${"y".repeat(9_000)}`),
+    );
     expect(filterHits(big, RULES).truncated).toBe(true);
   });
 
   it("drops a frame over the size cap instead of cutting it", () => {
-    expect(keep([hit(`Acme Docs ${"z".repeat(20_001)}`)])).toEqual([]);
+    expect(keep([hit(`Acme Docs ${"z".repeat(10_001)}`)])).toEqual([]);
   });
 });
 

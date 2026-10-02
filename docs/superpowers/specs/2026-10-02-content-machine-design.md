@@ -1264,7 +1264,16 @@ These are accepted for the MVP. Each is a limit of a check, not a hole in a prom
   around a content term are kept. This is a weaker guarantee than dropping on an app name: a private
   screen with none of the listed cues gets through as an excerpt, and a harmless screen that shows a
   cue ("syntax" is not one, "inbox" is) is dropped. The window source still requires an app and a
-  title. Over-excluding is the intended failure; the owner reads the first digests.
+  title. Over-excluding is the intended failure; the owner reads the first digests. Added after the
+  privacy review: cues are also matched on a copy with scanner mistakes folded (0 as o, 1, | and
+  capital I as l, rn as m), short cues may be split by one character, a screen showing an email
+  address, phone or card-like number or credential link is dropped whole before redaction (this
+  also drops screens with a date such as 2026-10-01, by the phone rule), audio transcripts and
+  rows of unknown source in `/activity-summary` snippets are never used, a reply with rows where
+  none can be read fails as `bad-response`, and frames are deduplicated on letters only and spread
+  over the day before the work budget (10,000 characters a frame, 100,000 a product, one second of
+  filtering) is spent. Residuals the owner accepts: a chat line naming a person with no cue, a
+  medical value, an address, a password alone on screen, a 20-character hex string.
 - **Crash recovery keeps files.** After a worker crash, startup recovery has no spec and so
   quarantines, and keeps, the files a digest agent wrote, outside the brain; the owner can delete the
   quarantine folder. A failed discard keeps the run's touched-file log in the quarantine's `active`

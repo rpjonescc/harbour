@@ -36,7 +36,8 @@ describe("fetchSearch", () => {
     await withServer({ hits: [HIT] }, async (url, fake) => {
       const result = await fetchSearch(settings(url), RANGE, " acme docs ");
       expect(result).toEqual({
-        hits: [{ text: HIT.text, timestamp: HIT.timestamp, app: "", window: "" }],
+        items: [{ text: HIT.text, timestamp: HIT.timestamp, app: "", window: "" }],
+        rows: 1,
         dropped: 0,
       });
       const request = fake.requests.find((r) => r.path === "/search");
@@ -59,7 +60,7 @@ describe("fetchSearch", () => {
   it("keeps app and window names when a Screenpipe version sends them", async () => {
     const hits = [{ ...HIT, app_name: "Editor", window_name: "guide.md" }];
     await withServer({ hits }, async (url) => {
-      expect((await fetchSearch(settings(url), RANGE, "acme")).hits[0]).toMatchObject({
+      expect((await fetchSearch(settings(url), RANGE, "acme")).items[0]).toMatchObject({
         app: "Editor",
         window: "guide.md",
       });
@@ -68,7 +69,11 @@ describe("fetchSearch", () => {
 
   it("reads an empty answer as no hits", async () => {
     await withServer({ searchMode: "empty" }, async (url) => {
-      expect(await fetchSearch(settings(url), RANGE, "acme")).toEqual({ hits: [], dropped: 0 });
+      expect(await fetchSearch(settings(url), RANGE, "acme")).toEqual({
+        items: [],
+        rows: 0,
+        dropped: 0,
+      });
     });
   });
 
@@ -80,7 +85,7 @@ describe("fetchSearch", () => {
     ];
     await withServer({ hits }, async (url) => {
       const result = await fetchSearch(settings(url), RANGE, "acme");
-      expect(result.hits.map((h) => h.text.length)).toEqual([HIT.text.length, MAX_HIT_CHARS]);
+      expect(result.items.map((h) => h.text.length)).toEqual([HIT.text.length, MAX_HIT_CHARS]);
       expect(result.dropped).toBe(1);
     });
   });
@@ -97,16 +102,30 @@ describe("fetchSearch", () => {
     ];
     await withServer({ searchItems, searchTotal: 9_999_999_999 }, async (url, fake) => {
       const result = await fetchSearch(settings(url), RANGE, "acme");
-      expect(result.hits.map((h) => h.text)).toEqual(["Acme Docs lower-case type"]);
+      expect(result.items.map((h) => h.text)).toEqual(["Acme Docs lower-case type"]);
       expect(result.dropped).toBe(6);
       expect(fake.requests.filter((r) => r.path === "/search")).toHaveLength(1);
     });
   });
 
+  it("fails as a bad response when rows came but none could be used, rather than reading as a quiet day", async () => {
+    const renamed = Array.from({ length: 25 }, () => ({
+      type: "OCR",
+      content: { ocr_text: "Acme Docs sidebar" },
+    }));
+    const audio = [{ type: "Audio", content: { text: "Acme Docs spoken" } }];
+    const tooLong = [{ type: "OCR", content: { text: "x".repeat(MAX_HIT_CHARS + 1) } }];
+    for (const searchItems of [renamed, audio, tooLong]) {
+      await withServer({ searchItems }, async (url) => {
+        expect(await kindOf(fetchSearch(settings(url), RANGE, "acme"))).toBe("bad-response");
+      });
+    }
+  });
+
   it("reads no more than the limit it asked for", async () => {
     const hits = Array.from({ length: 80 }, (_, i) => ({ text: `Acme Docs ${i}` }));
     await withServer({ hits }, async (url) => {
-      expect((await fetchSearch(settings(url), RANGE, "acme")).hits).toHaveLength(25);
+      expect((await fetchSearch(settings(url), RANGE, "acme")).items).toHaveLength(25);
     });
   });
 

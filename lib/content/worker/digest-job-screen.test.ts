@@ -59,9 +59,9 @@ describe("runDigestJob: what came back from Screenpipe", () => {
     });
     try {
       const events = eventsSince(r.deps.db, r.job.id, 0).map((e) => e.text);
-      // Two terms, so each hit comes back twice (the fake does not match `q`); the oversize row is skipped.
+      // Two terms, so each of the three rows comes back twice (the fake does not match `q`); the oversize row is skipped.
       expect(events).toContain(
-        "Screenpipe returned 4 text hit(s) and 3 window(s) for acme-docs; 2 kept after filtering",
+        "Screenpipe returned 6 text hit(s) and 3 window(s) for acme-docs; 2 kept after filtering",
       );
       expect(events).toContain(
         "2 item(s) for acme-docs were too long or unreadable and were skipped",

@@ -1,3 +1,4 @@
+import { matchKey } from "./canonical";
 import {
   fetchActivity,
   fetchSearch,
@@ -18,6 +19,7 @@ const PRODUCT_BUDGET_MS = 60_000;
 export type ProductSource = {
   snippets: string[];
   truncated: boolean;
+  /** Rows Screenpipe sent, before any were skipped. */
   hits: number;
   windows: number;
   /** Items Screenpipe sent that were too long or not readable, never read further. */
@@ -32,10 +34,24 @@ const windowText = (row: WindowRow): string => `${row.window} (${Math.round(row.
  * private-context cues, and whose title holds a content term.
  */
 function keepWindows(rows: readonly WindowRow[], rules: RedactRules) {
-  const candidates = rows
-    .filter((row) => !hasPrivateCue(row.window))
-    .map((row) => ({ app: row.app, window: row.window, text: windowText(row) }));
-  return filterSnippets(candidates, rules);
+  return filterSnippets(
+    mergeWindows(rows)
+      .filter((row) => !hasPrivateCue(row.window))
+      .map((row) => ({ app: row.app, window: row.window, text: windowText(row) })),
+    rules,
+  );
+}
+
+/** One row per app and title (the same page can be listed once per address): minutes added up. */
+function mergeWindows(rows: readonly WindowRow[]): WindowRow[] {
+  const merged = new Map<string, WindowRow>();
+  for (const row of rows) {
+    const key = `${matchKey(row.app)}\u0000${matchKey(row.window)}`;
+    const seen = merged.get(key);
+    if (seen) seen.minutes += row.minutes;
+    else merged.set(key, { ...row });
+  }
+  return [...merged.values()];
 }
 
 /**
@@ -60,20 +76,22 @@ export async function gatherProduct(
     });
   };
   const activity = await within((s) => fetchActivity(s, range, terms));
-  const hits: Hit[] = [...activity.snippets];
-  let skipped = activity.dropped;
+  const hits: Hit[] = [...activity.snippets.items];
+  let rows = activity.snippets.rows;
+  let skipped = activity.snippets.dropped + activity.windows.dropped;
   for (const term of usableTerms(terms).slice(0, MAX_TERMS)) {
     const found = await within((s) => fetchSearch(s, range, term));
-    hits.push(...found.hits);
+    hits.push(...found.items);
+    rows += found.rows;
     skipped += found.dropped;
   }
-  const windows = keepWindows(activity.windows, rules);
+  const windows = keepWindows(activity.windows.items, rules);
   const excerpts = filterHits(hits, rules);
   return {
     snippets: [...windows.kept, ...excerpts.kept],
     truncated: windows.truncated || excerpts.truncated,
-    hits: hits.length,
-    windows: activity.windows.length,
+    hits: rows,
+    windows: activity.windows.rows,
     skipped,
   };
 }

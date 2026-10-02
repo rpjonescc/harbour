@@ -183,4 +183,49 @@ describe("runDigestJob: text search failures", () => {
       await r.cleanup();
     }
   });
+
+  it("fails plainly, not as a quiet day, when 25 rows per term all lack the text field", async () => {
+    const searchItems = Array.from({ length: 25 }, () => ({
+      type: "OCR",
+      content: { ocr_text: "Acme Docs sidebar" },
+    }));
+    const r = await digest({ snippets: [], searchItems });
+    try {
+      expect(r.job.status).toBe("failed");
+      expect(r.job.error).toMatch(/wasn't in the expected shape/);
+      expect(r.job.error).not.toContain("sidebar");
+      expect(r.calls).toHaveLength(0);
+    } finally {
+      await r.cleanup();
+    }
+  });
+
+  it("never uses an audio transcript from the activity snippets", async () => {
+    const r = await digest({
+      snippets: [
+        {
+          source: "audio",
+          speaker: "x",
+          text: "Acme Docs spoken words",
+          app_name: "",
+          window_name: "",
+        },
+        {
+          source: "audio",
+          text: "Acme Docs named audio",
+          app_name: "Editor",
+          window_name: "guide.md",
+        },
+      ],
+      hits: [{ text: "Acme Docs sidebar fixed" }],
+    });
+    try {
+      expect(r.job.status).toBe("ok");
+      const prompt = r.calls[0]?.prompt ?? "";
+      expect(prompt).toContain("sidebar fixed");
+      expect(prompt).not.toMatch(/spoken words|named audio/);
+    } finally {
+      await r.cleanup();
+    }
+  });
 });

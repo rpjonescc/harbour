@@ -325,14 +325,20 @@ Second Brain; the Copy buttons give you the text without any of Harbour's notes.
 - Screenpipe's text search returns whole screens with no app or window name, so Harbour never uses
   a hit as it is. A screen that shows a private-context cue (wording such as inbox, password,
   sign in, bank, invoice, calendar, patient portal or private browsing) is dropped whole, which
-  also drops some harmless screens on purpose. From the rest it keeps only about 120 characters
-  either side of your term, at most 30 excerpts per product and 24 KiB, spread over the day.
+  also drops some harmless screens on purpose, as is a screen that shows an email address, a phone
+  or card-like number or a link with a password. Cues are also matched through common scanner
+  mistakes ("passw0rd", "Iog in"). From the rest it keeps only about 120 characters either side of
+  your term, at most 30 excerpts per product and 24 KiB, picked evenly across the day. Each
+  product's reading is bounded: 10 searches, 60 seconds of requests, about a second of filtering.
 - Filtered in memory before any model sees it: password managers, email, chat, calls, banking and
   private windows are dropped whole when the app or window name is known (a window row needs both
   an app and a title); links, email addresses, phone numbers, tokens, card-like numbers, handles
   and anything on your never-mention list (`content/never-mention.md`, one term per line) are
   removed. Dropping on wording is weaker than dropping on an app name, because a private screen
   may not show any cue, so excerpts are short and redacted and you should read the first digests.
+- Accepted residuals, which is why the first digests must be read: a chat line with a person's name
+  and no cue word, a medical value, a street address, a password shown on its own, and a
+  20-character hex string can all get through an excerpt.
 - The agent that reads it has one tool, to write one file. Raw screen text is never written to the
   brain, the database, the logs or the backups, and the run record of the digest keeps no model
   text and no file names.

@@ -112,15 +112,27 @@ export function skeleton(text: string): string {
 /** Lower-case matching key: canonical, lookalikes folded. */
 export const matchKey = (text: string): string => skeleton(canonicalise(text)).toLowerCase();
 
+const GAP = "[^\\p{L}\\p{N}]";
+
 /**
- * A case-insensitive pattern for a term that also matches it with other characters between its
- * letters ("Project  Zephyr", "project-zephyr", "p r o j e c t"), or null when the term has no
- * letters or digits (an empty term must never match everything). Terms under four characters match
- * as written, so a short term is not read out of unrelated spaced letters.
+ * A pattern for `text` on matching keys that also matches it with other characters between its
+ * letters ("Project  Zephyr", "project-zephyr", "p r o j e c t"), or null when the text has no
+ * letters or digits (an empty term must never match everything). Under four characters only
+ * `shortGap` may sit between letters ("" for none), so a short word is not read out of unrelated
+ * spaced letters. `wholeWord` also requires non-letters around the match (a plural "s" or "es"
+ * is allowed), so a short cue does not fire inside another word.
  */
-export function termPattern(term: string): RegExp | null {
-  const chars = Array.from(matchKey(term)).filter((c) => /[\p{L}\p{N}]/u.test(c));
+export function loosePattern(
+  text: string,
+  options: { shortGap: string; wholeWord: boolean; flags: string },
+): RegExp | null {
+  const chars = Array.from(matchKey(text)).filter((c) => /[\p{L}\p{N}]/u.test(c));
   if (chars.length === 0) return null;
-  const between = chars.length < 4 ? "" : "[^\\p{L}\\p{N}]*";
-  return new RegExp(chars.join(between), "giu");
+  const body = chars.join(chars.length < 4 ? options.shortGap : `${GAP}*`);
+  const source = options.wholeWord ? `(?<![\\p{L}\\p{N}])${body}(?:es|s)?(?![\\p{L}\\p{N}])` : body;
+  return new RegExp(source, options.flags);
 }
+
+/** A global pattern for a content or never-mention term (see `loosePattern`); no gap in short terms. */
+export const termPattern = (term: string): RegExp | null =>
+  loosePattern(term, { shortGap: "", wholeWord: false, flags: "giu" });
