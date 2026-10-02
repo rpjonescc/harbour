@@ -1,5 +1,5 @@
 import { auditLog } from "@/lib/db/schema";
-import { listJobs } from "@/lib/jobs/queue";
+import { claimNextJob, enqueueJob, finishJob, listJobs } from "@/lib/jobs/queue";
 import { makeBrain } from "@/tests/helpers/brain";
 import { ACME, ideaFile, VOICE_ACME } from "@/tests/helpers/content";
 import { openTestDb } from "@/tests/helpers/db";
@@ -277,5 +277,74 @@ describe("requestContent: write-this", () => {
       ok: false,
       error: "daily_cap",
     });
+  });
+});
+
+describe("requestContent: try-again", () => {
+  const IDEA = "acme-docs-20261001-five-minutes";
+  const failedStep = (c: ReturnType<typeof ctx>) => {
+    const job = enqueueJob(
+      c.db,
+      "content-gate",
+      { ideaId: IDEA, gate: "humanizer", attempt: "1" },
+      null,
+    );
+    claimNextJob(c.db);
+    finishJob(c.db, job.id, "failed", "boom");
+  };
+
+  it("re-queues the newest failed step with its own kind and params, and audits it", () => {
+    const c = ctx();
+    failedStep(c);
+    expect(requestContent(c, { action: "try-again", ideaId: IDEA })).toMatchObject({ ok: true });
+    const queued = listJobs(c.db).filter((j) => j.status === "queued");
+    expect(queued.map((j) => [j.kind, j.params])).toEqual([
+      ["content-gate", { ideaId: IDEA, gate: "humanizer", attempt: "1" }],
+    ]);
+    expect(c.db.select().from(auditLog).all()[0]?.detail).toEqual({
+      kind: "content-gate",
+      productId: "acme-docs",
+      ideaId: IDEA,
+    });
+  });
+
+  it("queues one job on a double click and refuses when nothing failed or the idea is unknown", () => {
+    const c = ctx();
+    failedStep(c);
+    requestContent(c, { action: "try-again", ideaId: IDEA });
+    expect(requestContent(c, { action: "try-again", ideaId: IDEA })).toMatchObject({ ok: true });
+    expect(listJobs(c.db).filter((j) => j.status === "queued")).toHaveLength(1);
+    expect(requestContent(ctx(), { action: "try-again", ideaId: IDEA })).toMatchObject({
+      ok: false,
+      status: 409,
+      error: "nothing_to_retry",
+    });
+    expect(
+      requestContent(ctx(), { action: "try-again", ideaId: "ghost-20261001-x" }),
+    ).toMatchObject({ ok: false, status: 404 });
+  });
+
+  it("limits the owner to four requests for one idea in a local day", () => {
+    const c = ctx();
+    for (let i = 0; i < 4; i++) {
+      failedStep(c);
+      expect(requestContent(c, { action: "try-again", ideaId: IDEA })).toMatchObject({ ok: true });
+      const queued = listJobs(c.db).find((j) => j.status === "queued");
+      if (queued) {
+        claimNextJob(c.db);
+        finishJob(c.db, queued.id, "failed", "boom");
+      }
+    }
+    failedStep(c);
+    expect(requestContent(c, { action: "try-again", ideaId: IDEA })).toMatchObject({
+      ok: false,
+      status: 429,
+      error: "rate_limited",
+    });
+  });
+
+  it("rejects an unknown action and extra keys", () => {
+    expect(ContentBody.safeParse({ action: "nope" }).success).toBe(false);
+    expect(ContentBody.safeParse({ action: "try-again", ideaId: IDEA, x: 1 }).success).toBe(false);
   });
 });

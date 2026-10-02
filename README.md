@@ -91,6 +91,7 @@ explainable breakdowns. The roadmap continues with:
 |---|---|
 | `/` | Today |
 | `/products/<id>` | A product's scores, issues, pages and sources |
+| `/content` | Content (only when `HARBOUR_CONTENT=on`, else 404): ideas and drafts in six tabs, with Copy buttons; nothing is posted for you |
 | `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`; the status values are the stored ones, which the board shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed) |
 | `/settings` | Settings overview: products, schedules, connections, budget and backups |
 | `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors, content pillars) |
@@ -129,6 +130,12 @@ signed-in session:
   `429 daily_cap` or `429 rate_limited`. The same Monday 07:00 run is queued by the worker for
   every product with a voice profile (`HARBOUR_SCHEDULED_IDEAS`); it uses whatever digest exists at that moment, so a `HARBOUR_DIGEST_TIME` later than 07:00 means the Monday run may go before that day's digest; it reads only the last 7 days of
   activity themes, your approved pillars, the product's notes and the titles you already have.
+- `POST /api/content` with `{"action": "write-this", "ideaId": "<id>"}` queues the draft for an idea
+  that is still an idea (as **Write this** does; a second click returns the same job), and
+  `{"action": "try-again", "ideaId": "<id>"}` re-queues the idea's newest step that failed or was
+  cancelled (as **Try again** does). Try again is limited to four requests per idea per local day
+  with every other manual request for it, and refuses with `404 not_found`, `409 nothing_to_retry`
+  or `429 rate_limited`. Both only queue work: the web process never writes the brain.
 - `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
   moves an action to a new status. `from` is the status your page showed: if the action changed
   since, the request is refused (`409 stale`) instead of overwriting it. `to` is `open`,

@@ -141,6 +141,21 @@ describe("settingsView", () => {
     expect(row({ HARBOUR_CONTENT: "on" }, false)?.offReason).toMatch(/Claude/);
   });
 
+  it("shows the content settings read-only, with platform names and never a key", () => {
+    const acme = { ...PRODUCTS[0], terms: ["acme docs"], platforms: ["linkedin", "x"] } as never;
+    const env = { HARBOUR_CONTENT: "on", HARBOUR_SCREENPIPE_API_KEY: "sp-secret-value" };
+    const view = settingsView(db, PRODUCTS, config(env), NOW, false, true, [acme]);
+    expect(view.content).toEqual({
+      on: true,
+      screenpipeUrl: "http://127.0.0.1:3030",
+      products: [
+        { id: "acme-docs", name: "Acme Docs", terms: ["acme docs"], platforms: ["LinkedIn", "X"] },
+      ],
+    });
+    expect(JSON.stringify(view)).not.toContain("sp-secret-value");
+    expect(settingsView(db, PRODUCTS, config(), NOW, false, true).content.on).toBe(false);
+  });
+
   it("has no next run for a schedule that is off", () => {
     const off = config({
       HARBOUR_SCHEDULED_SCANS: "off",

@@ -5,6 +5,7 @@ import { approvalsWaiting } from "@/lib/actions/board-notices";
 import { nextMonthlyRefresh } from "@/lib/agents/refresh-schedule";
 import { nextWeeklyRun } from "@/lib/analyst/schedule";
 import type { Config } from "@/lib/config";
+import { PLATFORM_NAMES } from "@/lib/content/ids";
 import { nextDigestRun, nextIdeasRun } from "@/lib/content/schedule";
 import { audToMicro } from "@/lib/costs/budget";
 import { type Reservation, reservationsBetween } from "@/lib/costs/ledger";
@@ -17,6 +18,7 @@ import { nextNoteRun, noteEnabled } from "@/lib/note/schedule";
 import { nextBackupRun } from "@/lib/ops/backup-schedule";
 import { type BackupStatus, backupStatus } from "@/lib/ops/backup-status";
 import type { Hue, Product, ProductKind } from "@/lib/products/catalog";
+import type { ContentProduct } from "@/lib/products/content";
 import { type KeyRow, keyStatusRows } from "./key-status";
 
 export type ScheduleRow = {
@@ -50,6 +52,12 @@ export type SettingsView = {
   /** HARBOUR_BACKUP_DIR is set (else backups sit next to the database); never the path itself. */
   backupDirSet: boolean;
   timeZone: string;
+  /** The content machine's settings, read-only; the key's status stays in `keys`. */
+  content: {
+    on: boolean;
+    screenpipeUrl: string;
+    products: { id: string; name: string; terms: string[]; platforms: string[] }[];
+  };
 };
 
 /** Why the morning note is off: the personality, then its own schedule, else no Claude token. */
@@ -162,6 +170,7 @@ export function settingsView(
   now: Date,
   isDemoConfig: boolean,
   tokenSet: boolean,
+  contentProducts: readonly ContentProduct[] = [],
 ): SettingsView {
   const waiting = new Map(approvalsWaiting(db, products).map((w) => [w.productId, w.count]));
   const month = monthWindow(now, config.HARBOUR_TIMEZONE);
@@ -186,5 +195,15 @@ export function settingsView(
     backups: backupStatus(db, config, now),
     backupDirSet: config.HARBOUR_BACKUP_DIR !== undefined,
     timeZone: config.HARBOUR_TIMEZONE,
+    content: {
+      on: config.HARBOUR_CONTENT === "on",
+      screenpipeUrl: config.HARBOUR_SCREENPIPE_URL,
+      products: contentProducts.map(({ id, name, terms, platforms }) => ({
+        id,
+        name,
+        terms,
+        platforms: platforms.map((platform) => PLATFORM_NAMES[platform]),
+      })),
+    },
   };
 }

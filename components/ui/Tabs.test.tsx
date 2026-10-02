@@ -22,6 +22,15 @@ describe("Tabs", () => {
     expect(tab("SEO")).toHaveAttribute("aria-controls", visiblePanel().id);
   });
 
+  it("opens on the tab named by defaultId, and on the first when it is unknown", () => {
+    const { unmount } = render(<Tabs label="Score breakdown" tabs={TABS} defaultId="geo" />);
+    expect(tab("GEO")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getAllByRole("tab").map((t) => t.tabIndex)).toEqual([-1, 0, -1]);
+    unmount();
+    render(<Tabs label="Score breakdown" tabs={TABS} defaultId="nope" />);
+    expect(tab("SEO")).toHaveAttribute("aria-selected", "true");
+  });
+
   it("keeps one tab in the tab order (roving tabindex)", () => {
     render(<Tabs label="Score breakdown" tabs={TABS} />);
     expect(screen.getAllByRole("tab").map((t) => t.tabIndex)).toEqual([0, -1, -1]);

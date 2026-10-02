@@ -17,9 +17,23 @@ function target(key: string, current: number, count: number): number | null {
  * Accessible tabs without a library: one tab in the tab order (roving tabindex), arrow keys
  * (wrapping), Home and End, and selection that follows focus.
  */
-export function Tabs({ label, tabs }: { label: string; tabs: TabItem[] }) {
+export function Tabs({
+  label,
+  tabs,
+  defaultId,
+}: {
+  label: string;
+  tabs: TabItem[];
+  /** The tab open first; the first tab when omitted or unknown. */
+  defaultId?: string;
+}) {
   const prefix = useId();
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState(() =>
+    Math.max(
+      0,
+      tabs.findIndex((tab) => tab.id === defaultId),
+    ),
+  );
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
@@ -32,7 +46,7 @@ export function Tabs({ label, tabs }: { label: string; tabs: TabItem[] }) {
 
   return (
     <div>
-      <div role="tablist" aria-label={label} className="flex gap-1 border-b border-line">
+      <div role="tablist" aria-label={label} className="flex flex-wrap gap-1 border-b border-line">
         {tabs.map((tab, i) => (
           <button
             key={tab.id}

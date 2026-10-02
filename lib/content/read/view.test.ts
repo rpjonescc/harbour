@@ -1,0 +1,164 @@
+import { claimNextJob, enqueueJob, finishJob } from "@/lib/jobs/queue";
+import { makeBrain } from "@/tests/helpers/brain";
+import { ACME, digestFile, ideaFile, pieceFile, VOICE_ACME } from "@/tests/helpers/content";
+import { openTestDb } from "@/tests/helpers/db";
+import { contentView } from "./view";
+
+const IDEA = "acme-docs-20261001-five-minutes";
+const NOW = { today: "2026-10-02", tokenSet: true };
+const base = {
+  "content/voices/acme-docs.md": VOICE_ACME,
+  "content/digests/2026-10-01.md": digestFile("2026-10-01", [
+    ["acme-docs", "Rewrote the getting-started guide around a short first deploy."],
+  ]),
+};
+const idea = { [`content/ideas/acme-docs/${IDEA}.md`]: ideaFile({ state: "drafted" }) };
+/** Six pieces: the first `ready` ones are ready, the next `needs` need you, the rest are drafting. */
+function pieces(ready: number, needs: number) {
+  const files: Record<string, string> = { ...idea };
+  ["linkedin", "x", "instagram", "facebook", "blog", "website"].forEach((platform, i) => {
+    const state = i < ready ? "ready" : i < ready + needs ? "needs-you" : "drafting";
+    files[`content/pieces/${IDEA}/${platform}.md`] = pieceFile(IDEA, platform as "x", {
+      state,
+      needsYou:
+        state === "needs-you"
+          ? "The humanizer check still found 1 pattern. Edit the piece, or discard it."
+          : null,
+    });
+  });
+  return files;
+}
+const view = (files: Record<string, string>, db = openTestDb()) => {
+  const { root, cleanup } = makeBrain(files);
+  try {
+    return contentView({ db, root, products: [ACME], ...NOW });
+  } finally {
+    cleanup();
+  }
+};
+const count = (v: ReturnType<typeof contentView>, id: string) =>
+  v.tabs.find((t) => t.id === id)?.count;
+
+describe("contentView", () => {
+  it("counts each tab, opens on Ready for you when any piece is ready, and rolls the idea up", () => {
+    const v = view({ ...base, ...pieces(4, 2) });
+    expect(count(v, "ready")).toBe(4);
+    expect(count(v, "needs-you")).toBe(2);
+    expect(v.defaultTab).toBe("ready");
+    expect(v.ideas[0]).toMatchObject({
+      id: IDEA,
+      productName: "Acme Docs",
+      rollup: "4 ready, 2 need you",
+    });
+    expect(v.ideas[0]?.pieces.filter((p) => p.tab === "ready")).toHaveLength(4);
+  });
+
+  it("opens on Needs you, then Ideas, when nothing is ready", () => {
+    expect(view({ ...base, ...pieces(0, 2) }).defaultTab).toBe("needs-you");
+    const waiting = { ...base, [`content/ideas/acme-docs/${IDEA}.md`]: ideaFile() };
+    expect(view(waiting).defaultTab).toBe("ideas");
+    expect(view(base).defaultTab).toBe("ideas");
+  });
+
+  it("shows a drafting piece as Being written while a step for its idea is queued or running", () => {
+    const db = openTestDb();
+    enqueueJob(db, "content-gate", { ideaId: IDEA, gate: "humanizer", attempt: "1" }, null);
+    expect(count(view({ ...base, ...pieces(0, 0) }, db), "writing")).toBe(6);
+  });
+
+  it("derives Needs you, with the step's sentence and a retry, when the newest step failed", () => {
+    const db = openTestDb();
+    const job = enqueueJob(
+      db,
+      "content-gate",
+      { ideaId: IDEA, gate: "humanizer", attempt: "1" },
+      null,
+    );
+    claimNextJob(db);
+    finishJob(db, job.id, "failed", "boom");
+    const v = view({ ...base, ...pieces(0, 0) }, db);
+    expect(count(v, "needs-you")).toBe(6);
+    expect(v.ideas[0]?.pieces[0]).toMatchObject({
+      needsYou: "The humanizer check didn't finish. Try again.",
+      retry: true,
+    });
+  });
+
+  it("puts an idea under Ideas, a failed draft's idea under Ideas with a retry note, and a discarded idea under Discarded", () => {
+    const db = openTestDb();
+    const failed = enqueueJob(db, "content-draft", { ideaId: IDEA }, "me");
+    claimNextJob(db);
+    finishJob(db, failed.id, "failed", "boom");
+    const v = view({ ...base, [`content/ideas/acme-docs/${IDEA}.md`]: ideaFile() }, db);
+    expect(v.ideas[0]).toMatchObject({
+      tab: "ideas",
+      retry: true,
+      note: "The draft didn't finish. Try again.",
+    });
+    const gone = view({
+      ...base,
+      [`content/ideas/acme-docs/${IDEA}.md`]: ideaFile({ state: "discarded" }),
+    });
+    expect(count(gone, "discarded")).toBe(1);
+  });
+
+  it("names unreadable files, shows the rest, and caps the list at the newest 200 ideas, saying so", () => {
+    const many = Object.fromEntries(
+      Array.from({ length: 201 }, (_, i) => [
+        `content/ideas/acme-docs/acme-docs-20261001-i${String(i).padStart(3, "0")}.md`,
+        ideaFile(),
+      ]),
+    );
+    const v = view({
+      ...base,
+      ...many,
+      "content/ideas/acme-docs/acme-docs-20261001-zzz.md": "no frontmatter",
+    });
+    expect(v.capped).toBe(true);
+    expect(v.ideas).toHaveLength(200);
+    expect(v.unreadable).toEqual(["content/ideas/acme-docs/acme-docs-20261001-zzz.md"]);
+  });
+
+  it("reports a missing or invalid voice profile per product, and a digest gap when none is recent", () => {
+    const none = view({});
+    expect(none.voice).toEqual([{ productId: "acme-docs", name: "Acme Docs", state: "missing" }]);
+    expect(none.digest.gap).toBe(true);
+    expect(view({ "content/voices/acme-docs.md": "no frontmatter" }).voice[0]).toMatchObject({
+      state: "invalid",
+    });
+    expect(view(base).digest.gap).toBe(false);
+    expect(view({ "content/digests/2026-09-20.md": digestFile("2026-09-20", []) }).digest.gap).toBe(
+      true,
+    );
+  });
+
+  it("gives each piece clean copy parts, flag lines, and an empty body for a stub", () => {
+    const files = pieces(6, 0);
+    files[`content/pieces/${IDEA}/x.md`] = pieceFile(
+      IDEA,
+      "x",
+      {
+        state: "ready",
+        flags: ["pricing"],
+        claims: [{ text: "Costs $9.", trace: "source:p1", flag: "pricing" }],
+      },
+      "1/1 Ship docs in five minutes.",
+    );
+    files[`content/pieces/${IDEA}/website.md`] = pieceFile(
+      IDEA,
+      "website",
+      { state: "needs-you", needsYou: "This piece wasn't written. Try again.", content: null },
+      "",
+    );
+    const v = view({ ...base, ...files });
+    const x = v.ideas[0]?.pieces.find((p) => p.platform === "x");
+    expect(x?.copy.map((c) => c.label)).toEqual(["Post 1"]);
+    expect(x?.flagLines).toEqual(["Check before posting: 1 pricing claim"]);
+    expect(v.ideas[0]?.pieces.find((p) => p.platform === "website")).toMatchObject({
+      empty: true,
+      copy: [],
+      text: "",
+      tab: "needs-you",
+    });
+  });
+});

@@ -7,7 +7,8 @@ import { isoDateIn } from "@/lib/format/date";
 import { addDays } from "@/lib/format/zoned-time";
 import type { ContentProduct } from "@/lib/products/content";
 import { ideaIdSchema, productForIdea, productIdSchema } from "./ids";
-import { DAILY_CAP_MESSAGE, enqueueContent } from "./limits";
+import { type ContentKind, DAILY_CAP_MESSAGE, enqueueContent } from "./limits";
+import { activeStepId, latestFailedStep } from "./read/chain-status";
 import {
   countWaitingIdeas,
   MAX_WAITING_IDEAS,
@@ -21,6 +22,7 @@ export const ContentBody = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("make-digest") }),
   z.strictObject({ action: z.literal("find-ideas"), productId: productIdSchema }),
   z.strictObject({ action: z.literal("write-this"), ideaId: ideaIdSchema }),
+  z.strictObject({ action: z.literal("try-again"), ideaId: ideaIdSchema }),
 ]);
 export type ContentBody = z.infer<typeof ContentBody>;
 
@@ -60,7 +62,7 @@ function limitRefusal(reason: "daily_cap" | "rate_limited"): RequestResult {
 const BRAIN_UNREADABLE =
   "Harbour couldn't read the ideas folder, so it started nothing. Check the brain folder and try again.";
 
-type Kind = "content-digest" | "content-ideas" | "content-draft";
+type Kind = ContentKind;
 
 /** Queues one job and audits it; a second click while it waits returns the same job, audited once. */
 function enqueueAndAudit(
@@ -123,6 +125,19 @@ function writeThis(ctx: RequestContext, ideaId: string): RequestResult {
   return enqueueAndAudit(ctx, "content-draft", { ideaId }, { productId: product.id, ideaId });
 }
 
+/** Re-queues the idea's newest failed step with its own kind and params (Decision 4). */
+function tryAgain(ctx: RequestContext, ideaId: string): RequestResult {
+  const product = productForIdea(ctx.products, ideaId);
+  if (!product) return refuse(404, "not_found");
+  const step = latestFailedStep(ctx.db, ideaId);
+  if (!step) {
+    // A double click: the retry from the first click is under way, which is what was asked for.
+    const active = activeStepId(ctx.db, ideaId);
+    return active === null ? refuse(409, "nothing_to_retry") : { ok: true, jobIds: [active] };
+  }
+  return enqueueAndAudit(ctx, step.kind, step.params, { productId: product.id, ideaId });
+}
+
 /** Applies one request from the Content page: enqueue a job (never write the brain) and audit it. */
 export function requestContent(ctx: RequestContext, body: ContentBody): RequestResult {
   const blocked = contentPreconditions(ctx.config);
@@ -134,5 +149,6 @@ export function requestContent(ctx: RequestContext, body: ContentBody): RequestR
   }
   if (body.action === "find-ideas") return findIdeas(ctx, body.productId);
   if (body.action === "write-this") return writeThis(ctx, body.ideaId);
+  if (body.action === "try-again") return tryAgain(ctx, body.ideaId);
   return refuse(400, "invalid_request");
 }

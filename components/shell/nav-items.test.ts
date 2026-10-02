@@ -11,6 +11,7 @@ describe("activeNavHref", () => {
     ["/settings/products/acme-docs", "/settings"],
     ["/brain/reports/weekly/2026-W39.md", "/brain"],
     ["/agents/12", "/agents"],
+    ["/content", "/content"],
   ])("on %s marks %s", (pathname, expected) => {
     expect(activeNavHref(pathname, HREFS)).toBe(expected);
   });
@@ -18,6 +19,10 @@ describe("activeNavHref", () => {
   it("marks nothing on an unknown path or a sibling like /settingsx", () => {
     expect(activeNavHref("/products/acme-docs", HREFS)).toBeNull();
     expect(activeNavHref("/settingsx", HREFS)).toBeNull();
+  });
+
+  it("shows the Ready for you count beside Content", () => {
+    expect(NAV_ITEMS.find((i) => i.href === "/content")?.badge).toBe("content-ready");
   });
 
   it("puts Settings after Devices", () => {
