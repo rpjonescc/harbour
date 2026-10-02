@@ -80,6 +80,7 @@ describe("agents API routes", () => {
         { kind: "discovery", productId: "acme-docs" },
         { kind: "weekly-analyst" },
         { kind: "refresh" },
+        { kind: "daily-note" },
       ]) {
         const response = await run(post("/api/agents/run", body));
         expect(response.status).toBe(409);

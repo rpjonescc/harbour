@@ -72,6 +72,9 @@ describe("SettingsOverview", () => {
     expect(schedules.getByRole("row", { name: /Monthly research refresh/ })).toHaveTextContent(
       "Off — HARBOUR_SCHEDULED_RESEARCH=off",
     );
+    expect(schedules.getByRole("row", { name: /Morning note/ })).toHaveTextContent(
+      "Off — HARBOUR_PERSONALITY=quiet",
+    );
     expect(schedules.getByText(/Europe\/London/)).toBeInTheDocument();
   });
 

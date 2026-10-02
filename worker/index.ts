@@ -19,6 +19,7 @@ import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
 import { makeScheduler } from "@/lib/jobs/scheduler";
 import { failUnknownJob } from "@/lib/jobs/unknown-job";
 import { gatherFacts } from "@/lib/note/gather";
+import { makeNoteSchedule, noteEnabled } from "@/lib/note/schedule";
 import { type OpsJobDeps, runBackupJob, runRetentionJob } from "@/lib/ops/backup-job";
 import { describeNextBackup, makeBackupSchedule } from "@/lib/ops/backup-schedule";
 import { backupStatus } from "@/lib/ops/backup-status";
@@ -64,6 +65,17 @@ async function main() {
     clock: Date.now,
     productIds: () => getProducts().map((p) => p.id),
   });
+  const notes = makeNoteSchedule({
+    db,
+    timeZone: config.HARBOUR_TIMEZONE,
+    noteTime: config.HARBOUR_NOTE_TIME,
+    enabled: noteEnabled(config),
+    tokenSet: Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN),
+    clock: Date.now,
+  });
+  const logNote = (why: string, queued: { jobId: number; stamp: string } | null) => {
+    if (queued) console.log(`${why}: queued daily note #${queued.jobId} for ${queued.stamp}`);
+  };
   const refreshes = makeRefreshSchedule({
     db,
     root,
@@ -100,6 +112,7 @@ async function main() {
   failInterruptedScans(db); // their jobs were just failed by startup()
   logQueued("catch-up", scans.catchUp());
   logAnalyst("catch-up", analyst.tick());
+  logNote("catch-up", notes.tick());
   logRefreshes("catch-up", refreshes.tick());
   logBackup("catch-up", backups.tick());
   console.log(
@@ -177,6 +190,7 @@ async function main() {
     scheduler.tick(); // between jobs only: never during a run
     logQueued("daily", scans.tick());
     logAnalyst("weekly", analyst.tick());
+    logNote("daily", notes.tick());
     logRefreshes("monthly", refreshes.tick());
     logBackup("nightly", backups.tick());
     const woken = snoozes.tick();

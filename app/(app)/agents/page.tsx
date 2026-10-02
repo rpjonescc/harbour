@@ -48,8 +48,8 @@ export default async function AgentsPage() {
       <header>
         <h1 className="font-serif text-3xl">Agents</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Research, discovery, the weekly analyst and the research refresh write into your Second
-          Brain. One runs at a time.
+          Research, discovery, the weekly analyst, the research refresh and the morning note write
+          into your Second Brain. One runs at a time.
         </p>
       </header>
       <BrainStatus status={status} />

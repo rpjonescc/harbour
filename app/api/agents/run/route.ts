@@ -11,6 +11,7 @@ import { isoDateIn } from "@/lib/format/date";
 import { jsonError } from "@/lib/http/responses";
 import { rejectCrossSite } from "@/lib/http/same-origin";
 import { enqueueJob } from "@/lib/jobs/queue";
+import { requestFreshNote } from "@/lib/note/queue";
 import { getProducts } from "@/lib/products/catalog";
 
 const Body = z.discriminatedUnion("kind", [
@@ -20,6 +21,8 @@ const Body = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("weekly-analyst") }),
   // Strict: which documents are stale is read from the brain here, never taken from the client.
   z.strictObject({ kind: z.literal("refresh") }),
+  // Strict: the stamp is always the server's local time, never taken from the client.
+  z.strictObject({ kind: z.literal("daily-note") }),
 ]);
 type Body = z.infer<typeof Body>;
 type Queued = {
@@ -47,6 +50,12 @@ function queueRun(body: Body, login: string, config: Config): Queued | Response 
       detail: { topics: queued.map((q) => q.topicId) },
       extra: { stale },
     };
+  }
+  if (body.kind === "daily-note") {
+    if (config.HARBOUR_PERSONALITY === "quiet") return jsonError(409, "personality_quiet");
+    const result = requestFreshNote(db, { timeZone, login, now: new Date() });
+    if (!result.ok) return jsonError(429, result.reason);
+    return { jobIds: [result.jobId] };
   }
   if (body.kind === "weekly-analyst") {
     const week = isoWeekLabel(isoDateIn(timeZone, new Date()));

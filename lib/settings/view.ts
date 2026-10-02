@@ -11,16 +11,19 @@ import { type CostMeterView, costMeterView } from "@/lib/costs/meter-view";
 import type { Db } from "@/lib/db/client";
 import { monthWindow } from "@/lib/format/zoned-time";
 import { nextScheduledScans } from "@/lib/jobs/scan-schedule";
+import { nextNoteRun, noteEnabled } from "@/lib/note/schedule";
 import { nextBackupRun } from "@/lib/ops/backup-schedule";
 import { type BackupStatus, backupStatus } from "@/lib/ops/backup-status";
 import type { Hue, Product } from "@/lib/products/catalog";
 import { type KeyRow, keyStatusRows } from "./key-status";
 
 export type ScheduleRow = {
-  id: "scan" | "analyst" | "refresh" | "backup";
+  id: "scan" | "analyst" | "refresh" | "backup" | "note";
   label: string;
   when: string;
   setting: string;
+  /** The value that switches it off, when it is not `off`. */
+  offValue?: string;
   enabled: boolean;
   next: Date | null;
 };
@@ -53,6 +56,8 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
   const analyst = on(config.HARBOUR_SCHEDULED_ANALYST);
   const refresh = on(config.HARBOUR_SCHEDULED_RESEARCH);
   const backup = on(config.HARBOUR_SCHEDULED_BACKUP);
+  const note = noteEnabled(config);
+  const quiet = config.HARBOUR_PERSONALITY === "quiet";
   return [
     {
       id: "scan",
@@ -85,6 +90,15 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
       setting: "HARBOUR_SCHEDULED_BACKUP",
       enabled: backup,
       next: nextBackupRun(now, zone, backup),
+    },
+    {
+      id: "note",
+      label: "Morning note",
+      when: `Every day at ${config.HARBOUR_NOTE_TIME}`,
+      setting: quiet ? "HARBOUR_PERSONALITY" : "HARBOUR_SCHEDULED_NOTE",
+      ...(quiet ? { offValue: "quiet" } : {}),
+      enabled: note,
+      next: nextNoteRun(now, zone, config.HARBOUR_NOTE_TIME, note),
     },
   ];
 }

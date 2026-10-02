@@ -63,12 +63,14 @@ describe("settingsView", () => {
       ["analyst", "HARBOUR_SCHEDULED_ANALYST", true, "2026-10-04T19:00:00.000Z"],
       ["refresh", "HARBOUR_SCHEDULED_RESEARCH", true, "2026-10-04T20:00:00.000Z"],
       ["backup", "HARBOUR_SCHEDULED_BACKUP", true, "2026-10-03T02:15:00.000Z"],
+      ["note", "HARBOUR_SCHEDULED_NOTE", true, "2026-10-03T05:30:00.000Z"],
     ]);
     expect(view.schedules.map((s) => [s.label, s.when])).toEqual([
       ["Daily scan", "Every day at 06:00"],
       ["Weekly analyst", "Sundays at 20:00"],
       ["Monthly research refresh", "First Sunday of the month at 21:00"],
       ["Nightly backup", "Every night at 03:15"],
+      ["Morning note", "Every day at 06:30"],
     ]);
   });
 
@@ -78,10 +80,21 @@ describe("settingsView", () => {
       HARBOUR_SCHEDULED_ANALYST: "off",
       HARBOUR_SCHEDULED_RESEARCH: "off",
       HARBOUR_SCHEDULED_BACKUP: "off",
+      HARBOUR_SCHEDULED_NOTE: "off",
     });
     const view = settingsView(db, PRODUCTS, off, NOW, false);
     expect(view.schedules.every((s) => !s.enabled && s.next === null)).toBe(true);
     expect(view.backups.health).toBe("off");
+  });
+
+  it("shows the morning note as off by the personality when it is quiet", () => {
+    const view = settingsView(db, PRODUCTS, config({ HARBOUR_PERSONALITY: "quiet" }), NOW, false);
+    expect(view.schedules.find((s) => s.id === "note")).toMatchObject({
+      setting: "HARBOUR_PERSONALITY",
+      offValue: "quiet",
+      enabled: false,
+      next: null,
+    });
   });
 
   it("counts research targets awaiting approval per product", () => {
