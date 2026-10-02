@@ -1,23 +1,24 @@
 import { EmptyState } from "@/components/explain/EmptyState";
 import { Tabs } from "@/components/ui/Tabs";
 import type { ContentView, TabId } from "@/lib/content/read/view-types";
+import { CAP_NOTES, EMPTY_TABS, FOLDER_ERROR } from "@/lib/explain/content";
 import { Gaps } from "./Gaps";
 import { IdeaCard } from "./IdeaCard";
 import { PieceGroup } from "./PieceGroup";
 import { RunButton } from "./RunButton";
 
-const IDEA_CARD_TABS: TabId[] = ["ideas", "writing", "discarded"];
+const IDEA_CARD_TABS: TabId[] = ["ideas", "writing", "needs-you", "discarded"];
 
 function Empty({ view, id }: { view: ContentView; id: TabId }) {
-  if (id !== "ideas") return <p className="text-sm text-ink-muted">Nothing here.</p>;
-  if (view.voice.every((v) => v.state === "ok")) {
+  if (id === "ideas" && view.voice.every((v) => v.state === "ok")) {
     return <p className="text-sm text-ink-muted">Nothing waiting. Enjoy the quiet.</p>;
   }
+  const words = EMPTY_TABS[id];
   return (
     <EmptyState
-      what="No ideas yet."
-      when="Ideas arrive on Monday mornings, or ask for some now."
-      why="Write a voice profile first."
+      what={words.what}
+      when={words.when}
+      why={id === "ideas" ? "Write a voice profile first." : words.why}
     />
   );
 }
@@ -66,7 +67,8 @@ export function ContentPage({ view, template }: { view: ContentView; template: s
           ))}
       </div>
       <Gaps view={view} template={template} />
-      {view.capped && <p className="text-xs text-ink-muted">Showing the newest 200 ideas.</p>}
+      {view.folderError && <p className="text-sm text-ink">{FOLDER_ERROR}</p>}
+      {view.capped && <p className="text-xs text-ink-muted">{CAP_NOTES[view.capped]}</p>}
       {view.unreadable.map((path) => (
         <p key={path} className="text-xs text-ink-muted">
           This file couldn't be read: {path}

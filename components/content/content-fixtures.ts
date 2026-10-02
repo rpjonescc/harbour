@@ -62,7 +62,8 @@ export const view = (over: Partial<ContentView> = {}): ContentView => ({
   voice: [{ productId: "acme-docs", name: "Acme Docs", state: "ok" }],
   digest: { gap: false },
   unreadable: [],
-  capped: false,
+  capped: null,
+  folderError: false,
   tokenSet: true,
   ...over,
 });

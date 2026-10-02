@@ -282,7 +282,19 @@ describe("requestContent: write-this", () => {
 
 describe("requestContent: try-again", () => {
   const IDEA = "acme-docs-20261001-five-minutes";
-  const failedStep = (c: ReturnType<typeof ctx>) => {
+  const cleanups: (() => void)[] = [];
+  afterEach(() => {
+    for (const cleanup of cleanups.splice(0)) cleanup();
+  });
+  /** A context whose brain holds the idea in `state` (none when `state` is null). */
+  const tctx = (state: string | null = "drafting") => {
+    const brain = makeBrain(
+      state ? { [`content/ideas/acme-docs/${IDEA}.md`]: ideaFile({ state }) } : {},
+    );
+    cleanups.push(brain.cleanup);
+    return { ...ctx(), root: brain.root };
+  };
+  const failedStep = (c: ReturnType<typeof tctx>) => {
     const job = enqueueJob(
       c.db,
       "content-gate",
@@ -294,7 +306,7 @@ describe("requestContent: try-again", () => {
   };
 
   it("re-queues the newest failed step with its own kind and params, and audits it", () => {
-    const c = ctx();
+    const c = tctx();
     failedStep(c);
     expect(requestContent(c, { action: "try-again", ideaId: IDEA })).toMatchObject({ ok: true });
     const queued = listJobs(c.db).filter((j) => j.status === "queued");
@@ -309,23 +321,23 @@ describe("requestContent: try-again", () => {
   });
 
   it("queues one job on a double click and refuses when nothing failed or the idea is unknown", () => {
-    const c = ctx();
+    const c = tctx();
     failedStep(c);
     requestContent(c, { action: "try-again", ideaId: IDEA });
     expect(requestContent(c, { action: "try-again", ideaId: IDEA })).toMatchObject({ ok: true });
     expect(listJobs(c.db).filter((j) => j.status === "queued")).toHaveLength(1);
-    expect(requestContent(ctx(), { action: "try-again", ideaId: IDEA })).toMatchObject({
+    expect(requestContent(tctx(), { action: "try-again", ideaId: IDEA })).toMatchObject({
       ok: false,
       status: 409,
       error: "nothing_to_retry",
     });
     expect(
-      requestContent(ctx(), { action: "try-again", ideaId: "ghost-20261001-x" }),
+      requestContent(tctx(), { action: "try-again", ideaId: "ghost-20261001-x" }),
     ).toMatchObject({ ok: false, status: 404 });
   });
 
   it("limits the owner to four requests for one idea in a local day", () => {
-    const c = ctx();
+    const c = tctx();
     for (let i = 0; i < 4; i++) {
       failedStep(c);
       expect(requestContent(c, { action: "try-again", ideaId: IDEA })).toMatchObject({ ok: true });
@@ -341,6 +353,20 @@ describe("requestContent: try-again", () => {
       status: 429,
       error: "rate_limited",
     });
+  });
+
+  it("refuses, in plain words and queuing nothing, for an idea that is missing, finished or discarded", () => {
+    for (const [state, error] of [
+      [null, "missing"],
+      ["drafted", "finished"],
+      ["discarded", "discarded"],
+    ] as const) {
+      const c = tctx(state);
+      failedStep(c);
+      const result = requestContent(c, { action: "try-again", ideaId: IDEA });
+      expect(result).toMatchObject({ ok: false, error, message: expect.stringMatching(/\w/) });
+      expect(listJobs(c.db).filter((j) => j.status === "queued")).toEqual([]);
+    }
   });
 
   it("rejects an unknown action and extra keys", () => {

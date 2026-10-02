@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import type { PieceView as Piece } from "@/lib/content/read/view-types";
+import { STUB_FALLBACK } from "@/lib/explain/content";
 import { CopyButton } from "./CopyButton";
 import { GateDetails } from "./GateDetails";
 
@@ -10,10 +11,14 @@ import { GateDetails } from "./GateDetails";
  */
 export function PieceView({ piece, children }: { piece: Piece; children?: ReactNode }) {
   return (
-    <section aria-label={piece.platformName} className="flex flex-col gap-3 py-3">
+    <section
+      aria-label={`${piece.platformName}: ${piece.title}`}
+      className="flex flex-col gap-3 py-3"
+    >
       {piece.needsYou && <p className="text-sm text-ink">{piece.needsYou}</p>}
       {piece.empty ? (
-        <p className="text-sm text-ink">This piece wasn't written</p>
+        // The reason above is the worker's own sentence; only say it here when there is none.
+        !piece.needsYou && <p className="text-sm text-ink">{STUB_FALLBACK}</p>
       ) : (
         <div className="whitespace-pre-wrap break-words rounded-sm border border-line bg-surface-sunk p-3 text-sm">
           {piece.text}

@@ -25,9 +25,10 @@ export function Sidebar({ theme }: { theme: ThemePreference }) {
   // The Content page is a 404 when content is off, so the link is not offered either.
   const items = NAV_ITEMS.filter((item) => contentOn || item.href !== "/content");
   const hrefs = items.map((item) => item.href);
-  const ready = contentOn ? countReadyPieces(config.HARBOUR_BRAIN_DIR, getContentProducts()) : 0;
+  // Null when the folder can't be read: the badge is hidden rather than showing a wrong number.
+  const ready = contentOn ? countReadyPieces(config.HARBOUR_BRAIN_DIR, getContentProducts()) : null;
   const badges = {
-    "content-ready": { count: ready, label: `${ready} ready for you` },
+    "content-ready": ready === null ? undefined : { count: ready, label: `${ready} ready for you` },
     "brain-new":
       brainNew === null
         ? undefined

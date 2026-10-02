@@ -28,3 +28,53 @@ export const REFUSAL_FALLBACK = "Harbour couldn't start that. Try again in a mom
 export function refusalMessage(error: string, message?: string): string {
   return message ?? REFUSAL_MESSAGES[error] ?? REFUSAL_FALLBACK;
 }
+
+/** What a cut-short list says, naming the cap that cut it. */
+export const CAP_NOTES = {
+  ideas: "Showing the newest 200 ideas. Older ones are still in your Second Brain.",
+  pieces: "Showing the newest 600 pieces. Older ones are still in your Second Brain.",
+} as const;
+
+/** A content folder Harbour could not read: what happened, whether it matters, what to do. */
+export const FOLDER_ERROR =
+  "Harbour couldn't read the content folder in your Second Brain, so some ideas and drafts may be missing from this page. Nothing was lost. Check that the folder can be read, then reload.";
+
+/** The piece line when a stub carries no reason of its own. */
+export const STUB_FALLBACK = "This piece wasn't written. Discard this idea and write it again.";
+
+/** What an empty tab will show, when, and why it is empty now (plain words, no codes). */
+export const EMPTY_TABS: Record<
+  "ready" | "needs-you" | "ideas" | "writing" | "approved" | "discarded",
+  { what: string; when: string; why: string }
+> = {
+  ready: {
+    what: "Drafts that passed every check will appear here.",
+    when: "After you pick an idea and Harbour finishes writing it.",
+    why: "Nothing is ready for you yet.",
+  },
+  "needs-you": {
+    what: "Drafts that need a look from you will appear here, with what to do.",
+    when: "When a check finds something or a step doesn't finish.",
+    why: "Nothing needs you right now.",
+  },
+  ideas: {
+    what: "Ideas will appear here.",
+    when: "On Monday mornings, or when you ask for some.",
+    why: "There are none waiting yet.",
+  },
+  writing: {
+    what: "Ideas being written will appear here.",
+    when: "From the moment you pick one until its drafts are checked.",
+    why: "Nothing is being written right now.",
+  },
+  approved: {
+    what: "Pieces you approve will appear here, ready to copy and post yourself.",
+    when: "Once you approve a draft.",
+    why: "You haven't approved anything yet.",
+  },
+  discarded: {
+    what: "Ideas and pieces you discard will appear here.",
+    when: "Once you discard one.",
+    why: "You haven't discarded anything.",
+  },
+};

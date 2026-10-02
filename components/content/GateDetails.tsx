@@ -12,7 +12,7 @@ const NAMES = {
 /** Each gate's result in run order, its findings and claims, the skills used, and the file link. */
 export function GateDetails({ piece }: { piece: PieceView }) {
   return (
-    <div className="flex flex-col gap-3 text-xs text-ink-muted">
+    <div className="flex min-w-0 flex-col gap-3 break-words text-xs text-ink-muted">
       {piece.gates.length === 0 && <p>No checks have run on this piece yet.</p>}
       <ol className="flex flex-col gap-2">
         {piece.gates.map((g) => (
@@ -41,7 +41,7 @@ export function GateDetails({ piece }: { piece: PieceView }) {
         ))}
       </ol>
       {piece.claims.length > 0 && (
-        <table className="w-full text-left">
+        <table className="w-full table-fixed text-left">
           <caption className="sr-only">Claims and where they come from</caption>
           <thead>
             <tr>

@@ -58,10 +58,15 @@ describe("PieceView", () => {
   it("says a stub was not written, and offers no Copy button", () => {
     render(
       <PieceView
-        piece={piece({ empty: true, copy: [], needsYou: "This piece wasn't written. Try again." })}
+        piece={piece({
+          empty: true,
+          copy: [],
+          needsYou: "The X piece wasn't written: it had 7 posts and the limit is 5.",
+        })}
       />,
     );
-    expect(screen.getByText("This piece wasn't written")).toBeVisible();
+    expect(screen.getByText(/wasn't written/)).toBeVisible();
+    expect(screen.getAllByText(/wasn't written/)).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /^Copy/ })).toBeNull();
   });
 
@@ -74,5 +79,12 @@ describe("PieceView", () => {
     const text = screen.getByText(/See https/);
     expect(text.querySelector("a")).toBeNull();
     expect(text.textContent).toContain("[a](https://evil.example)");
+  });
+
+  it("says a stub was not written, once, when it carries no reason of its own", () => {
+    render(<PieceView piece={piece({ empty: true, copy: [], needsYou: null })} />);
+    expect(
+      screen.getByText("This piece wasn't written. Discard this idea and write it again."),
+    ).toBeVisible();
   });
 });

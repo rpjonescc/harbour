@@ -125,10 +125,37 @@ function writeThis(ctx: RequestContext, ideaId: string): RequestResult {
   return enqueueAndAudit(ctx, "content-draft", { ideaId }, { productId: product.id, ideaId });
 }
 
+const TRY_AGAIN_REFUSALS = {
+  missing: "Harbour couldn't find that idea. Refresh the page and try again.",
+  finished: "That idea is already finished, so there is nothing to try again.",
+  discarded: "That idea was discarded, so Harbour won't write it. Refresh the page.",
+  brain_unreadable: BRAIN_UNREADABLE,
+} as const;
+
+/** Whether the idea file exists and can still be worked on; reads only. */
+function ideaIsOpen(
+  ctx: RequestContext,
+  productId: string,
+  ideaId: string,
+): "open" | keyof typeof TRY_AGAIN_REFUSALS {
+  try {
+    const idea = readAllIdeas(ctx.root, productId).ideas.find((i) => i.id === ideaId);
+    if (!idea) return "missing";
+    if (idea.front.state === "discarded") return "discarded";
+    return idea.front.state === "drafted" ? "finished" : "open";
+  } catch {
+    return "brain_unreadable";
+  }
+}
+
 /** Re-queues the idea's newest failed step with its own kind and params (Decision 4). */
 function tryAgain(ctx: RequestContext, ideaId: string): RequestResult {
   const product = productForIdea(ctx.products, ideaId);
   if (!product) return refuse(404, "not_found");
+  const open = ideaIsOpen(ctx, product.id, ideaId);
+  if (open !== "open") {
+    return refuse(open === "missing" ? 404 : 409, open, TRY_AGAIN_REFUSALS[open]);
+  }
   const step = latestFailedStep(ctx.db, ideaId);
   if (!step) {
     // A double click: the retry from the first click is under way, which is what was asked for.

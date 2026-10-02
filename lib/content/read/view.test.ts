@@ -1,7 +1,10 @@
+import { chmodSync } from "node:fs";
+import { join } from "node:path";
 import { claimNextJob, enqueueJob, finishJob } from "@/lib/jobs/queue";
 import { makeBrain } from "@/tests/helpers/brain";
 import { ACME, digestFile, ideaFile, pieceFile, VOICE_ACME } from "@/tests/helpers/content";
 import { openTestDb } from "@/tests/helpers/db";
+import { countReadyPieces } from "./ready-count";
 import { contentView } from "./view";
 
 const IDEA = "acme-docs-20261001-five-minutes";
@@ -114,7 +117,7 @@ describe("contentView", () => {
       ...many,
       "content/ideas/acme-docs/acme-docs-20261001-zzz.md": "no frontmatter",
     });
-    expect(v.capped).toBe(true);
+    expect(v.capped).toBe("ideas");
     expect(v.ideas).toHaveLength(200);
     expect(v.unreadable).toEqual(["content/ideas/acme-docs/acme-docs-20261001-zzz.md"]);
   });
@@ -160,5 +163,88 @@ describe("contentView", () => {
       text: "",
       tab: "needs-you",
     });
+  });
+
+  describe("an idea that is drafting and has no pieces yet", () => {
+    const drafting = {
+      ...base,
+      [`content/ideas/acme-docs/${IDEA}.md`]: ideaFile({ state: "drafting" }),
+    };
+    const step = (
+      kind: "content-atomise" | "content-draft",
+      end: "failed" | "queued" | "running",
+    ) => {
+      const db = openTestDb();
+      const job = enqueueJob(db, kind, { ideaId: IDEA }, null);
+      if (end !== "queued") claimNextJob(db);
+      if (end === "failed") finishJob(db, job.id, "failed", "boom");
+      return db;
+    };
+
+    it("is Needs you with the step's sentence and Try again when the step failed", () => {
+      const v = view(drafting, step("content-atomise", "failed"));
+      expect(v.ideas[0]).toMatchObject({
+        tab: "needs-you",
+        retry: true,
+        note: "The platform pieces didn't finish. Try again.",
+      });
+      expect(count(v, "needs-you")).toBe(1);
+      expect(v.defaultTab).toBe("needs-you");
+    });
+
+    it("is Being written while a step is queued or running", () => {
+      for (const end of ["queued", "running"] as const) {
+        const v = view(drafting, step("content-atomise", end));
+        expect(v.ideas[0]).toMatchObject({ tab: "writing", retry: false });
+        expect(count(v, "writing")).toBe(1);
+      }
+    });
+
+    it("is Being written, never invisible, when nothing is running and nothing failed", () => {
+      expect(count(view(drafting), "writing")).toBe(1);
+    });
+  });
+
+  it("reports an unreadable content folder instead of crashing, and hides the badge", () => {
+    const { root, cleanup } = makeBrain({
+      ...base,
+      [`content/ideas/acme-docs/${IDEA}.md`]: ideaFile(),
+    });
+    const dir = join(root, "content/ideas/acme-docs");
+    chmodSync(dir, 0o000);
+    try {
+      if (process.getuid?.() === 0) return; // root can read anything: the case can't be made
+      const v = contentView({ db: openTestDb(), root, products: [ACME], ...NOW });
+      expect(v.folderError).toBe(true);
+      expect(v.ideas).toEqual([]);
+      expect(countReadyPieces(root, [ACME])).toBeNull();
+    } finally {
+      chmodSync(dir, 0o755);
+      cleanup();
+    }
+  });
+
+  it("gives the same Ready count in the sidebar badge and on the Ready tab", () => {
+    const { root, cleanup } = makeBrain({ ...base, ...pieces(3, 2) });
+    try {
+      const v = contentView({ db: openTestDb(), root, products: [ACME], ...NOW });
+      expect(countReadyPieces(root, [ACME])).toBe(count(v, "ready"));
+      expect(count(v, "ready")).toBe(3);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("keeps the badge count for 15 seconds, then reads again", () => {
+    const { root, cleanup } = makeBrain({ ...base, ...pieces(1, 0) });
+    try {
+      const t0 = 1_000_000;
+      expect(countReadyPieces(root, [ACME], t0)).toBe(1);
+      cleanup();
+      expect(countReadyPieces(root, [ACME], t0 + 14_000)).toBe(1);
+      expect(countReadyPieces(root, [ACME], t0 + 16_000)).toBe(0);
+    } finally {
+      cleanup();
+    }
   });
 });

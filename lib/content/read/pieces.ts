@@ -67,6 +67,7 @@ function readGates(
 export function readPieces(
   root: string,
   ideaId: string,
+  options: { gates?: boolean } = {},
 ): { pieces: ReadPiece[]; unreadable: string[] } {
   const pieces: ReadPiece[] = [];
   const unreadable: string[] = [];
@@ -90,7 +91,8 @@ export function readPieces(
       unreadable.push(path);
       continue;
     }
-    const gates = readGates(root, ideaId, platform);
+    // The sidebar badge only needs states, so it skips the sidecars.
+    const gates = options.gates === false ? [] : readGates(root, ideaId, platform);
     if (gates === null) unreadable.push(contentPaths.gates(ideaId, platform));
     pieces.push({
       platform,

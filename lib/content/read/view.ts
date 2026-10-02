@@ -6,40 +6,41 @@ import { jobs } from "@/lib/db/schema";
 import { addDays } from "@/lib/format/zoned-time";
 import type { ContentProduct } from "@/lib/products/content";
 import { type FailedStep, ideaActivity, stepSentence } from "./chain-status";
-import { type ReadIdea, readIdeas } from "./ideas";
-import { readPieces } from "./pieces";
+import { type IdeaEntry, scanContent } from "./scan";
 import { pieceView, rollup } from "./view-pieces";
 import { type ContentView, type IdeaView, type PieceView, TABS, type TabId } from "./view-types";
 import { readVoice } from "./voice";
 
 export { type ContentView, type IdeaView, type PieceView, TABS, type TabId } from "./view-types";
 
-const MAX_IDEAS = 200;
-const MAX_PIECES = 600;
-/** Extra files read per product so a few broken ones can't hide that more than 200 ideas exist. */
-const BROKEN_FILE_SLACK = 10;
 const DIGEST_FRESH_DAYS = 3;
 
 type Activity = { active: boolean; failed: FailedStep | null };
 
 function ideaView(
-  entry: { idea: ReadIdea; product: ContentProduct },
+  entry: IdeaEntry,
   pieces: PieceView[],
   activity: Activity,
   saving: ReadonlySet<string>,
 ): IdeaView {
   const { idea, product } = entry;
   const { front } = idea;
-  const waiting = front.state === "idea";
+  // An idea with no pieces yet (waiting, or picked and not yet split) carries its own status;
+  // once it has pieces, each piece does.
+  const bare = front.state === "idea" || (front.state === "drafting" && pieces.length === 0);
+  const failed = bare && !activity.active ? activity.failed : null;
   const tab: TabId | null =
     front.state === "discarded"
       ? "discarded"
-      : waiting
-        ? activity.active
+      : !bare
+        ? null
+        : activity.active
           ? "writing"
-          : "ideas"
-        : null;
-  const retry = waiting && !activity.active && activity.failed !== null;
+          : failed && front.state === "drafting"
+            ? "needs-you"
+            : front.state === "idea"
+              ? "ideas"
+              : "writing";
   return {
     id: idea.id,
     productId: product.id,
@@ -52,15 +53,11 @@ function ideaView(
     sources: front.sources,
     created: front.created,
     tab,
-    retry,
+    retry: failed !== null,
     saving: saving.has(idea.id),
     pieces,
     rollup: rollup(pieces),
-    note:
-      front.needsYou ??
-      (retry && activity.failed
-        ? stepSentence(activity.failed.kind, activity.failed.params)
-        : null),
+    note: front.needsYou ?? (failed ? stepSentence(failed.kind, failed.params) : null),
   };
 }
 
@@ -86,9 +83,9 @@ function digestGap(root: string, today: string): boolean {
       .sort()
       .at(-1);
     return newest === undefined || newest.slice(0, 10) < addDays(today, -DIGEST_FRESH_DAYS);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
-    throw error;
+  } catch {
+    // A missing or unreadable folder both mean no digest could be found, which is what the line says.
+    return true;
   }
 }
 
@@ -116,36 +113,17 @@ export function contentView(input: {
   tokenSet: boolean;
 }): ContentView {
   const { db, root, products } = input;
-  const unreadable: string[] = [];
-  const entries = products.flatMap((product) => {
-    const read = readIdeas(root, product.id, MAX_IDEAS + 1 + BROKEN_FILE_SLACK);
-    unreadable.push(...read.unreadable);
-    return read.ideas.map((idea) => ({ idea, product }));
-  });
-  entries.sort(
-    (a, b) =>
-      b.idea.front.created.localeCompare(a.idea.front.created) ||
-      b.idea.id.localeCompare(a.idea.id),
-  );
-  let capped = entries.length > MAX_IDEAS;
-  const shown = entries.slice(0, MAX_IDEAS);
+  const scan = scanContent(root, products, { gates: true });
   const activity = ideaActivity(
     db,
-    shown.map((e) => e.idea.id),
+    scan.entries.map((e) => e.idea.id),
   );
   const saving = savingSet(db);
-  let budget = MAX_PIECES;
-  const ideas = shown.map((entry) => {
+  const ideas = scan.entries.map((entry) => {
     const state = activity.get(entry.idea.id) ?? { active: false, failed: null };
-    const read =
-      // A waiting idea has no pieces yet; a discarded idea shows as one card, not as its pieces.
-      ["idea", "discarded"].includes(entry.idea.front.state) || budget <= 0
-        ? { pieces: [], unreadable: [] }
-        : readPieces(root, entry.idea.id);
-    unreadable.push(...read.unreadable);
-    if (read.pieces.length > budget) capped = true;
-    const views = read.pieces.slice(0, budget).map((p) => pieceView(p, state.failed, saving));
-    budget -= views.length;
+    const views = (scan.pieces.get(entry.idea.id) ?? []).map((p) =>
+      pieceView(p, state.failed, saving),
+    );
     return ideaView(entry, views, state, saving);
   });
   const tabs = tabsOf(ideas);
@@ -155,18 +133,25 @@ export function contentView(input: {
     tabs,
     defaultTab,
     ideas,
-    capped,
-    unreadable,
+    capped: scan.capped,
+    unreadable: scan.unreadable,
+    folderError: scan.folderError,
     tokenSet: input.tokenSet,
     digest: { gap: digestGap(root, input.today) },
-    voice: products.map((p) => {
-      const voice = readVoice(root, p.id);
-      return {
-        productId: p.id,
-        name: p.name,
-        state: voice.state,
-        ...(voice.state === "invalid" ? { reason: voice.reason } : {}),
-      };
-    }),
+    voice: products.map((p) => voiceStatus(root, p)),
   };
+}
+
+function voiceStatus(root: string, product: ContentProduct): ContentView["voice"][number] {
+  const base = { productId: product.id, name: product.name };
+  try {
+    const voice = readVoice(root, product.id);
+    return {
+      ...base,
+      state: voice.state,
+      ...(voice.state === "invalid" ? { reason: voice.reason } : {}),
+    };
+  } catch {
+    return { ...base, state: "invalid", reason: "Harbour couldn't read the voice profile." };
+  }
 }

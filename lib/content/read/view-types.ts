@@ -69,6 +69,9 @@ export type ContentView = {
   voice: { productId: string; name: string; state: VoiceState["state"]; reason?: string }[];
   digest: { gap: boolean };
   unreadable: string[];
-  capped: boolean;
+  /** Which cap cut the list short (200 ideas or 600 pieces), if one did. */
+  capped: "ideas" | "pieces" | null;
+  /** A folder could not be read at all; the page says so plainly. */
+  folderError: boolean;
   tokenSet: boolean;
 };
