@@ -347,7 +347,8 @@ runs set to 90 days).
 - Sources: rule-based (§5.4) and agent proposals (§7).
 - Fields: product, area (SEO/GEO/AEO), title, why it matters, how to fix, impact
   (high/med/low), effort estimate, evidence links, brain doc links, status.
-- Agent proposals arrive as `suggested`; the owner accepts (→ `open`) or rejects.
+- Agent proposals arrive as `suggested`; the owner on the board, or Claude via
+  `pnpm actions`, accepts (→ `open`) or rejects them (see "Who changes status by hand").
 - Status: `suggested → open → in_progress → done`, plus `snoozed(until)` and
   `dismissed`.
 - **Hand to Claude**: copies a prompt containing the product's name and public URL
