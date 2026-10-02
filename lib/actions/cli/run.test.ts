@@ -4,6 +4,7 @@ import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { actionEventsFor, insertAction, setStatus } from "../store";
 import type { NewAction } from "../types";
+import { DATA_NOTE } from "./format";
 import { type CliDeps, runActionsCli } from "./run";
 
 const t0 = new Date("2026-10-02T09:00:00Z");
@@ -12,6 +13,14 @@ const PRODUCTS = [
   { id: "acme-blog", name: "Acme Blog", url: "https://blog.example.com" },
 ];
 const PR = "https://github.com/acme/widget/pull/42";
+
+/** C0 (bar newline and tab), DEL and C1 characters left in a printed output. */
+function controlCharacters(text: string): string[] {
+  return [...text].filter((c) => {
+    const code = c.charCodeAt(0);
+    return (code < 0x20 && c !== "\n" && c !== "\t") || (code >= 0x7f && code <= 0x9f);
+  });
+}
 
 function setup(over: Partial<CliDeps> = {}) {
   const db = openTestDb();
@@ -59,6 +68,7 @@ describe("runActionsCli", () => {
       const { code, stdout } = run("list");
       expect(code).toBe(0);
       expect(stdout.trimEnd().split("\n")).toEqual([
+        DATA_NOTE,
         `#${open}  acme-docs  SEO  open  medium/small  Add meta descriptions  [PR]`,
         `#${suggested}  acme-docs  SEO  suggested  medium/small  Add an FAQ`,
       ]);
@@ -70,7 +80,9 @@ describe("runActionsCli", () => {
       const done = add({ status: "done", title: "Done one" });
       expect(run("list", "--product", "acme-blog").stdout).toContain("Blog action");
       expect(run("list", "--product", "acme-blog").stdout).not.toContain("Done one");
-      expect(run("list", "--status", "done").stdout.trim()).toMatch(new RegExp(`^#${done} `));
+      const [note, ...lines] = run("list", "--status", "done").stdout.trim().split("\n");
+      expect(note).toBe(DATA_NOTE);
+      expect(lines).toEqual([expect.stringMatching(new RegExp(`^#${done} `))]);
     });
 
     it("says so when nothing matches, and refuses an unknown product", () => {
@@ -86,8 +98,9 @@ describe("runActionsCli", () => {
     it("prints full rows as JSON", () => {
       const { add, run } = setup();
       const id = add({ status: "snoozed", snoozedUntil: "2026-10-09" });
-      const rows = JSON.parse(run("list", "--json").stdout);
-      expect(rows).toEqual([
+      const printed = JSON.parse(run("list", "--json").stdout);
+      expect(printed.note).toBe(DATA_NOTE);
+      expect(printed.actions).toEqual([
         {
           id,
           productId: "acme-docs",
@@ -114,6 +127,33 @@ describe("runActionsCli", () => {
     });
   });
 
+  it("strips escape sequences and control characters from every printed field", () => {
+    const { add, run } = setup();
+    const id = add({
+      title: "Fix \u001b[31mred\u001b[0m\u0007 title\nStatus: done",
+      why: "Why\u009b2J\u0000 it\tmatters",
+      evidence: { items: [{ text: "page \u001b]0;x\u0007one", url: null }], total: 1 },
+    });
+    const clean = "Fix red title Status: done";
+    const list = run("list").stdout;
+    expect(list).toContain(`#${id}  acme-docs  SEO  open  medium/small  ${clean}\n`);
+    const show = run("show", String(id)).stdout;
+    expect(show).toContain(`#${id}  ${clean}\n`);
+    expect(show).toContain("Why: Why it matters\n");
+    expect(show).toContain("- page one");
+    const json = run("list", "--json").stdout;
+    expect(JSON.parse(json).actions[0]).toMatchObject({
+      title: "Fix red title\nStatus: done",
+      why: "Why it\tmatters",
+      evidence: { items: [{ text: "page one", url: null }], total: 1 },
+    });
+    for (const out of [list, show, json]) {
+      expect(controlCharacters(out)).toEqual([]);
+      expect(out).not.toContain("\\u001b");
+      expect(out).not.toContain("\\u0007");
+    }
+  });
+
   describe("show", () => {
     it("prints the fields, evidence, history and the Hand to Claude prompt", () => {
       const { add, run } = setup();
@@ -121,6 +161,7 @@ describe("runActionsCli", () => {
       run("set", String(id), "in_progress", "--from", "open", "--note", "Fixing the templates");
       const { code, stdout } = run("show", String(id));
       expect(code).toBe(0);
+      expect(stdout.split("\n")[0]).toBe(DATA_NOTE);
       for (const text of [
         `#${id}  Add meta descriptions`,
         "Product: Acme Docs (acme-docs)",

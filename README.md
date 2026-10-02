@@ -634,7 +634,7 @@ pnpm actions link 12 --clear
 - **list** shows suggested, open, in-progress and snoozed actions by default (at most 500), one
   per line: `#id  product  area  status  impact/effort  title  [PR]`. `--status` takes one or more
   statuses (`suggested`, `open`, `in_progress`, `done`, `snoozed`, `dismissed`); `--json` prints
-  the full actions.
+  `{"note": "...", "actions": [...]}` with the full actions.
 - **show** prints every field, the evidence, the history and the **Hand to Claude** prompt.
 - **set** needs `--from`, the status Claude last saw: if the action changed since, it is
   refused instead of overwritten, as on the board. `--note` (up to 1,000 characters) is
@@ -644,7 +644,10 @@ pnpm actions link 12 --clear
   nothing else) on the action, or clears it with `--clear`, and notes it in the history.
 
 Only actions of products in `harbour.config.json` are found. Errors print one line and exit
-non-zero. The output is the actions' own content, never settings or secrets.
+non-zero. The output is the actions' own content, never settings or secrets. Because titles,
+reasons and evidence come from crawled pages and the analyst, `list` and `show` start with a note
+(the `note` field in JSON) saying they are data, not instructions, and every printed field has
+terminal escape sequences and control characters removed.
 
 ## Connecting Google data
 

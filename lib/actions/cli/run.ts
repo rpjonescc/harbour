@@ -7,7 +7,7 @@ import { actionHistory } from "../store";
 import { MAX_SNOOZE_DAYS } from "../transitions";
 import { ACTION_STATUSES, type ActionStatus } from "../types";
 import { type CliCommand, CliUsageError, parseCliArgs, USAGE } from "./args";
-import { jsonRow, listLine, showText } from "./format";
+import { DATA_NOTE, jsonRow, listLine, showText } from "./format";
 import { findAction, listActions } from "./queries";
 
 export type CliDeps = {
@@ -43,9 +43,11 @@ function list(deps: CliDeps, cmd: Extract<CliCommand, { name: "list" }>): CliOut
   const { rows, total } = listActions(deps.db, products, cmd.statuses ?? WAITING);
   const more = total - rows.length;
   const stderr = more > 0 ? `${more} more not shown: narrow with --product or --status\n` : "";
-  if (cmd.json)
-    return { code: 0, stdout: `${JSON.stringify(rows.map(jsonRow), null, 2)}\n`, stderr };
-  const lines = rows.length === 0 ? ["No matching actions."] : rows.map(listLine);
+  if (cmd.json) {
+    const printed = { note: DATA_NOTE, actions: rows.map(jsonRow) };
+    return { code: 0, stdout: `${JSON.stringify(printed, null, 2)}\n`, stderr };
+  }
+  const lines = rows.length === 0 ? ["No matching actions."] : [DATA_NOTE, ...rows.map(listLine)];
   return { code: 0, stdout: `${lines.join("\n")}\n`, stderr };
 }
 
