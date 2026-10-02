@@ -156,7 +156,7 @@ describe("the next step is queued by the transaction that finishes the job", () 
     }
   });
 
-  it("never finishes a job without its next step: a failed queue rolls the finish back", async () => {
+  it("rolls the finish back when the next step cannot be queued: the job ends failed and nothing is queued", async () => {
     const s = contentSetup(CHAIN_WORKS, beforeAtomise());
     s.deps.afterOk = () => () => {
       throw new Error("the queue write failed");

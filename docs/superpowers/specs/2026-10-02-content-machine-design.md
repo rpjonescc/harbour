@@ -1213,8 +1213,10 @@ Each is a call made while building, one bullet each.
   steps still waiting.
 - The export file is created exclusively (written aside, then linked into place), so it never
   replaces anything; the piece is written before its export, so a cut-off run never leaves an
-  export for a piece that was not approved (a leftover only makes the next name `-2`). A run cut
-  off before its commit is finished by the same job run again. The worker also refuses when
+  export for a piece that was not approved (a leftover only makes the next name `-2`). A decision
+  run cut off by a worker restart is marked failed with the rest of the running jobs and is not
+  re-queued: the page shows the failed decision under the buttons and the owner chooses it again,
+  which is safe because a replayed decision settles as "Already saved". The worker also refuses when
   `HARBOUR_CONTENT` is off.
 - Approve exports the validated frontmatter `content`, not a hand-edited body: text changed in the
   markdown file by hand is not what an approval exports.
