@@ -6,17 +6,17 @@ import { readCoreWebVitals } from "./pagespeed-response";
 const ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
 /** PSI runs Lighthouse before answering (15–40 s): a deliberate exception to the 15 s limit. */
 const PSI_TIMEOUT_MS = 90_000;
-/** With `fields` the answer is a few KiB; 1 MiB leaves room without trusting it. */
+/** With `fields` the answer is a few hundred KiB (live: ~280 KiB); 1 MiB leaves room without trusting it. */
 const PSI_MAX_BYTES = 1024 * 1024;
 
 /**
- * Partial-response mask: only what readCoreWebVitals reads (a full result carries
- * screenshots and every audit, often several MiB). Keep it in step with pagespeed-response.ts.
+ * Partial-response mask: what readCoreWebVitals reads, without screenshots and the rest of
+ * the report (a full result is often several MiB). `audits` is a map keyed by audit id, and
+ * Google rejects masks that select inside it (HTTP 400), so it is taken whole. Keep it in step
+ * with pagespeed-response.ts.
  */
 export const PSI_FIELDS =
-  "loadingExperience/metrics,lighthouseResult(runtimeError,categories/performance/score," +
-  "audits(largest-contentful-paint/numericValue,cumulative-layout-shift/numericValue," +
-  "first-contentful-paint/numericValue,total-blocking-time/numericValue))";
+  "loadingExperience/metrics,lighthouseResult(runtimeError,categories/performance/score,audits)";
 
 /** Keyless requests have no quota at all (Google answers 429 with a quota limit of 0). */
 const NOT_CONFIGURED =
