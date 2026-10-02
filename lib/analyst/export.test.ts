@@ -153,6 +153,7 @@ describe("buildWeeklyExport", () => {
     expect(product?.scores).toEqual([
       {
         date: "2026-09-29",
+        formulaVersion: "v1",
         seo: 45,
         geo: 35,
         aeo: 20,
@@ -160,6 +161,7 @@ describe("buildWeeklyExport", () => {
       },
       {
         date: "2026-10-03",
+        formulaVersion: "v1",
         seo: 50,
         geo: null,
         aeo: 25,
@@ -180,6 +182,17 @@ describe("buildWeeklyExport", () => {
       formulaVersion: "v2",
     });
     expect(build(db).products[0]?.deltas).toEqual({ seo: null, geo: null, aeo: null });
+  });
+
+  it("labels each point of the series with its formula version", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: at("2026-09-30T06:00:00Z") });
+    seedScan(db, {
+      productId: "acme-docs",
+      at: at("2026-10-03T06:00:00Z"),
+      formulaVersion: "v2",
+    });
+    expect(build(db).products[0]?.scores.map((s) => s.formulaVersion)).toEqual(["v1", "v2"]);
   });
 
   it("has null deltas with nothing to compare, and empty lists for a product never scanned", () => {

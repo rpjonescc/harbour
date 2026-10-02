@@ -5,7 +5,7 @@ import type { Product } from "@/lib/products/catalog";
 import { fenceFor } from "@/lib/text/fence";
 import { isWeekLabel } from "./week";
 
-export const ANALYST_PROMPT_VERSION = "4-v3";
+export const ANALYST_PROMPT_VERSION = "4-v4";
 
 /** The brain paths one weekly run writes: its report and its suggested actions. */
 export function weeklyPaths(week: string): { report: string; proposals: string } {
@@ -63,6 +63,7 @@ Use the words Harbour shows the owner.
 The three areas are ${areaNames()}; the data names them by their codes, which belong only in brackets after a name.
 Give each score's verdict before its number: ${verdictBandsText()}.
 A missing score is a gap, never "Needs work".
+Each score in the data carries the scoring formula version that produced it. A score from a different formula version is not comparable; do not call a change that crosses a version an improvement or a decline.
 
 Week: ${week}
 Today's date: ${today}

@@ -25,6 +25,12 @@ describe("weeklyAnalystPrompt", () => {
     expect(prompt).not.toContain("search (SEO), being cited by AI engines (GEO)");
   });
 
+  it("says a score from another formula version is not comparable", () => {
+    expect(prompt).toContain(
+      "A score from a different formula version is not comparable; do not call a change that crosses a version an improvement or a decline.",
+    );
+  });
+
   it("names both target files on the first line", () => {
     expect(prompt.split("\n")[0]).toBe(
       "TARGET_FILES: reports/weekly/2026-W40.md, reports/weekly/2026-W40.proposals.json",
@@ -113,6 +119,6 @@ describe("weeklyAnalystPrompt", () => {
   });
 
   it("is versioned", () => {
-    expect(ANALYST_PROMPT_VERSION).toBe("4-v3");
+    expect(ANALYST_PROMPT_VERSION).toBe("4-v4");
   });
 });

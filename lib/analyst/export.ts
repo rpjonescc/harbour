@@ -18,6 +18,8 @@ export type ProductExport = {
   /** Ok and partial scans in the window, oldest first. */
   scores: {
     date: string;
+    /** The scoring formula that produced the numbers; scores of different versions can't be compared. */
+    formulaVersion: string;
     seo: number | null;
     geo: number | null;
     aeo: number | null;

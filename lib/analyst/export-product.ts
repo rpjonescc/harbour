@@ -127,6 +127,7 @@ export function productExport(
     url: product.url,
     scores: series.map((r) => ({
       date: isoDateIn(window.timeZone, r.computedAt),
+      formulaVersion: r.formulaVersion,
       seo: r.seo,
       geo: r.geo,
       aeo: r.aeo,
