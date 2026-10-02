@@ -1,4 +1,12 @@
-import { EFFORT_PHRASE, IMPACT_PHRASE, STATUS_COLUMN, WHO_PHRASE, whoIsOnIt } from "./actions";
+import {
+  boardSummary,
+  EFFORT_PHRASE,
+  IMPACT_GROUP,
+  IMPACT_PHRASE,
+  STATUS_COLUMN,
+  WHO_PHRASE,
+  whoIsOnIt,
+} from "./actions";
 
 describe("action phrases", () => {
   it("use the spec's words for impact, effort and the board's columns", () => {
@@ -49,5 +57,19 @@ describe("whoIsOnIt", () => {
     ["dismissed", null, "claude", null],
   ] as const)("%s, PR %s, last moved by %s → %s", (status, prUrl, statusActor, who) => {
     expect(whoIsOnIt({ status, prUrl, statusActor })).toBe(who);
+  });
+});
+
+describe("board phrases", () => {
+  it("heads the impact groups in the spec's words, plural", () => {
+    expect(IMPACT_GROUP).toEqual({ high: "Big wins", medium: "Worth doing", low: "Small wins" });
+  });
+  it("sums the board up in one plain line", () => {
+    expect(boardSummary({ open: 3, in_progress: 1, suggested: 2 })).toBe(
+      "3 to do · 1 in progress · 2 new ideas",
+    );
+    expect(boardSummary({ open: 0, in_progress: 0, suggested: 1 })).toBe(
+      "0 to do · 0 in progress · 1 new idea",
+    );
   });
 });

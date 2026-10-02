@@ -36,7 +36,7 @@ const missingTitle = rule(
       area: "SEO",
       impact: "high",
       title: `${count(urls.length, "page has", "pages have")} no title`,
-      problem: "These pages have no <title>, so search results and AI answers can't name them.",
+      problem: "Without a title, search results and AI answers have nothing to call these pages.",
       fix: "Give each page a unique, descriptive <title> of 10–60 characters.",
       check: "Each listed URL serves a <title> of 10–60 characters.",
       locations: urls,
@@ -59,7 +59,8 @@ const missingDescription = rule(
       area: "SEO",
       impact: "medium",
       title: `${count(urls.length, "page has", "pages have")} no meta description`,
-      problem: "Without a meta description, search engines pick a snippet from the page text.",
+      problem:
+        "Without a short summary written for them, Google picks a snippet from the page text.",
       fix: "Add a meta description of 50–160 characters summarising each page.",
       check: 'Each listed URL serves a <meta name="description"> of 50–160 characters.',
       locations: urls,
@@ -85,7 +86,8 @@ const brokenLinks = rule(
       area: "SEO",
       impact: "high",
       title: `${count(locations.length, "linked page is", "linked pages are")} broken`,
-      problem: "Internal links point to pages that answer with an error.",
+      problem:
+        "Links on your site lead to pages that are gone or show an error, so visitors and Google hit dead ends.",
       fix: "Fix or remove each link, or restore (or redirect) the missing page.",
       check: "Each listed target answers 2xx, or no page links to it any more.",
       locations,
@@ -108,7 +110,7 @@ const noindex = rule(
       area: "SEO",
       impact: "high",
       title: `${count(urls.length, "page is", "pages are")} hidden from search`,
-      problem: "These pages carry noindex (robots meta tag or X-Robots-Tag), so search drops them.",
+      problem: "These pages ask search engines not to list them, so they can't be found on Google.",
       fix: "Remove noindex from pages that should appear in search; leave it only on pages meant to stay hidden.",
       check:
         "Each listed URL that should be found serves no noindex in its robots meta tag or headers.",
@@ -135,8 +137,8 @@ const aiCrawlersBlocked = rule(
       impact: search ? "high" : "low",
       title: `robots.txt blocks ${list(blocked)}`,
       problem: search
-        ? "AI search agents can't read the site, so AI answers can't cite it."
-        : "Training-only AI crawlers are blocked; AI search agents can still read the site.",
+        ? "AI assistants' search tools are blocked from reading your site, so they can't cite it."
+        : "Only the tools that collect training data are blocked; AI assistants can still read and cite your site.",
       fix: `Allow the AI search agents (${[...AI_RETRIEVAL_AGENTS].join(", ")}) in robots.txt; blocking training-only crawlers is your choice.`,
       check: "robots.txt lets each AI search agent fetch /.",
       locations: blocked.length > 0 ? [atSite(readiness, "/robots.txt")] : [],
@@ -160,7 +162,8 @@ const noFaqSchema = rule(
       area: "AEO",
       impact: "medium",
       title: "No page has FAQ structured data",
-      problem: "Answer engines read FAQ markup to find questions the site answers directly.",
+      problem:
+        "Your pages don't label their questions and answers in a way Google and AI assistants can read, so they're less likely to quote you.",
       fix: "Add FAQPage JSON-LD to the pages that answer common questions (each question with a short answer).",
       check:
         "At least one page serves valid FAQPage JSON-LD (Google's Rich Results Test reads it).",
@@ -180,7 +183,8 @@ const noLlmsTxt = rule(
       area: "GEO",
       impact: "low",
       title: "No llms.txt",
-      problem: "There is no /llms.txt guide to the site's key pages for AI assistants.",
+      problem:
+        "There's no short guide to your site written for AI assistants, so they have to guess which pages matter.",
       fix: "Publish /llms.txt: a Markdown summary of the site with links to its most useful pages.",
       check: "/llms.txt answers 200 with plain text (not an HTML page).",
       locations: [atSite(readiness, "/llms.txt")],
@@ -204,7 +208,7 @@ const noPreferredSources = rule(
       area: "AEO",
       impact: "low",
       title: "No Google Preferred Sources button",
-      problem: "Readers can't add the site as a preferred source in Google's Top Stories.",
+      problem: "Readers can't pick your site as a favourite source in Google's Top Stories.",
       fix: "Link to https://www.google.com/preferences/source?q=<your domain> from the site, e.g. as a button near recent articles.",
       check: "A page links to google.com/preferences/source with the site's domain.",
       locations: [readiness.url],

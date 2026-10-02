@@ -1,7 +1,9 @@
 import type { actions } from "@/lib/db/schema";
 
 export type ActionStatus = "suggested" | "open" | "in_progress" | "done" | "snoozed" | "dismissed";
-export type ActionActor = "owner" | "claude" | "scan" | "agent" | "system";
+/** Everyone who can change an action; the history table's actor column uses this list. */
+export const ACTION_ACTORS = ["owner", "claude", "scan", "agent", "system"] as const;
+export type ActionActor = (typeof ACTION_ACTORS)[number];
 /** One piece of evidence; `url` is set only for http(s) links. */
 export type EvidenceItem = { text: string; url: string | null };
 /** Bounded evidence: `items` is capped, `total` counts everything that was found. */

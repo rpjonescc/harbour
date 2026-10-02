@@ -67,7 +67,7 @@ describe("ActionBoard focus after a status change", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dismiss: Action 2" }));
     await vi.waitFor(() => expect(document.activeElement?.id).toBe("action-1-title"));
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "This action changed meanwhile — refreshed.",
+      "This card changed since you opened it, so Harbour refreshed the board. Check it and try again.",
     );
   });
 });

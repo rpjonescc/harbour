@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { addIsoDays, formatIsoDay } from "@/lib/format/date";
 import { E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
 import { hydrated } from "./hydration";
+import { expectPlainLanguage } from "./plain-language";
 import { CAFE, GEO_EVIDENCE, SUGGESTED, seedActions } from "./seed-actions";
 
 // Runs after scans.spec.ts: Acme Docs has the rule actions its scan opened. The seed adds a
@@ -19,11 +20,22 @@ const LOCALE = "en-US";
 const card = (page: Page, title: string, product = CAFE.name) =>
   page.getByRole("article", { name: title, exact: true }).filter({ hasText: product });
 
-/** The board header's counts: "3 open · 1 in progress · 2 suggested". */
+/** The board header's counts: "3 to do · 1 in progress · 2 new ideas". */
 async function headerCounts(page: Page) {
-  const text = await page.getByText(/^\d+ open · \d+ in progress · \d+ suggested$/).textContent();
+  const text = await page.getByText(/^\d+ to do · \d+ in progress · \d+ new ideas?$/).textContent();
   const [open = 0, inProgress = 0, suggested = 0] = (text?.match(/\d+/g) ?? []).map(Number);
   return { open, inProgress, suggested, active: open + inProgress };
+}
+
+const technical = (title: string) =>
+  `Technical details (evidence, source and the prompt for Claude: ${title})`;
+/** Opens a card's Technical details unless the owner's remembered choice already has. */
+async function openTechnical(page: Page, title: string) {
+  const details = card(page, title).locator("details", { hasText: "Technical details" });
+  if (!(await details.evaluate((el: HTMLDetailsElement) => el.open))) {
+    await details.getByText("Technical details").click();
+  }
+  return details;
 }
 
 /** Clicks a status button once the card is hydrated, then waits for the card's new tag. */
@@ -37,7 +49,7 @@ async function changeStatus(page: Page, title: string, button: string, tag: stri
   await expect(card(page, title).getByText(tag, { exact: true })).toBeVisible();
 }
 
-test("the sidebar counts open actions and the board groups them, high impact first", async ({
+test("the sidebar counts open actions and the board groups them, biggest wins first", async ({
   page,
 }) => {
   await page.goto("/actions");
@@ -57,27 +69,36 @@ test("the sidebar counts open actions and the board groups them, high impact fir
   ])
     await expect(card(page, title)).toBeVisible();
   await expect(page.getByRole("main").getByRole("heading", { level: 2 }).first()).toHaveText(
-    "High impact",
+    "Big wins",
   );
   // Suggestions wait outside the default view.
   await expect(card(page, SUGGESTED.geo)).toHaveCount(0);
+  await expect(page.getByText(/^\d+ to do · \d+ in progress · \d+ new ideas?$/)).toBeVisible();
+  await expectPlainLanguage(page);
+  const acme = card(page, "1 page has no title", "Acme Docs");
+  await expect(acme.getByText("Big win", { exact: true })).toBeVisible();
+  await expect(acme.getByText("Waiting for you")).toBeVisible();
 
   await page.goto("/actions?status=all");
-  const high = page.getByRole("region", { name: "High impact" });
+  const high = page.getByRole("region", { name: "Big wins" });
   await expect(page.getByRole("main").getByRole("heading", { level: 2 }).first()).toHaveText(
-    "High impact",
+    "Big wins",
   );
-  await expect(high.getByRole("article", { name: SUGGESTED.geo })).toContainText("Suggested");
+  await expect(high.getByRole("article", { name: SUGGESTED.geo })).toContainText("New ideas");
   await expect(
-    page.getByRole("region", { name: "Low impact" }).getByRole("article", { name: SUGGESTED.aeo }),
+    page.getByRole("region", { name: "Small wins" }).getByRole("article", { name: SUGGESTED.aeo }),
   ).toBeVisible();
+  await expectPlainLanguage(page);
 });
 
 test("filters narrow the board, live in the URL, and clear", async ({ page }) => {
   await page.goto("/actions");
   await page.getByLabel("Product", { exact: true }).selectOption({ label: CAFE.name });
   await page.getByLabel("Area", { exact: true }).selectOption("GEO");
-  await page.getByLabel("Status", { exact: true }).selectOption({ label: "Suggested" });
+  await expect(page.getByLabel("Area", { exact: true })).toContainText(
+    "Recommended by AI assistants",
+  );
+  await page.getByLabel("Status", { exact: true }).selectOption({ label: "New ideas" });
   await page.getByRole("button", { name: "Apply" }).click();
 
   await expect(page).toHaveURL(/\/actions\?product=lighthouse-cafe&area=GEO&status=suggested$/);
@@ -98,10 +119,10 @@ test("filters narrow the board, live in the URL, and clear", async ({ page }) =>
 
 test("accept, start and mark done move an action through the board", async ({ page }) => {
   await page.goto(`${CAFE_BOARD}&status=all`);
-  await changeStatus(page, SUGGESTED.aeo, "Accept", "Open");
+  await changeStatus(page, SUGGESTED.aeo, "Accept", "To do");
   const history = card(page, SUGGESTED.aeo).locator("details");
   await card(page, SUGGESTED.aeo).getByText("History").click();
-  await expect(history.getByRole("listitem").last()).toContainText("You · Suggested → Open");
+  await expect(history.getByRole("listitem").last()).toContainText("You · New ideas → To do");
   await changeStatus(page, SUGGESTED.aeo, "Start", "In progress");
   await changeStatus(page, SUGGESTED.aeo, "Mark done", "Done");
 
@@ -112,7 +133,7 @@ test("accept, start and mark done move an action through the board", async ({ pa
   await expect(card(page, SUGGESTED.aeo)).toBeVisible();
 });
 
-test("snooze hides an action until its date; Wake now brings it back", async ({ page }) => {
+test("snooze hides an action until its date; Bring back now brings it back", async ({ page }) => {
   const title = "No llms.txt";
   await page.goto(`${CAFE_BOARD}&status=all`);
   const snooze = card(page, title).getByRole("button", { name: `Snooze…: ${title}` });
@@ -137,18 +158,19 @@ test("snooze hides an action until its date; Wake now brings it back", async ({ 
   await expect(card(page, title)).toHaveCount(0);
 
   await page.goto(`${CAFE_BOARD}&status=snoozed`);
-  const wake = card(page, title).getByRole("button", { name: `Wake now: ${title}` });
+  const wake = card(page, title).getByRole("button", { name: `Bring back now: ${title}` });
   await hydrated(wake);
   await wake.click();
-  await expect(page.getByText("Nothing snoozed.")).toBeVisible();
+  await expect(page.getByText("Nothing is snoozed.")).toBeVisible();
   await page.goto(CAFE_BOARD);
-  await expect(card(page, title).getByText("Open", { exact: true })).toBeVisible();
+  await expect(card(page, title).getByText("To do", { exact: true })).toBeVisible();
 });
 
 test("Hand to Claude copies a prompt with the product, fenced evidence and the check", async ({
   page,
 }) => {
   await page.goto(`${CAFE_BOARD}&status=suggested`);
+  await openTechnical(page, SUGGESTED.geo);
   const copy = card(page, SUGGESTED.geo).getByRole("button", {
     name: `Hand to Claude: ${SUGGESTED.geo}`,
   });
@@ -187,7 +209,7 @@ test("Today lists the top three actions in board order; issues link to their act
   const issues = page.getByRole("region", { name: "Issues" });
   for (const title of ["No page has FAQ structured data", "No llms.txt"]) {
     const issue = issues.getByRole("article", { name: title });
-    await expect(issue.getByText("Open", { exact: true })).toBeVisible();
+    await expect(issue.getByText("To do", { exact: true })).toBeVisible();
     await expect(issue.getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
       "href",
       /^\/actions\?product=lighthouse-cafe&status=all#action-\d+$/,
@@ -215,15 +237,16 @@ test("keyboard: Tab runs from the filters through a card; the snooze form traps 
   await page.keyboard.press("Tab");
   expect(await focusedName(page)).toBe("Clear filters");
   const stops: string[] = [];
-  for (let i = 0; i < 15 && stops.at(-1) !== `Hand to Claude: ${title}`; i++) {
+  for (let i = 0; i < 15 && stops.at(-1) !== technical(title); i++) {
     await page.keyboard.press("Tab");
     stops.push(await focusedName(page));
   }
-  const controls = ["Start", "Mark done", "Snooze…", "Dismiss", "Hand to Claude"].map(
+  const controls = ["Start", "Mark done", "Snooze…", "Dismiss"].map(
     (label) => `${label}: ${title}`,
   );
   expect(stops.filter((name) => controls.includes(name))).toEqual(controls);
-  expect(stops).toContain("History");
+  expect(stops).toContain(`History (${title})`);
+  expect(stops.at(-1)).toBe(technical(title));
 
   // Open the snooze form from the keyboard: focus moves into it and Tab walks out the far side.
   await trigger.focus();
@@ -239,12 +262,21 @@ test("keyboard: Tab runs from the filters through a card; the snooze form traps 
   await page.keyboard.press("Tab");
   expect(await focusedName(page)).toBe(`Cancel snooze: ${title}`);
   await page.keyboard.press("Tab");
-  expect(await focusedName(page)).toBe(`Hand to Claude: ${title}`);
+  expect(await focusedName(page)).toBe(technical(title));
   await page.keyboard.press("Shift+Tab");
   await page.keyboard.press("Enter");
   await expect(until).toHaveCount(0);
   await expect(trigger).toBeFocused();
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+  const handToClaude = card(page, title).getByRole("button", { name: `Hand to Claude: ${title}` });
+  await expect(handToClaude).toBeHidden();
+  await trigger.focus();
+  // Two Tabs: Dismiss, then the Technical details summary.
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  await expect(handToClaude).toBeVisible();
 });
 
 test("the board renders in light and dark", async ({ page }) => {

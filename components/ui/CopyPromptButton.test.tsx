@@ -43,7 +43,9 @@ describe("CopyPromptButton", () => {
   it("shows the prompt to copy by hand when the clipboard is refused", async () => {
     writeText.mockRejectedValue(new Error("denied"));
     fireEvent.click(renderButton());
-    const box = await screen.findByRole("textbox", { name: "Prompt for Claude" });
+    const box = await screen.findByRole("textbox", {
+      name: "Prompt for Claude: 2 pages have no title",
+    });
     expect(box).toHaveValue(PROMPT);
     expect(screen.getByText(/Couldn't copy/)).toBeInTheDocument();
   });

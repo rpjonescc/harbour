@@ -7,6 +7,7 @@ import { actionCounts, boardActions, parseActionFilter } from "@/lib/actions/vie
 import { requireSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
+import { boardSummary } from "@/lib/explain/actions";
 import { isoDateIn } from "@/lib/format/date";
 import { getProducts } from "@/lib/products/catalog";
 
@@ -31,9 +32,10 @@ export default async function ActionsPage({
         <h1 id="actions-heading" tabIndex={-1} className="font-serif text-3xl">
           Actions
         </h1>
-        <p className="mt-1 text-sm text-ink-muted tabular-nums">
-          {counts.open} open · {counts.in_progress} in progress · {counts.suggested} suggested
+        <p className="mt-1 text-sm text-ink-muted">
+          Things worth doing to get found more easily. You decide what happens to each.
         </p>
+        <p className="mt-1 text-sm text-ink-muted tabular-nums">{boardSummary(counts)}</p>
       </header>
       <SyncFailureNote failures={syncFailures(db, products)} {...zone} />
       <ApprovalsNote waiting={approvalsWaiting(db, products)} />

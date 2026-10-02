@@ -167,6 +167,16 @@ and appears on `/design`.
   on it, and the PR link (from the actions CLI work).
 - Evidence, source, rule key and the Hand to Claude prompt sit behind Technical details.
 
+As built:
+
+- The board stays a grouped list filtered by status; the six names are used for tags, the
+  filter, counts, history and controls.
+- Group headings are "Big wins", "Worth doing" and "Small wins".
+- Rule reasons are plain in `lib/scan/issue-rules.ts`, while `fix` and `check` stay exact and
+  sit under Technical details.
+- The fix, check, source, rule key, evidence, related docs and "Hand to Claude" share one
+  Technical details section per card.
+
 ### 5.4 Settings and Agents
 
 - Each section opens with one line on what it is for.
@@ -218,7 +228,7 @@ Each step is its own reviewed change.
 
 1. `lib/explain` and the shared components (plus `/design` examples).
 2. Today.
-3. Actions. This waits for the `pnpm actions` / PR-link change, since it touches the same
+3. Actions (done). This waited for the `pnpm actions` / PR-link change, since it touches the same
    components.
 4. Product page.
 5. Settings, Agents and messages.

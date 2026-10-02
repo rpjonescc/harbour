@@ -35,13 +35,15 @@ continues with:
   every sub-score (its weight, evidence, or why it is missing), the issues the scan found with
   a **Hand to Claude** button that copies a ready prompt, the crawled pages and their problems,
   and Search Console clicks, impressions and top queries.
-- **Actions board** — every issue the scan finds becomes a tracked action, grouped by impact,
-  with why it matters, the fix, how to tell it is done, effort, evidence, related Second Brain
-  docs and its history. Filter by product, area and status (a plain, bookmarkable form); move
-  an action through suggested → open → in progress → done, snooze it until a date or dismiss
-  it; **Hand to Claude** copies a ready prompt for it, and a linked pull request shows on the
-  card. The sidebar shows how many are open. Claude can triage the board for you with
-  `pnpm actions`, every change recorded with its reason.
+- **Actions board** — every issue the scan finds becomes a tracked action, grouped as Big wins,
+  Worth doing and Small wins. Each card says what to do in plain words, why it matters, how big
+  a job it is (a quick job, an afternoon or a project), who's on it (a new idea not decided yet,
+  Claude is on it, a pull request waiting for your OK, or waiting for you) and links its pull
+  request. Evidence, where it came from, the exact fix and check, and **Hand to Claude** (a
+  ready prompt) sit under **Technical details**. Filter by product, area and status (a plain,
+  bookmarkable form); move an action through New ideas → To do → In progress → Done, snooze it
+  until a date or dismiss it. The sidebar shows how many are open. Claude can triage the board
+  for you with `pnpm actions`, every change recorded with its reason.
 - **Sources** — whether the daily scan is on, which data sources are connected (never their
   secrets), and each source's last run, status and reason per product.
 - **Products from config** — list your products in `harbour.config.json`; each gets a
@@ -73,7 +75,7 @@ continues with:
 |---|---|
 | `/` | Today |
 | `/products/<id>` | A product's scores, issues, pages and sources |
-| `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`) |
+| `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`; the status values are the stored ones, which the board shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed) |
 | `/settings` | Settings overview: products, schedules, key status, budget and backups |
 | `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors) |
 | `/settings/sources` | Scan schedule, connections and each source's last run |
@@ -192,9 +194,9 @@ git gate and Claude subscription as the other agents (no paid API calls).
   nothing imported. If importing fails after the files are committed (or the worker stops in
   between), the worker imports them from that commit automatically, at most 3 attempts in all,
   and never twice; each failure is listed on the run's activity page.
-- **Where suggestions appear** — on the **Actions** board as **Suggested** (`/actions`), labelled
-  as coming from the weekly analyst; accept or reject each one. An action the product already
-  has (suggested, open, in progress, snoozed or rejected) is not suggested again.
+- **Where suggestions appear** — on the **Actions** board as **New ideas** (`/actions`), labelled
+  as coming from the weekly analyst; accept or dismiss each one. An action the product already
+  has (a new idea, to do, in progress, snoozed or dismissed) is not suggested again.
 - **When it runs** — every Sunday at 20:00 in `HARBOUR_TIMEZONE`, for that week (see
   [When things run](#when-things-run)). The **Weekly report** panel on **Agents** shows the next
   scheduled run (or that a run is queued or running, that a catch-up is due, or that scheduled
@@ -596,7 +598,7 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   pages could not be fetched or read). **Hand to Claude** copies a prompt with the product, the affected URLs, the
   problem, a suggested fix and an acceptance check, to paste into Claude Code in the site's
   repository; it contains only the product's name and URL and the scan's findings. Each issue
-  also shows its action's status (open, in progress, snoozed until a date, dismissed, or done
+  also shows its action's status (to do, in progress, snoozed until a date, dismissed, or done
   but still found in the last scan) with a link to it on the Actions board; an issue with no
   action yet says tracking starts with the next scan. The
   **Pages** table lists the 50 crawled pages with the most problems.
@@ -611,18 +613,21 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   creates, resolves or reopens an action. The scan's job log ends with how many actions were
   new, resolved and reopened; if this step fails the job is marked failed with the reason, the
   scan and its scores are kept, and the next scan tries again; until it does, the Actions page
-  says "Actions may be out of date: the last sync failed" with the time.
-- **The Actions board** shows open and in-progress actions by default, grouped high → low
-  impact, in-progress first, then the smallest effort. Filters (product, area, status) are a
-  normal form, so a filtered view can be bookmarked; at most 200 actions are shown, with a count
-  of the rest. Each card offers only the moves its status allows (for example **Start**,
-  **Mark done**, **Snooze…** with a date from tomorrow to a year ahead, **Dismiss**;
-  suggestions from the weekly analyst are **Accept**ed or **Reject**ed). Its **History** lists
-  every change with who made it (**You**, **Claude**, **Scan**…) and its note; a card whose fix
-  has a pull request links to it (**Pull request owner/repo#42**, in a new tab). **Hand to
-  Claude** copies a prompt with the problem,
-  evidence (fenced as data), fix and acceptance check. When agents have proposed research
-  targets, a link per product leads to its settings page to approve them.
+  says the list may be out of date, that the last scan finished but couldn't update the actions
+  (with the time), and that the next scan tries again. Reasons are written in plain words;
+  actions raised before a wording change keep the old text until the next scan refreshes them.
+- **The Actions board** shows To do and In progress actions by default, grouped Big wins → Worth
+  doing → Small wins, in-progress first, then the smallest effort. Filters (product, area,
+  status) are a normal form, so a filtered view can be bookmarked; at most 200 actions are shown,
+  with a count of the rest. Each card offers only the moves its status allows (**Start**,
+  **Mark done**, **Snooze…** with a date from tomorrow to a year ahead, **Dismiss**, **Move back
+  to To do**, **Bring back now**, **Restore to To do**; new ideas from the weekly analyst are
+  **Accept**ed or **Dismiss**ed). **History** lists every change with who made it (**You**,
+  **Claude**, **Harbour's scan**…) and its note; a card whose fix has a pull request links to it
+  (**Pull request owner/repo#42**, in a new tab). **Hand to Claude** copies a prompt with the
+  problem, evidence (fenced as data), fix and acceptance check, and sits under **Technical
+  details** on each card, which remembers whether you opened it. When agents have proposed
+  research targets, a link per product leads to its settings page to approve them.
 - **Sources** (`/settings/sources`) shows each collector's latest run per product (ok, failed,
   not connected or skipped) with its reason, and whether PageSpeed and Search Console are
   connected — as connected or not, never the key or the credentials.

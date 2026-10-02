@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import type { ActionFilter } from "@/lib/actions/views";
+import { AREA_ORDER, AREAS } from "@/lib/explain/areas";
 import { STATUS_FILTER_LABEL } from "./action-labels";
 
-const AREAS = ["SEO", "GEO", "AEO"] as const;
 const SELECT = "rounded-sm border border-line bg-surface px-2 py-1.5 text-sm text-ink";
 
 function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
@@ -58,8 +58,10 @@ export function ActionFilters({
       <Field id="filter-area" label="Area">
         <select id="filter-area" name="area" defaultValue={filter.area ?? ""} className={SELECT}>
           <option value="">All areas</option>
-          {AREAS.map((area) => (
-            <option key={area}>{area}</option>
+          {AREA_ORDER.map((key) => (
+            <option key={key} value={AREAS[key].code}>
+              {AREAS[key].name}
+            </option>
           ))}
         </select>
       </Field>

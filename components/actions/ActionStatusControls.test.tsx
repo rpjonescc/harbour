@@ -24,12 +24,12 @@ describe("ActionStatusControls", () => {
   afterEach(() => vi.resetAllMocks());
 
   it.each<[ActionStatus, string[]]>([
-    ["suggested", ["Accept", "Reject"]],
+    ["suggested", ["Accept", "Dismiss"]],
     ["open", ["Start", "Mark done", "Snooze…", "Dismiss"]],
-    ["in_progress", ["Back to open", "Mark done", "Snooze…", "Dismiss"]],
-    ["snoozed", ["Wake now", "Mark done", "Dismiss"]],
-    ["done", ["Reopen"]],
-    ["dismissed", ["Restore"]],
+    ["in_progress", ["Move back to To do", "Mark done", "Snooze…", "Dismiss"]],
+    ["snoozed", ["Bring back now", "Mark done", "Dismiss"]],
+    ["done", ["Move back to To do"]],
+    ["dismissed", ["Restore to To do"]],
   ])("offers exactly the allowed buttons for %s", (status, labels) => {
     renderControls(status);
     expect(buttonNames()).toEqual(labels.map((label) => `${label}: ${TITLE}`));
@@ -62,18 +62,18 @@ describe("ActionStatusControls", () => {
       </ActionAnnouncer>,
     );
     fireEvent.click(screen.getByRole("button", { name: `Accept: ${TITLE}` }));
-    expect(await screen.findByRole("status")).toHaveTextContent(`Accepted: ${TITLE}`);
+    expect(await screen.findByRole("status")).toHaveTextContent(`Accepted, now in To do: ${TITLE}`);
     expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 
   it.each(["stale", "not_allowed", "not_found"])(
-    "says the action changed meanwhile on %s and refreshes",
+    "says the card changed on %s and refreshes",
     async (error) => {
       api.postJson.mockResolvedValue({ ok: false, error });
       renderControls("open");
       fireEvent.click(screen.getByRole("button", { name: `Dismiss: ${TITLE}` }));
       expect(await screen.findByRole("alert")).toHaveTextContent(
-        "This action changed meanwhile — refreshed.",
+        "This card changed since you opened it, so Harbour refreshed the board. Check it and try again.",
       );
       expect(nav.refresh).toHaveBeenCalled();
     },
@@ -81,7 +81,10 @@ describe("ActionStatusControls", () => {
 
   it.each([
     ["until_invalid", "Pick a date between tomorrow and a year from now."],
-    ["unauthenticated", "Your session ended — reload the page and sign in again."],
+    [
+      "unauthenticated",
+      "Your sign-in has ended. Reload the page and sign in again, then try again.",
+    ],
   ])("explains %s without refreshing", async (error, message) => {
     api.postJson.mockResolvedValue({ ok: false, error });
     renderControls("open");
@@ -106,7 +109,7 @@ describe("ActionStatusControls", () => {
     renderControls("open");
     fireEvent.click(screen.getByRole("button", { name: `Start: ${TITLE}` }));
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Couldn't update the action — try again.",
+      "That change wasn't saved. Try again in a moment.",
     );
     expect(nav.refresh).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: `Start: ${TITLE}` })).toBeEnabled();
