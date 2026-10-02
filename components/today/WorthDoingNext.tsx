@@ -15,7 +15,7 @@ export function WorthDoingNext({ actions, more }: { actions: ActionPreview[]; mo
   return (
     <section aria-labelledby="worth-doing-heading" className="flex flex-col gap-3">
       <h2 id="worth-doing-heading" className="font-serif text-xl">
-        Worth doing next
+        Next up
       </h2>
       {actions.length === 0 ? (
         <EmptyState {...NOTHING_TO_DO} />

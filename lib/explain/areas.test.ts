@@ -53,7 +53,7 @@ describe("AREAS", () => {
       AREA_ORDER.map((key) => AREAS[key].parts.todo),
       SUB_SCORE_EXPLANATIONS.map((e) => e.parts.todo),
     ].flat();
-    for (const todo of todos) expect(todo).not.toMatch(/Worth doing next/);
+    for (const todo of todos) expect(todo).not.toMatch(/Next up/);
     expect(AREAS.seo.parts.todo).toMatch(/Actions board/);
     expect(AREAS.geo.parts.todo).toMatch(/Actions board/);
     expect(SUB_SCORE_EXPLANATIONS.find((e) => e.key === "seo.technical")?.parts.todo).toMatch(

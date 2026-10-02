@@ -3,6 +3,7 @@ import {
   EFFORT_PHRASE,
   IMPACT_GROUP,
   IMPACT_PHRASE,
+  impactTone,
   STATUS_COLUMN,
   thingsWorthDoing,
   WHO_PHRASE,
@@ -58,6 +59,14 @@ describe("whoIsOnIt", () => {
     ["dismissed", null, "claude", null],
   ] as const)("%s, PR %s, last moved by %s → %s", (status, prUrl, statusActor, who) => {
     expect(whoIsOnIt({ status, prUrl, statusActor })).toBe(who);
+  });
+});
+
+describe("impactTone", () => {
+  it("tones the size of a win once for every surface", () => {
+    expect(impactTone("high")).toBe("warn");
+    expect(impactTone("medium")).toBe("neutral");
+    expect(impactTone("low")).toBe("neutral");
   });
 });
 

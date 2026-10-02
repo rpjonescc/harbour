@@ -149,8 +149,9 @@ and appears on `/design`.
    "Harbour can't open the backup folder", the same words as the backup notice).
 3. **Product table:** one row per product, one column per area, showing `<VerdictLine>` in
    compact form.
-4. **Worth doing next:** the top 3 actions as plain cards. Each card has a title, a one-line
-   reason, a tag (area plus effort phrase) and who's on it.
+4. **Next up:** the top 3 actions as plain cards. Each card has a title, a one-line
+   reason, a tag (area plus effort phrase) and who's on it. As built: the heading is Next up, so a
+   "Worth doing" card (medium impact, §3) doesn't sit under a "Worth doing next" heading.
 5. **Calm notices:** backup, source health and cost, each written per principle 4.
 
 ### 5.2 Product page

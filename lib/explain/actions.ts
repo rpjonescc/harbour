@@ -7,6 +7,11 @@ export const IMPACT_PHRASE: Readonly<Record<Impact, string>> = {
   low: "Small win",
 };
 
+/** The size of a win's chip tone: one answer for the board, Today and the issue cards. */
+export function impactTone(impact: Impact): "warn" | "neutral" {
+  return impact === "high" ? "warn" : "neutral";
+}
+
 export const EFFORT_PHRASE: Readonly<Record<Effort, string>> = {
   small: "quick job",
   medium: "an afternoon",

@@ -215,10 +215,12 @@ export function topActiveActions(
   return { actions: rows, more: total - rows.length };
 }
 
-/** Where a rule's action stands, for the product page's issues. */
-export type RuleActionStatus = Pick<ActionRow, "id" | "status" | "snoozedUntil">;
+/** Where a rule's action stands, for the product page's issues, and who is on it. */
+export type RuleActionStatus = Pick<ActionRow, "id" | "status" | "snoozedUntil"> & {
+  who: WhoOnIt | null;
+};
 
-/** ruleKey → { id, status, snoozedUntil } for one product's rule actions. */
+/** ruleKey → { id, status, snoozedUntil, who } for one product's rule actions. */
 export function ruleActionStatuses(db: Db, productId: string): Map<string, RuleActionStatus> {
   const rows = db
     .select({
@@ -226,12 +228,34 @@ export function ruleActionStatuses(db: Db, productId: string): Map<string, RuleA
       id: actions.id,
       status: actions.status,
       snoozedUntil: actions.snoozedUntil,
+      prUrl: actions.prUrl,
     })
     .from(actions)
     .where(and(eq(actions.productId, productId), eq(actions.source, "rule")))
     .all();
+  // A product has at most a handful of rules, so reading each one's history is cheap.
+  const events = eventsByAction(
+    db,
+    rows.map((row) => row.id),
+  );
   return new Map(
-    rows.flatMap(({ ruleKey, ...rest }) => (ruleKey === null ? [] : [[ruleKey, rest] as const])),
+    rows.flatMap(({ ruleKey, prUrl, ...rest }) =>
+      ruleKey === null
+        ? []
+        : [
+            [
+              ruleKey,
+              {
+                ...rest,
+                who: whoIsOnIt({
+                  status: rest.status,
+                  prUrl,
+                  statusActor: lastStatusActor(events.get(rest.id) ?? []),
+                }),
+              },
+            ] as const,
+          ],
+    ),
   );
 }
 

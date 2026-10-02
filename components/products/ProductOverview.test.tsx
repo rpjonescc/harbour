@@ -85,8 +85,8 @@ const scanned: ProductView = {
   },
   issues: deriveIssues([...ACME_CRAWL, readiness()], ALL_OK),
   actionByRule: new Map([
-    ["broken-links", { id: 5, status: "in_progress", snoozedUntil: null }],
-    ["noindex", { id: 6, status: "snoozed", snoozedUntil: "2026-10-12" }],
+    ["broken-links", { id: 5, status: "in_progress", snoozedUntil: null, who: "claude" }],
+    ["noindex", { id: 6, status: "snoozed", snoozedUntil: "2026-10-12", who: null }],
   ]),
   pages: pageRows(ACME_CRAWL),
   search: { state: "not_configured", reason: "HARBOUR_GSC_CREDENTIALS is not set" },
@@ -150,7 +150,7 @@ describe("ProductOverview", () => {
     const issue = (name: string) =>
       screen.getByRole("article", { name: new RegExp(name) }) as HTMLElement;
     const broken = issue("you link to can't be found");
-    expect(within(broken).getByText("In progress")).toBeInTheDocument();
+    expect(within(broken).getByText("Claude is on it")).toBeInTheDocument();
     expect(
       within(broken).getByRole("link", {
         name: "View on the Actions board: 1 page you link to can't be found",
@@ -169,9 +169,14 @@ describe("ProductOverview", () => {
   });
 
   it("names open, dismissed and done-but-still-found actions", () => {
-    const status = (s: "open" | "dismissed" | "done") => ({ id: 5, status: s, snoozedUntil: null });
+    const status = (s: "open" | "dismissed" | "done") => ({
+      id: 5,
+      status: s,
+      snoozedUntil: null,
+      who: s === "open" ? ("you" as const) : null,
+    });
     for (const [s, text] of [
-      ["open", "To do"],
+      ["open", "Waiting for you"],
       ["dismissed", "Dismissed"],
       ["done", "Done — still found in the last check"],
     ] as const) {

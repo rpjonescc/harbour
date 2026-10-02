@@ -671,7 +671,7 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   with the reason (a gap, never a zero); an asterisk marks a verdict where some data was
   missing because a source was not connected or failed, and the numbers are under **Technical
   details**. Each product name opens its page. While a check is queued or running, the page
-  refreshes itself. **Worth doing next** shows the top three open or in-progress actions (in
+  refreshes itself. **Next up** shows the top three open or in-progress actions (in
   the Actions board's order), each linked to its card and saying who's on it (Claude is on it,
   Pull request waiting for your OK, or Waiting for you), and the briefing's second line counts
   every one of them; the rest are a link away on the Actions board. Before the first check is

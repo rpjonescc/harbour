@@ -2,7 +2,13 @@ import { Panel } from "@/components/ui/Panel";
 import { ProductDot } from "@/components/ui/ProductDot";
 import { Tag } from "@/components/ui/Tag";
 import type { ActionView } from "@/lib/actions/views";
-import { EFFORT_PHRASE, IMPACT_PHRASE, STATUS_COLUMN, WHO_PHRASE } from "@/lib/explain/actions";
+import {
+  EFFORT_PHRASE,
+  IMPACT_PHRASE,
+  impactTone,
+  STATUS_COLUMN,
+  WHO_PHRASE,
+} from "@/lib/explain/actions";
 import { AREAS, areaKeyOf } from "@/lib/explain/areas";
 import { formatIsoDay } from "@/lib/format/date";
 import type { Product } from "@/lib/products/catalog";
@@ -54,9 +60,7 @@ export function ActionCard({
         className="flex flex-col gap-4"
       >
         <div className="flex flex-wrap items-center gap-2">
-          <Tag tone={action.impact === "high" ? "warn" : "neutral"}>
-            {IMPACT_PHRASE[action.impact]}
-          </Tag>
+          <Tag tone={impactTone(action.impact)}>{IMPACT_PHRASE[action.impact]}</Tag>
           <Tag tone={action.who ? "accent" : "neutral"}>
             {action.who ? WHO_PHRASE[action.who] : statusText(action, locale)}
           </Tag>

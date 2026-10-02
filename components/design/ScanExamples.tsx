@@ -69,7 +69,7 @@ export function ScanExamples() {
       />
       <IssueItem
         issue={EXAMPLE_ISSUE}
-        action={{ id: 1, status: "in_progress", snoozedUntil: null }}
+        action={{ id: 1, status: "in_progress", snoozedUntil: null, who: "claude" }}
         product={EXAMPLE_PRODUCT}
         locale={ZONE.locale}
       />

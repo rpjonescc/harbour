@@ -203,7 +203,7 @@ test("Today shows the real verdicts instead of the sample, with the numbers a cl
   for (const cell of (await acme.getByRole("cell").all()).slice(0, 3)) {
     await expect(cell).toHaveText(/^\d+/);
   }
-  // Worth doing next lists the actions the scan opened, each linked to its board card.
+  // Next up lists the actions the scan opened, each linked to its board card.
   await expect(page.getByRole("link", { name: "1 page is missing a title" })).toHaveAttribute(
     "href",
     /^\/actions#action-\d+$/,

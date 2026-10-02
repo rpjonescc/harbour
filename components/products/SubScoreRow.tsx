@@ -5,9 +5,9 @@ import { subScoreExplanation, subScoreLine } from "@/lib/explain/subscores";
 import { type VerdictTone, verdictFor } from "@/lib/explain/verdict";
 
 /** No red: the verdict word carries the meaning, the tone only supports it. */
-const TAG_TONE: Readonly<Record<VerdictTone, "accent" | "warn" | "neutral">> = {
-  strong: "accent",
-  good: "accent",
+const TAG_TONE: Readonly<Record<VerdictTone, "good" | "warn" | "neutral">> = {
+  strong: "good",
+  good: "good",
   fair: "neutral",
   weak: "warn",
   gap: "neutral",

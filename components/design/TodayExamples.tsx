@@ -31,7 +31,7 @@ export function TodayExamples({ product }: { product: Pick<Product, "id" | "name
       {today.actions.map((action) => (
         <Example
           key={action.id}
-          label={`Worth doing next · ${action.who ? WHO_PHRASE[action.who] : "no one on it"}`}
+          label={`Next up · ${action.who ? WHO_PHRASE[action.who] : "no one on it"}`}
         >
           <ActionCard action={action} />
         </Example>
