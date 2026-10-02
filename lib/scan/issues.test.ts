@@ -16,7 +16,7 @@ describe("deriveIssues", () => {
     expect(broken).toMatchObject({
       area: "SEO",
       impact: "high",
-      title: "1 linked page is broken",
+      title: "1 page you link to can't be found",
       total: 1,
       locations: [`${at("/missing")} (HTTP 404), linked from ${at("/")}, ${at("/about")}`],
     });
@@ -29,7 +29,7 @@ describe("deriveIssues", () => {
     expect(crawlers).toMatchObject({
       area: "GEO",
       impact: "low",
-      title: "robots.txt blocks GPTBot",
+      title: "Your site opts out of AI training",
       locations: [at("/robots.txt")],
     });
   });
@@ -48,7 +48,7 @@ describe("deriveIssues", () => {
     expect(deriveIssues([blocked])[0]).toMatchObject({
       id: "ai-crawlers-blocked",
       impact: "high",
-      title: "robots.txt blocks OAI-SearchBot and PerplexityBot",
+      title: "AI assistants can't read your site",
     });
   });
 
@@ -74,9 +74,12 @@ describe("deriveIssues", () => {
       crawlSite({ brokenInternalLinks: [] }),
     ]);
     expect(ids(issues)).toEqual(["missing-title", "missing-description"]);
-    expect(issues[0]).toMatchObject({ title: "2 pages have no title", total: 2 });
+    expect(issues[0]).toMatchObject({ title: "2 pages are missing a title", total: 2 });
     expect(issues[0]?.locations).toEqual([at("/a"), at("/b")]);
-    expect(issues[1]).toMatchObject({ title: "1 page has no meta description", impact: "medium" });
+    expect(issues[1]).toMatchObject({
+      title: "1 page has no summary for search results",
+      impact: "medium",
+    });
   });
 
   it("caps listed locations at 20 but counts them all", () => {

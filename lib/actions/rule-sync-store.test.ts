@@ -114,6 +114,20 @@ describe("syncRuleActions", () => {
     expect(only(db).evidence.total).toBe(3);
   });
 
+  it("gives a stored action its new title on the next scan, even when it is dismissed", () => {
+    const db = openTestDb();
+    sync(db, [present("no-llms-txt", { title: "No llms.txt" })], "2026-10-02", t1);
+    const created = only(db);
+    setStatus(db, created.id, "open", "dismissed", { actor: "owner", now: t1 });
+    const plain = "No guide to your site for AI assistants";
+    sync(db, [present("no-llms-txt", { title: plain })], "2026-10-03", t2);
+    expect(only(db)).toMatchObject({
+      status: "dismissed",
+      title: plain,
+      titleKey: "no guide to your site for ai assistants",
+    });
+  });
+
   it("keeps a dismissed action dismissed while the issue persists", () => {
     const db = openTestDb();
     sync(db, [present("missing-title")], "2026-10-02", t1);

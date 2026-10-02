@@ -157,7 +157,9 @@ describe("ProductOverview", () => {
     const issues = screen.getByRole("region", { name: "Issues" });
     expect(within(issues).getAllByRole("article")).toHaveLength(3);
     expect(
-      within(issues).getByRole("button", { name: "Hand to Claude: 1 linked page is broken" }),
+      within(issues).getByRole("button", {
+        name: "Hand to Claude: 1 page you link to can't be found",
+      }),
     ).toBeInTheDocument();
     const pages = screen.getByRole("table", { name: /crawled pages/ });
     expect(within(pages).getByRole("link", { name: "/about" })).toBeInTheDocument();
@@ -168,7 +170,7 @@ describe("ProductOverview", () => {
     renderPage(scanned);
     const issue = (name: string) =>
       screen.getByRole("article", { name: new RegExp(name) }) as HTMLElement;
-    const broken = issue("linked page is broken");
+    const broken = issue("you link to can't be found");
     expect(within(broken).getByText("In progress")).toBeInTheDocument();
     expect(within(broken).getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
       "href",
@@ -177,7 +179,7 @@ describe("ProductOverview", () => {
     expect(
       within(issue("hidden from search")).getByText("Snoozed until 12 Oct 2026"),
     ).toBeInTheDocument();
-    const untracked = issue("blocks GPTBot");
+    const untracked = issue("opts out of AI training");
     expect(within(untracked).getByText("Tracking starts with the next scan")).toBeInTheDocument();
     expect(within(untracked).queryByRole("link", { name: "View on the Actions board" })).toBeNull();
   });
@@ -193,7 +195,7 @@ describe("ProductOverview", () => {
         ...scanned,
         actionByRule: new Map([["broken-links", status(s)]]),
       });
-      const broken = screen.getByRole("article", { name: /linked page is broken/ });
+      const broken = screen.getByRole("article", { name: /you link to can't be found/ });
       expect(within(broken).getByText(text)).toBeInTheDocument();
       unmount();
     }

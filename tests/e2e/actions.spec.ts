@@ -6,8 +6,8 @@ import { expectPlainLanguage } from "./plain-language";
 import { CAFE, GEO_EVIDENCE, SUGGESTED, seedActions } from "./seed-actions";
 
 // Runs after scans.spec.ts: Acme Docs has the rule actions its scan opened. The seed adds a
-// scored scan of Lighthouse Café (rule actions "No llms.txt", "robots.txt blocks GPTBot" and
-// "No page has FAQ structured data") and two suggestions from the weekly analyst.
+// scored scan of Lighthouse Café (rule actions "No guide to your site for AI assistants", "Your site opts out of AI training" and
+// "Your questions and answers aren't labelled for Google and AI") and two suggestions from the weekly analyst.
 
 test.describe.configure({ mode: "serial" });
 test.beforeAll(() => seedActions());
@@ -60,12 +60,12 @@ test("the sidebar counts open actions and the board groups them, biggest wins fi
     page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: /^Actions/ }),
   ).toHaveAccessibleName(new RegExp(`^Actions\\s*${active} open actions$`));
 
-  await expect(card(page, "1 page has no title", "Acme Docs")).toBeVisible();
-  await expect(card(page, "1 linked page is broken", "Acme Docs")).toBeVisible();
+  await expect(card(page, "1 page is missing a title", "Acme Docs")).toBeVisible();
+  await expect(card(page, "1 page you link to can't be found", "Acme Docs")).toBeVisible();
   for (const title of [
-    "No llms.txt",
-    "robots.txt blocks GPTBot",
-    "No page has FAQ structured data",
+    "No guide to your site for AI assistants",
+    "Your site opts out of AI training",
+    "Your questions and answers aren't labelled for Google and AI",
   ])
     await expect(card(page, title)).toBeVisible();
   await expect(page.getByRole("main").getByRole("heading", { level: 2 }).first()).toHaveText(
@@ -75,7 +75,7 @@ test("the sidebar counts open actions and the board groups them, biggest wins fi
   await expect(card(page, SUGGESTED.geo)).toHaveCount(0);
   await expect(page.getByText(/^\d+ to do · \d+ in progress · \d+ new ideas?$/)).toBeVisible();
   await expectPlainLanguage(page);
-  const acme = card(page, "1 page has no title", "Acme Docs");
+  const acme = card(page, "1 page is missing a title", "Acme Docs");
   await expect(acme.getByText("Big win", { exact: true })).toBeVisible();
   await expect(acme.getByText("Waiting for you")).toBeVisible();
 
@@ -113,7 +113,7 @@ test("filters narrow the board, live in the URL, and clear", async ({ page }) =>
   await expect(page.getByLabel("Product", { exact: true })).toHaveValue("");
   await expect(page.getByLabel("Area", { exact: true })).toHaveValue("");
   await expect(page.getByLabel("Status", { exact: true })).toHaveValue("active");
-  await expect(card(page, "1 page has no title", "Acme Docs")).toBeVisible();
+  await expect(card(page, "1 page is missing a title", "Acme Docs")).toBeVisible();
   await expect(page.getByRole("link", { name: "Clear filters" })).toHaveCount(0);
 });
 
@@ -127,14 +127,14 @@ test("accept, start and mark done move an action through the board", async ({ pa
   await changeStatus(page, SUGGESTED.aeo, "Mark done", "Done");
 
   await page.goto(CAFE_BOARD);
-  await expect(card(page, "No llms.txt")).toBeVisible();
+  await expect(card(page, "No guide to your site for AI assistants")).toBeVisible();
   await expect(card(page, SUGGESTED.aeo)).toHaveCount(0);
   await page.goto(`${CAFE_BOARD}&status=done`);
   await expect(card(page, SUGGESTED.aeo)).toBeVisible();
 });
 
 test("snooze hides an action until its date; Bring back now brings it back", async ({ page }) => {
-  const title = "No llms.txt";
+  const title = "No guide to your site for AI assistants";
   await page.goto(`${CAFE_BOARD}&status=all`);
   const snooze = card(page, title).getByRole("button", { name: `Snooze…: ${title}` });
   await hydrated(snooze);
@@ -154,7 +154,7 @@ test("snooze hides an action until its date; Bring back now brings it back", asy
   ).toBeVisible();
 
   await page.goto(CAFE_BOARD);
-  await expect(card(page, "robots.txt blocks GPTBot")).toBeVisible();
+  await expect(card(page, "Your site opts out of AI training")).toBeVisible();
   await expect(card(page, title)).toHaveCount(0);
 
   await page.goto(`${CAFE_BOARD}&status=snoozed`);
@@ -207,7 +207,10 @@ test("Today lists the top three actions in board order; issues link to their act
 
   await page.goto(`/products/${CAFE.id}`);
   const issues = page.getByRole("region", { name: "Issues" });
-  for (const title of ["No page has FAQ structured data", "No llms.txt"]) {
+  for (const title of [
+    "Your questions and answers aren't labelled for Google and AI",
+    "No guide to your site for AI assistants",
+  ]) {
     const issue = issues.getByRole("article", { name: title });
     await expect(issue.getByText("To do", { exact: true })).toBeVisible();
     await expect(issue.getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
@@ -227,7 +230,7 @@ const focusedName = (page: Page) =>
 test("keyboard: Tab runs from the filters through a card; the snooze form traps nothing", async ({
   page,
 }) => {
-  const title = "No page has FAQ structured data";
+  const title = "Your questions and answers aren't labelled for Google and AI";
   await page.goto(`${CAFE_BOARD}&area=AEO`);
   await expect(page.getByRole("article")).toHaveCount(1);
   const trigger = card(page, title).getByRole("button", { name: `Snooze…: ${title}` });
@@ -288,7 +291,7 @@ test("the board renders in light and dark", async ({ page }) => {
     await expect(toggle).toHaveText(`Theme: ${theme}`);
     await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
     await expect(page.getByRole("heading", { level: 1, name: "Actions" })).toBeVisible();
-    await expect(card(page, "1 page has no title", "Acme Docs")).toBeVisible();
+    await expect(card(page, "1 page is missing a title", "Acme Docs")).toBeVisible();
   }
 });
 

@@ -42,10 +42,10 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
   await expect(breakdown.getByText("Not connected").first()).toBeVisible();
 
   const issues = page.getByRole("region", { name: "Issues" });
-  const noTitle = issues.getByRole("article", { name: "1 page has no title" });
+  const noTitle = issues.getByRole("article", { name: "1 page is missing a title" });
   await noTitle.getByText("Where").click();
   await expect(noTitle.getByText(`${SITE}/about`)).toBeVisible();
-  const broken = issues.getByRole("article", { name: "1 linked page is broken" });
+  const broken = issues.getByRole("article", { name: "1 page you link to can't be found" });
   await broken.getByText("Where").click();
   await expect(broken.getByText(`${SITE}/missing (HTTP 404)`, { exact: false })).toBeVisible();
   // The scan's rule sync opened an action for each issue; the issue links to it on the board.
@@ -164,7 +164,7 @@ test("Today shows the real verdicts instead of the sample, with the numbers a cl
     await expect(cell).toHaveText(/^\d+/);
   }
   // Worth doing next lists the actions the scan opened, each linked to its board card.
-  await expect(page.getByRole("link", { name: "1 page has no title" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "1 page is missing a title" })).toHaveAttribute(
     "href",
     /^\/actions#action-\d+$/,
   );
