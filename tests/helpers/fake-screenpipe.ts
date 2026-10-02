@@ -35,9 +35,9 @@ const STATUS_BY_MODE: Partial<Record<FakeMode, string>> = {
  * owner's data). Unknown fields are included on purpose: the client must ignore them.
  */
 export async function startFakeScreenpipe(
-  options: { mode?: FakeMode; snippets?: FakeSnippet[]; key?: string } = {},
+  options: { mode?: FakeMode; snippets?: FakeSnippet[]; key?: string; port?: number } = {},
 ) {
-  const { mode = "ok", snippets = [], key = "sp-test-key" } = options;
+  const { mode = "ok", snippets = [], key = "sp-test-key", port: wanted = 0 } = options;
   const requests: FakeRequest[] = [];
   let activityCalls = 0;
   const server = createServer((req, res) => {
@@ -102,7 +102,7 @@ export async function startFakeScreenpipe(
       key_texts: ["ignored"],
     });
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve) => server.listen(wanted, "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
   return {
     url: `http://127.0.0.1:${port}`,

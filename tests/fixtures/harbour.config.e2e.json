@@ -1,5 +1,13 @@
 {
   "ownerName": "Sam Example",
+  "content": {
+    "products": {
+      "acme-docs": {
+        "terms": ["acme docs"],
+        "platforms": ["linkedin", "x", "instagram", "facebook", "blog", "website"]
+      }
+    }
+  },
   "products": [
     {
       "id": "acme-docs",

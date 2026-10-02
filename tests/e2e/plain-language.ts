@@ -10,6 +10,22 @@ function textOutsideDetails(page: Page): Promise<string> {
   });
 }
 
+/**
+ * The main region's text with only the Technical details sections left out. Closed rows and tabs
+ * still count: `textContent` reads text that is not on screen too.
+ */
+export function textOutsideTechnicalDetails(page: Page): Promise<string> {
+  return page.getByRole("main").evaluate((main) => {
+    const copy = main.cloneNode(true);
+    if (!(copy instanceof HTMLElement)) return "";
+    for (const details of copy.querySelectorAll("details")) {
+      if (details.querySelector("summary")?.textContent?.startsWith("Technical details"))
+        details.remove();
+    }
+    return copy.textContent ?? "";
+  });
+}
+
 /** File names, markup and bot names that don't belong in a card title (spec §5.2, step 4). */
 export const RULE_JARGON =
   /robots\.txt|llms\.txt|noindex|meta description|structured data|JSON-LD|schema|Preferred Sources|\b\w+Bot\b/i;

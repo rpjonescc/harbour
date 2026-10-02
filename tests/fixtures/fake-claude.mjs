@@ -9,6 +9,16 @@ const promptArg = process.argv[process.argv.indexOf("-p") + 1];
 // Content runs send the prompt on stdin: `-p` is then followed by another flag, or by nothing.
 const prompt =
   promptArg === undefined || promptArg.startsWith("--") ? readFileSync(0, "utf8") : promptArg;
+// A content step names itself on a STEP line. Tests pick "content-work" and pass their fixtures in
+// FAKE_CLAUDE_WORKS; the E2E worker picks no scenario, so a STEP line is enough and the fixtures
+// come from content/chain-works.json, which tests/e2e/prepare.ts writes next to this file.
+const stepLine = /^STEP:\s*(.+)$/m.exec(prompt)?.[1]?.trim();
+const worksFile = join(dirname(new URL(import.meta.url).pathname), "content", "chain-works.json");
+const loadWorks = () =>
+  JSON.parse(
+    process.env.FAKE_CLAUDE_WORKS ??
+      (existsSync(worksFile) ? readFileSync(worksFile, "utf8") : "{}"),
+  );
 const targets = (/^TARGET_FILES:\s*(.+)$/m.exec(prompt)?.[1] ?? "")
   .split(",")
   .map((s) => s.trim())
@@ -127,11 +137,11 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
     is_error: true,
     result: "Sam, your score jumped to 93",
   });
-} else if (scenario === "content-work") {
+} else if (scenario === "content-work" || (scenario === "success" && stepLine !== undefined)) {
   // A content step: writes the fixture for this prompt's STEP line to its TARGET_FILES (the work
   // file), plus any strays (paths the agent must not write). No fixture for the step is a failed run.
-  const step = /^STEP:\s*(.+)$/m.exec(prompt)?.[1]?.trim() ?? "";
-  const works = JSON.parse(process.env.FAKE_CLAUDE_WORKS ?? "{}");
+  const step = stepLine ?? "";
+  const works = loadWorks();
   const strays = JSON.parse(process.env.FAKE_CLAUDE_STRAYS ?? "{}");
   out({ type: "assistant", message: { content: [{ type: "text", text: `Working on ${step}` }] } });
   // FAKE_CLAUDE_ECHO: a run that repeats a string through every channel it has (the privacy test's
