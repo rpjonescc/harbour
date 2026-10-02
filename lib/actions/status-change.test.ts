@@ -22,7 +22,8 @@ function setup() {
       today,
       now: t0,
       ...over,
-    });
+      // A partial override can mix the actor variants; each test passes a consistent pair.
+    } as StatusChangeRequest);
   const audits = () =>
     db
       .select()
@@ -54,6 +55,39 @@ describe("applyStatusChange", () => {
     expect(JSON.stringify(audits())).not.toContain("Starting");
   });
 
+  it("refuses a change by Claude without a reason, writing nothing", () => {
+    const { db, id, change, audits, statusOf } = setup();
+    expect(change({ change: { to: "done", note: "   " } })).toEqual({
+      ok: false,
+      error: "note_required",
+    });
+    // @ts-expect-error -- Claude's change must carry a note.
+    const request: StatusChangeRequest = {
+      id,
+      from: "open",
+      change: { to: "done" },
+      actor: "claude",
+      login: "claude",
+      productIds: ["acme-docs"],
+      today,
+      now: t0,
+    };
+    expect(applyStatusChange(db, request)).toEqual({ ok: false, error: "note_required" });
+    expect(statusOf()).toBe("open");
+    expect(actionEventsFor(db, id)).toHaveLength(1);
+    expect(audits()).toEqual([]);
+  });
+
+  it("lets the owner change status without a note", () => {
+    const { id, change } = setup();
+    expect(change({ actor: "owner", login: "owner@example.com", change: { to: "done" } })).toEqual({
+      ok: true,
+      id,
+      status: "done",
+      snoozedUntil: null,
+    });
+  });
+
   it("refuses a stale change without writing anything", () => {
     const { db, id, change, audits, statusOf } = setup();
     setStatus(db, id, "open", "done", { actor: "scan", now: t0 });
@@ -64,9 +98,11 @@ describe("applyStatusChange", () => {
 
   it("refuses a move the status does not allow and a snooze without a valid date", () => {
     const { change, audits } = setup();
-    expect(change({ change: { to: "open" } })).toMatchObject({ error: "not_allowed" });
-    expect(change({ change: { to: "snoozed" } })).toMatchObject({ error: "until_required" });
-    expect(change({ change: { to: "snoozed", until: today } })).toMatchObject({
+    expect(change({ change: { to: "open", note: "x" } })).toMatchObject({ error: "not_allowed" });
+    expect(change({ change: { to: "snoozed", note: "x" } })).toMatchObject({
+      error: "until_required",
+    });
+    expect(change({ change: { to: "snoozed", until: today, note: "x" } })).toMatchObject({
       error: "until_invalid",
     });
     expect(audits()).toEqual([]);

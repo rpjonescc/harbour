@@ -6,15 +6,15 @@ import { setStatus } from "./store";
 import { checkTransition, type StatusChange } from "./transitions";
 import type { ActionStatus } from "./types";
 
-/** Who may move an action by hand: the owner on the board, or Claude through `pnpm actions`. */
-export type StatusChanger = "owner" | "claude";
+/** Who changes the status: Claude must always say why (its note), the owner may. */
+type ChangedBy =
+  | { actor: "owner"; change: StatusChange }
+  | { actor: "claude"; change: StatusChange & { note: string } };
 
-export type StatusChangeRequest = {
+export type StatusChangeRequest = ChangedBy & {
   id: number;
   /** The status the caller last saw; a different stored status means the change is stale. */
   from: ActionStatus;
-  change: StatusChange;
-  actor: StatusChanger;
   /** The audit log's login: the owner's, or "claude". */
   login: string;
   productIds: readonly string[];
@@ -25,7 +25,7 @@ export type StatusChangeRequest = {
 
 export type StatusChangeResult =
   | { ok: true; id: number; status: ActionStatus; snoozedUntil: string | null }
-  | { ok: false; error: "not_found" }
+  | { ok: false; error: "not_found" | "note_required" }
   | { ok: false; error: string; conflict: true };
 
 /**
@@ -34,6 +34,9 @@ export type StatusChangeResult =
  * together or not at all.
  */
 export function applyStatusChange(db: Db, req: StatusChangeRequest): StatusChangeResult {
+  // The type asks for a note; this also refuses a blank one, whoever builds the request.
+  if (req.actor === "claude" && !req.change.note?.trim())
+    return { ok: false, error: "note_required" };
   return db.transaction(
     (tx): StatusChangeResult => {
       const row = tx.select().from(actions).where(eq(actions.id, req.id)).get();
@@ -43,7 +46,7 @@ export function applyStatusChange(db: Db, req: StatusChangeRequest): StatusChang
       if (reason) return { ok: false, error: reason, conflict: true };
       const { to, until } = req.change;
       const snoozedUntil = until ?? null;
-      const note = req.change.note || null;
+      const note = req.change.note?.trim() || null;
       const opts = { actor: req.actor, note, snoozedUntil, now: req.now };
       // Unreachable today (the read above holds the IMMEDIATE lock); kept so a future change that
       // moves the read out of this transaction still refuses instead of writing a stale audit.

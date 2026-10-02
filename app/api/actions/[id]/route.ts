@@ -45,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     today: isoDateIn(config.HARBOUR_TIMEZONE, now),
     now,
   });
-  if (!result.ok) return jsonError("conflict" in result ? 409 : 404, result.error);
+  if (!result.ok) return jsonError(result.error === "not_found" ? 404 : 409, result.error);
   const { status, snoozedUntil } = result;
   return Response.json({ id, status, snoozedUntil });
 }

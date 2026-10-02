@@ -65,6 +65,8 @@ function refusal(cmd: Extract<CliCommand, { name: "set" }>, error: string, today
       return `Action #${id} is no longer ${from}: run "pnpm actions show ${id}" and decide again`;
     case "not_allowed":
       return `Cannot move action #${id} from ${from} to ${change.to}`;
+    case "note_required":
+      return '--note is required: say why, e.g. --note "Fixed in #42"';
     case "until_required":
       return "Snoozing needs --until YYYY-MM-DD";
     case "until_invalid":
