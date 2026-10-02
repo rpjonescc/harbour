@@ -28,7 +28,20 @@ const productSchema = z.object({
     .optional(),
 });
 
+// Sent to the agent as a first name only, so keep it to name characters. The messages never
+// repeat the value: a name is personal data and must not reach a log.
+const ownerNameSchema = z
+  .string()
+  .trim()
+  .min(1, "ownerName must not be empty")
+  .max(40, "ownerName must be at most 40 characters")
+  .regex(
+    /^[\p{L}\p{M}][\p{L}\p{M}' .-]*$/u,
+    "ownerName may only use letters, spaces, apostrophes, dots and hyphens",
+  );
+
 const configSchema = z.object({
+  ownerName: ownerNameSchema.optional(),
   products: z
     .array(productSchema)
     .min(1, "list at least one product")
@@ -54,6 +67,11 @@ export function parseProductConfig(raw: unknown): ProductConfig {
   const result = configSchema.safeParse(raw);
   if (!result.success) throw new Error(z.prettifyError(result.error));
   return result.data;
+}
+
+/** The owner's first name, for the daily note's greeting; null when no name is configured. */
+export function ownerFirstName(ownerName: string | undefined): string | null {
+  return ownerName?.trim().split(/\s+/)[0] || null;
 }
 
 function readConfigFile(path: string): ProductConfig {

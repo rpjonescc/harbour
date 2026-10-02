@@ -355,6 +355,9 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility scan's crawler fetches per product per scan, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
 | `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing scans by itself (the daily 06:00 scan and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Run weekly report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
+| `HARBOUR_PERSONALITY` | no | `warm` | `warm` or `quiet`. `quiet` turns off the daily note (its job, its card on Today) and the wave behind the app. See [Daily note](#daily-note). Restart both services after changing it. |
+| `HARBOUR_NOTE_TIME` | no | `06:30` | The local time, `HH:MM` in `HARBOUR_TIMEZONE`, the worker writes the daily note each day (and catches up on start). Restart the worker after changing it. |
+| `HARBOUR_SCHEDULED_NOTE` | no | `on` | `off` stops the worker queueing the daily note by itself; **Write me a fresh one** on Today still queues it. Restart the worker after changing it. |
 | `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_RESEARCH` | no | `on` | `off` stops the worker queueing the monthly research refresh by itself (the first Sunday of each month at 21:00 and the catch-up on start); **Refresh stale research** on **Agents** still queues it by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
@@ -394,6 +397,10 @@ Optionally, `searchConsoleProperty` names the product's Google Search Console pr
 either form Search Console uses: a domain property (`"sc-domain:example.com"`) or a URL-prefix
 property (`"https://www.example.com/"`, ending in `/`). Without it, Search Console data for that
 product shows as not connected; see [Connect Search Console](#connect-search-console).
+
+Optionally, `ownerName` (at most 40 characters: letters, spaces, apostrophes, dots and hyphens) is
+used only as a first name in the daily note's greeting; it stays in this gitignored file and is
+never logged.
 
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.

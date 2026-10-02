@@ -347,3 +347,36 @@ describe("cost settings", () => {
     for (const key of keys) expect(() => parseConfig({ ...base, [key]: "" }), key).toThrow();
   });
 });
+
+describe("the warm friend settings", () => {
+  it("defaults to the warm personality, a 06:30 note and a scheduled run", () => {
+    const config = parseConfig(base);
+    expect(config.HARBOUR_PERSONALITY).toBe("warm");
+    expect(config.HARBOUR_NOTE_TIME).toBe("06:30");
+    expect(config.HARBOUR_SCHEDULED_NOTE).toBe("on");
+  });
+
+  it("accepts quiet, an explicit time and the schedule switch", () => {
+    const config = parseConfig({
+      ...base,
+      HARBOUR_PERSONALITY: "quiet",
+      HARBOUR_NOTE_TIME: "07:05",
+      HARBOUR_SCHEDULED_NOTE: "off",
+    });
+    expect(config).toMatchObject({
+      HARBOUR_PERSONALITY: "quiet",
+      HARBOUR_NOTE_TIME: "07:05",
+      HARBOUR_SCHEDULED_NOTE: "off",
+    });
+  });
+
+  it("names the setting when the personality is not warm or quiet", () => {
+    expect(() => parseConfig({ ...base, HARBOUR_PERSONALITY: "chatty" })).toThrow(
+      /HARBOUR_PERSONALITY/,
+    );
+  });
+
+  it.each(["6:30", "24:00", "06:60", "0630", "noon", ""])("rejects the note time %j", (time) => {
+    expect(() => parseConfig({ ...base, HARBOUR_NOTE_TIME: time })).toThrow(/HARBOUR_NOTE_TIME/);
+  });
+});

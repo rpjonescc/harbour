@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadProductConfig, parseProductConfig } from "./config";
+import { loadProductConfig, ownerFirstName, parseProductConfig } from "./config";
 
 const EXAMPLE = "./harbour.config.example.json";
 const product = { id: "acme", name: "Acme", url: "https://acme.example.com", hue: "amber" };
@@ -120,5 +120,47 @@ describe("loadProductConfig", () => {
   it("throws for malformed JSON instead of falling back", () => {
     const path = writeTemp("{ not json");
     expect(() => loadProductConfig(path, EXAMPLE)).toThrow(/Invalid product config/);
+  });
+});
+
+describe("ownerName", () => {
+  const withName = (ownerName: unknown) => parseProductConfig({ ownerName, products: [product] });
+
+  it("is optional, trimmed and kept", () => {
+    expect(parseProductConfig({ products: [product] }).ownerName).toBeUndefined();
+    expect(withName("  Sam Example ").ownerName).toBe("Sam Example");
+    expect(withName("Anne-Marie O'Neil").ownerName).toBe("Anne-Marie O'Neil");
+  });
+
+  it("allows at most 40 characters", () => {
+    expect(withName("a".repeat(40)).ownerName).toHaveLength(40);
+    expect(() => withName("a".repeat(41))).toThrow(/ownerName/);
+  });
+
+  it.each(["", "   ", "<b>Sam</b>", "Sam\nSmith", "Sam `x`", "Sam 3rd", 42])(
+    "rejects %j, and the error never repeats the name",
+    (name) => {
+      let message = "";
+      try {
+        withName(name);
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toMatch(/ownerName/);
+      expect(message).not.toContain("Sam");
+    },
+  );
+
+  it("shows a fictional name in the committed example config", () => {
+    const config = parseProductConfig(JSON.parse(readFileSync(EXAMPLE, "utf8")));
+    expect(config.ownerName).toBe("Sam Example");
+  });
+});
+
+describe("ownerFirstName", () => {
+  it("is the first word, or null when there is no name", () => {
+    expect(ownerFirstName("Sam Example")).toBe("Sam");
+    expect(ownerFirstName("  Anne-Marie  O'Neil ")).toBe("Anne-Marie");
+    expect(ownerFirstName(undefined)).toBeNull();
   });
 });

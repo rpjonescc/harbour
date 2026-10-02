@@ -1,5 +1,5 @@
 import { getConfig } from "@/lib/config";
-import { type Hue, type LoadedProductConfig, loadProductConfig } from "./config";
+import { type Hue, type LoadedProductConfig, loadProductConfig, ownerFirstName } from "./config";
 
 export type { Hue } from "./config";
 
@@ -22,6 +22,11 @@ let cached: LoadedProductConfig | undefined;
 export function getProductConfig(): LoadedProductConfig {
   cached ??= loadProductConfig(getConfig().HARBOUR_CONFIG_PATH, EXAMPLE_CONFIG_PATH);
   return cached;
+}
+
+/** The owner's first name from `harbour.config.json`, or null. Never logged. */
+export function getOwnerFirstName(): string | null {
+  return ownerFirstName(getProductConfig().ownerName);
 }
 
 /** Products Harbour watches, in display order. */
