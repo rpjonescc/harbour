@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { z } from "zod";
@@ -38,7 +39,7 @@ describe("parseWorkJson", () => {
   });
 
   it("strips a byte-order mark and returns the value", () => {
-    expect(parseWorkJson('﻿{"title":"x"}', schema)).toEqual({
+    expect(parseWorkJson('\uFEFF{"title":"x"}', schema)).toEqual({
       ok: true,
       value: { title: "x" },
     });
@@ -101,6 +102,43 @@ describe("workReview", () => {
       put(root, "{ nope");
       expect(r.check(root)).toMatch(/not valid JSON/);
       expect(() => r.publish(root, () => {})).toThrow(/not been checked/);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it.each(["/etc/x.md", "../x.md", "content/../../x.md", "a//b.md", "", "a\\b.md"])(
+    "refuses a planned path outside the brain (%j) before writing anything",
+    (bad) => {
+      const { root, cleanup } = makeBrain({});
+      try {
+        put(root, '{"title":"Hello"}');
+        const allowed = { prefixes: [] as string[], exact: [] as string[] };
+        const hostile: WorkPlan<{ title: string }> = {
+          parse: plan.parse,
+          files: () => ({ "content/ideas/acme-docs/a.md": "ok", [bad]: "x" }),
+        };
+        const r = workReview({ jobId: 9, prompt: "P", plan: hostile, allowed });
+        expect(r.check(root)).toBeNull();
+        expect(() => r.publish(root, () => {})).toThrow(/outside the brain/);
+        expect(existsSync(join(root, "content/ideas/acme-docs/a.md"))).toBe(false);
+        expect(allowed.exact).toEqual([]);
+      } finally {
+        cleanup();
+      }
+    },
+  );
+
+  it("never blocks on a FIFO and calls a directory not a regular file", () => {
+    const { root, cleanup } = makeBrain({});
+    try {
+      const { review: r } = review();
+      mkdirSync(join(root, "content/work"), { recursive: true });
+      execFileSync("mkfifo", [join(root, WORK)]);
+      expect(r.check(root)).toMatch(/not a regular file/);
+      rmSync(join(root, WORK));
+      mkdirSync(join(root, WORK));
+      expect(r.check(root)).toMatch(/not a regular file/);
     } finally {
       cleanup();
     }

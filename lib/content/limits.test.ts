@@ -135,4 +135,59 @@ describe("enqueueContent", () => {
     ).toThrow(/not a content/i);
     expect(listJobs(db)).toHaveLength(0);
   });
+
+  it("returns the queued job for a double click at the daily cap and at the rate limit", () => {
+    const db = openTestDb();
+    const draft = (n: number) => ({
+      ...base,
+      dailyRuns: 3,
+      kind: "content-draft" as const,
+      params: { ideaId: `i${n}` },
+      requestedBy: "me",
+    });
+    enqueueContent(db, draft(1));
+    enqueueContent(db, draft(2));
+    const third = enqueueContent(db, draft(3)); // the last run the cap allows
+    const again = enqueueContent(db, draft(3)); // a double click: count is now at the cap
+    expect(third).toMatchObject({ ok: true, created: true });
+    expect(again).toEqual({ ok: true, id: third.ok ? third.id : -1, created: false });
+
+    const db2 = openTestDb();
+    const ask = (n: string) =>
+      enqueueContent(db2, {
+        ...base,
+        dailyRuns: 100,
+        kind: "content-digest",
+        params: { day: n },
+        requestedBy: "me",
+      });
+    ask("2026-10-01");
+    const second = ask("2026-10-02"); // the 2nd digest: at the limit now
+    expect(ask("2026-10-02")).toEqual({ ok: true, id: second.ok ? second.id : -1, created: false });
+    expect(ask("2026-10-03")).toEqual({ ok: false, reason: "rate_limited" });
+  });
+
+  it("finds the local day boundary across a daylight-saving change", () => {
+    // Sydney moves from UTC+10 to UTC+11 on 2026-10-04 at 02:00 local, so 4 October starts at
+    // 14:00 UTC on the 3rd and 5 October at 13:00 UTC on the 4th.
+    const db = openTestDb();
+    const zone = "Australia/Sydney";
+    const add = (iso: string, day: string) =>
+      enqueueContent(db, {
+        ...base,
+        timeZone: zone,
+        now: new Date(iso),
+        dailyRuns: 100,
+        kind: "content-digest",
+        params: { day },
+        requestedBy: null,
+      });
+    add("2026-10-03T13:59:00Z", "a"); // 3 Oct 23:59 local: not 4 October's
+    add("2026-10-03T14:00:00Z", "b"); // 4 Oct 00:00 local
+    add("2026-10-04T12:59:00Z", "c"); // 4 Oct 23:59 local (UTC+11)
+    expect(contentRunsToday(db, zone, new Date("2026-10-04T05:00:00Z"))).toBe(2);
+    add("2026-10-04T13:00:00Z", "d"); // 5 Oct 00:00 local
+    expect(contentRunsToday(db, zone, new Date("2026-10-04T05:00:00Z"))).toBe(3);
+    expect(contentRunsToday(db, zone, new Date("2026-10-04T13:30:00Z"))).toBe(1);
+  });
 });

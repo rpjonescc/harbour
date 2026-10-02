@@ -24,13 +24,19 @@ export type WorkPlan<Out> = {
 export function parseWorkJson<T>(text: string, schema: z.ZodType<T>): Parse<T> {
   let raw: unknown;
   try {
-    raw = JSON.parse(text.replace(/^﻿/, ""));
+    raw = JSON.parse(text.replace(/^\uFEFF/, ""));
   } catch {
     return { ok: false, reason: "The work file is not valid JSON." };
   }
   const result = schema.safeParse(raw);
   if (result.success) return { ok: true, value: result.data };
   return { ok: false, reason: `The work file is not valid: ${describeIssues(result.error)}.` };
+}
+
+/** A planned path must stay inside the brain: relative, with no `..` or empty segment. */
+function isInsideBrain(path: string): boolean {
+  if (path === "" || path.includes("\0") || path.includes("\\")) return false;
+  return !path.startsWith("/") && path.split("/").every((s) => s !== "" && s !== "..");
 }
 
 const digestOf = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -85,6 +91,8 @@ export function workReview<Out>(input: {
         throw new Error("The work file changed after it was checked");
       }
       const files = input.plan.files(checked.value, note);
+      const outside = Object.keys(files).find((path) => !isInsideBrain(path));
+      if (outside !== undefined) throw new Error("A planned file path is outside the brain");
       for (const path of Object.keys(files)) {
         if (!input.allowed.exact.includes(path)) input.allowed.exact.push(path);
       }

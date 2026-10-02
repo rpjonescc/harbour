@@ -3,11 +3,12 @@ import { describeStamp, isNoteStamp } from "@/lib/note/stamp";
 import type { Product } from "@/lib/products/catalog";
 import { RESEARCH_TOPICS } from "./topics";
 
-const GATE_LABEL: Record<string, string> = {
-  "no-ai-slop": "no-ai-slop",
-  humanizer: "humanizer",
-  facts: "facts and platform",
-};
+// A Map: a gate param of "constructor" must not find an inherited property.
+const GATE_LABEL = new Map([
+  ["no-ai-slop", "no-ai-slop"],
+  ["humanizer", "humanizer"],
+  ["facts", "facts and platform"],
+]);
 
 /** "acme-docs-20261002-five-minutes" becomes "five minutes". */
 function ideaWords(ideaId: string | undefined): string {
@@ -24,9 +25,10 @@ function contentJobLabel(job: Pick<Job, "kind" | "params">, products: readonly P
   if (job.kind === "content-draft") return `Writing: ${words}`;
   if (job.kind === "content-atomise") return `Atomising: ${words}`;
   if (job.kind === "content-gate") {
-    return `Check (${GATE_LABEL[params.gate ?? ""] ?? "unknown"}): ${words}`;
+    return `Check (${GATE_LABEL.get(params.gate ?? "") ?? "unknown"}): ${words}`;
   }
-  return "Saving your decision";
+  if (job.kind === "content-decision") return "Saving your decision";
+  return "Content work";
 }
 
 /** Human label for a job, e.g. "Research: Glossary" or "Update: Glossary". */

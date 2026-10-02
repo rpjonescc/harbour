@@ -1,8 +1,8 @@
-import { closeSync, constants, openSync, readSync } from "node:fs";
+import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
 import { MAX_NOTE_BYTES } from "./file";
 
 /**
- * The bytes of a file, or null when it is a symlink or holds more than `max`. It
+ * The bytes of a file, or null when it is a symlink, not a regular file, or holds more than `max`. It
  * reads through one descriptor and stops one byte past the cap, so a file that grows after a
  * size check (or is swapped for a symlink) can never make the reader pull in more than that.
  */
@@ -11,12 +11,14 @@ export function readBoundedBytes(path: string, max: number): Buffer | null {
     throw new RangeError("max must be a non-negative integer");
   let fd: number;
   try {
-    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ELOOP") return null; // became a symlink
     throw error;
   }
   try {
+    // After the open, so a FIFO (which O_NONBLOCK opens without waiting) or a directory is never read.
+    if (!fstatSync(fd).isFile()) return null;
     const buffer = Buffer.alloc(max + 1);
     let length = 0;
     while (length < buffer.length) {
