@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { BackupCard } from "@/components/settings/BackupCard";
 import { BudgetCard } from "@/components/settings/BudgetCard";
 import { KeyStatusCard } from "@/components/settings/KeyStatusCard";
@@ -7,6 +6,7 @@ import { SchedulesCard } from "@/components/settings/SchedulesCard";
 import { BackupNotice } from "@/components/today/BackupNotice";
 import { CostMeter } from "@/components/today/CostMeter";
 import type { BackupHealth } from "@/lib/ops/backup-status";
+import { Example } from "./Example";
 import {
   EXAMPLE_BACKUPS,
   EXAMPLE_METERS,
@@ -18,15 +18,6 @@ const HEALTHS: BackupHealth[] = ["ok", "none-yet", "failed", "stale", "off", "un
 /** Nested under the design page's "Operations examples" heading, without fragment ids. */
 const NESTED = { level: 3 } as const;
 const { timeZone, locale, now } = EXAMPLE_ZONE;
-
-function Example({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="text-2xs uppercase tracking-widest text-ink-muted">{label}</p>
-      {children}
-    </div>
-  );
-}
 
 /**
  * Fictional operations pieces: Today's cost meter and backup notices, and the Settings cards

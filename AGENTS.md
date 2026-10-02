@@ -114,6 +114,13 @@ clear and easy to understand.
 - Every new component works in light and dark, and appears on `/design`.
 - Accessibility is part of done: accessible names, visible focus, full keyboard
   path, one owner per interactive label.
+- **Plain language** (`docs/superpowers/specs/2026-10-02-plain-language-ux-design.md`): lead
+  with a verdict or a plain sentence and keep the number small beside it; keep one line always
+  visible and the rest behind "What's this?" (`<Explainer>`); put codes (SEO/GEO/AEO,
+  sub-score keys, `HARBOUR_*` names, raw errors) only inside `<TechnicalDetails>` or setup
+  steps. Area names, verdicts, sub-score, data-source and action wording come from
+  `lib/explain/` — never a second copy in a component. Every message says what happened,
+  whether it matters and what to do.
 
 ## Reliability and security
 

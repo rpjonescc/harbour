@@ -3,7 +3,9 @@ import { desc } from "drizzle-orm";
 import { createSession, revokeSession } from "@/lib/auth/sessions";
 import { openDb } from "@/lib/db/client";
 import { auditLog } from "@/lib/db/schema";
+import { AREAS } from "@/lib/explain/areas";
 import { E2E_DB, E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
+import { hydrated } from "./hydration";
 import { sessionStorageState } from "./session-state";
 
 /** Collects CSP violations reported to the console; assert the list is empty after the page settles. */
@@ -139,9 +141,16 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("design system page renders every section", async ({ page }) => {
       const cspErrors = watchCspErrors(page);
       await page.goto("/design");
-      for (const name of ["Colour tokens", "Type", "Components"]) {
+      for (const name of ["Colour tokens", "Type", "Components", "Plain-language examples"]) {
         await expect(page.getByRole("heading", { name })).toBeVisible();
       }
+      const whatsThis = page.getByRole("button", {
+        name: "What's this? (Recommended by AI assistants example)",
+      });
+      await hydrated(whatsThis);
+      await whatsThis.click();
+      await expect(whatsThis).toHaveAttribute("aria-expanded", "true");
+      await expect(page.getByText(AREAS.geo.parts.worth)).toBeVisible();
       await page.waitForLoadState("networkidle");
       expect(cspErrors).toEqual([]);
     });

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ActionExamples } from "@/components/design/ActionExamples";
 import { AgentExamples } from "@/components/design/AgentExamples";
 import { BrainExamples } from "@/components/design/BrainExamples";
+import { ExplainExamples } from "@/components/design/ExplainExamples";
 import { OpsExamples } from "@/components/design/OpsExamples";
 import { ScanExamples } from "@/components/design/ScanExamples";
 import { SourcesExamples } from "@/components/design/SourcesExamples";
@@ -79,6 +80,9 @@ export default async function DesignPage() {
           </span>
           <Sparkline values={[10, 14, 12, 18, 21, 25]} label="Example rising trend" />
         </div>
+      </Section>
+      <Section title="Plain-language examples">
+        <ExplainExamples />
       </Section>
       <Section title="Second Brain examples">
         <BrainExamples />
