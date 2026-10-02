@@ -132,7 +132,9 @@ function buildSpec(params: Record<string, string>, context: SpecContext): AgentS
     idea: read.idea,
     facts: factsPackText(pack),
   });
-  const allowed = { prefixes: [], exact: [ideaPath, sourcePath] };
+  // Empty on purpose: the worker adds the exact files it writes (decision 18), so the agent can
+  // never write the idea or the source itself, and a failed run never touches the owner's idea.
+  const allowed = { prefixes: [], exact: [] as string[] };
   const files = (work: DraftWork, note: (text: string) => void): Record<string, string> => {
     // The owner may have edited the idea since this run started: never write over that.
     if (readIdeaFile(content.root, ideaPath).sha256 !== read.sha256) {
