@@ -54,7 +54,6 @@ const NUMBER_WORDS = new Map<string, number>([
   ["hundred", 100],
   ["thousand", 1000],
   ["dozen", 12],
-  ["score", 20],
 ]);
 // Quantities with no set value can never be checked against the facts.
 const VAGUE_QUANTITIES = new Set(["half", "halved", "double", "doubled", "triple", "tripled"]);

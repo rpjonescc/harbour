@@ -76,7 +76,6 @@ describe("checkNote rejects", () => {
     ["a teens word", "Fourteen things are waiting.", /"fourteen"/],
     ["hundred", "A hundred things are waiting.", /"hundred"/],
     ["dozen", "A dozen things are waiting.", /"dozen"/],
-    ["score", "A score of things are waiting.", /"score"/],
     ["half", "Acme Docs is up half.", /"half"/],
     ["doubled", "Acme Docs doubled overnight.", /"doubled"/],
     ["tripled", "Acme Docs tripled overnight.", /"tripled"/],
@@ -142,6 +141,10 @@ describe("what the board's own words allow", () => {
     const facts = onBoard("Serve the site over HTTPS");
     expect(check({ body: "HTTPS is the one to start with.", picks: [] }, facts)).toBeNull();
     expect(check({ body: "HTTPS is the one to start with.", picks: [] })).toMatch(/capitals/);
+  });
+
+  it("the word score is ordinary, not a figure", () => {
+    expect(check({ body: "Your score is steady, and the score is up 3.", picks: [] })).toBeNull();
   });
 
   it("honest negations of trouble stay accepted", () => {
