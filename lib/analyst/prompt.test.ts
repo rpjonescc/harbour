@@ -13,6 +13,17 @@ const exportJson = JSON.stringify({ week: "2026-W40", products: [] });
 const prompt = weeklyAnalystPrompt({ week: "2026-W40", today: "2026-10-04", products, exportJson });
 
 describe("weeklyAnalystPrompt", () => {
+  it("uses the owner's words for the areas and the verdict bands", () => {
+    expect(prompt).toContain(
+      "The three areas are Found on Google (SEO), Recommended by AI assistants (GEO) and Answer-ready (AEO); the data names them by their codes, which belong only in brackets after a name.",
+    );
+    expect(prompt).toContain(
+      "Give each score's verdict before its number: Strong (85 or more), Good (70–84), Fair (50–69), Needs work (under 50).",
+    );
+    expect(prompt).toContain('A missing score is a gap, never "Needs work".');
+    expect(prompt).not.toContain("search (SEO), being cited by AI engines (GEO)");
+  });
+
   it("names both target files on the first line", () => {
     expect(prompt.split("\n")[0]).toBe(
       "TARGET_FILES: reports/weekly/2026-W40.md, reports/weekly/2026-W40.proposals.json",
@@ -101,6 +112,6 @@ describe("weeklyAnalystPrompt", () => {
   });
 
   it("is versioned", () => {
-    expect(ANALYST_PROMPT_VERSION).toBe("4-v2");
+    expect(ANALYST_PROMPT_VERSION).toBe("4-v3");
   });
 });
