@@ -69,8 +69,10 @@ describe("checkNote rejects", () => {
     ["a quoted opening name", "\u201cZenith\u201d is ahead."],
     ["a quoted stranger", "\u00abZenith\u00bb is lovely."],
     ["a mix of two known products", "Lighthouse Docs is doing well."],
+    ["a name after the", "The Zenith is ahead."],
+    ["a name after your", "Your Zenith Labs is ahead."],
   ])("%s", (_name, body) => {
-    expect(check({ body, picks: [] })).toMatch(/Zenith|Lighthouse/);
+    expect(check({ body, picks: [] })).toMatch(/"(?:Zenith|Lighthouse)"/);
   });
 
   it.each([
@@ -200,6 +202,10 @@ describe("reasons are safe to feed back", () => {
 describe("toneProblem", () => {
   it("is null for calm text", () => {
     expect(toneProblem("A calm morning. One thing to look at.")).toBeNull();
+  });
+  it("sees a banned word through combining marks and blank braille cells", () => {
+    expect(toneProblem("Hu\u0301rry up")).toMatch(/hurry/);
+    expect(toneProblem("It is urg\u2800ent")).toMatch(/urgent/);
   });
   it("names the first problem", () => {
     expect(toneProblem("Hurry up!!")).toMatch(/exclamation/);

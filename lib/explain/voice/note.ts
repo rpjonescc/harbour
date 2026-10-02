@@ -19,7 +19,7 @@ const EMOJI = /\p{Extended_Pictographic}/u;
 // Control, format (zero-width, bidi, soft hyphen, tags), separator, private-use and surrogate
 // characters, variation selectors and blank-looking letters: they can hide or reorder text.
 const INVISIBLE =
-  /\p{Cc}|\p{Cf}|\p{Zl}|\p{Zp}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[\u034f\u115f\u1160\u180e\u3164]/u;
+  /\p{Cc}|\p{Cf}|\p{Zl}|\p{Zp}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[\u034f\u115f\u1160\u180e\u2800\u3164]/u;
 // Digits that are not 0-9 (full-width, Arabic-Indic...) and number-like symbols (superscripts,
 // fractions, Roman numerals) would slip past the "every figure is in the facts" check.
 const FOREIGN_NUMBER = /(?![0-9])\p{Nd}|[\p{No}\p{Nl}]/u;

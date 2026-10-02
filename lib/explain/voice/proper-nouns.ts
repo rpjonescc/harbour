@@ -118,7 +118,8 @@ function openerProblem(raw: string[], tokens: string[], known: Known): string | 
   if (/\p{P}$/u.test(raw[0] ?? "")) return null;
   const next = tokens[1] ?? "";
   const stranger = capitalised(next) && !isKnown(tokens, 1, known) && !OPENERS.has(next);
-  return stranger ? first : null;
+  // "The Zenith ...": the name is the unknown word, not the opener before it.
+  return stranger ? (OPENERS.has(first) ? next : first) : null;
 }
 
 function unknownIn(sentence: string, known: Known): string | null {

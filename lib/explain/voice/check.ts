@@ -57,18 +57,23 @@ const NUMBER_WORDS = new Map<string, number>([
 ]);
 // Quantities with no set value can never be checked against the facts: any of them is rejected
 // unless the facts' own text uses the same word.
-const VAGUE_QUANTITY =
-  /^(?:half|halved|doubl(?:e|ed)|tripl(?:e|ed)|(?:hundred|thousand|million|billion|dozen)s|millions?|billions?|twice|thrice|quarter|\w+fold)$/;
+// Ordinals from third up are rankings ("now third on Google"); first and second are everyday words.
+const ORDINAL =
+  "thi?rd|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|(?:thir|four|fif|six|seven|eigh|nine)teenth|(?:twen|thir|for|fif|six|seven|eigh|nine)tieth|hundredth|thousandth";
+const VAGUE_QUANTITY = new RegExp(
+  `^(?:half|halved|doubl(?:e|ed)|tripl(?:e|ed)|(?:hundred|thousand|million|billion|dozen)s|millions?|billions?|twice|thrice|quarter|\\w+fold|${ORDINAL})$`,
+);
+const DIGIT_ORDINAL = /\b\d+(?:st|nd|rd|th)\b/gi;
 const RANKING = /\bnumber (?:one|1)\b/i;
 // Only these exact reassurances are honest about trouble; they are removed before the check, so
 // "no doubt the backup failed" and "no surprise the site is down" are still caught.
 const REASSURANCE =
-  /\b(?:nothing (?:is broken|broke|failed|is down|is missing)|no (?:trouble|errors|problems))\b|\bmissing (?:data|scores?)\b/gi;
+  /\b(?:nothing (?:is broken|broke|failed|has failed|went wrong|is down|is missing)|no (?:trouble|errors|problems|outage))\b|\bmissing (?:data|scores?)\b/gi;
 // "down" is trouble only in these phrases: "down 2" or "down a little" is just a score moving.
 const DOWN =
   "(?:is|are|went|gone|goes|stays|was) down(?!\\s+(?:\\d|a\\s|by\\b|slightly|just|from|to\\b))|site down";
 const TROUBLE = new RegExp(
-  `\\b(?:broken|broke|not working|went wrong|problems?|trouble|didn't finish|did not finish|failed|failing|outage|crashed|offline|errors?|unreachable|missing|${DOWN})\\b`,
+  `\\b(?:broken|broke|not working|went wrong|problems?|trouble|didn't finish|did not finish|failed|failing|outage|crashed|stalled|timed out|offline|errors?|unreachable|missing|${DOWN})\\b`,
   "gi",
 );
 const PRAISE = /\b(?:strong|excellent|thriving|brilliant|flying|crushing|nailed)\b/i;
@@ -120,7 +125,9 @@ export function toneProblem(
   }
   if (mixedScript(text))
     return "The note mixes alphabets inside one word. Use plain Latin letters.";
-  const banned = BANNED_WORDS.find((word) => has(text, BANNED_PATTERNS[word]));
+  // Marks and blank braille cells inside a word ("hu\u0301rry") must not hide it from the stems.
+  const bare = text.normalize("NFD").replace(/[\p{M}\u2800]/gu, "");
+  const banned = BANNED_WORDS.find((word) => has(bare, BANNED_PATTERNS[word]));
   return banned ? `The note uses "${banned}", which is banned. Say it more gently.` : null;
 }
 
@@ -137,11 +144,8 @@ const figures: Rule = ({ text, facts }) => {
   if (stray !== undefined) {
     return `The note uses the figure ${stray}, which is not in the facts. Use only figures from the facts, or say it in words.`;
   }
-  const own = new Set(
-    factsText(facts)
-      .toLowerCase()
-      .match(/[a-z]+/g),
-  );
+  const ownText = factsText(facts).toLowerCase();
+  const own = new Set(ownText.match(/[a-z]+/g));
   const invented = (word: string) => {
     const value = NUMBER_WORDS.get(word);
     return value !== undefined ? !known.has(value) : VAGUE_QUANTITY.test(word);
@@ -149,6 +153,10 @@ const figures: Rule = ({ text, facts }) => {
   const word = (text.toLowerCase().match(/[a-z]+/g) ?? []).find((w) => invented(w) && !own.has(w));
   if (word !== undefined) {
     return `The note says "${word}", a figure that is not in the facts. Use only figures from the facts.`;
+  }
+  const rank = text.match(DIGIT_ORDINAL)?.find((o) => !ownText.includes(o.toLowerCase()));
+  if (rank !== undefined) {
+    return `The note says "${rank}", a ranking that is not in the facts. Leave out rankings.`;
   }
   return RANKING.test(text)
     ? "The note says it is number one, which is not in the facts. Leave out rankings."

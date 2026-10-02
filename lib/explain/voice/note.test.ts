@@ -32,6 +32,7 @@ describe("isPlainText", () => {
     ["a combining grapheme joiner", `a${cp(0x34f)}b`],
     ["a variation selector", `a${cp(0xfe0f)}b`],
     ["a Hangul filler", `a${cp(0x3164)}b`],
+    ["a blank braille cell", `a${cp(0x2800)}b`],
     ["a Hangul choseong filler", `a${cp(0x115f)}b`],
     ["a line separator", `a${cp(0x2028)}b`],
     ["a paragraph separator", `a${cp(0x2029)}b`],
