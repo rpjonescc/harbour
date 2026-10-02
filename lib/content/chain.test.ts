@@ -99,7 +99,9 @@ describe("finalPiece", () => {
       needsYou: "The humanizer check still found 1 pattern. Edit the piece, or discard it.",
     });
     const error = [...passing.slice(0, 3), entry("platform", "error")];
-    expect(finalPiece(error, []).needsYou).toBe("The platform check didn't finish. Try again.");
+    expect(finalPiece(error, []).needsYou).toBe(
+      "The platform check couldn't use the revised piece. Edit the piece, or discard it.",
+    );
     expect(
       finalPiece(
         [

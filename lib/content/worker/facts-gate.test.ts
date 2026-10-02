@@ -392,7 +392,7 @@ describe("the revision (attempt 2)", () => {
       expect(linkedin.content).toMatchObject({ text: "Cuts build time by 40% for teams." });
       expect(linkedin.front).toMatchObject({
         state: "needs-you",
-        needsYou: "The facts check didn't finish. Try again.",
+        needsYou: "The facts check couldn't use the revised piece. Edit the piece, or discard it.",
       });
     } finally {
       r.cleanup();

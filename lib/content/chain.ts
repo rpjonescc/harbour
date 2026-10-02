@@ -93,7 +93,8 @@ function problem(entries: readonly GateEntry[], gates: PieceFront["gates"]): str
     const last = [...entries]
       .filter((e) => e.gate === gate)
       .sort((a, b) => b.attempt - a.attempt)[0];
-    if (result === "error") return `The ${gate} check didn't finish. Try again.`;
+    if (result === "error")
+      return `The ${gate} check couldn't use the revised piece. Edit the piece, or discard it.`;
     if (result === "pending") return `The ${gate} check has not run yet. Try again.`;
     if (result !== "fail") continue;
     const n = last?.findings.length ?? 0;
