@@ -187,11 +187,16 @@ describe("ProductOverview", () => {
 
   it("shows the paid data as not available yet, in plain words", () => {
     renderPage(scanned);
+    const names: string[] = [];
     for (const name of ["What AI assistants say about you", "Where you rank on Google"]) {
       const region = screen.getByRole("region", { name });
       expect(region).toHaveTextContent("Not available yet");
       expect(region).toHaveTextContent("Harbour doesn't collect this data yet.");
-      expect(within(region).getByRole("link", { name: /What the scores use today/ })).toBeVisible();
+      expect(region.textContent).not.toMatch(/HARBOUR_/);
+      const link = within(region).getByRole("link", { name: /What the scores use today/ });
+      expect(link).toBeVisible();
+      names.push(link.textContent ?? "");
     }
+    expect(new Set(names).size).toBe(2);
   });
 });

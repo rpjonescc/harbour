@@ -79,7 +79,6 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
     const panel = page.getByRole("region", { name });
     await expect(panel.getByText("Not available yet", { exact: true })).toBeVisible();
     await expect(panel.getByRole("link", { name: /What the scores use today/ })).toBeVisible();
-    await expect(panel.getByRole("link", { name: /What the scores use today/ })).toBeVisible();
   }
 });
 

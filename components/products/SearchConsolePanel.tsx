@@ -11,7 +11,7 @@ import { SourcePanel } from "./SourcePanel";
 
 const ID = "search-console";
 const TITLE = sourceName(ID);
-const MISSING_NOT_ZERO = "Until it is, these numbers are missing, not zero.";
+const MISSING_NOT_ZERO = "Until then, these numbers are missing, not zero.";
 
 /** The raw reason Harbour recorded (setting names, API errors): only under Technical details. */
 function Raw({ reason }: { reason: string | null }) {
@@ -23,10 +23,10 @@ function Raw({ reason }: { reason: string | null }) {
   );
 }
 
-function ConnectLink() {
+function ConnectLink({ lead }: { lead: string }) {
   return (
-    <p className="text-xs">
-      <DocsLink href={DOCS_LINKS.searchConsole}>How to connect {TITLE}</DocsLink>
+    <p className="text-xs text-ink-muted">
+      {lead} <DocsLink href={DOCS_LINKS.searchConsole}>How to connect {TITLE}</DocsLink>
     </p>
   );
 }
@@ -80,10 +80,9 @@ export function SearchConsolePanel({ search, locale }: { search: SearchState; lo
     return (
       <SourcePanel id={ID} title={TITLE} status="failed" statusLabel="Needs a look">
         <p className="text-sm text-ink">
-          {sourceStatusPhrase(ID, "failed")}. Harbour will try again with the next scan.{" "}
-          {MISSING_NOT_ZERO}
+          {sourceStatusPhrase(ID, "failed")}, so these numbers are missing, not zero.
         </p>
-        <ConnectLink />
+        <ConnectLink lead="Harbour will try again with the next scan." />
         <Raw reason={search.reason} />
       </SourcePanel>
     );
@@ -97,8 +96,7 @@ export function SearchConsolePanel({ search, locale }: { search: SearchState; lo
       statusLabel={sourceStatusPhrase(ID, "not_configured")}
     >
       <p className="text-sm text-ink-muted">{sourceExplanation(ID)?.gives}</p>
-      <p className="text-xs text-ink-muted">{MISSING_NOT_ZERO}</p>
-      <ConnectLink />
+      <ConnectLink lead={MISSING_NOT_ZERO} />
       <Raw reason={search.state === "none" ? null : search.reason} />
     </SourcePanel>
   );

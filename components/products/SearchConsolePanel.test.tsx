@@ -43,8 +43,12 @@ describe("SearchConsolePanel", () => {
   it("says Google didn't send the data, and that Harbour will try again", () => {
     const region = panel({ state: "failed", reason: "403 from the API" });
     expect(within(region).getByText("Needs a look")).toBeInTheDocument();
-    expect(region).toHaveTextContent("Google didn't send the data in the last check");
-    expect(region).toHaveTextContent("try again with the next scan");
+    expect(
+      within(region).getByText(
+        "Google didn't send the data in the last check, so these numbers are missing, not zero.",
+      ),
+    ).toBeInTheDocument();
+    expect(region).toHaveTextContent("Harbour will try again with the next scan.");
     expect(outsideDetails(region)).not.toMatch(/403/);
   });
 

@@ -3,6 +3,8 @@ import { DOCS_LINKS } from "@/lib/docs-links";
 import { sourceExplanation, sourceStatusPhrase } from "@/lib/explain/sources";
 import { SourcePanel } from "./SourcePanel";
 
+const NOT_COLLECTED = "Harbour doesn't collect this data yet.";
+
 const PANELS = [
   {
     id: "ai-engines",
@@ -32,8 +34,10 @@ export function PaidSourcePanels() {
         >
           <p className="text-sm text-ink-muted">{panel.body}</p>
           <p className="text-xs text-ink-muted">
-            {sourceExplanation(panel.sourceId)?.connect[0]}{" "}
-            <DocsLink href={DOCS_LINKS.scores}>What the scores use today</DocsLink>
+            {sourceExplanation(panel.sourceId)?.connect[0] ?? NOT_COLLECTED}{" "}
+            <DocsLink href={DOCS_LINKS.scores}>
+              What the scores use today<span className="sr-only"> ({panel.title})</span>
+            </DocsLink>
           </p>
         </SourcePanel>
       ))}
