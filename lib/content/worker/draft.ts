@@ -16,6 +16,7 @@ import {
   draftWorkSchema,
   inventedNumbers,
   inventedNumbersNote,
+  ownHosts,
 } from "./draft-check";
 import { buildFactsPack, FactsPackError, factsPackText } from "./facts-pack";
 import { requireContent } from "./run-context";
@@ -23,14 +24,16 @@ import { loadSkill, SkillError, skillRecord } from "./skills";
 import { parseWorkJson, workReview } from "./work-review";
 
 const MAX_IDEA_BYTES = 32 * 1024;
+const SOURCE_IN_THE_WAY =
+  "A source piece for this idea appeared while it was being written, so Harbour saved nothing.";
 
 /** A reason the draft cannot start, in words written here (never file or agent text). */
-class DraftStartError extends Error {}
+export class DraftStartError extends Error {}
 
-type IdeaRead = { idea: IdeaFront; body: string; sha256: string };
+export type IdeaRead = { idea: IdeaFront; body: string; sha256: string };
 
 /** The idea file, or a plain reason why not; an unreadable, oversized or odd file is never guessed at. */
-function readIdeaFile(root: string, path: string): IdeaRead {
+export function readIdeaFile(root: string, path: string): IdeaRead {
   const gone = new DraftStartError("The idea file could not be read.");
   let bytes: Buffer | null;
   try {
@@ -54,7 +57,7 @@ function readIdeaFile(root: string, path: string): IdeaRead {
   };
 }
 
-const exists = (root: string, path: string): boolean => {
+export const exists = (root: string, path: string): boolean => {
   try {
     lstatSync(join(root, path)); // lstat: a dangling link still owns the name
     return true;
@@ -65,7 +68,8 @@ const exists = (root: string, path: string): boolean => {
 };
 
 /** The words the owner sees for this job: the idea's slug, which the worker made from a validated title. */
-const labelOf = (ideaId: string) => ideaId.replace(/^[a-z0-9-]+?-\d{8}-/, "").replaceAll("-", " ");
+export const labelOf = (ideaId: string) =>
+  ideaId.replace(/^[a-z0-9-]+?-\d{8}-/, "").replaceAll("-", " ");
 
 function prepare(params: Record<string, string>, context: SpecContext) {
   const content = requireContent(context);
@@ -183,10 +187,12 @@ function buildSpec(params: Record<string, string>, context: SpecContext): AgentS
       prompt,
       allowed,
       plan: {
+        // The source is a new file; only the idea file is replaced.
+        createOnly: { inTheWay: SOURCE_IN_THE_WAY, except: [ideaPath] },
         parse: (raw) => {
           const parsed = parseWorkJson(raw, draftWorkSchema);
           if (!parsed.ok) return parsed;
-          const reason = draftProblem(parsed.value, pack);
+          const reason = draftProblem(parsed.value, pack, ownHosts(product.url));
           return reason ? { ok: false, reason } : parsed;
         },
         files,

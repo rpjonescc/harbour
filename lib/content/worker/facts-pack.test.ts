@@ -214,3 +214,23 @@ describe("buildFactsPack", () => {
       ));
   });
 });
+
+describe("buildFactsPack cut", () => {
+  it("keeps genuine U+FFFD characters at the cap and drops only the character the cut split", () => {
+    const { root, cleanup } = makeBrain({});
+    try {
+      for (let i = 0; i < 7; i += 1) put(root, `research/r${i}.md`, "a".repeat(6 * 1024));
+      put(root, "research/r7.md", `${"a".repeat(6100)}${"\uFFFD".repeat(5)}`);
+      const pack = build(
+        root,
+        Array.from({ length: 8 }, (_, i) => `brain:research/r${i}.md`),
+      );
+      const last = pack[pack.length - 1];
+      expect(last?.truncated).toBe(true);
+      expect(last?.text.endsWith("a\uFFFD\uFFFD")).toBe(true);
+      expect(Buffer.byteLength(last?.text ?? "")).toBeLessThanOrEqual(6107);
+    } finally {
+      cleanup();
+    }
+  });
+});

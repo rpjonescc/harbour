@@ -86,11 +86,14 @@ function document(root: string, rel: string, productId: string): FactItem | null
   }
 }
 
-/** `text` cut to at most `max` bytes, never in the middle of a character. */
+/** `text` cut to at most `max` bytes, never in the middle of a character (a U+FFFD that was in the text stays). */
 function cutBytes(text: string, max: number): string {
   const all = Buffer.from(text);
   if (all.length <= max) return text;
-  return new TextDecoder().decode(all.subarray(0, max)).replace(/�+$/u, "");
+  let end = max;
+  // Back up over continuation bytes to the start of the character the cut would have split.
+  while (end > 0 && ((all[end] ?? 0) & 0xc0) === 0x80) end -= 1;
+  return all.subarray(0, end).toString("utf8");
 }
 
 /**

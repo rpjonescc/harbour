@@ -1,5 +1,5 @@
-import { readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { parseFile } from "@/lib/content/files";
 import { ideaFrontmatter, sourceFrontmatter } from "@/lib/content/schema";
 import { eventsSince } from "@/lib/jobs/queue";
@@ -113,6 +113,36 @@ describe("the draft job", () => {
     },
   );
 
+  it("also checks the numbers in the draft's questions", async () => {
+    const r = go(work({ questions: ["Is it 7 projects?"] }));
+    try {
+      expect((await r.run()).status).toBe("ok");
+      expect(readIdea(r.brain.root).state).toBe("idea");
+      expect(readIdea(r.brain.root).needsYou).toMatch(/7/);
+    } finally {
+      r.cleanup();
+    }
+  });
+
+  it("never replaces a source piece that appeared while the agent worked", async () => {
+    const s = contentSetup({ draft: work() }, FILES);
+    const run = s.deps.run;
+    s.deps.run = async (o) => {
+      const out = await run(o);
+      mkdirSync(dirname(join(s.brain.root, SOURCE_PATH)), { recursive: true });
+      writeFileSync(join(s.brain.root, SOURCE_PATH), "The owner's own file.");
+      return out;
+    };
+    try {
+      const job = await runOne(s.deps, "content-draft", { ideaId: IDEA_ID });
+      expect(job.status).toBe("failed");
+      expect(job.error ?? "").toMatch(/appeared while it was being written/);
+      expect(readIdea(s.brain.root).state).toBe("idea");
+    } finally {
+      s.cleanup();
+    }
+  });
+
   it("passes numbers the facts hold, and lets a later run clear the note", async () => {
     const files = {
       ...FILES,
@@ -148,6 +178,19 @@ describe("the draft job", () => {
     ["markup", work({ paragraphs: paragraphs(5, 100, " <b>bold</b>") })],
     ["link syntax", work({ paragraphs: paragraphs(5, 100, " [here](https://evil.example)") })],
     ["a hidden character", work({ paragraphs: paragraphs(5, 100, " 1\u200b2") })],
+    [
+      "a bare link to another site",
+      work({ paragraphs: paragraphs(5, 100, " see https://evil.example/x now") }),
+    ],
+    [
+      "a heading",
+      work({
+        paragraphs: paragraphs(5, 100).map((p, i) =>
+          i === 0 ? { ...p, text: `# Heading ${p.text}` } : p,
+        ),
+      }),
+    ],
+    ["bold text", work({ paragraphs: paragraphs(5, 100, " **bold** `code`") })],
     ["a title with markup", work({ title: "<script>x</script>" })],
     ["a question with markup", work({ questions: ["Is <b>this</b> right?"] })],
     ["an extra key", work({ state: "approved" })],

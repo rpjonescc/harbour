@@ -35,9 +35,37 @@ describe("extractNumbers", () => {
 
   it("does not take words that merely contain a number word", () => {
     expect(
-      extractNumbers("Between the tenth and the tendency, a network of fivefold gains"),
+      extractNumbers(
+        "Between the tenth and the tendency, a network of fivefolds and tenable plans",
+      ),
     ).toEqual([]);
   });
+
+  it.each([
+    ["tenfold, twofold and twelve-fold", ["10", "2", "12"]],
+    ["thirty, forty percent and ninety", ["30", "40", "90"]],
+    ["a hundred and forty percent", ["100", "40"]],
+    ["a thousand, a million, a billion", ["1000", "1000000", "1000000000"]],
+    ["twenty-five teams and Ninety-nine users", ["25", "99"]],
+    ["twenty\u2011one and thirty\u2013two", ["21", "32"]],
+    ["twenty-first and twenty one", ["20"]],
+  ])("reads spelled-out numbers: %j", (text, numbers) =>
+    expect(extractNumbers(text)).toEqual(numbers),
+  );
+
+  it("does not count 'one', or number words inside longer words", () => {
+    expect(extractNumbers("One in 2026, someone's anyone, a hundredth, thousands")).toEqual([
+      "2026",
+    ]);
+  });
+
+  it.each([
+    ["Top10 and Save50 and Q4", ["10", "50", "4"]],
+    ["p3, v2, v2.0, x86, h1, H6, b2b, B2C, 3D, 2FA, i18n, a11y", []],
+    ["see p12 and v10 but not Q3", ["3"]],
+  ])("reads digits glued to a letter, except known names: %j", (text, numbers) =>
+    expect(extractNumbers(text)).toEqual(numbers),
+  );
 
   it("copes with very long text without hanging", () => {
     const long = `${"9".repeat(50_000)} ${"word ".repeat(50_000)}`;
@@ -68,6 +96,24 @@ describe("unknownNumbers", () => {
       unknownNumbers(text, "The free plan has three projects. Setup takes 5 minutes."),
     ).toEqual(expected),
   );
+
+  it.each([
+    ["twenty-five teams", "Twenty teams use it.", ["25"]],
+    ["a hundred and forty percent", "Forty teams.", ["100"]],
+    ["forty percent", "Twenty teams use it.", ["40"]],
+    ["a tenfold gain", "Twenty teams.", ["10"]],
+    ["Top10 picks", "Twenty teams.", ["10"]],
+  ])("fails %j against %j", (text, source, expected) =>
+    expect(unknownNumbers(text, source)).toEqual(expected),
+  );
+
+  it("passes ordinary text, names and numbers the sources hold", () => {
+    expect(unknownNumbers("One in 2026 chose v2 on p3 with x86", "It was 2026.")).toEqual([]);
+    expect(unknownNumbers("We write plain docs for small teams. The page is live.", "")).toEqual(
+      [],
+    );
+    expect(unknownNumbers("twenty-five teams, forty percent", "25 teams and 40%")).toEqual([]);
+  });
 
   it("passes numbers the sources hold, however they are written", () => {
     expect(

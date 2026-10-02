@@ -580,7 +580,7 @@ terms only). A theme that fails is dropped and counted, never shown.
 **c. Facts and claims**
 
 - Deterministic (`lib/content/claims-check.ts`, pure): extract numbers (including years, prices,
-  percentages and spelled-out numbers up to twenty) from the piece; each must appear in the source
+  percentages and spelled-out numbers: two to twenty, the tens, "twenty-one" to "ninety-nine", hundred to billion and "-fold" forms; "one" alone is not counted) from the piece; each must appear in the source
   piece, and each in the source piece must appear in the facts pack. Every link must be the
   product's own URL or host. Every `source:pN` trace must name a real paragraph, and every other
   ref must be in the facts pack.

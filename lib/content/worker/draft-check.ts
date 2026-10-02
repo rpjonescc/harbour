@@ -25,36 +25,62 @@ export type DraftWork = z.infer<typeof draftWorkSchema>;
 const MIN_WORDS = 400;
 const MAX_WORDS = 900;
 
-/** One line of text the sanitiser would leave alone: no hidden characters, markup, or link syntax. */
-function isPlainLine(value: string): boolean {
-  const clean = sanitiseText(value, "social");
-  return clean.ok && !clean.stripped && !/[<>\n\r]|\]\(/.test(value);
+// Markdown the source must not carry: it is plain text that later steps shape per platform.
+const MARKDOWN = [
+  /^\s*#/m, // heading
+  /^\s*>/m, // quote
+  /^\s*(?:[-*+]|\d+[.)])\s/m, // list item
+  /^\s*\[[^\]]*\]:/m, // reference-style link definition
+  /\*\*|__|`|~~/, // strong, code, strike
+  /\*[^\s*][^*]*\*/, // emphasis
+];
+const BARE_HOST = /\bwww\.([^\s/)>\]]+)/gi;
+
+/** The host of the product's own site, the only one a draft may link to (none when the URL is odd). */
+export function ownHosts(productUrl: string): string[] {
+  if (!URL.canParse(productUrl)) return [];
+  return [new URL(productUrl).hostname.toLowerCase().replace(/^www\./, "")];
+}
+
+/** One line of plain text: nothing hidden, no markup or markdown, and links only to `hosts`. */
+function isPlainLine(value: string, hosts: readonly string[]): boolean {
+  // The markdown pass checks every link target (inline, reference and bare URLs) against `hosts`.
+  const clean = sanitiseText(value, "markdown", { allowedHosts: hosts });
+  if (!clean.ok || clean.stripped || /[<>\n\r]|\]\(/.test(value)) return false;
+  if (MARKDOWN.some((pattern) => pattern.test(value))) return false;
+  const bare = [...value.matchAll(BARE_HOST)].map((m) => (m[1] ?? "").toLowerCase());
+  return bare.every((host) => hosts.includes(host));
 }
 
 /** Why this draft cannot be used, in fixed words the agent can act on; null when it can. */
-export function draftProblem(work: DraftWork, pack: readonly FactItem[]): string | null {
+export function draftProblem(
+  work: DraftWork,
+  pack: readonly FactItem[],
+  hosts: readonly string[],
+): string | null {
   const refs = new Set(pack.map((f) => f.ref));
   const total = work.paragraphs.reduce((n, p) => n + wordCount(p.text), 0);
   if (total < MIN_WORDS || total > MAX_WORDS) {
     return `The draft has ${total} words; it must have ${MIN_WORDS} to ${MAX_WORDS}.`;
   }
-  if (!isPlainLine(work.title)) return "The title must be one line of plain text.";
-  if (!work.questions.every(isPlainLine)) return "Each question must be one line of plain text.";
+  if (!isPlainLine(work.title, hosts)) return "The title must be one line of plain text.";
+  if (!work.questions.every((q) => isPlainLine(q, hosts)))
+    return "Each question must be one line of plain text.";
   for (const [i, p] of work.paragraphs.entries()) {
     if (p.id !== `p${i + 1}`) return "The paragraph ids must be p1, p2, p3 and so on, in order.";
     if (p.facts.some((f) => !refs.has(f)))
       return `Paragraph ${i + 1} cites a fact that is not in the list.`;
-    if (!isPlainLine(p.text)) return `Paragraph ${i + 1} must be one line of plain text.`;
+    if (!isPlainLine(p.text, hosts)) return `Paragraph ${i + 1} must be one line of plain text.`;
   }
   return null;
 }
 
 /**
- * The numbers in the title and paragraphs that no fact holds (decision 12). Each fact's own text is
+ * The numbers in the title, paragraphs and questions that no fact holds (decision 12). Each fact's own text is
  * the source, not its `[ref]` label: a date in a label must not make that year look known.
  */
 export function inventedNumbers(work: DraftWork, pack: readonly FactItem[]): string[] {
-  const all = [work.title, ...work.paragraphs.map((p) => p.text)].join("\n");
+  const all = [work.title, ...work.paragraphs.map((p) => p.text), ...work.questions].join("\n");
   return unknownNumbers(all, ...pack.map((f) => f.text));
 }
 

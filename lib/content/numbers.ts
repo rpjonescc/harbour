@@ -1,35 +1,45 @@
 import { INVISIBLE_CHARS } from "./sanitise";
 
-const WORDS: Record<string, number> = Object.fromEntries(
-  [
-    "two",
-    "three",
-    "four",
-    "five",
-    "six",
-    "seven",
-    "eight",
-    "nine",
-    "ten",
-    "eleven",
-    "twelve",
-    "thirteen",
-    "fourteen",
-    "fifteen",
-    "sixteen",
-    "seventeen",
-    "eighteen",
-    "nineteen",
-    "twenty",
-  ].map((w, i) => [w, i + 2]),
-);
-// Digits not glued to a letter, digit or underscore before them ("p3" and "x86" are names, not
-// numbers). A comma only joins digits when three follow it, so "3,4" is two numbers.
-const DIGITS = /(?<![\p{L}\p{N}_])(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)/gu;
+const UNITS = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+const TEENS = [
+  "ten",
+  "eleven",
+  "twelve",
+  "thirteen",
+  "fourteen",
+  "fifteen",
+  "sixteen",
+  "seventeen",
+  "eighteen",
+  "nineteen",
+];
+const TENS = ["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+const BIG: [string, number][] = [
+  ["hundred", 100],
+  ["thousand", 1000],
+  ["million", 1e6],
+  ["billion", 1e9],
+];
+// "one" alone is a pronoun and is not counted; it only counts inside "twenty-one" and the like.
+const WORDS: Record<string, number> = Object.fromEntries([
+  ...UNITS.slice(1).map((w, i) => [w, i + 2]),
+  ...TEENS.map((w, i) => [w, i + 10]),
+  ...TENS.map((w, i) => [w, (i + 2) * 10]),
+  ...BIG,
+]);
+const DASH = "[-\\u2010-\\u2013]";
+const WORD_LIST = Object.keys(WORDS).join("|");
+const NOT_IN_WORD = String.raw`(?<![\p{L}\p{N}])`;
+const NOT_BEFORE_LETTER = String.raw`(?![\p{L}\p{N}])`;
+// Longest reading first: "twenty-five", then "tenfold" or "twelve-fold", then a plain word.
 const SPELLED = new RegExp(
-  `(?<![\\p{L}\\p{N}])(?:${Object.keys(WORDS).join("|")})(?![\\p{L}\\p{N}])`,
+  `${NOT_IN_WORD}(?:(?<tens>${TENS.join("|")})${DASH}(?<unit>${UNITS.join("|")})|(?<fold>${WORD_LIST})${DASH}?fold|(?<word>${WORD_LIST}))${NOT_BEFORE_LETTER}`,
   "giu",
 );
+// A digit run, not glued to digits before it. Names that merely contain digits are blanked first.
+const DIGITS = /(?<!\p{N})(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)/gu;
+const NAMES =
+  /(?<![\p{L}\p{N}_])(?:p\d{1,2}|v\d+(?:\.\d+)*|x86|x64|h[1-6]|b2[bc]|3d|2fa|i18n|a11y)(?![\p{L}\p{N}_])/giu;
 const DECIMAL_DIGIT = /\p{Nd}/gu;
 
 /** The ASCII digit a decimal digit of any script stands for (digit blocks run in tens from zero). */
@@ -56,17 +66,25 @@ function normal(raw: string): string {
   return frac ? `${int}.${frac}` : int;
 }
 
+function spelled(match: RegExpMatchArray): string {
+  const { tens, unit, fold, word } = match.groups ?? {};
+  if (tens && unit) {
+    return String((WORDS[tens.toLowerCase()] ?? 0) + UNITS.indexOf(unit.toLowerCase()) + 1);
+  }
+  return String(WORDS[(fold ?? word ?? "").toLowerCase()] ?? "");
+}
+
 /**
  * The numbers a reader would take for facts: digits (with commas, decimals, `$` and `%`), years,
- * and spelled-out two to twenty. "one" is not counted (a pronoun). Normalised and de-duplicated.
+ * and spelled-out numbers: two to twenty, the tens (thirty to ninety), "twenty-one" to "ninety-nine", hundred, thousand, million, billion and "-fold" forms. "one" alone is not counted (a pronoun). Digits glued to letters ("Top10", "Q4") are read, except a short list of names (p3, v2, x86, h1, b2b, 3d, 2fa, i18n, a11y). Normalised and de-duplicated.
  * Full-width and other scripts' digits count as digits, and hidden characters inside a number do
  * not split it, so formatting cannot hide a figure.
  */
 export function extractNumbers(text: string): string[] {
   const seen = readable(text);
   const found = [
-    ...(seen.match(DIGITS) ?? []).map(normal),
-    ...(seen.match(SPELLED) ?? []).map((w) => String(WORDS[w.toLowerCase()])),
+    ...(seen.replace(NAMES, " ").match(DIGITS) ?? []).map(normal),
+    ...[...seen.matchAll(SPELLED)].map(spelled),
   ];
   return [...new Set(found)];
 }

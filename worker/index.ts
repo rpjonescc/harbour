@@ -11,7 +11,7 @@ import { getConfig } from "@/lib/config";
 import { countWaitingIdeas, MAX_WAITING_IDEAS } from "@/lib/content/read/ideas";
 import { readVoice } from "@/lib/content/read/voice";
 import { makeDigestSchedule, makeIdeasSchedule } from "@/lib/content/schedule";
-import { waitsForOtherChain } from "@/lib/content/worker/chain-wait";
+import { deferForOtherChain } from "@/lib/content/worker/chain-wait";
 import { runDigestJob } from "@/lib/content/worker/digest-job";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
@@ -19,7 +19,7 @@ import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
 import { keepAlive } from "@/lib/jobs/heartbeat";
 import { makeImportRetry } from "@/lib/jobs/import-retry";
 import { isAgentJobKind } from "@/lib/jobs/job-kinds";
-import { claimNextJob, deferJob, heartbeat, type Job } from "@/lib/jobs/queue";
+import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
 import { type RunDeps, runAgentJob } from "@/lib/jobs/run-job";
 import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
 import { makeScheduler } from "@/lib/jobs/scheduler";
@@ -227,11 +227,7 @@ async function main() {
 
   const runJob = async (job: Job) => {
     const now = () => new Date();
-    if (job.kind === "content-draft" && waitsForOtherChain(db, job)) {
-      // Another idea's chain is under way: this one goes back to the queue for half a minute.
-      deferJob(db, job.id, new Date(Date.now() + 30_000));
-      return;
-    }
+    if (deferForOtherChain(db, job)) return; // a draft waits for another idea's chain
     if (job.kind === "brain-push") {
       scheduler.pushed(runPushJob({ db, root, now }, job));
     } else if (job.kind === "notes-sync") {
