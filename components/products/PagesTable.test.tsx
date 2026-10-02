@@ -11,9 +11,7 @@ const rows: PageRow[] = [
 describe("PagesTable", () => {
   it("says in a sentence how many pages need attention and tucks the table into Technical details", () => {
     render(<PagesTable rows={rows} total={2} />);
-    expect(
-      screen.getByText("Harbour checked 2 pages. 1 has something to fix."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Checked 2 pages. 1 has something to fix.")).toBeInTheDocument();
     const details = screen.getByText(/Technical details/).closest("details") as HTMLElement;
     expect(details).not.toHaveAttribute("open");
     expect(within(details).getByRole("table")).toBeInTheDocument();

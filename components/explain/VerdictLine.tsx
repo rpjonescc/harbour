@@ -53,9 +53,7 @@ export function VerdictLine({
     return (
       <span className={wrap}>
         {name}
-        <span className={`${stacked ? "text-2xl font-serif" : ""} ${TONE.gap}`}>
-          {verdict.label}
-        </span>{" "}
+        <span className={`${word} ${TONE.gap}`}>{verdict.label}</span>{" "}
         <span className={note(compact || stacked)}>{verdict.sentence}</span>
       </span>
     );

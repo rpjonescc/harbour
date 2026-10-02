@@ -21,6 +21,11 @@ function technicalDetails(card: HTMLElement): HTMLDetailsElement {
   return details;
 }
 
+/** The chips: the first block on the card, ahead of the title. */
+function chipTexts(card: HTMLElement): (string | null)[] {
+  return [...(card.firstElementChild?.children ?? [])].map((el) => el.textContent);
+}
+
 function renderCard(over: Partial<ActionView> = {}) {
   const action = exampleActionView(over);
   render(
@@ -60,15 +65,13 @@ describe("ActionCard", () => {
       .closest("p");
     expect(meta).toHaveTextContent("Found on Google · quick job · Acme Docs");
     expect(meta).toHaveClass("text-xs", "text-ink-muted");
-    expect(meta?.querySelector(".px-2")).toBeNull();
+    // The meta line is plain text: neither chip lives in it.
+    expect(meta).not.toContainElement(within(card).getByText("Big win"));
+    expect(meta).not.toContainElement(within(card).getByText("Waiting for you"));
   });
 
   it("shows at most two chips: the size of the win and who's on it or the status", () => {
-    const chips = (card: HTMLElement) => card.querySelectorAll("span.px-2.rounded-full");
-    expect([...chips(renderCard())].map((el) => el.textContent)).toEqual([
-      "Big win",
-      "Waiting for you",
-    ]);
+    expect(chipTexts(renderCard())).toEqual(["Big win", "Waiting for you"]);
   });
 
   it("shows only the first sentence of the reason on the surface; the full text folds away", () => {
@@ -79,6 +82,7 @@ describe("ActionCard", () => {
     expect(surface).toHaveTextContent("Search results show a generated title.");
     expect(surface).not.toHaveTextContent("Visitors skip generic ones");
     const inside = within(technicalDetails(card));
+    expect(technicalDetails(card).querySelector("dt")).toHaveTextContent("Full reason");
     expect(inside.getByText("Full reason")).toBeInTheDocument();
     expect(inside.getByText(why)).toBeInTheDocument();
   });
@@ -94,6 +98,15 @@ describe("ActionCard", () => {
     const working = renderCard({ status: "in_progress", who: "claude" });
     expect(within(working).getByText(/· In progress$/)).toBeInTheDocument();
     expect(within(working).getByText("Claude is on it")).toBeInTheDocument();
+  });
+
+  it.each([
+    [{ status: "in_progress", who: null }, "In progress"],
+    [{ status: "snoozed", who: null, snoozedUntil: "2026-10-12" }, "Snoozed until 12 Oct 2026"],
+    [{ status: "done", who: null }, "Done"],
+  ] as const)("shows %j as the status chip %j when no one is on it", (over, chip) => {
+    const card = renderCard(over);
+    expect(chipTexts(card)).toEqual(["Big win", chip]);
   });
 
   it("keeps the fix, source, rule key, evidence, docs and prompt inside Technical details", () => {

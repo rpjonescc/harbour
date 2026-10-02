@@ -10,7 +10,10 @@ function pathOf(url: string): string {
   return `${pathname}${search}`;
 }
 
-/** A one-line verdict on the crawled pages; the full table, most troubled first, sits in Technical details. */
+/**
+ * A one-line verdict on the crawled pages; the full table, most troubled first, sits in
+ * Technical details.
+ */
 export function PagesTable({ rows, total }: { rows: PageRow[]; total: number }) {
   return (
     <section aria-labelledby="pages-heading" className="flex flex-col gap-3">
@@ -61,9 +64,7 @@ export function PagesTable({ rows, total }: { rows: PageRow[]; total: number }) 
                           <span className="block text-xs text-ink-muted">{row.title}</span>
                         )}
                       </td>
-                      <td
-                        className={`py-2 pr-3 tabular-nums ${row.status >= 400 ? "text-bad" : ""}`}
-                      >
+                      <td className={`py-2 pr-3 ${row.status >= 400 ? "text-bad" : ""}`}>
                         {pageResult(row.status)}
                       </td>
                       <td className="py-2">

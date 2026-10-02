@@ -8,12 +8,15 @@ export function pageResult(status: number): string {
   return `No proper answer (${status})`;
 }
 
-/** One line above the pages table. The table lists the most troubled pages, so a cut-off count is "at least". */
+/**
+ * One line above the pages table. The table lists the most troubled pages, so a cut-off count is
+ * "at least". The heading already says Harbour did the checking, so this line doesn't.
+ */
 export function pagesSummary(
   rows: readonly { problems: readonly string[] }[],
   total: number,
 ): string {
-  const checked = `Harbour checked ${total} ${total === 1 ? "page" : "pages"}.`;
+  const checked = `Checked ${total} ${total === 1 ? "page" : "pages"}.`;
   const troubled = rows.filter((row) => row.problems.length > 0).length;
   if (troubled === 0) return `${checked} Nothing needs fixing.`;
   const atLeast = rows.length < total && troubled === rows.length ? "At least " : "";
