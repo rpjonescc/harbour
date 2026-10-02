@@ -196,7 +196,7 @@ git gate and Claude subscription as the other agents (no paid API calls).
   and never twice; each failure is listed on the run's activity page.
 - **Where suggestions appear** — on the **Actions** board as **New ideas** (`/actions`), labelled
   as coming from the weekly analyst; accept or dismiss each one. An action the product already
-  has (suggested, open, in progress, snoozed or rejected) is not suggested again.
+  has (a new idea, to do, in progress, snoozed or dismissed) is not suggested again.
 - **When it runs** — every Sunday at 20:00 in `HARBOUR_TIMEZONE`, for that week (see
   [When things run](#when-things-run)). The **Weekly report** panel on **Agents** shows the next
   scheduled run (or that a run is queued or running, that a catch-up is due, or that scheduled
