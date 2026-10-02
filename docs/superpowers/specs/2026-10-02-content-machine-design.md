@@ -1303,3 +1303,70 @@ Postiz drafts (§11), the Search Console and approved-target inputs to ideas, a 
 90 days, the Agents page skills panel and its "skill was updated" note, the "What Harbour noticed"
 panel with "Leave this out", any scheduling other than the daily digest and Monday ideas, images,
 analytics and the feedback loop.
+
+## 18. Amendment 2026-10-03: the digest reads Screenpipe's text search, and projects without a website
+
+Found on the first real run against Screenpipe v0.4.52 (the answers below were read from the API's own
+schema and from the shape of its replies, never from the owner's screen text).
+
+**What the real API does.**
+
+- `GET /activity-summary` returns `windows` (`app_name`, `window_name`, `browser_url`, `minutes`,
+  `frame_count`) with real app and window names, but its `snippets` stayed empty for every query,
+  including common words. Its snippet item shape is `{ source, text, app_name, window_name, speaker,
+  timestamp }`.
+- `GET /search?content_type=ocr&q=<term>&start_time&end_time&limit&offset` does match text
+  (`pagination.total` counts matches; items are `{ type: "OCR", content: { text, timestamp, app_name,
+  window_name, browser_url, ... } }`) but the OCR rows carry an **empty `app_name` and `window_name`**.
+
+**Decision (owner, 2026-10-03).** The digest takes text from `/search` and filters on the text itself, and
+also uses the window list from `/activity-summary`. Section 5.3's rule "text with no window title is
+dropped" is replaced by the rules below. Everything else in §5 stands (loopback only, key sent only to the
+local API, no redirects, 15 s timeout per request, 2 MiB cap, redaction, themes validated, canary rules).
+
+**Sources, per product, for the local day being digested.**
+
+1. *Window source.* The `windows` list from `/activity-summary` (requests keep `include_windows` on). A
+   window row is a candidate only when its app and title are present, it passes the existing app and
+   window deny-lists (§5.3 step 1), and its title contains one of the product's content terms. The
+   candidate text is `<window title> (<minutes> min)`, with the app name as its `app`.
+2. *Text source.* One `/search` request per content term (at most 10 terms per product, so at most 10
+   requests; each bounded as in §5.2, `limit` 25, `content_type=ocr`, `q` the single term, no retries). Each
+   hit's `text` is a whole-screen dump, so Harbour never forwards a hit as it is: it keeps only the
+   **excerpts around the term** (about 120 characters either side, merged when they overlap), and only
+   after the frame passes the frame-level checks below.
+
+**Frame-level checks (the replacement for the app and window deny-list on text hits).** A hit is dropped
+whole, before any excerpt is cut, when its full text contains a *private-context cue*: password-manager,
+email, chat, calendar, banking, payments, health-portal, tax or government-portal wording (for example
+"inbox", "compose", "unread", "password", "sign in", "log in", "one-time code", "verification code", "bank",
+"BSB", "account balance", "card number", "invoice", "private browsing", "incognito"). The cue list is one
+data file in `lib/content/worker/screenpipe/`, matched on the canonical (NFKC, case-folded, hidden
+characters removed) text, and over-excluding is the intended failure. If the hit has an `app_name` or
+`window_name` (other Screenpipe versions), the app and window deny-lists apply as well, and an *empty* app
+or window no longer drops the hit by itself.
+
+**Excerpts then follow §5.3 steps 2 to 4 unchanged** (content-term check, redaction of URLs, emails,
+phone numbers, tokens, card-like numbers and handles, never-mention terms, normalisation and caps). The
+verbatim-run theme check (§17) applies to excerpts and to window rows alike.
+
+**Sampling and bounds.** Near-duplicate excerpts (the same frame text seen many times a minute) are
+dropped by comparing canonical text; the remaining excerpts are spread evenly over the day, at most 30
+per product, and at most 24 KiB of excerpt text in total per product. A product's `/search` or
+`/activity-summary` failure fails the digest with the same plain sentences as §5.6. Per-product counts
+are recorded as events, as now: "Screenpipe returned N text hit(s) and M window(s) for <product>; K kept
+after filtering" (counts only, never text).
+
+**Failure modes.** Zero hits from every source is "No on-topic activity" (quiet day), not an error. A
+reply whose shape does not parse is `bad-response` with the plain sentence already in §5.6.
+
+**Privacy honesty.** Dropping on text cues is weaker than dropping on app names, because a cue can be
+absent from a private screen. That is why excerpts are short, redacted, validated twice, never stored raw
+(canary tests stay in force), and why the README keeps telling the owner to read the first few digests.
+
+**Projects without a website (content-only).** `harbour.config.json` `content.projects` may list
+`<id>: { name, terms, platforms? }` for a project that is not a monitored website: Harbour does not
+crawl, score or list it on Today, and it gets no site-based checks. It is a content product in every other
+way: digests, ideas, voice profile (`content/voices/<id>.md`), drafting, gates, approvals. A content-only
+project has no site host, so the only links an owner-facing piece may carry are none (the link allow-list
+for it is empty). The id must not collide with a product id. `content.products` is unchanged.
