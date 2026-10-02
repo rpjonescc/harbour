@@ -305,9 +305,9 @@ working on. It is **off by default** and **never publishes anything**: you read,
 approve or discard each piece on the **Content** page, and you post it yourself.
 
 **How it works.** Each morning Harbour asks your local [Screenpipe](https://screenpi.pe) (a
-recorder of your own screen) for a small sample of yesterday's on-screen text, **keeps only text
-that mentions a product you listed**, strips anything private, and has an agent turn what is left
-into a few general themes ("Rewrote the getting-started guide"). Only those themes are stored
+recorder of your own screen) for yesterday's windows and a small sample of its on-screen text,
+**keeps only short excerpts that mention a product you listed**, strips anything private, and has
+an agent turn what is left into a few general themes ("Rewrote the getting-started guide"). Only those themes are stored
 (the **digest**). On Mondays it suggests ideas for each product from the themes, your notes, your
 voice profile and the product's content pillars. When you press **Write this** on an idea, Harbour
 writes one source piece, turns it into six platform pieces (LinkedIn, X, Instagram, Facebook, a
@@ -319,12 +319,20 @@ Second Brain; the Copy buttons give you the text without any of Harbour's notes.
 
 **Privacy.** Screenpipe sees everything on your screen, so Harbour asks for as little as it can:
 
-- One request per product, to Screenpipe on this machine only (the address must be `127.0.0.1`,
-  `[::1]` or `localhost`, so its key never leaves it).
+- A few requests per product, to Screenpipe on this machine only (the address must be `127.0.0.1`,
+  `[::1]` or `localhost`, so its key never leaves it): one for the list of windows you used, and
+  one text search for each of the product's terms (at most 10), all within 60 seconds.
+- Screenpipe's text search returns whole screens with no app or window name, so Harbour never uses
+  a hit as it is. A screen that shows a private-context cue (wording such as inbox, password,
+  sign in, bank, invoice, calendar, patient portal or private browsing) is dropped whole, which
+  also drops some harmless screens on purpose. From the rest it keeps only about 120 characters
+  either side of your term, at most 30 excerpts per product and 24 KiB, spread over the day.
 - Filtered in memory before any model sees it: password managers, email, chat, calls, banking and
-  private windows are dropped whole; links, email addresses, phone numbers, tokens, card-like
-  numbers, handles and anything on your never-mention list (`content/never-mention.md`, one term
-  per line) are removed. Text with no window title is dropped, because it cannot be checked.
+  private windows are dropped whole when the app or window name is known (a window row needs both
+  an app and a title); links, email addresses, phone numbers, tokens, card-like numbers, handles
+  and anything on your never-mention list (`content/never-mention.md`, one term per line) are
+  removed. Dropping on wording is weaker than dropping on an app name, because a private screen
+  may not show any cue, so excerpts are short and redacted and you should read the first digests.
 - The agent that reads it has one tool, to write one file. Raw screen text is never written to the
   brain, the database, the logs or the backups, and the run record of the digest keeps no model
   text and no file names.

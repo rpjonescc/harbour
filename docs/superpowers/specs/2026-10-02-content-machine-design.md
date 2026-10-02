@@ -1235,7 +1235,6 @@ Each is a call made while building, one bullet each.
 - Number check, found in the final review: a year inside an ISO date in a source note (`2026-03-14`) is not counted as known, so "in March 2026" can fail and go to Needs you (it errs the safe way); a number followed by `m` reads as millions, so "5m" never matches "5 minutes"; "3rd" does not match "third".
 - A file too large to quarantine is reported by count only, for every run, because the error is thrown before the quarantine manifest is written; run `git status` in the brain to find it.
 - `lib/agents/pillars.ts` and `lib/actions/store.ts` keep their own narrower hidden-character checks; neither is in the content data path.
-- If Screenpipe ever returns snippets with no app name (for example audio), a day with only those fails with "Screenpipe's answer didn't look as expected" instead of reading as quiet. Check on the first real digest.
 
 These are accepted for the MVP. Each is a limit of a check, not a hole in a promise.
 
@@ -1259,8 +1258,13 @@ These are accepted for the MVP. Each is a limit of a check, not a hole in a prom
   short unlabelled secrets, tokens split by spaces, homoglyphs outside Cyrillic and Greek, and
   prompt-injection wording are not caught by the filters; the last is the prompt fence's job. Window
   titles that merely look private ("Meet the team" in a browser) are dropped: the safe failure.
-- **Null window titles drop the snippet.** A Screenpipe response without window titles yields an
-  empty digest, by design (fail closed): a snippet that cannot be checked is private.
+- **Text hits are checked by their wording, not by an app name (§18).** Screenpipe's text search
+  returns OCR rows with an empty app and window name, so a hit is no longer dropped for lacking a
+  window title; a private-context cue in its text drops it instead, and only short redacted excerpts
+  around a content term are kept. This is a weaker guarantee than dropping on an app name: a private
+  screen with none of the listed cues gets through as an excerpt, and a harmless screen that shows a
+  cue ("syntax" is not one, "inbox" is) is dropped. The window source still requires an app and a
+  title. Over-excluding is the intended failure; the owner reads the first digests.
 - **Crash recovery keeps files.** After a worker crash, startup recovery has no spec and so
   quarantines, and keeps, the files a digest agent wrote, outside the brain; the owner can delete the
   quarantine folder. A failed discard keeps the run's touched-file log in the quarantine's `active`
@@ -1281,15 +1285,14 @@ These are accepted for the MVP. Each is a limit of a check, not a hole in a prom
 
 Two assumptions could not be tested without a real Screenpipe and a real model, and are not tests:
 
-- **Screenpipe's `/activity-summary` field names are unconfirmed.** `lib/content/worker/screenpipe/schema.ts`
-  reads snippets as `text`, `app_name` and `window_name` and the status as `data_status`
-  (`ok`, `empty_but_recording`, `no_capture_in_range`, `not_recording`), and is tolerant of what it
-  does not know. The installed Screenpipe's OpenAPI document needs its key and was not read. If a
-  name differs the first real digest fails with "Screenpipe's answer didn't look as expected" when no
-  snippet carries an app or window name, or comes out empty with a count event saying how many
-  snippets were returned and kept (never a leak); read the
-  first digest before leaving the schedule on, and adjust `schema.ts`, the one place that knows the
-  names.
+- **Screenpipe's field names are confirmed (v0.4.52, §18).** `lib/content/worker/screenpipe/schema.ts`
+  reads `/activity-summary` as `data_status` (`ok`, `empty_but_recording`, `no_capture_in_range`,
+  `not_recording`), `snippets` (`text`, `app_name`, `window_name`, `timestamp`) and `windows`
+  (`app_name`, `window_name`, `minutes`), and `/search?content_type=ocr` as `data` items
+  `{ type, content: { text, timestamp, app_name, window_name } }`, tolerant of every other field. What
+  stays unconfirmed is that the answer wraps its items in `data`: if a different Screenpipe names it
+  otherwise, the first digest fails with "Screenpipe's answer wasn't in the expected shape" (a
+  `/search` reply with no `data` array), and `schema.ts` is the one place that knows the name.
 - **`claude -p` reading its prompt from stdin is unverified against the real CLI.** `claude --help`
   says the prompt argument is optional and `-p` is "useful for pipes", and the fake CLI reads stdin
   when no prompt follows `-p`, but a prompt-less call spends subscription tokens, so it was not
