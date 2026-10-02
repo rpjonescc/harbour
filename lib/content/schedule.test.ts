@@ -113,6 +113,20 @@ describe("the digest schedule", () => {
     expect(listJobs(h.db)).toEqual([]);
   });
 
+  it("says once, not on every tick, that the daily cap refused the digest", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = harness({ dailyRuns: 0 });
+      for (const at of ["20:00", "20:01", "20:05"]) h.at(`2026-10-01T${at}:00Z`);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toMatch(
+        /digest for 2026-10-01 was not queued: the daily content run limit/,
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("names the next run, or none when off", () => {
     const now = new Date("2026-10-01T20:00:00Z");
     expect(nextDigestRun(now, ZONE, "05:45", true)?.toISOString()).toBe("2026-10-02T19:45:00.000Z");
@@ -220,6 +234,17 @@ describe("the ideas schedule", () => {
     const h = harness(over);
     expect(h.at("2026-10-04T21:05:00Z")).toEqual([]);
     expect(listJobs(h.db)).toEqual([]);
+  });
+
+  it("says once per product, not on every tick, that the daily cap refused an ideas run", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const h = harness({ dailyRuns: 0 });
+      for (const at of ["21:05", "21:10", "21:20"]) h.at(`2026-10-04T${at}:00Z`);
+      expect(warn).toHaveBeenCalledTimes(2);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("names the next Monday 07:00, or none when off", () => {

@@ -37,6 +37,18 @@ export type DigestScheduleDeps = {
   clock: () => number;
 };
 
+/** Says once per slot (not on every tick) that a scheduled run was refused, and why. */
+function makeWarner() {
+  const warned = new Set<string>();
+  return (key: string, what: string, reason: string): void => {
+    if (warned.has(key)) return;
+    warned.add(key);
+    const why =
+      reason === "daily_cap" ? "the daily content run limit is reached" : "it was refused";
+    console.warn(`content: ${what} was not queued: ${why}`);
+  };
+}
+
 /**
  * One digest per local day from HARBOUR_DIGEST_TIME, for the day before, derived from the jobs
  * table so a restart never queues twice. After an outage it queues one digest for the day before
@@ -46,6 +58,7 @@ export type DigestScheduleDeps = {
  */
 export function makeDigestSchedule(deps: DigestScheduleDeps) {
   const due = makeThrottle(CHECK_MS);
+  const warnOnce = makeWarner();
   const minute = noteMinute(deps.digestTime);
   return {
     tick(): { jobId: number; day: string } | null {
@@ -71,6 +84,7 @@ export function makeDigestSchedule(deps: DigestScheduleDeps) {
         now,
         dailyRuns: deps.dailyRuns,
       });
+      if (!queued.ok) warnOnce(`digest:${day}`, `the scheduled digest for ${day}`, queued.reason);
       return queued.ok && queued.created ? { jobId: queued.id, day } : null;
     },
   };
@@ -124,6 +138,7 @@ export type IdeasScheduleDeps = {
  */
 export function makeIdeasSchedule(deps: IdeasScheduleDeps) {
   const due = makeThrottle(CHECK_MS);
+  const warnOnce = makeWarner();
   return {
     tick(): { jobId: number; productId: string }[] {
       if (!deps.enabled || !deps.tokenSet || !due(deps.clock())) return [];
@@ -149,6 +164,14 @@ export function makeIdeasSchedule(deps: IdeasScheduleDeps) {
           now,
           dailyRuns: deps.dailyRuns,
         });
+        if (!result.ok) {
+          const slot = latestIdeasSlotDay(now, deps.timeZone);
+          warnOnce(
+            `ideas:${slot}:${productId}`,
+            `the scheduled ideas run for ${productId}`,
+            result.reason,
+          );
+        }
         if (result.ok && result.created) queued.push({ jobId: result.id, productId });
       }
       return queued;
