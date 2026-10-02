@@ -1,11 +1,10 @@
 import { and, asc, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { actions } from "@/lib/db/schema";
-import { ACTIVE, type ActionActor, type ActionRow } from "./types";
+import { ACTION_ACTORS, ACTIVE, type ActionActor, type ActionRow } from "./types";
 
-const ACTORS: readonly ActionActor[] = ["owner", "claude", "scan", "agent", "system"];
 const isActor = (value: unknown): value is ActionActor =>
-  typeof value === "string" && (ACTORS as readonly string[]).includes(value);
+  typeof value === "string" && (ACTION_ACTORS as readonly string[]).includes(value);
 
 /**
  * Who made the action's latest status change: its creation counts, a PR link (an event from a

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { Evidence } from "@/lib/actions/types";
+import { ACTION_ACTORS } from "@/lib/actions/types";
 import { timestamp } from "./columns";
 import { jobs } from "./jobs";
 
@@ -60,7 +61,7 @@ export const actionEvents = sqliteTable(
       .notNull()
       .references(() => actions.id),
     at: timestamp("at").notNull(),
-    actor: text("actor", { enum: ["owner", "claude", "scan", "agent", "system"] }).notNull(),
+    actor: text("actor", { enum: ACTION_ACTORS }).notNull(),
     // Null on creation.
     from: text("from_status"),
     to: text("to_status").notNull(),
