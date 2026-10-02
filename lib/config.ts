@@ -19,7 +19,7 @@ function isLoopbackOrigin(origin: string): boolean {
 }
 
 /** An http origin on this machine only, with no path: the Screenpipe key must never cross a network. */
-function isLoopbackHttpOrigin(value: string): boolean {
+export function isLoopbackHttpOrigin(value: string): boolean {
   return isLoopbackOrigin(value) && new URL(value).origin === value;
 }
 
