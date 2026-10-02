@@ -3,10 +3,12 @@ import type { ActionEventView } from "@/lib/actions/views";
 import { formatDateTime } from "@/lib/format/date";
 import { ACTOR_LABEL, STATUS_LABEL } from "./action-labels";
 
-function change({ from, to }: ActionEventView): string {
+/** The status move; none for an entry that kept the status (a linked pull request). */
+function change({ from, to }: ActionEventView): string[] {
   // Stored statuses are the schema's enum; the cast only narrows the column type.
   const label = (status: string) => STATUS_LABEL[status as ActionStatus] ?? status;
-  return from === null ? `created as ${label(to)}` : `${label(from)} → ${label(to)}`;
+  if (from === null) return [`created as ${label(to)}`];
+  return from === to ? [] : [`${label(from)} → ${label(to)}`];
 }
 
 /** An action's status changes, oldest first: when, who, from → to and the note. */
@@ -32,7 +34,7 @@ export function ActionHistory({
             {[
               formatDateTime(event.at, timeZone, locale),
               ACTOR_LABEL[event.actor],
-              change(event),
+              ...change(event),
               ...(event.note ? [event.note] : []),
             ].join(" · ")}
           </li>

@@ -82,7 +82,15 @@ export const EXAMPLE_ACTIONS: { status: ActionStatus; action: ActionView }[] = [
       events: [
         { at: AT, actor: "scan", from: null, to: "open", note: null },
         { at: AT, actor: "owner", from: "open", to: "in_progress", note: "Doing the docs first." },
+        {
+          at: AT,
+          actor: "claude",
+          from: "in_progress",
+          to: "in_progress",
+          note: "Linked PR https://github.com/acme/widget/pull/42",
+        },
       ],
+      prUrl: "https://github.com/acme/widget/pull/42",
     }),
   },
   {
