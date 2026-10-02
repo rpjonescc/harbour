@@ -170,6 +170,18 @@ describe("buildWeeklyExport", () => {
     expect(product?.deltas).toEqual({ seo: 10, geo: null, aeo: null });
   });
 
+  it("has null deltas against a baseline scored on another formula", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: at("2026-09-25T06:00:00Z") });
+    seedScan(db, {
+      productId: "acme-docs",
+      at: at("2026-10-03T06:00:00Z"),
+      totals: { seo: 55, geo: 45, aeo: 17 },
+      formulaVersion: "v2",
+    });
+    expect(build(db).products[0]?.deltas).toEqual({ seo: null, geo: null, aeo: null });
+  });
+
   it("has null deltas with nothing to compare, and empty lists for a product never scanned", () => {
     const [, b, q] = build(fixture()).products;
     expect(b?.deltas).toEqual({ seo: null, geo: null, aeo: null });
@@ -204,6 +216,7 @@ describe("buildWeeklyExport", () => {
     const expected = deriveIssues(
       ACME_SCAN.filter((o) => o.collector !== "pagespeed"),
       statuses,
+      "product",
     );
     expect(product?.issues.map((i) => i.id)).toEqual(expected.map((i) => i.id));
     expect(product?.issues.length).toBeGreaterThan(0);

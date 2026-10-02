@@ -14,7 +14,7 @@ const product: Product = {
   kind: "product" as const,
 };
 // The real rules over Acme Docs' crawl: the first issue is the broken link.
-const [broken] = deriveIssues([...ACME_CRAWL, readiness()], ALL_OK);
+const [broken] = deriveIssues([...ACME_CRAWL, readiness()], ALL_OK, "product");
 const issue = (() => {
   if (!broken) throw new Error("expected an issue");
   return broken;

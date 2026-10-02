@@ -21,6 +21,7 @@ const AT = new Date("2026-10-01T06:04:00Z");
 const empty: ProductView = {
   scores: { latest: null, deltas: { seo: null, geo: null, aeo: null }, trend: [] },
   scan: { active: null, last: null },
+  formulaChange: null,
   issues: [],
   actionByRule: new Map(),
   pages: { rows: [], total: 0 },
@@ -28,6 +29,7 @@ const empty: ProductView = {
 };
 
 const scanned: ProductView = {
+  formulaChange: null,
   scores: {
     latest: {
       scanId: 1,
@@ -84,7 +86,7 @@ const scanned: ProductView = {
       failedCollectors: [{ collector: "pagespeed", error: "quota exceeded" }],
     },
   },
-  issues: deriveIssues([...ACME_CRAWL, readiness()], ALL_OK),
+  issues: deriveIssues([...ACME_CRAWL, readiness()], ALL_OK, "product"),
   actionByRule: new Map([
     ["broken-links", { id: 5, status: "in_progress", snoozedUntil: null, who: "claude" }],
     ["noindex", { id: 6, status: "snoozed", snoozedUntil: "2026-10-12", who: null }],
@@ -93,10 +95,29 @@ const scanned: ProductView = {
   search: { state: "not_configured", reason: "HARBOUR_GSC_CREDENTIALS is not set" },
 };
 
-const renderPage = (view: ProductView) =>
-  render(<ProductOverview product={product} view={view} timeZone="UTC" locale="en-GB" />);
+const renderPage = (view: ProductView, productOverrides: Partial<Product> = {}) =>
+  render(
+    <ProductOverview
+      product={{ ...product, ...productOverrides }}
+      view={view}
+      timeZone="UTC"
+      locale="en-GB"
+    />,
+  );
 
 describe("ProductOverview", () => {
+  it("shows the scoring note under the area cards for a product site", () => {
+    renderPage({ ...scanned, formulaChange: { from: "v1", to: "v2", at: AT } });
+    expect(
+      screen.getByText("Scoring updated: Preferred Sources now only counts for news sites."),
+    ).toBeInTheDocument();
+  });
+
+  it("doesn't show it for a news site, whose score did not change", () => {
+    renderPage({ ...scanned, formulaChange: { from: "v1", to: "v2", at: AT } }, { kind: "news" });
+    expect(screen.queryByText(/Scoring updated/)).toBeNull();
+  });
+
   it("for a product never checked says so everywhere, with Check now and the research link", () => {
     renderPage(empty);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Acme Docs");

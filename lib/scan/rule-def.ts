@@ -1,4 +1,5 @@
 import { RESEARCH_TOPICS } from "@/lib/agents/topics";
+import type { ProductKind } from "@/lib/products/catalog";
 import type { Effort, Issue } from "./issues";
 import { isHtmlPage, type PageFacts, type ReadinessFacts, type SiteFacts } from "./view-shapes";
 
@@ -12,6 +13,8 @@ export type Facts = {
   unreadablePages: number;
   site: SiteFacts | null;
   readiness: ReadinessFacts | null;
+  /** "news" sites are the only ones Preferred Sources applies to. */
+  productKind: ProductKind;
 };
 
 /** A collector a rule depends on: it must have run ok in the scan for the rule to judge. */

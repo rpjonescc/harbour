@@ -25,7 +25,7 @@ const PRODUCTS: Product[] = [
     name: "Acme Blog",
     url: "https://blog.example.com",
     hue: "teal",
-    kind: "product" as const,
+    kind: "news" as const,
   },
 ];
 let dir: string;
@@ -123,6 +123,7 @@ describe("settingsView", () => {
         name: "Acme Docs",
         url: "https://docs.example.com",
         hue: "amber",
+        kind: "product",
         searchConsoleProperty: "sc-domain:example.com",
         awaitingApproval: 2,
       },
@@ -131,6 +132,7 @@ describe("settingsView", () => {
         name: "Acme Blog",
         url: "https://blog.example.com",
         hue: "teal",
+        kind: "news",
         searchConsoleProperty: null,
         awaitingApproval: 0,
       },

@@ -22,9 +22,11 @@ const gscSummary: Observation = {
   value: { startDate: "2026-09-01", endDate: "2026-09-28" },
 };
 
+const PRODUCT = { id: "acme-docs", kind: "product" as const };
+
 describe("productView", () => {
   it("is empty for a product that was never scanned", () => {
-    const view = productView(openTestDb(), "acme-docs", T0);
+    const view = productView(openTestDb(), PRODUCT, T0);
     expect(view.scores.latest).toBeNull();
     expect(view.issues).toEqual([]);
     expect(view.pages).toEqual({ rows: [], total: 0 });
@@ -44,7 +46,7 @@ describe("productView", () => {
     });
     // A later failed scan is left out: the page keeps showing the last good scan's findings.
     seedScan(db, { productId: "acme-docs", at: T0, status: "failed", runs: [crawler("failed")] });
-    const view = productView(db, "acme-docs", T0);
+    const view = productView(db, PRODUCT, T0);
     expect(view.issues.map((i) => i.id)).toEqual([
       "broken-links",
       "noindex",
@@ -63,7 +65,7 @@ describe("productView", () => {
       status: "partial",
       runs: [crawler(), { ...readinessRun, status: "failed" }],
     });
-    expect(productView(db, "acme-docs", T0).issues.map((i) => i.id)).toEqual([
+    expect(productView(db, PRODUCT, T0).issues.map((i) => i.id)).toEqual([
       "broken-links",
       "noindex",
     ]);
@@ -83,7 +85,7 @@ describe("productView", () => {
         },
       ],
     });
-    expect(productView(db, "acme-docs", T0).search).toEqual({
+    expect(productView(db, PRODUCT, T0).search).toEqual({
       state: "not_configured",
       reason: "HARBOUR_GSC_CREDENTIALS is not set",
     });

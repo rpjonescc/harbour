@@ -14,7 +14,7 @@ import type { CollectorStatus, ScanObservation } from "./types";
 type Statuses = Record<string, CollectorStatus>;
 
 const outcomeOf = (ruleId: string, observations: ScanObservation[], statuses: Statuses = ALL_OK) =>
-  evaluateRules(observations, statuses).find((o) => o.ruleId === ruleId);
+  evaluateRules(observations, statuses, "news").find((o) => o.ruleId === ruleId);
 
 const stateOf = (ruleId: string, observations: ScanObservation[], statuses?: Statuses) =>
   outcomeOf(ruleId, observations, statuses)?.state;
@@ -153,14 +153,14 @@ describe.each(CASES)("rule $id", ({ id, present, unknownFacts }) => {
 describe("evaluateRules", () => {
   it("returns exactly one outcome per rule, in RULES order", () => {
     for (const observations of [[], CLEAN, [...ACME_CRAWL, readiness()]]) {
-      expect(evaluateRules(observations, ALL_OK).map((o) => o.ruleId)).toEqual(
+      expect(evaluateRules(observations, ALL_OK, "news").map((o) => o.ruleId)).toEqual(
         RULES.map((r) => r.id),
       );
     }
   });
 
   it("is unknown for every rule without observations or statuses", () => {
-    const outcomes = evaluateRules([], {});
+    const outcomes = evaluateRules([], {}, "news");
     expect(outcomes.every((o) => o.state === "unknown")).toBe(true);
   });
 
@@ -183,10 +183,10 @@ describe("deriveIssues", () => {
       crawlSite(),
       readiness({ llmsTxt: { present: false } }),
     ];
-    const present = evaluateRules(observations, ALL_OK).flatMap((o: RuleOutcome) =>
+    const present = evaluateRules(observations, ALL_OK, "news").flatMap((o: RuleOutcome) =>
       o.state === "present" ? [o.issue] : [],
     );
-    expect(deriveIssues(observations, ALL_OK)).toEqual([...present].sort(byImpact));
+    expect(deriveIssues(observations, ALL_OK, "news")).toEqual([...present].sort(byImpact));
     expect(present.length).toBeGreaterThan(1);
   });
 });

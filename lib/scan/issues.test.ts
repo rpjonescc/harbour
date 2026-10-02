@@ -1,9 +1,9 @@
 import { ACME_CRAWL, ALL_OK, crawlSite, htmlPage, readiness } from "@/tests/helpers/scoring";
-import { deriveIssues as derive } from "./issues";
+import { deriveIssues as derive, evaluateRules } from "./issues";
 import type { ScanObservation } from "./types";
 
 /** Issues with every collector ok: these tests are about the rules, not collector failures. */
-const deriveIssues = (observations: ScanObservation[]) => derive(observations, ALL_OK);
+const deriveIssues = (observations: ScanObservation[]) => derive(observations, ALL_OK, "product");
 
 const at = (path: string) => `https://docs.example.com${path}`;
 const ids = (issues: ReturnType<typeof deriveIssues>) => issues.map((issue) => issue.id);
@@ -91,16 +91,20 @@ describe("deriveIssues", () => {
     expect(issue?.locations).toHaveLength(20);
   });
 
-  it("finds a missing llms.txt, FAQ schema and Preferred Sources button", () => {
-    const issues = deriveIssues([
-      htmlPage("/"),
-      readiness({
-        robotsTxt: { state: "ok", aiCrawlerAccess: null },
-        llmsTxt: { present: false },
-        schema: { pagesChecked: 3, pagesWith: { FAQPage: 0 } },
-        preferredSources: { button: false },
-      }),
-    ]);
+  it("finds a missing llms.txt, FAQ schema and Preferred Sources button on a news site", () => {
+    const issues = derive(
+      [
+        htmlPage("/"),
+        readiness({
+          robotsTxt: { state: "ok", aiCrawlerAccess: null },
+          llmsTxt: { present: false },
+          schema: { pagesChecked: 3, pagesWith: { FAQPage: 0 } },
+          preferredSources: { button: false },
+        }),
+      ],
+      ALL_OK,
+      "news",
+    );
     expect(ids(issues)).toEqual(["no-faq-schema", "no-llms-txt", "no-preferred-sources"]);
     expect(issues.find((i) => i.id === "no-llms-txt")?.locations).toEqual([at("/llms.txt")]);
   });
@@ -128,5 +132,33 @@ describe("deriveIssues", () => {
 
   it("is empty without observations", () => {
     expect(deriveIssues([])).toEqual([]);
+  });
+});
+
+describe("the no-preferred-sources rule", () => {
+  const noButton = readiness({
+    preferredSources: { button: false, buttonPages: [], freshUrls: 0, freshContent: false },
+  });
+  const outcome = (kind: "news" | "product") =>
+    evaluateRules([...ACME_CRAWL, noButton], ALL_OK, kind).find(
+      (o) => o.ruleId === "no-preferred-sources",
+    );
+
+  it("fires for a news site", () => {
+    expect(outcome("news")?.state).toBe("present");
+  });
+
+  it("never applies to a product site, whatever the page carries", () => {
+    expect(outcome("product")?.state).toBe("clear");
+  });
+
+  it("stays unknown when readiness didn't run ok, for either kind (a gap, not a resolution)", () => {
+    const statuses = { ...ALL_OK, readiness: "failed" as const };
+    for (const kind of ["news", "product"] as const) {
+      const found = evaluateRules([...ACME_CRAWL, noButton], statuses, kind).find(
+        (o) => o.ruleId === "no-preferred-sources",
+      );
+      expect(found?.state).toBe("unknown");
+    }
   });
 });

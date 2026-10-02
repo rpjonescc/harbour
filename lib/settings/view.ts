@@ -15,7 +15,7 @@ import { nextScheduledScans } from "@/lib/jobs/scan-schedule";
 import { nextNoteRun, noteEnabled } from "@/lib/note/schedule";
 import { nextBackupRun } from "@/lib/ops/backup-schedule";
 import { type BackupStatus, backupStatus } from "@/lib/ops/backup-status";
-import type { Hue, Product } from "@/lib/products/catalog";
+import type { Hue, Product, ProductKind } from "@/lib/products/catalog";
 import { type KeyRow, keyStatusRows } from "./key-status";
 
 export type ScheduleRow = {
@@ -35,6 +35,7 @@ export type SettingsView = {
     name: string;
     url: string;
     hue: Hue;
+    kind: ProductKind;
     searchConsoleProperty: string | null;
     awaitingApproval: number;
   }[];
@@ -124,6 +125,7 @@ export function settingsView(
       name: p.name,
       url: p.url,
       hue: p.hue,
+      kind: p.kind,
       searchConsoleProperty: p.searchConsoleProperty ?? null,
       awaitingApproval: waiting.get(p.id) ?? 0,
     })),

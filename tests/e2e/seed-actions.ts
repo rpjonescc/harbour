@@ -109,7 +109,7 @@ function seedScan(db: Db, now: Date) {
   if (scores) storeScores(db, scanId, CAFE.id, scores, now);
   syncRuleActions(db, {
     productId: CAFE.id,
-    outcomes: evaluateRules(observations, statuses),
+    outcomes: evaluateRules(observations, statuses, "product"),
     scanDate: isoDateIn("UTC", now),
     now,
   });

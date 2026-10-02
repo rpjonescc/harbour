@@ -16,7 +16,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   return (
     <ProductOverview
       product={product}
-      view={productView(getDb(), id, new Date())}
+      view={productView(getDb(), product, new Date())}
       timeZone={config.HARBOUR_TIMEZONE}
       locale={config.HARBOUR_LOCALE}
     />

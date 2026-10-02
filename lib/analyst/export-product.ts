@@ -15,6 +15,7 @@ const MAX_EXAMPLES = 5;
 type ScoreRow = {
   scanId: number;
   computedAt: Date;
+  formulaVersion: string;
   seo: number | null;
   geo: number | null;
   aeo: number | null;
@@ -28,6 +29,7 @@ function scoreRows(db: Db, productId: string, now: Date): ScoreRow[] {
     .select({
       scanId: scores.scanId,
       computedAt: scores.computedAt,
+      formulaVersion: scores.formulaVersion,
       seo: scores.seo,
       geo: scores.geo,
       aeo: scores.aeo,
@@ -47,19 +49,22 @@ function scoreRows(db: Db, productId: string, now: Date): ScoreRow[] {
     .all();
 }
 
+/** Null when either has no number: no change measured is a gap, not a zero. */
 const diff = (now: number | null | undefined, before: number | null | undefined) =>
   now == null || before == null ? null : now - before;
 
 /**
  * Latest − baseline, where the baseline is the last scored scan at or before the window start,
  * else the first in the window. With nothing to compare (no scan in the window, or just one
- * and none before) every delta is null: no change measured is a gap, not a zero.
+ * and none before) every delta is null: no change measured is a gap, not a zero. So is every
+ * delta against a baseline from another scoring formula, which measures the formula, not the site.
  */
 function deltas(rows: ScoreRow[], series: ScoreRow[]): ProductExport["deltas"] {
   const latest = series.at(-1);
   const before = rows.filter((r) => !series.includes(r)).at(-1);
   const baseline = before ?? (series.length > 1 ? series[0] : undefined);
-  if (!latest || !baseline) return { seo: null, geo: null, aeo: null };
+  if (!latest || !baseline || latest.formulaVersion !== baseline.formulaVersion)
+    return { seo: null, geo: null, aeo: null };
   return {
     seo: diff(latest.seo, baseline.seo),
     geo: diff(latest.geo, baseline.geo),
@@ -132,7 +137,7 @@ export function productExport(
       status,
       evidence,
     })),
-    issues: deriveIssues(observations, statuses).map((issue) => ({
+    issues: deriveIssues(observations, statuses, product.kind).map((issue) => ({
       id: issue.id,
       title: issue.title,
       impact: issue.impact,

@@ -28,6 +28,9 @@ export function ProductsCard({
               {product.name}
               <span className="font-normal text-ink-muted">{product.url}</span>
             </p>
+            {product.kind === "news" && (
+              <p className="text-xs text-ink-muted">Counted as a news site</p>
+            )}
             <p className="text-xs text-ink-muted">
               {product.searchConsoleProperty ? (
                 <>

@@ -1,5 +1,5 @@
 import { scores } from "@/lib/db/schema";
-import { DAY, ok, returns, setup, t0 } from "@/tests/helpers/scan-run";
+import { DAY, ok, product, returns, setup, t0 } from "@/tests/helpers/scan-run";
 import { ACME_CRAWL, cwv, readiness } from "@/tests/helpers/scoring";
 import { scoreScan } from "./score";
 import type { Observation, ScoreContext, ScoreScan } from "./types";
@@ -23,6 +23,14 @@ describe("runScan scoring", () => {
     const { scan } = setup([ok("crawler"), ok("pagespeed", 1, "weekly")], { scoreScan: scorer });
     await scan();
     expect(contexts).toEqual([{ now: t0, productKind: "product", previousPagespeed: null }]);
+  });
+
+  it("hands the scorer the product's kind", async () => {
+    const { scorer, contexts } = recordingScorer();
+    const news = { ...product, kind: "news" as const };
+    const { scan } = setup([ok("crawler")], { scoreScan: scorer, products: [news] });
+    await scan();
+    expect(contexts[0]?.productKind).toBe("news");
   });
 
   it("hands the scorer PageSpeed's last ok result when this scan skipped it", async () => {

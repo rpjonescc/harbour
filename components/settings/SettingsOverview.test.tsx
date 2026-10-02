@@ -76,6 +76,8 @@ describe("SettingsOverview", () => {
       products.getByRole("link", { name: "3 research targets waiting for your OK for Acme Docs" }),
     ).toHaveAttribute("href", "/settings/products/acme-docs");
     expect(screen.queryByText(/example sites, not yours yet/)).toBeNull();
+    // The example's news site says so; the product site, which is the default, doesn't.
+    expect(products.getAllByText("Counted as a news site")).toHaveLength(1);
   });
 
   it("shows the demo-config notice when the example config is loaded", () => {

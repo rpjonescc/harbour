@@ -402,8 +402,8 @@ All settings are environment variables, validated at startup.
 
 `kind` is optional: `"product"` (the default) or `"news"`. Google's Preferred Sources is a Top
 Stories feature, so it only counts toward a news site's Answer-ready score; for every other site
-the "Fresh pages" part of Answer-ready counts fresh content alone. Scoring formula v2 (from this
-change) is the first to use it; earlier scores are kept as they were.
+the "Fresh pages" part of Answer-ready counts fresh content alone. Scores from formula v2
+onwards use it; earlier scores are kept as they were.
 
 `id` is a unique lowercase slug, `url` is http(s), and `hue` is one of `amber`, `violet`,
 `blue`, `green`, `rose` or `teal`. An invalid file stops Harbour with a readable error.

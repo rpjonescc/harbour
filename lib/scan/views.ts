@@ -77,8 +77,19 @@ function snapshot(row: ScoreRow): ScoreSnapshot {
   return { ...rest, totals: { seo, geo, aeo } };
 }
 
-const delta = (now: number | null | undefined, before: number | null | undefined) =>
-  now == null || before == null ? null : now - before;
+/**
+ * A change in one area between two scores; null (a gap, not a change) when either has no number
+ * or they were computed on different formulas, since that move says nothing about the site.
+ */
+function delta(
+  area: AreaKey,
+  latest: ScoreRow | undefined,
+  previous: ScoreRow | undefined,
+): number | null {
+  const [now, before] = [latest?.[area], previous?.[area]];
+  if (now == null || before == null) return null;
+  return latest?.formulaVersion === previous?.formulaVersion ? now - before : null;
+}
 
 /** Latest scores of a product's good scans, deltas against the one before, and the SEO trend. */
 export function productScoreTrend(db: Db, productId: string, now: Date): ScoreTrend {
@@ -94,12 +105,30 @@ export function productScoreTrend(db: Db, productId: string, now: Date): ScoreTr
   return {
     latest: latest ? snapshot(latest) : null,
     deltas: {
-      seo: delta(latest?.seo, previous?.seo),
-      geo: delta(latest?.geo, previous?.geo),
-      aeo: delta(latest?.aeo, previous?.aeo),
+      seo: delta("seo", latest, previous),
+      geo: delta("geo", latest, previous),
+      aeo: delta("aeo", latest, previous),
     },
     trend,
   };
+}
+
+/** The newest change of scoring formula among a product's good scores in the trend window. */
+export type FormulaChange = { from: string; to: string; at: Date };
+
+export function formulaChange(db: Db, productId: string, now: Date): FormulaChange | null {
+  const since = new Date(now.getTime() - TREND_DAYS * DAY_MS);
+  const rows = scoreRows(db, productId, since)
+    .orderBy(asc(scores.computedAt), asc(scores.id))
+    .all();
+  let change: FormulaChange | null = null;
+  for (const [i, row] of rows.entries()) {
+    const before = rows[i - 1];
+    if (before && before.formulaVersion !== row.formulaVersion) {
+      change = { from: before.formulaVersion, to: row.formulaVersion, at: row.computedAt };
+    }
+  }
+  return change;
 }
 
 const forProduct = (productId: string) =>

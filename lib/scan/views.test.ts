@@ -2,6 +2,7 @@ import { claimNextJob, enqueueJob } from "@/lib/jobs/queue";
 import { openTestDb } from "@/tests/helpers/db";
 import { DAY, daysAfter, seedScan, T0 } from "@/tests/helpers/scan-views";
 import {
+  formulaChange,
   latestCollectorRuns,
   latestScanJobAt,
   productScoreTrend,
@@ -42,6 +43,30 @@ describe("productScoreTrend", () => {
     // A delta needs both numbers: AEO has no score now, so it has no delta.
     expect(view.deltas).toEqual({ seo: 5, geo: -2, aeo: null });
     expect(view.trend).toEqual([50, 55]);
+  });
+
+  it("has no deltas across a change of formula: that move is the formula's, not the site's", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-2), totals: totals(50, 40, 60) });
+    seedScan(db, {
+      productId: "acme-docs",
+      at: daysAfter(-1),
+      totals: totals(52, 41, 47),
+      formulaVersion: "v2",
+    });
+    expect(productScoreTrend(db, "acme-docs", T0).deltas).toEqual({
+      seo: null,
+      geo: null,
+      aeo: null,
+    });
+    // The next scan on the same formula compares again.
+    seedScan(db, {
+      productId: "acme-docs",
+      at: daysAfter(0),
+      totals: totals(53, 41, 49),
+      formulaVersion: "v2",
+    });
+    expect(productScoreTrend(db, "acme-docs", T0).deltas).toEqual({ seo: 1, geo: 0, aeo: 2 });
   });
 
   it("ignores failed scans, so a failed run never hides the last good scores", () => {
@@ -173,5 +198,41 @@ describe("latestScanJobAt", () => {
     enqueueJob(db, "scan", { productId: "acme-docs" }, "owner@example.com", T0);
     enqueueJob(db, "scan", { productId: "fern-and-field" }, null, new Date(T0.getTime() + DAY));
     expect(latestScanJobAt(db, "acme-docs")).toEqual(T0);
+  });
+});
+
+describe("formulaChange", () => {
+  it("is null while every score in the window used the same formula", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-3), formulaVersion: "v2" });
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-1), formulaVersion: "v2" });
+    expect(formulaChange(db, "acme-docs", T0)).toBeNull();
+  });
+
+  it("names the first score on the new formula", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-3) });
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-2), formulaVersion: "v2" });
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-1), formulaVersion: "v2" });
+    expect(formulaChange(db, "acme-docs", T0)).toEqual({
+      from: "v1",
+      to: "v2",
+      at: daysAfter(-2),
+    });
+  });
+
+  it("forgets a change that has left the 30-day window, and ignores other products and failed scans", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-50) });
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-45), formulaVersion: "v2" });
+    seedScan(db, { productId: "fern-and-field", at: daysAfter(-2) });
+    seedScan(db, { productId: "fern-and-field", at: daysAfter(-1), formulaVersion: "v2" });
+    seedScan(db, {
+      productId: "acme-docs",
+      at: daysAfter(-1),
+      status: "failed",
+      formulaVersion: "v9",
+    });
+    expect(formulaChange(db, "acme-docs", T0)).toBeNull();
   });
 });
