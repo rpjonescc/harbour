@@ -85,7 +85,7 @@ export const EXAMPLE_ISSUE: Issue = {
   area: "SEO",
   impact: "high",
   title: "2 pages have no title",
-  problem: "These pages have no <title>, so search results and AI answers can't name them.",
+  problem: "Without a title, search results and AI answers have nothing to call these pages.",
   fix: "Give each page a unique, descriptive <title> of 10–60 characters.",
   check: "Each listed URL serves a <title> of 10–60 characters.",
   locations: ["https://docs.example.com/pricing", "https://docs.example.com/guides/setup"],
