@@ -1,18 +1,20 @@
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { SAMPLE_NOTE } from "@/lib/explain/voice/fallback";
 import { makeBrain } from "@/tests/helpers/brain";
 import { openTestDb } from "@/tests/helpers/db";
-import { GOOD_NOTE, noteFileText, seedNoteJob } from "@/tests/helpers/note";
+import { GOOD_NOTE, noteFileText, vouchForFiles } from "@/tests/helpers/note";
 import { noteSlot } from "./view";
 
-const NOW = new Date("2026-10-02T09:00:00Z"); // 10:00 in London
-const STAMPS = ["2026-10-01-0630", "2026-10-02-0630", "2026-09-30-0630"];
-function vouched() {
+/** A db where every stamp-named file in the brain has a succeeded job holding its digest. */
+function vouched(root: string) {
   const db = openTestDb();
-  for (const stamp of STAMPS) seedNoteJob(db, stamp);
+  vouchForFiles(db, root);
   return db;
 }
+const NOW = new Date("2026-10-02T09:00:00Z"); // 10:00 in London
 const base = (root: string, over = {}) => ({
-  db: vouched(),
+  db: vouched(root),
   personality: "warm" as const,
   isSample: false,
   root,
@@ -111,6 +113,20 @@ describe("noteSlot", () => {
     const brain = makeBrain({ "notes/daily/2026-10-02-0630.md": noteFileText(GOOD_NOTE) });
     try {
       expect(noteSlot(base(brain.root, { db: openTestDb() }))?.view.kind).toBe("gap");
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("shows the gap when the file was edited after its job vouched for it", () => {
+    const brain = makeBrain({ "notes/daily/2026-10-02-0630.md": noteFileText(GOOD_NOTE) });
+    try {
+      const db = vouched(brain.root);
+      writeFileSync(
+        join(brain.root, "notes/daily/2026-10-02-0630.md"),
+        noteFileText({ ...GOOD_NOTE, headline: "Edited by an agent" }),
+      );
+      expect(noteSlot(base(brain.root, { db }))?.view.kind).toBe("gap");
     } finally {
       brain.cleanup();
     }

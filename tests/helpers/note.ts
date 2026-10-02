@@ -1,9 +1,11 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Db } from "@/lib/db/client";
 import { jobs } from "@/lib/db/schema";
 import { buildFacts, type FactsInput } from "@/lib/explain/voice/facts";
 import type { Note } from "@/lib/explain/voice/note";
+import { noteDigest } from "@/lib/note/digest";
+import { isNoteStamp } from "@/lib/note/stamp";
 
 /** Fictional facts input for a Friday 06:30 morning: Acme Docs and Lighthouse Café. */
 export const factsInput = (over: Partial<FactsInput> = {}): FactsInput => ({
@@ -108,13 +110,15 @@ export function noteFileText(note: Note): string {
 }
 
 /**
- * A job row for a daily note, as the worker leaves it. Only a succeeded one makes the note at
- * that stamp show (the worker's checker accepted it and the commit succeeded).
+ * A job row for a daily note, as the worker leaves it. A note shows only while a succeeded job
+ * for its stamp holds the digest of the file's bytes in `result` (the checker accepted exactly
+ * those bytes and the commit succeeded).
  */
 export function seedNoteJob(
   db: Db,
   stamp: string,
   status: "queued" | "running" | "ok" | "failed" | "cancelled" = "ok",
+  result: string | null = null,
 ): void {
   db.insert(jobs)
     .values({
@@ -123,15 +127,34 @@ export function seedNoteJob(
       dedupeKey: `daily-note:${JSON.stringify([["stamp", stamp]])}`,
       status,
       requestedBy: null,
+      result,
       createdAt: new Date("2026-10-02T05:30:00Z"),
     })
     .run();
 }
 
-/** A published note: the file in the brain and the succeeded job that vouches for it. */
+/** A succeeded job, with the file's current digest, for every stamp-named note file in `root`. */
+export function vouchForFiles(db: Db, root: string): void {
+  const dir = join(root, "notes/daily");
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return; // no folder (or not a folder): nothing to vouch for
+  }
+  for (const name of names) {
+    const stamp = name.slice(0, -3);
+    if (name.endsWith(".md") && isNoteStamp(stamp)) {
+      seedNoteJob(db, stamp, "ok", noteDigest(readFileSync(join(dir, name))));
+    }
+  }
+}
+
+/** A published note: the file in the brain and the succeeded job that vouches for its bytes. */
 export function seedPublishedNote(db: Db, root: string, stamp: string, note: Note): void {
   const file = join(root, `notes/daily/${stamp}.md`);
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, noteFileText(note));
-  seedNoteJob(db, stamp);
+  const text = noteFileText(note);
+  writeFileSync(file, text);
+  seedNoteJob(db, stamp, "ok", noteDigest(text));
 }

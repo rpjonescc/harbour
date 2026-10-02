@@ -110,7 +110,14 @@ rejected is ever shown.
 Valid notes are written as markdown files with frontmatter into the brain directory
 (`HARBOUR_BRAIN_DIR`), under `notes/daily/YYYY-MM-DD-HHmm.md`, through the existing brain git
 path, like every other agent output. The web process only reads them. Notes older than the
-retention window are pruned with the other agent artefacts. No new database tables.
+retention window are pruned with the other agent artefacts. No new database tables (the
+existing `jobs` table gains one nullable `result` column).
+
+Integrity: the agent can write anywhere in the brain, so a file there proves nothing. The agent
+writes a draft, the worker publishes it only after the checker accepts it, and on success the
+daily-note job stores the sha256 of the published bytes in `jobs.result`. The web process shows a
+note only while a succeeded job for its stamp holds the hash of the file's current bytes: a file
+edited after it was checked, or never checked, is not shown.
 
 ## 4. The Today note card
 

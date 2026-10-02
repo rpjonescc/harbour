@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { AgentSpec, SpecContext } from "@/lib/agents/specs";
 import { checkNote } from "@/lib/explain/voice/check";
 import type { Facts } from "@/lib/explain/voice/facts";
+import { noteDigest } from "./digest";
 import { MAX_NOTE_BYTES, parseNoteFile } from "./file";
 import { dailyNotePrompt, NOTE_PROMPT_VERSION, retryPrompt } from "./prompt";
 import { describeStamp, draftPath, notePath } from "./stamp";
@@ -59,7 +60,10 @@ export function dailyNoteSpec(params: Record<string, string>, context: SpecConte
       // Claude Code's Write will not overwrite a file it has not Read, and this run has no Read:
       // the rejected draft is removed so the retry writes a fresh one.
       reset: (root) => rmSync(join(root, draft), { force: true }),
-      publish: (root) => renameSync(join(root, draft), join(root, path)),
+      publish: (root) => {
+        renameSync(join(root, draft), join(root, path));
+        return noteDigest(readFileSync(join(root, path))); // the bytes that passed the checker
+      },
       retryPrompt: (reason) => retryPrompt(prompt, reason),
     },
   };

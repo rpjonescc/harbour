@@ -25,7 +25,10 @@ function harness(options: { rejections?: number; first?: Attempt; stopping?: boo
     check: () => (rejections-- > 0 ? "Because." : null),
     retryPrompt: (reason) => `retry: ${reason}`,
     reset: () => log.push("reset"),
-    publish: () => log.push("publish"),
+    publish: () => {
+      log.push("publish");
+      return "digest";
+    },
   };
   const run = (spec: { review?: SpecReview }, totalMs = 300_000) =>
     runReviewed({

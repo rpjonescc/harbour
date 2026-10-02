@@ -203,12 +203,15 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     }
     checkOutcome(spec, totalMs, outcome, result);
 
-    publishReviewed(spec, root);
+    const digest = publishReviewed(spec, root);
     const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
     checkRequiredOutputs(spec, paths); // a half-done run is discarded, never committed
-    const { pushed } = commitAndPush({ deps, job, spec, paths, event, setRun }, () => {
-      snapshot = undefined; // committed: nothing left to discard
-    });
+    const { pushed } = commitAndPush(
+      { deps, job, spec, paths, event, setRun, result: digest },
+      () => {
+        snapshot = undefined; // committed: nothing left to discard
+      },
+    );
     return { pushed };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

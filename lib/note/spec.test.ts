@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { makeBrain } from "@/tests/helpers/brain";
 import { FACTS, GOOD_NOTE, noteFileText } from "@/tests/helpers/note";
+import { noteDigest } from "./digest";
 import { dailyNoteSpec, NOTE_TIMEOUT_MS, reviewNote } from "./spec";
 
 const STAMP = "2026-10-02-0630";
@@ -100,7 +101,8 @@ describe("the draft and the published note", () => {
   it("publish moves the draft to the final path, leaving no draft behind", () => {
     const brain = makeBrain({ [DRAFT]: noteFileText(GOOD_NOTE) });
     try {
-      spec()?.publish(brain.root);
+      const digest = spec()?.publish(brain.root);
+      expect(digest).toBe(noteDigest(noteFileText(GOOD_NOTE)));
       expect(existsSync(join(brain.root, DRAFT))).toBe(false);
       expect(readFileSync(join(brain.root, PATH), "utf8")).toBe(noteFileText(GOOD_NOTE));
     } finally {

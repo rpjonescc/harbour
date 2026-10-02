@@ -22,8 +22,11 @@ export type SpecReview = {
   retryPrompt: (reason: string) => string;
   /** Removes the rejected output before the retry (the agent cannot overwrite it). */
   reset: (root: string) => void;
-  /** Moves the accepted output to where it is committed and shown, just before the commit. */
-  publish: (root: string) => void;
+  /**
+   * Moves the accepted output to where it is committed and shown, just before the commit.
+   * Returns the short result recorded on the job: what binds the shown output to what was checked.
+   */
+  publish: (root: string) => string;
 };
 
 export type AgentSpec = {

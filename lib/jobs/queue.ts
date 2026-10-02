@@ -130,11 +130,12 @@ export function finishJob(
   status: "ok" | "failed" | "cancelled",
   error: string | null,
   now = new Date(),
+  result: string | null = null,
 ): boolean {
   return (
     db
       .update(jobs)
-      .set({ status, error, finishedAt: now })
+      .set({ status, error, finishedAt: now, result })
       .where(and(eq(jobs.id, id), eq(jobs.status, "running")))
       .returning({ id: jobs.id })
       .all().length > 0

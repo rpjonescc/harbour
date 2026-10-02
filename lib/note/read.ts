@@ -4,6 +4,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { jobs } from "@/lib/db/schema";
 import type { Note } from "@/lib/explain/voice/note";
+import { noteDigest } from "./digest";
 import { MAX_NOTE_BYTES, parseNoteFile } from "./file";
 import { isNoteStamp, NOTE_DIR, stampInstant } from "./stamp";
 
@@ -35,13 +36,18 @@ function stampsNewestFirst(root: string): string[] {
     .slice(0, SCAN_LIMIT);
 }
 
-/** One file's note, or null when it is not a small regular file holding a valid note. */
-function readOne(root: string, stamp: string): Note | null {
+/**
+ * One file's note, or null when it is not a small regular file holding a valid note whose bytes
+ * are the ones the worker checked (`digests`): an edit after the check hides the file.
+ */
+function readOne(root: string, stamp: string, digests: ReadonlySet<string>): Note | null {
   const file = join(root, NOTE_DIR, `${stamp}.md`);
   try {
     const stats = lstatSync(file); // lstat: a symlink is never followed
     if (!stats.isFile() || stats.size > MAX_NOTE_BYTES) return null;
-    const parsed = parseNoteFile(readFileSync(file, "utf8"));
+    const bytes = readFileSync(file);
+    if (!digests.has(noteDigest(bytes))) return null;
+    const parsed = parseNoteFile(bytes.toString("utf8"));
     return parsed.ok ? parsed.note : null;
   } catch (error) {
     if (isMissing(error)) return null; // removed between listing and reading
@@ -50,26 +56,34 @@ function readOne(root: string, stamp: string): Note | null {
 }
 
 /**
- * The stamps whose note the worker accepted: a succeeded daily-note job exists only once the
- * checker passed the note and it was committed. The agent can write any file in the brain but
- * cannot write the jobs table, so this is the one rule a file inside the brain cannot fake.
+ * What the worker accepted, per stamp: the digests of the note bytes its succeeded daily-note
+ * jobs stored. A succeeded job exists only once the checker passed the note and it was
+ * committed. The agent can write any file in the brain, and edit one it has Read, but it cannot
+ * write the jobs table: so a file is shown only while it is byte for byte what was checked.
  */
-function publishedStamps(db: Db): Set<string> {
+function acceptedDigests(db: Db): Map<string, Set<string>> {
   const rows = db
-    .select({ params: jobs.params })
+    .select({ params: jobs.params, result: jobs.result })
     .from(jobs)
     .where(and(eq(jobs.kind, "daily-note"), eq(jobs.status, "ok")))
     .orderBy(desc(jobs.id))
     .limit(JOB_LIMIT)
     .all();
-  return new Set(rows.map((row) => row.params.stamp ?? ""));
+  const accepted = new Map<string, Set<string>>();
+  for (const { params, result } of rows) {
+    if (!params.stamp || !result) continue; // no digest: nothing vouches for any bytes
+    const set = accepted.get(params.stamp) ?? new Set<string>();
+    accepted.set(params.stamp, set.add(result));
+  }
+  return accepted;
 }
 
 /**
  * The published notes in the brain, newest first (at most `limit`). The web process only reads.
- * A file is shown only when a succeeded job vouches for its stamp (so never a stray file, a
- * hand-written one, or one whose job is still running or failed), and it is still re-validated
- * here: a file that is not a small regular file holding a valid note is skipped.
+ * A file is shown only when a succeeded job vouches for its stamp and its bytes (so never a
+ * stray file, a hand-written or edited one, or one whose job is still running or failed), and it
+ * is still re-validated here: a file that is not a small regular file holding a valid note is
+ * skipped.
  */
 export function readNotes(
   db: Db,
@@ -79,13 +93,14 @@ export function readNotes(
   limit: number,
 ): ShownNote[] {
   const notes: ShownNote[] = [];
-  const published = publishedStamps(db);
+  const accepted = acceptedDigests(db);
   for (const stamp of stampsNewestFirst(root)) {
     if (notes.length >= limit) break;
-    if (!published.has(stamp)) continue;
+    const digests = accepted.get(stamp);
+    if (!digests) continue;
     const at = stampInstant(stamp, timeZone);
     if (at.getTime() > now.getTime() + SKEW_MS) continue;
-    const note = readOne(root, stamp);
+    const note = readOne(root, stamp, digests);
     if (note) notes.push({ stamp, at, note });
   }
   return notes;

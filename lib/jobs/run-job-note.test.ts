@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { agentRuns, costs } from "@/lib/db/schema";
 import { checkNote } from "@/lib/explain/voice/check";
+import { noteDigest } from "@/lib/note/digest";
 import { parseNoteFile } from "@/lib/note/file";
 import { NOTE_PROMPT_VERSION } from "@/lib/note/prompt";
 import { FACTS, TROUBLE_FACTS, WEEKEND_FACTS } from "@/tests/helpers/note";
@@ -39,6 +40,9 @@ describe("runAgentJob for the daily note", () => {
     try {
       const job = await runOne(deps, "daily-note", PARAMS);
       expect(job).toMatchObject({ status: "ok", error: null });
+      // The job records the digest of the exact bytes that passed the checker and were committed.
+      expect(job.result).toBe(noteDigest(readFileSync(join(brain.root, PATH))));
+      expect(job.result).toBe(noteDigest(brain.git("show", `HEAD:${PATH}`)));
       expect(brain.git("log", "-1", "--format=%s").trim()).toBe(
         "agent(daily-note): 2026-10-02 06:30",
       );
@@ -158,6 +162,8 @@ describe("runAgentJob for the daily note", () => {
       expect(events.some((e) => e.kind === "text")).toBe(false);
       expect(JSON.stringify([run, events])).not.toContain("Sam");
       expect(events.map((e) => e.text)).toContain("Started Daily note: 2026-10-02 06:30");
+      // No path the agent chose appears either: tool steps carry a fixed marker.
+      expect(events.some((e) => e.text.includes("draft"))).toBe(false);
     } finally {
       brain.cleanup();
     }
@@ -168,7 +174,12 @@ describe("runAgentJob for the daily note", () => {
     try {
       const job = await runOne(deps, "daily-note", PARAMS);
       expect(job).toMatchObject({ status: "failed", error: "The note agent didn't finish." });
-      const record = JSON.stringify([job, eventsSince(db, job.id, 0)]);
+      // Not the whole row: its timestamps are digits too.
+      const record = JSON.stringify([
+        job.error,
+        job.result,
+        eventsSince(db, job.id, 0).map((e) => e.text),
+      ]);
       expect(record).not.toContain("Sam");
       expect(record).not.toContain("93");
     } finally {
@@ -181,6 +192,7 @@ describe("runAgentJob for the daily note", () => {
     try {
       const job = await runOne(deps, "daily-note", PARAMS);
       expect(job.status).toBe("failed");
+      expect(job.result).toBeNull();
       expect(existsSync(join(brain.root, DRAFT))).toBe(false);
       expect(existsSync(join(brain.root, PATH))).toBe(false);
       expect(brain.git("status", "--porcelain")).toBe("");

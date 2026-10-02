@@ -17,6 +17,7 @@ const job = (id: number, week: string): Job => ({
   cancelRequested: false,
   notBefore: null,
   error: null,
+  result: null,
 });
 
 describe("JobList", () => {

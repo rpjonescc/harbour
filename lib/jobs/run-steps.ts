@@ -14,9 +14,9 @@ import type { TouchedLog } from "./touched-log";
 
 // The steps of an agent run that sit between the git gate and the finished job row.
 
-/** Stands in for the output tails of a run whose words must not be kept (see `AgentSpec.quiet`). */
 /** What a quiet run says when the agent did not finish: no agent text, ever. */
 export const QUIET_FAILURE = "The note agent didn't finish.";
+/** Stands in for the output tails of a run whose words must not be kept (see `AgentSpec.quiet`). */
 export const QUIET_TAIL = "(not recorded for the daily note)";
 
 export type AttemptInput = {
@@ -32,6 +32,8 @@ export type AttemptInput = {
 function quietly(spec: AgentSpec, e: AgentEvent, event: AttemptInput["event"]): void {
   if (!spec.quiet) event(e.kind, e.text);
   else if (e.kind === "error") event("error", "A tool call failed");
+  else if (e.kind === "tool")
+    event("tool", "Used a tool"); // the path is the agent's choice
   else if (e.kind !== "text") event(e.kind, e.text);
 }
 
@@ -63,12 +65,12 @@ export function cliAttempt({ deps, job, spec, token, log, event }: AttemptInput)
  * The final word on a reviewed run: output still rejected means nothing is committed; accepted
  * output is moved to its final place immediately before the commit.
  */
-export function publishReviewed(spec: AgentSpec, root: string): void {
+export function publishReviewed(spec: AgentSpec, root: string): string | null {
   const review = spec.review;
-  if (!review) return;
+  if (!review) return null;
   const rejected = review.check(root);
   if (rejected !== null) throw new JobFailure(`The agent's output was rejected: ${rejected}`);
-  review.publish(root);
+  return review.publish(root);
 }
 
 type CommitInput = {
@@ -78,6 +80,8 @@ type CommitInput = {
   paths: string[];
   event: (kind: EventKind, text: string) => void;
   setRun: (values: Partial<typeof agentRuns.$inferInsert>) => unknown;
+  /** What `publishReviewed` returned: stored on the job when it succeeds. */
+  result: string | null;
 };
 
 /**
@@ -85,7 +89,7 @@ type CommitInput = {
  * `committed` runs right after the commit, so the caller stops treating the run as discardable.
  */
 export function commitAndPush(
-  { deps, job, spec, paths, event, setRun }: CommitInput,
+  { deps, job, spec, paths, event, setRun, result }: CommitInput,
   committed: () => void,
 ): { pushed: boolean } {
   const { db, root } = deps;
@@ -105,6 +109,6 @@ export function commitAndPush(
   setRun({ pushed: push.ok });
   if (push.ok) event("status", "Pushed to the brain repository");
   else event("error", `Push failed — commit kept locally, will retry automatically: ${push.error}`);
-  finish(db, job.id, "ok", null, deps.now());
+  finish(db, job.id, "ok", null, deps.now(), result);
   return { pushed: push.ok };
 }
