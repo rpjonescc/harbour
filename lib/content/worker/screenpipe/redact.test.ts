@@ -53,6 +53,34 @@ describe("filterSnippets: dropping", () => {
     expect(one("Acme Docs update", app, window)).toBeUndefined();
   });
 
+  it.each([
+    ["Code", "docker-compose.yml"],
+    ["Code", "composer.json - acme"],
+    ["Code", "login.ts - acme"],
+    ["Code", "private-notes.md"],
+    ["Code", "How to meet deadlines"],
+    ["Code", "signal handling"],
+    ["Firefox", "login.ts - Acme Docs"],
+  ])(
+    "keeps an editor tab or ordinary title that only contains a deny word: %s, %j",
+    (app, window) => {
+      expect(one("Acme Docs update", app, window)).toBe("Acme Docs update");
+    },
+  );
+
+  it.each([
+    ["Google Chrome", "Compose mail - Gmail"],
+    ["Google Chrome", "general - Slack"],
+    ["Microsoft Edge", "Chat | Microsoft Teams"],
+    ["Google Chrome", "Example Bank - Accounts"],
+    ["Firefox", "Log in to Acme"],
+    ["Safari", "Private browsing"],
+    ["Google Chrome", "How to meet deadlines"],
+    ["Code", "Slack"],
+  ])("drops a browser or bare app title: %s, %j", (app, window) => {
+    expect(one("Acme Docs update", app, window)).toBeUndefined();
+  });
+
   it("treats an unknown window or app as private, because the deny-list cannot be applied", () => {
     expect(one("Acme Docs update", "Editor", null)).toBeUndefined();
     expect(one("Acme Docs update", "Editor", "")).toBeUndefined();
@@ -133,6 +161,20 @@ describe("filterSnippets: redacting", () => {
     );
   });
 
+  it.each([
+    [
+      "a prefixed key beside digits",
+      "Acme Docs key sk-abcdef12345678 ok",
+      "Acme Docs key [token] ok",
+    ],
+    ["a password with no separator", "Acme Docs password hunter2 ok", "Acme Docs [redacted] ok"],
+    [
+      "an authorization header",
+      "Acme Docs Authorization: Bearer abc123 ok",
+      "Acme Docs [redacted] ok",
+    ],
+  ])("replaces %s whole", (_label, text, expected) => expect(one(text)).toBe(expected));
+
   it("does not let an empty never-mention term redact everything", () => {
     const rules = { ...RULES, neverMention: ["", " \u200b "] };
     expect(filterSnippets([snip("Acme Docs update")], rules).kept).toEqual(["Acme Docs update"]);
@@ -203,6 +245,30 @@ describe("filterSnippets: normalising and capping", () => {
     one(`Acme Docs ${"a1".repeat(5000)}`);
     one(`Acme Docs ${"-".repeat(10_000)}`);
     expect(Date.now() - started).toBeLessThan(1500);
+  });
+});
+
+describe("filterSnippets: bounded work", () => {
+  it("processes at most 100 snippets and 200,000 characters, and says it truncated", () => {
+    const many = Array.from({ length: 5000 }, (_, i) => snip(`Acme Docs ${i}`));
+    expect(filterSnippets(many, RULES)).toMatchObject({ truncated: true });
+    expect(filterSnippets(many, RULES).kept.length).toBeLessThanOrEqual(100);
+    const big = Array.from({ length: 100 }, () => snip(`Acme Docs ${"a1 ".repeat(3300)}`));
+    expect(filterSnippets(big, RULES).truncated).toBe(true);
+  });
+
+  it("finishes a hostile batch in bounded time", () => {
+    const hostile = [
+      `Acme Docs ${"1 ".repeat(4900)}`,
+      `Acme Docs ${"a1".repeat(4900)}`,
+      `Acme Docs ${"-".repeat(9900)}`,
+      `Acme Docs ${"a.".repeat(4900)}`,
+      `Acme Docs ${"@a ".repeat(3300)}`,
+    ];
+    const batch = Array.from({ length: 5000 }, (_, i) => snip(hostile[i % hostile.length] ?? ""));
+    const started = Date.now();
+    filterSnippets(batch, RULES);
+    expect(Date.now() - started).toBeLessThan(5000);
   });
 });
 

@@ -51,7 +51,9 @@ export const DENY_WINDOW_PATTERNS = [
   "gmail",
   "webmail",
   "proton",
-  "compose",
+  "compose mail",
+  "log in",
+  "private browsing",
   "slack",
   "discord",
   "whatsapp",
@@ -76,6 +78,25 @@ const SNIPPET_CHARS = 240;
 // The schema already caps a snippet at this; a longer one is refused rather than cut, because a
 // cut before redaction can leave a fragment of a secret or a forbidden term.
 const MAX_INPUT_CHARS = 10_000;
+// One call's work is bounded however many snippets arrive: the rest are dropped and `truncated`
+// is set, so a hostile batch cannot hold the worker.
+const MAX_SNIPPETS = 100;
+const MAX_TOTAL_CHARS = 200_000;
+// File extensions: a title like "login.ts" or "docker-compose.yml" is an editor tab, not a login page.
+const FILE_NAME =
+  /[\w.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|json|md|mdx|yml|yaml|toml|py|rs|go|rb|java|kt|swift|c|h|cpp|cs|php|sh|sql|css|scss|html|txt|csv|lock|env|ini|cfg|conf|log)(?![\w])/g;
+const BROWSERS = [
+  "chrome",
+  "chromium",
+  "firefox",
+  "safari",
+  "edge",
+  "brave",
+  "opera",
+  "vivaldi",
+  "arc",
+  "zen",
+];
 const PRODUCT_BYTES = 24 * 1024;
 
 const TLDS =
@@ -134,6 +155,7 @@ function linkRules(host: string): Rule[] {
   ];
 }
 
+// After the secret rules: a key like "sk-abcdef12345678" is one token, not a token and a phone number.
 const NUMBER_RULES: Rule[] = [
   [/(?<![\d.])\d{1,3}(?:\.\d{1,3}){3}(?![\d.]\d)/g, "[ip]"],
   [/(?<![0-9a-f:])(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}(?![0-9a-f:])/gi, "[ip]"],
@@ -144,6 +166,8 @@ const NUMBER_RULES: Rule[] = [
 
 const SECRET_RULES: Rule[] = [
   [/(?<![\w@.])@\w{2,}/g, "[handle]"],
+  [/\bauthorization\s*[:=]\s*(?:bearer|basic|token)?\s*\S+/gi, "[redacted]"],
+  [/\b(?:password|passwd|passcode)\s+(?:is\s+)?\S+/gi, "[redacted]"],
   // A name ending in a secret word ("DB_PASSWORD", "client_secret") and its value.
   [
     /(?<![\w-])[\w-]*(?:password|passwd|pwd|pass|passcode|pin|secret|api[ _-]?key|apikey|token|auth)\s*[:=]\s*\S+/gi,
@@ -183,7 +207,7 @@ function compile(rules: RedactRules): Compiled {
       const pattern = typeof t === "string" ? termPattern(t) : null;
       return pattern === null ? [] : [pattern];
     }),
-    rules: [...linkRules(bareHost(rules.productHost)), ...NUMBER_RULES, ...SECRET_RULES],
+    rules: [...linkRules(bareHost(rules.productHost)), ...SECRET_RULES, ...NUMBER_RULES],
   };
 }
 
@@ -191,6 +215,8 @@ const hasWord = (haystack: string, word: string): boolean =>
   new RegExp(`(?<![a-z0-9])${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![a-z0-9])`).test(
     haystack,
   );
+
+const isBrowser = (appKey: string): boolean => BROWSERS.some((name) => hasWord(appKey, name));
 
 const containsAny = (haystack: string, needles: readonly string[]): boolean =>
   needles.some((n) => haystack.includes(n));
@@ -205,11 +231,13 @@ function isExcluded(snippet: Snippet, compiled: Compiled): boolean {
   const appKey = matchKey(app);
   const windowKey = matchKey(window);
   if (appKey === "" || windowKey === "") return true;
+  const titleKey = windowKey.replace(FILE_NAME, " ");
   // A browser tab can be webmail or chat, so the window title is held to the app list as well.
   return (
     containsAny(appKey, compiled.excluded) ||
-    containsAny(windowKey, DENY_WINDOW_PATTERNS) ||
-    compiled.excluded.some((name) => hasWord(windowKey, name))
+    containsAny(titleKey, DENY_WINDOW_PATTERNS) ||
+    ((isBrowser(appKey) || compiled.excluded.includes(windowKey)) &&
+      compiled.excluded.some((name) => hasWord(windowKey, name)))
   );
 }
 
@@ -242,7 +270,11 @@ export function filterSnippets(
   const compiled = compile(rules);
   const kept: string[] = [];
   let bytes = 0;
-  for (const snippet of snippets) {
+  let chars = 0;
+  const truncated = snippets.length > MAX_SNIPPETS;
+  for (const snippet of snippets.slice(0, MAX_SNIPPETS)) {
+    chars += typeof snippet?.text === "string" ? snippet.text.length : 0;
+    if (chars > MAX_TOTAL_CHARS) return { kept, truncated: true };
     const text = redactOne(snippet, compiled);
     if (text === null) continue;
     const size = Buffer.byteLength(text, "utf8") + 1;
@@ -250,7 +282,7 @@ export function filterSnippets(
     bytes += size;
     kept.push(text);
   }
-  return { kept, truncated: false };
+  return { kept, truncated };
 }
 
 function redactOne(snippet: Snippet, compiled: Compiled): string | null {
