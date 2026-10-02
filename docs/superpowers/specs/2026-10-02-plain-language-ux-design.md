@@ -133,9 +133,16 @@ and appears on `/design`.
 ### 5.1 Today
 
 1. Date and "last checked …".
-2. **Briefing sentence:** overall health plus the single biggest opportunity, chosen by rule:
-   the lowest area verdict across products that has an open action. Under it, a sub-line:
-   "N things worth doing · Claude is handling M · nothing is broken" (or what is broken).
+2. **Briefing sentence:** overall health plus the single biggest opportunity, chosen by rule.
+   Health is the verdict band of the rounded mean of every area score there is ("Your sites are
+   in fair shape." / "Your sites need some work."; "Your site …" with one product; "Harbour has
+   no scores yet, so there's no verdict." with none). The opportunity is the lowest-scoring area
+   (with a score) across products that has an active (open or in-progress) action — ties go to
+   the earlier product, then Found on Google → Recommended by AI assistants → Answer-ready —
+   written "Biggest opportunity: Answer-ready for Acme Docs (needs work)." and left out when
+   none qualifies. Under it, a sub-line: "N things worth doing · Claude is handling M · nothing
+   is broken" (M only when Claude is on something; otherwise the failing data source, or "2
+   data sources had a problem in the last check").
 3. **Product table:** one row per product, one column per area, showing `<VerdictLine>` in
    compact form.
 4. **Worth doing next:** the top 3 actions as plain cards. Each card has a title, a one-line
