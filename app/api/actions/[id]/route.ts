@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { applyOwnerChange } from "@/lib/actions/owner-change";
+import { applyStatusChange } from "@/lib/actions/status-change";
 import { getSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
@@ -41,10 +41,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { from, ...change } = body.data;
   const now = new Date();
-  const result = applyOwnerChange(getDb(), {
+  const result = applyStatusChange(getDb(), {
     id,
     from,
     change,
+    actor: "owner",
     login: session.login,
     productIds: getProducts().map((p) => p.id),
     today: isoDateIn(config.HARBOUR_TIMEZONE, now),
