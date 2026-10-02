@@ -9,7 +9,6 @@ import { voiceInvalidMessage, voiceMissingMessage } from "@/lib/explain/content"
 import type { ContentProduct } from "@/lib/products/content";
 import { chainView } from "./chain-pieces";
 import { DraftStartError } from "./draft";
-import { ownHosts } from "./draft-check";
 import type { ContentRunContext } from "./run-context";
 
 /** What every gate run needs before it asks an agent anything; plain `DraftStartError`s when it is missing. */
@@ -44,7 +43,7 @@ export function gateInputs(
     voice: voice.profile,
     view,
     targets,
-    hosts: ownHosts(product.url),
+    hosts: [...product.allowedHosts],
     source: readSource(content.root, ideaId),
   };
 }

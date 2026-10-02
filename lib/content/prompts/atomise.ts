@@ -16,7 +16,7 @@ export function atomisePrompt(input: {
   voice: VoiceProfile;
   platforms: readonly Platform[];
   productName: string;
-  productUrl: string;
+  productUrl: string | null;
   source: { id: string; text: string }[];
   questions: readonly string[];
   facts: string;
@@ -29,8 +29,8 @@ export function atomisePrompt(input: {
   return `${promptHeader(input.jobId, "atomise")}
 ${instructionBlock(input.skill)}
 ${voiceRules(input.voice)}
-Do the Atomise job for ${input.productName} (${input.productUrl}), once for each of these platforms and no others: ${input.platforms.join(", ")}. There is no user to ask: put anything you cannot settle in each piece's "questions".
-Link only to ${input.productUrl}. Every number, year, price and statistic must come from the source or the facts. Each claim's "trace" is a paragraph id as "source:p3" or a reference from the facts list, or "none".
+Do the Atomise job for ${input.productName}${input.productUrl ? ` (${input.productUrl})` : ""}, once for each of these platforms and no others: ${input.platforms.join(", ")}. There is no user to ask: put anything you cannot settle in each piece's "questions".
+${input.productUrl ? `Link only to ${input.productUrl}.` : "Include no links at all."} Every number, year, price and statistic must come from the source or the facts. Each claim's "trace" is a paragraph id as "source:p3" or a reference from the facts list, or "none".
 Write only ${work}, as JSON of exactly this shape, then reply "done":
 {"pieces":[{"platform":"linkedin","content":{...},"claims":[{"text":"...","trace":"source:p3 or a facts reference, or none","flag":"optional: health|legal|curriculum|pricing|testimonial|comparative"}],"questions":[]}]}
 Each piece's "content" has the shape of its platform:

@@ -47,3 +47,68 @@ describe("content config", () => {
     ).toThrow();
   });
 });
+
+describe("content-only projects (spec 18)", () => {
+  const project = { name: "Acme Tools", terms: ["acme tools"] };
+  const parse = (projects: unknown, extra: Record<string, unknown> = {}) =>
+    parseProductConfig({ products, content: { projects, ...extra } });
+
+  it("lists a project after the sites, with no URL, no allowed host and every platform by default", () => {
+    const config = parseProductConfig({
+      products,
+      content: {
+        products: { "acme-docs": { terms: ["acme docs"] } },
+        projects: { "acme-tools": project },
+      },
+    });
+    expect(contentProducts(config).map((p) => [p.id, p.kind])).toEqual([
+      ["acme-docs", "site"],
+      ["acme-tools", "project"],
+    ]);
+    const [site, tools] = contentProducts(config);
+    expect(site).toMatchObject({
+      url: "https://docs.example.com",
+      allowedHosts: ["docs.example.com"],
+    });
+    expect(tools).toMatchObject({
+      name: "Acme Tools",
+      url: null,
+      allowedHosts: [],
+      platforms: ["linkedin", "x", "instagram", "facebook", "blog", "website"],
+    });
+  });
+
+  it("strips www. from a site's allowed host and allows none for an odd URL's host check", () => {
+    const config = parseProductConfig({
+      products: [{ ...products[0], url: "https://www.docs.example.com/guide" }],
+      content: { products: { "acme-docs": { terms: ["acme docs"] } } },
+    });
+    expect(contentProducts(config)[0]?.allowedHosts).toEqual(["docs.example.com"]);
+  });
+
+  it("is not a product: the product list is unchanged", () => {
+    const config = parse({ "acme-tools": project });
+    expect(config.products.map((p) => p.id)).toEqual(["acme-docs", "lighthouse-cafe"]);
+  });
+
+  it.each([
+    ["a product id", { "acme-docs": project }],
+    ["an uppercase id", { Acme: project }],
+    ["a path id", { "../x": project }],
+    ["a 41-character id", { [`a${"b".repeat(40)}`]: project }],
+    ["no name", { "acme-tools": { terms: ["acme tools"] } }],
+    ["an empty name", { "acme-tools": { ...project, name: " " } }],
+    ["no terms", { "acme-tools": { ...project, terms: [] } }],
+    ["a one-character term", { "acme-tools": { ...project, terms: ["a"] } }],
+    ["a url", { "acme-tools": { ...project, url: "https://example.com" } }],
+    ["an unknown platform", { "acme-tools": { ...project, platforms: ["tiktok"] } }],
+  ])("rejects %s", (_label, projects) => {
+    expect(() => parse(projects)).toThrow();
+  });
+
+  it("rejects an id that is already a content.products key, and says which one", () => {
+    expect(() =>
+      parse({ "acme-docs": project }, { products: { "acme-docs": { terms: ["acme docs"] } } }),
+    ).toThrow(/acme-docs/);
+  });
+});

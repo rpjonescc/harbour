@@ -1,5 +1,6 @@
 import { runDigestJob } from "@/lib/content/worker/digest-job";
 import { enqueueJob } from "@/lib/jobs/queue";
+import type { ContentProduct } from "@/lib/products/content";
 import { HOSTILE_SNIPPETS } from "@/tests/fixtures/content/hostile-snippets";
 import { ACME, contentSetup } from "./content";
 import { type FakeOptions, startFakeScreenpipe } from "./fake-screenpipe";
@@ -43,6 +44,8 @@ export async function digest(
     day?: string;
     /** Content on for a second product, so the job makes two activity requests. */
     twoProducts?: boolean;
+    /** Replaces the content products (to put a content-only project in the run). */
+    products?: ContentProduct[];
     /** The first product's content terms (one /search request each). */
     terms?: string[];
     /** Screenpipe client limits, to make a hung server fail quickly. */
@@ -71,6 +74,7 @@ export async function digest(
   if (options.terms && s.deps.content) {
     s.deps.content.products = [{ ...ACME, terms: options.terms }];
   }
+  if (options.products && s.deps.content) s.deps.content.products = options.products;
   if (options.twoProducts && s.deps.content) {
     s.deps.content.products = [
       ACME,

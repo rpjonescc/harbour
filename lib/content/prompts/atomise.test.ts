@@ -3,7 +3,10 @@ import { loadSkill } from "@/lib/content/worker/skills";
 import { FIXTURE_SKILL_TEXT, makeSkillsDir, VOICE_ACME } from "@/tests/helpers/content";
 import { atomisePrompt } from "./atomise";
 
-function build(platforms: ("linkedin" | "x" | "instagram" | "facebook" | "blog" | "website")[]) {
+function build(
+  platforms: ("linkedin" | "x" | "instagram" | "facebook" | "blog" | "website")[],
+  productUrl: string | null = "https://docs.example.com",
+) {
   const { dir, cleanup } = makeSkillsDir();
   try {
     const voice = parseVoiceProfile(VOICE_ACME, "acme-docs");
@@ -14,7 +17,7 @@ function build(platforms: ("linkedin" | "x" | "instagram" | "facebook" | "blog" 
       voice: voice.value,
       platforms,
       productName: "Acme Docs",
-      productUrl: "https://docs.example.com",
+      productUrl,
       source: [
         { id: "p1", text: "Publish docs in a short first deploy." },
         { id: "p2", text: "Connect a repository." },
@@ -47,5 +50,11 @@ describe("atomisePrompt", () => {
     expect(prompt).toContain("LinkedIn");
     expect(prompt).not.toContain('"posts"');
     expect(prompt).not.toContain("Instagram (");
+  });
+
+  it("tells the agent to include no links for a project with no website", () => {
+    const prompt = build(["linkedin"], null);
+    expect(prompt).toContain("Include no links at all.");
+    expect(prompt).not.toMatch(/Link only to|\(null\)/);
   });
 });

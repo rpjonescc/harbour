@@ -107,7 +107,11 @@ export function buildFactsPack(input: {
 }): FactItem[] {
   const { root, product, idea } = input;
   const items: FactItem[] = [
-    { ref: `product:${product.id}`, text: `${product.name} at ${product.url}`, truncated: false },
+    {
+      ref: `product:${product.id}`,
+      text: product.url ? `${product.name} at ${product.url}` : product.name,
+      truncated: false,
+    },
   ];
   const pillar = input.pillars.find((p) => p.key === idea.pillar);
   if (pillar) {

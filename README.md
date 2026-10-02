@@ -350,7 +350,8 @@ Second Brain; the Copy buttons give you the text without any of Harbour's notes.
 2. In `harbour.config.json` add a `content` block that lists, for each product, the words that
    appear on your screen when you work on it (`terms`, 1 to 10) and optionally which `platforms`
    to write for (all six by default). Add `excludeApps` for any app Harbour must never read. See
-   `harbour.config.example.json`.
+   `harbour.config.example.json`. For something you write about that has no website, add it under
+   `content.projects` instead (see [Projects without a website](#projects-without-a-website)).
 3. For each product, write a **voice profile** at `content/voices/<product id>.md` in your Second
    Brain. The format and a fictional example are in `skills/atomizer/voice-profile.md`; the
    Content page shows the template too. Harbour refuses to write for a product without one.
@@ -359,6 +360,30 @@ Second Brain; the Copy buttons give you the text without any of Harbour's notes.
    Harbour, and `HARBOUR_CLAUDE_OAUTH_TOKEN` must be set.
 5. Optional: have **Discovery** (Agents page) propose content pillars for a product, then approve
    them on the product's research targets page. At most six pillars are kept per product.
+
+#### Projects without a website
+
+A project that is not a site you monitor (a side project, a book, a talk) can still get content.
+List it under `content.projects` in `harbour.config.json`, with a `name`, 1 to 10 `terms` and
+optionally `platforms` (all six by default):
+
+```json
+{
+  "content": {
+    "projects": {
+      "acme-tools": { "name": "Acme Tools", "terms": ["acme tools"], "platforms": ["linkedin", "blog"] }
+    }
+  }
+}
+```
+
+The `id` (here `acme-tools`) is a lowercase slug of up to 40 characters, and it must not be the id
+of one of your products. A project is not a product: Harbour does not check or score it, and it
+does not appear on Today, Actions or the product pages, so it needs no `url`, `hue` or Search
+Console property. Everywhere else it works like a site: the digest looks for its terms, ideas are
+suggested for it, and it needs a voice profile at `content/voices/<id>.md` and notes at
+`products/<id>/notes.md` in your Second Brain. Because it has no website, a piece for it may carry
+no links at all: any link is refused.
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -579,7 +604,7 @@ Optionally, `ownerName` (at most 40 characters: letters, spaces, apostrophes, do
 used only as a first name in the daily note's greeting; it stays in this gitignored file and is
 never logged.
 
-Optionally `content` (see [Content machine](#content-machine)) turns the content machine on per product with its `terms`.
+Optionally `content` (see [Content machine](#content-machine)) turns the content machine on per product with its `terms`, and `content.projects` does the same for a project with no website.
 
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.

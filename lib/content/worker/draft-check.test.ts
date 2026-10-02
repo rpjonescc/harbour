@@ -1,7 +1,7 @@
-import { type DraftWork, draftProblem, inventedNumbers, ownHosts } from "./draft-check";
+import { type DraftWork, draftProblem, inventedNumbers } from "./draft-check";
 import type { FactItem } from "./facts-pack";
 
-const HOSTS = ownHosts("https://docs.example.com");
+const HOSTS = ["docs.example.com"];
 const PACK: FactItem[] = [
   { ref: "product:acme-docs", text: "Acme Docs at https://docs.example.com", truncated: false },
   { ref: "brain:products/acme-docs/notes.md", text: "Three projects.", truncated: false },
@@ -64,8 +64,7 @@ describe("draftProblem", () => {
     ).toMatch(/question/);
   });
 
-  it("allows no link at all when the product's URL is unusable", () => {
-    expect(ownHosts("not a url")).toEqual([]);
+  it("allows no link at all when the product has no allowed host", () => {
     expect(draftProblem(work("see https://docs.example.com"), PACK, [])).toMatch(/plain text/);
   });
 });

@@ -1299,6 +1299,18 @@ Two assumptions could not be tested without a real Screenpipe and a real model, 
   run. If the real CLI does not read stdin the first content run fails with a plain sentence; the
   fix is in `claudeArgs`.
 
+### 17.4a Content-only projects, as built
+
+`lib/products/content.ts` is the one accessor: `contentProducts(config)` returns every content
+product as `{ id, name, kind: "site" | "project", url (null for a project), terms, platforms,
+allowedHosts }`, sites first, then projects in config order. `getContentProducts()` is the only
+way the content code, the worker and the pages obtain them, so no call site branches on the config
+shape. `allowedHosts` replaces the old `ownHosts(url)`: the site's own host (without `www.`), or
+`[]` for a project, so every link in a draft, piece or edit is rejected. Prompts and the facts pack
+name a project without an address. The config check rejects a project id that is a product id or a
+`content.products` key. `getProducts()` is unchanged, so scans, scores, the analyst and the weekly
+report never see a project. A project still needs `products/<id>/notes.md` for ideas, as a site does.
+
 ### 17.5 Not built
 
 Postiz drafts (§11), the Search Console and approved-target inputs to ideas, a separate

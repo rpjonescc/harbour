@@ -48,19 +48,27 @@ const ownerNameSchema = z
     "ownerName may only use letters, spaces, apostrophes, dots and hyphens",
   );
 
-const contentProductSchema = z.strictObject({
-  terms: z.array(z.string().trim().min(2).max(40)).min(1).max(10),
-  platforms: z
-    .array(platformSchema)
-    .min(1)
-    .refine((list) => new Set(list).size === list.length, "list each platform once")
-    .default([...PLATFORMS]),
+const termsSchema = z.array(z.string().trim().min(2).max(40)).min(1).max(10);
+const platformsSchema = z
+  .array(platformSchema)
+  .min(1)
+  .refine((list) => new Set(list).size === list.length, "list each platform once")
+  .default([...PLATFORMS]);
+
+const contentProductSchema = z.strictObject({ terms: termsSchema, platforms: platformsSchema });
+
+// A project with no website: content only, so no url, hue or Search Console property.
+const contentProjectSchema = z.strictObject({
+  name: z.string().trim().min(1, "name must not be empty").max(80),
+  terms: termsSchema,
+  platforms: platformsSchema,
 });
 
 // Postiz settings are not part of this version: an unknown key is an error, not ignored.
 const contentSchema = z.strictObject({
   excludeApps: z.array(z.string().trim().min(1).max(60)).max(50).default([]),
   products: z.record(productIdSchema, contentProductSchema).default({}),
+  projects: z.record(productIdSchema, contentProjectSchema).default({}),
 });
 
 const configSchema = z
@@ -93,6 +101,16 @@ const configSchema = z
           code: "custom",
           message: `content.products lists "${id}", which is not in products`,
           path: ["content", "products", id],
+        });
+      }
+    }
+    // A project id names a content folder, a voice file and idea ids, so it must be its own.
+    for (const id of Object.keys(config.content?.projects ?? {})) {
+      if (ids.has(id) || id in (config.content?.products ?? {})) {
+        ctx.addIssue({
+          code: "custom",
+          message: `content.projects lists "${id}", which is already a product id`,
+          path: ["content", "projects", id],
         });
       }
     }

@@ -27,7 +27,7 @@ export function draftPrompt(input: {
   skill: LoadedSkill;
   voice: VoiceProfile;
   productName: string;
-  productUrl: string;
+  productUrl: string | null;
   idea: { title: string; angle: string; audienceQuestion: string; why: string };
   facts: string;
 }): string {
@@ -36,7 +36,7 @@ export function draftPrompt(input: {
   return `${promptHeader(input.jobId, "draft")}
 ${instructionBlock(input.skill)}
 ${voiceRules(input.voice)}
-Do the Source job for ${input.productName} (${input.productUrl}). There is no user to ask: put anything you cannot settle in "questions" as short questions for the owner.
+Do the Source job for ${input.productName}${input.productUrl ? ` (${input.productUrl})` : ""}. There is no user to ask: put anything you cannot settle in "questions" as short questions for the owner.
 Use only the facts below. Every number, year, price and statistic you write must appear in them; if you need one that does not, write around it or ask in "questions".
 Write only ${work}, as JSON of exactly this shape, then reply "done". Each paragraph is one line of plain text with no markdown, and the paragraph ids run p1, p2, p3 in order.
 {"title":"...","paragraphs":[{"id":"p1","text":"...","facts":["<a reference from the facts list>"]}],"questions":[]}

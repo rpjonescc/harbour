@@ -11,11 +11,22 @@ import type { ContentProduct } from "@/lib/products/content";
 export const ACME: ContentProduct = {
   id: "acme-docs",
   name: "Acme Docs",
+  kind: "site",
   url: "https://docs.example.com",
-  hue: "amber",
-  kind: "product",
+  allowedHosts: ["docs.example.com"],
   terms: ["acme docs", "acme-docs"],
   platforms: ["linkedin", "x", "instagram", "facebook", "blog", "website"],
+};
+
+/** Acme Tools, a project with no website: content only, so no URL and no allowed link host. */
+export const ACME_TOOLS: ContentProduct = {
+  id: "acme-tools",
+  name: "Acme Tools",
+  kind: "project",
+  url: null,
+  terms: ["acme tools", "acme-tools"],
+  platforms: ["linkedin", "blog"],
+  allowedHosts: [],
 };
 
 const sample = (extra: string) =>

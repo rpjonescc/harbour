@@ -45,7 +45,7 @@ async function gather(
     const rules = {
       excludeApps: content.excludeApps,
       terms: product.terms,
-      productHost: new URL(product.url).hostname,
+      productHost: product.allowedHosts[0] ?? "",
       neverMention,
     };
     const source = await gatherProduct(settings, window, product.terms, rules);

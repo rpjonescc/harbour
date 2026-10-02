@@ -1,4 +1,4 @@
-import { getProducts, productById } from "./catalog";
+import { getContentProducts, getProducts, productById } from "./catalog";
 
 // vitest.config.mts points HARBOUR_CONFIG_PATH at the example config.
 describe("product catalog", () => {
@@ -17,5 +17,14 @@ describe("product catalog", () => {
 
   it("throws for an unknown id", () => {
     expect(() => productById("nope")).toThrow(/Unknown product: nope/);
+  });
+
+  it("lists a content-only project as a content product but not as a product", () => {
+    expect(getProducts().map((p) => p.id)).not.toContain("acme-tools");
+    expect(() => productById("acme-tools")).toThrow(/Unknown product/);
+    expect(getContentProducts().map((p) => [p.id, p.kind])).toEqual([
+      ["acme-docs", "site"],
+      ["acme-tools", "project"],
+    ]);
   });
 });
