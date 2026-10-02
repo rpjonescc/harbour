@@ -3,18 +3,25 @@ import { claimNextJob, finishJob, listJobs } from "@/lib/jobs/queue";
 import { openTestDb } from "@/tests/helpers/db";
 import { requestFreshNote } from "./queue";
 import { makeNoteSchedule, nextNoteRun, noteEnabled } from "./schedule";
+import { stampInstant } from "./stamp";
 
 // Brisbane is UTC+10 all year: 06:30 local is 20:30 UTC the evening before.
 const ZONE = "Australia/Brisbane";
 
 function harness(
-  options: { db?: Db; enabled?: boolean; tokenSet?: boolean; noteTime?: string } = {},
+  options: {
+    db?: Db;
+    enabled?: boolean;
+    tokenSet?: boolean;
+    noteTime?: string;
+    timeZone?: string;
+  } = {},
 ) {
   const db = options.db ?? openTestDb();
   let now = 0;
   const schedule = makeNoteSchedule({
     db,
-    timeZone: ZONE,
+    timeZone: options.timeZone ?? ZONE,
     noteTime: options.noteTime ?? "06:30",
     enabled: options.enabled ?? true,
     tokenSet: options.tokenSet ?? true,
@@ -64,9 +71,17 @@ describe("daily note schedule", () => {
     const h = harness();
     expect(h.at("2026-10-02T11:00:00Z")).toEqual({
       jobId: expect.any(Number),
-      stamp: "2026-10-02-0630",
+      stamp: "2026-10-02-2100",
     });
     expect(h.at("2026-10-02T11:01:00Z")).toBeNull();
+  });
+
+  it("stamps a catch-up with the minute it is queued, so the card says when it was written", () => {
+    const h = harness();
+    // 14:00:20 local on the 2nd: the slot day's 06:30 note is missing, but this is no 06:30 note.
+    expect(h.at("2026-10-02T04:00:20Z")).toMatchObject({ stamp: "2026-10-02-1400" });
+    h.settle();
+    expect(stampInstant("2026-10-02-1400", ZONE).toISOString()).toBe("2026-10-02T04:00:00.000Z");
   });
 
   it("derives everything from the jobs table: a restarted worker queues nothing twice", () => {
@@ -97,10 +112,27 @@ describe("daily note schedule", () => {
     expect(h.stamps()).toHaveLength(1);
   });
 
+  it("writes one note on London's 25-hour fall-back day (2026-10-25), at the 06:30 slot", () => {
+    const h = harness({ timeZone: "Europe/London" });
+    // 06:30 BST on the 24th is 05:30Z.
+    expect(h.at("2026-10-24T05:30:00Z")).toMatchObject({ stamp: "2026-10-24-0630" });
+    h.settle();
+    // Clocks go back at 02:00 BST: 01:30 happens twice (00:30Z and 01:30Z). Neither is a slot.
+    for (const iso of ["2026-10-24T23:30:00Z", "2026-10-25T00:30:00Z", "2026-10-25T01:30:00Z"]) {
+      expect(h.at(iso)).toBeNull();
+    }
+    expect(h.at("2026-10-25T06:29:00Z")).toBeNull(); // 06:29 GMT: the slot is a minute away
+    expect(h.at("2026-10-25T06:30:00Z")).toMatchObject({ stamp: "2026-10-25-0630" });
+    h.settle();
+    expect(h.at("2026-10-25T18:00:00Z")).toBeNull();
+    expect(h.at("2026-10-26T06:29:00Z")).toBeNull();
+    expect(h.stamps()).toEqual(["2026-10-24-0630", "2026-10-25-0630"]);
+  });
+
   it("checks at most every 30 seconds", () => {
     const h = harness();
     // 10 s before the slot: the latest slot is still yesterday's, so that catch-up is queued.
-    expect(h.at("2026-10-01T20:29:50Z")).toMatchObject({ stamp: "2026-10-01-0630" });
+    expect(h.at("2026-10-01T20:29:50Z")).toMatchObject({ stamp: "2026-10-02-0629" });
     h.settle();
     // The slot is due 10 s later, but the gate stays shut until 30 s have passed.
     expect(h.at("2026-10-01T20:30:00Z")).toBeNull();

@@ -5,7 +5,6 @@ import {
   noteMinute,
   notePath,
   noteStamp,
-  scheduledStamp,
   stampInstant,
 } from "./stamp";
 
@@ -46,6 +45,5 @@ describe("note stamps", () => {
     expect(noteMinute("06:30")).toBe(390);
     expect(noteMinute("00:00")).toBe(0);
     expect(noteMinute("23:59")).toBe(1439);
-    expect(scheduledStamp("2026-10-02", "06:30")).toBe("2026-10-02-0630");
   });
 });

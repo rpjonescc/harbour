@@ -50,15 +50,10 @@ export function stampInstant(stamp: string, timeZone: string): Date {
   return zonedInstant(stamp.slice(0, 10), minute, timeZone);
 }
 
-/** HARBOUR_NOTE_TIME ("06:30") as a minute of the day. */
+/** HARBOUR_NOTE_TIME ("06:30") as a minute of the day. Its inputs are pre-validated by config. */
 export function noteMinute(time: string): number {
   const [hour, minute] = time.split(":").map(Number);
   return (hour ?? 0) * 60 + (minute ?? 0);
-}
-
-/** The stamp the schedule uses for `day` at HARBOUR_NOTE_TIME. */
-export function scheduledStamp(day: string, time: string): string {
-  return noteStamp({ day, minute: noteMinute(time) });
 }
 
 /** "2026-10-02 06:30", for labels. */

@@ -1,10 +1,15 @@
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
-import { latestDailySlotDay, nextDailySlot, zonedInstant } from "@/lib/format/zoned-time";
+import {
+  latestDailySlotDay,
+  localTime,
+  nextDailySlot,
+  zonedInstant,
+} from "@/lib/format/zoned-time";
 import { jobsCreatedSince } from "@/lib/jobs/queue";
 import { makeThrottle } from "@/lib/jobs/throttle";
 import { enqueueDailyNote } from "./queue";
-import { noteMinute, scheduledStamp } from "./stamp";
+import { noteMinute, noteStamp } from "./stamp";
 
 const CHECK_MS = 30_000;
 
@@ -40,7 +45,8 @@ export type NoteScheduleDeps = {
 /**
  * The worker's note timetable: one note per local day from HARBOUR_NOTE_TIME, derived from the
  * jobs table so a restart never queues twice and a worker that was down queues exactly one (for
- * the latest slot day, at its first check, which also gives a first install a note). A note the
+ * the latest slot day, at its first check, which also gives a first install a note). The note is
+ * stamped with the minute it is queued, so "Written …" on the card is true for a catch-up. A note the
  * owner asked for since the slot counts; a failed run is not retried in a loop (the owner can ask).
  */
 export function makeNoteSchedule(deps: NoteScheduleDeps) {
@@ -64,7 +70,8 @@ export function makeNoteSchedule(deps: NoteScheduleDeps) {
         toldNoToken = true;
         return null;
       }
-      const stamp = scheduledStamp(day, noteTime);
+      // The stamp is when the note is written, not the slot: a catch-up at 14:00 says 14:00.
+      const stamp = noteStamp(localTime(timeZone, now));
       const job = enqueueDailyNote(db, stamp, null, now);
       return job.created ? { jobId: job.id, stamp } : null;
     },
