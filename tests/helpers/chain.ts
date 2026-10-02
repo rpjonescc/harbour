@@ -40,6 +40,30 @@ export function seedPieces(
   return files;
 }
 
+/** `seedPieces` with a passing no-ai-slop and humanizer entry in every sidecar: only the facts gate is left. */
+export function seedAfterAB(ideaId = "acme-docs-20261001-five-minutes"): Record<string, string> {
+  const entry = (gate: "no-ai-slop" | "humanizer", order: 1 | 2) => ({
+    gate,
+    order,
+    attempt: 1,
+    result: "pass",
+    findings: [],
+    questions: [],
+    jobId: 1,
+    at: "2026-10-02T00:00:00.000Z",
+    textBefore: `sha256:${"a".repeat(64)}`,
+    textAfter: `sha256:${"a".repeat(64)}`,
+  });
+  const files = seedPieces(ideaId, {
+    gates: { slop: "pass", humanizer: "pass", facts: "pending", platform: "pending" },
+  });
+  for (const platform of PLATFORMS) {
+    files[contentPaths.gates(ideaId, platform)] =
+      `${JSON.stringify([entry("no-ai-slop", 1), entry("humanizer", 2)], null, 2)}\n`;
+  }
+  return files;
+}
+
 const para = (i: number) => ({
   id: `p${i + 1}`,
   text: Array.from({ length: 100 }, (_, n) => (n % 9 === 8 ? "guide." : "docs")).join(" "),
@@ -71,6 +95,14 @@ export const CHAIN_WORKS = {
   },
   "gate:no-ai-slop:1": cleanGate,
   "gate:humanizer:1": cleanGate,
+  // The facts agent lists each piece's claims, here all traced to the source's first paragraph.
+  "gate:facts:1": {
+    pieces: PLATFORMS.map((platform) => ({
+      platform,
+      claims: [{ text: "Docs publish quickly.", trace: "source:p1" }],
+      questions: [],
+    })),
+  },
   // A revision covers only the pieces that failed; these fixtures are for the `x` piece.
   "gate:no-ai-slop:2": { pieces: cleanGate.pieces.filter((p) => p.platform === "x") },
   "gate:humanizer:2": { pieces: cleanGate.pieces.filter((p) => p.platform === "x") },

@@ -1,16 +1,15 @@
 import { z } from "zod";
 import type { AgentSpec, SpecContext } from "@/lib/agents/specs";
-import { type GateStep, gateTargets } from "@/lib/content/chain";
-import { ideaIdSchema, productForIdea } from "@/lib/content/ids";
+import type { GateStep } from "@/lib/content/chain";
+import { ideaIdSchema, type Platform } from "@/lib/content/ids";
 import { contentPaths } from "@/lib/content/paths";
 import { GATE_PROMPT_VERSION, gatePrompt } from "@/lib/content/prompts/gate";
-import { readVoice } from "@/lib/content/read/voice";
-import { voiceInvalidMessage, voiceMissingMessage } from "@/lib/explain/content";
-import { chainView } from "./chain-pieces";
 import { DraftStartError, labelOf } from "./draft";
-import { ownHosts } from "./draft-check";
+import { factsGateSpec } from "./facts-gate";
+import { FactsPackError } from "./facts-pack";
 import { gateWorkSchema, outcome } from "./gate-check";
-import { pieceUpdate } from "./gate-write";
+import { gateInputs } from "./gate-inputs";
+import { assertUnchanged, type PieceChange, writeUpdates } from "./gate-write";
 import { requireContent } from "./run-context";
 import { loadSkill, SkillError, skillRecord } from "./skills";
 import { parseWorkJson, workReview } from "./work-review";
@@ -19,17 +18,22 @@ const SKILL_GATES = { "no-ai-slop": 1, humanizer: 2 } as const;
 // Strict: an unknown key in a queued job's params is a job this version did not make.
 const paramsSchema = z.strictObject({
   ideaId: ideaIdSchema,
-  gate: z.enum(["no-ai-slop", "humanizer"]),
+  gate: z.enum(["no-ai-slop", "humanizer", "facts"]),
   attempt: z.enum(["1", "2"]),
 });
-const CHANGED = "A piece changed while it was being checked, so Harbour saved nothing.";
 
-/** The gate agent for no-ai-slop and humanizer; the facts gate is added in Task 13. */
+/** The gate agent: no-ai-slop and humanizer here, the facts and platform gate in its own module. */
 export function gateSpec(params: Record<string, string>, context: SpecContext): AgentSpec {
   try {
     return buildSpec(params, context);
   } catch (error) {
-    if (error instanceof DraftStartError || error instanceof SkillError) throw error;
+    if (
+      error instanceof DraftStartError ||
+      error instanceof SkillError ||
+      error instanceof FactsPackError
+    ) {
+      throw error;
+    }
     // Anything else (a disk error) says nothing about files, ids or text.
     throw new Error(
       "Harbour couldn't read what it needs to check these pieces. Check the brain folder, then try again.",
@@ -42,19 +46,10 @@ function buildSpec(params: Record<string, string>, context: SpecContext): AgentS
   const parsed = paramsSchema.safeParse(params);
   if (!parsed.success) throw new DraftStartError("This is not a check Harbour knows.");
   const { ideaId, gate } = parsed.data;
-  const step: GateStep = { gate, attempt: parsed.data.attempt === "1" ? 1 : 2 };
-  const product = productForIdea(content.products, ideaId);
-  if (!product)
-    throw new DraftStartError("This idea belongs to a product that has no content settings.");
-  const voice = readVoice(content.root, product.id);
-  if (voice.state === "missing") throw new DraftStartError(voiceMissingMessage(product.name));
-  if (voice.state === "invalid")
-    throw new DraftStartError(voiceInvalidMessage(product.name, voice.reason));
-  const view = chainView(content.root, ideaId);
-  const wanted = new Set(gateTargets(view.chain, step).map((t) => t.platform));
-  const targets = view.pieces.filter((p) => wanted.has(p.platform));
-  if (targets.length === 0)
-    throw new DraftStartError("There is nothing for this check to look at.");
+  const attempt = parsed.data.attempt === "1" ? 1 : 2;
+  if (gate === "facts") return factsGateSpec({ ideaId, attempt }, context);
+  const step: GateStep = { gate, attempt };
+  const { voice, view, targets, hosts, source } = gateInputs(content, ideaId, step);
   const skill = loadSkill(content.skillsDir, gate); // throws SkillError with a plain reason
   const previous =
     step.attempt === 2
@@ -70,14 +65,13 @@ function buildSpec(params: Record<string, string>, context: SpecContext): AgentS
     gate,
     attempt: step.attempt,
     skill,
-    voice: voice.profile,
+    voice,
     previous,
     pieces: targets.map((p) => ({ platform: p.platform, content: p.content })),
   });
   // Empty on purpose: the worker adds the exact files it writes (decision 18), so the agent can
   // never write a piece or a sidecar itself.
   const allowed = { prefixes: [], exact: [] as string[] };
-  const hosts = ownHosts(product.url);
   const base = {
     gate,
     order: SKILL_GATES[gate],
@@ -86,22 +80,11 @@ function buildSpec(params: Record<string, string>, context: SpecContext): AgentS
     instructions: skillRecord(skill),
   } as const;
   const files = (work: z.infer<typeof gateWorkSchema>, note: (text: string) => void) => {
-    // The owner may have changed a piece since this run started: never write over that.
-    const now = chainView(content.root, ideaId).pieces;
-    for (const t of targets) {
-      const same = now.find((p) => p.platform === t.platform);
-      if (
-        !same ||
-        same.front.revision !== t.front.revision ||
-        same.gates.length !== t.gates.length
-      ) {
-        throw new DraftStartError(CHANGED);
-      }
-    }
+    assertUnchanged(content.root, ideaId, view.pieces);
     note(
       `Skill ${skill.name}: ${skill.files.map((f) => `${f.name} ${f.sha256.slice(0, 12)}`).join(", ")}`,
     );
-    const out: Record<string, string> = {};
+    const changes = new Map<Platform, PieceChange>();
     let errors = 0;
     let hidden = 0;
     for (const target of targets) {
@@ -110,11 +93,15 @@ function buildSpec(params: Record<string, string>, context: SpecContext): AgentS
       const made = outcome(target, returned, base, hosts);
       if (made.entry.result === "error") errors += 1;
       if (made.stripped) hidden += 1;
-      Object.assign(out, pieceUpdate(target, [...target.gates, made.entry], made.content));
+      changes.set(target.platform, {
+        piece: target,
+        entries: [...target.gates, made.entry],
+        content: made.content,
+      });
     }
     if (errors > 0) note(`${errors} piece(s) came back unusable and kept their old text`);
     if (hidden > 0) note(`Removed hidden characters from ${hidden} piece(s)`);
-    return out;
+    return writeUpdates(view, changes, source?.front.questions ?? []);
   };
   const first = targets[0];
   return {

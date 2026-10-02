@@ -60,7 +60,7 @@ const xFails = {
 };
 
 describe("the whole chain, through the real runner and controller", () => {
-  it("runs draft, atomise, then the two gates, and leaves the facts step queued with nothing finished early", async () => {
+  it("runs draft, atomise, then all three gate runs, and ends with every piece Ready", async () => {
     const s = contentSetup(CHAIN_WORKS, {
       ...BASE,
       [`content/ideas/acme-docs/${IDEA}.md`]: ideaFile(),
@@ -79,10 +79,15 @@ describe("the whole chain, through the real runner and controller", () => {
       expect(pieces).toHaveLength(6);
       for (const p of pieces) {
         expect(p.front).toMatchObject({
-          state: "drafting",
-          gates: { slop: "pass", humanizer: "pass", facts: "pending" },
+          state: "ready",
+          gates: { slop: "pass", humanizer: "pass", facts: "pass", platform: "pass" },
         });
-        expect(p.gates.map((g) => g.gate)).toEqual(["no-ai-slop", "humanizer"]);
+        expect(p.gates.map((g) => g.gate)).toEqual([
+          "no-ai-slop",
+          "humanizer",
+          "facts",
+          "platform",
+        ]);
       }
     } finally {
       s.cleanup();
@@ -109,6 +114,8 @@ describe("the whole chain, through the real runner and controller", () => {
         "no-ai-slop:2:revised",
         "humanizer:1:fail",
         "humanizer:2:revised",
+        "facts:1:pass",
+        "platform:1:pass",
       ]);
     } finally {
       s.cleanup();

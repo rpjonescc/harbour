@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { platformSchema } from "@/lib/content/ids";
 import { unknownNumbers } from "@/lib/content/numbers";
+import { allText } from "@/lib/content/piece-text";
 import type { ReadPiece } from "@/lib/content/read/pieces";
 import { sanitiseText } from "@/lib/content/sanitise";
 import type { Finding, GateEntry } from "@/lib/content/schema";
@@ -34,15 +35,6 @@ export const gateWorkSchema = z.strictObject({
 export type GateWork = z.infer<typeof gateWorkSchema>;
 type Returned = GateWork["pieces"][number];
 
-function allText(value: unknown, out: string[] = []): string[] {
-  if (typeof value === "string") out.push(value);
-  else if (Array.isArray(value)) for (const v of value) allText(v, out);
-  else if (value !== null && typeof value === "object") {
-    for (const v of Object.values(value)) allText(v, out);
-  }
-  return out;
-}
-
 const LINKS = /https?:\/\/[^\s)>\]]+|\bwww\.[^\s)>\]]+/gi;
 const TAGS = /[#@][\p{L}\p{N}_]+/gu;
 const found = (pattern: RegExp, joined: string) =>
@@ -55,16 +47,16 @@ const addsAny = (before: Set<string>, after: Set<string>) => [...after].some((x)
  * and the same sanitiser and shape checks as the original still apply on top of this.
  */
 export function rewriteProblem(before: PieceContent, after: PieceContent): string | null {
-  const was = allText(before).join("\n");
-  const now = allText(after).join("\n");
+  const was = allText(before);
+  const now = allText(after);
   if (unknownNumbers(now, was).length > 0) return "It added a number that was not in the piece.";
   if (addsAny(found(LINKS, was), found(LINKS, now))) return "It added a link.";
   if (addsAny(found(TAGS, was), found(TAGS, now))) return "It added a hashtag or an @handle.";
   return null;
 }
 
-/** An agent's finding or question as plain one-line text: what cannot be shown is replaced, never kept. */
-function plain(value: string, fallback: string): string {
+/** An agent's finding, claim or question as plain one-line text: what cannot be shown is replaced, never kept. */
+export function plain(value: string, fallback: string): string {
   const clean = sanitiseText(value, "social");
   return clean.ok && !/[\n\r]/.test(clean.text) && clean.text.trim() !== ""
     ? clean.text.trim()
@@ -87,6 +79,40 @@ export type Provenance = {
 
 const UNUSABLE = "This check could not use the piece it returned";
 
+export type Rewrite =
+  | { ok: true; content: PieceContent; stripped: boolean }
+  | { ok: false; reason: string };
+
+/**
+ * A gate agent's returned content, held to everything the original had to pass (the sanitiser,
+ * its platform's shape) and to the wording-only rule. The reason is a fixed sentence, never the
+ * agent's words.
+ */
+export function checkRewrite(
+  piece: ReadPiece,
+  returned: unknown,
+  hosts: readonly string[],
+): Rewrite {
+  const before = piece.content;
+  if (before === null) throw new Error("A piece with no content is not a gate target");
+  const made = makeOne(
+    { platform: piece.platform, content: returned, claims: [], questions: [] },
+    piece.platform,
+    hosts,
+  );
+  if (made.content === null) {
+    const stub = (made.stub ?? "It could not be read.").replace(
+      /^The [^:]*piece wasn't written: /,
+      "",
+    );
+    return { ok: false, reason: stub.slice(0, 200) };
+  }
+  const reason = rewriteProblem(before, made.content);
+  return reason === null
+    ? { ok: true, content: made.content, stripped: made.stripped }
+    : { ok: false, reason: reason.slice(0, 200) };
+}
+
 /**
  * One piece's gate entry and new content from what the agent returned. A returned piece that
  * fails the sanitiser, its platform's shape or the wording-only rule is an `error` for that piece
@@ -101,18 +127,13 @@ export function outcome(
   const before = piece.content;
   if (before === null) throw new Error("A piece with no content is not a gate target");
   const stamp = { ...base, at: new Date().toISOString() };
-  const made = makeOne({ ...returned, claims: [], questions: [] }, piece.platform, hosts);
-  const reason =
-    made.content === null
-      ? (made.stub ?? "It could not be read.").replace(/^The [^:]*piece wasn't written: /, "")
-      : rewriteProblem(before, made.content);
+  const made = checkRewrite(piece, returned.content, hosts);
   const hash = textHash(piece, before);
-  if (made.content === null || reason !== null) {
-    const fix = (reason ?? "It could not be read.").slice(0, 200);
+  if (!made.ok) {
     const entry: GateEntry = {
       ...stamp,
       result: "error",
-      findings: [{ pattern: UNUSABLE, quote: "", fix }],
+      findings: [{ pattern: UNUSABLE, quote: "", fix: made.reason }],
       questions: [],
       textBefore: hash,
       textAfter: hash,

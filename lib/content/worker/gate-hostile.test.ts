@@ -147,7 +147,8 @@ describe("hostile output", () => {
   });
 
   it.each([
-    ["the facts gate (not built here)", { gate: "facts", attempt: "1" }],
+    ["a third facts attempt", { gate: "facts", attempt: "3" }],
+    ["an extra facts param", { gate: "facts", attempt: "1", also: "x" }],
     ["an unknown gate", { gate: "everything", attempt: "1" }],
     ["a third attempt", { gate: "humanizer", attempt: "3" }],
     ["an extra param", { gate: "humanizer", attempt: "1", also: "x" }],

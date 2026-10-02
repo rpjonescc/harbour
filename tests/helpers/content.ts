@@ -223,7 +223,9 @@ export function digestFile(day: string, themes: [string, string][]): string {
 }
 
 export const words = (n: number, word = "word") => Array.from({ length: n }, () => word).join(" ");
-export const tags = (n: number) => Array.from({ length: n }, (_, i) => `#tag${i}`);
+// Letters, not digits: a digit in a hashtag reads as a number to the facts check.
+export const tags = (n: number) =>
+  Array.from({ length: n }, (_, i) => `#tag${"abcdefghijkl".charAt(i)}`);
 
 /** One valid piece of content per platform (spec §7.3 shapes). */
 export const PIECES: { [P in Platform]: ContentOf<P> } = {
