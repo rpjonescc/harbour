@@ -4,7 +4,7 @@ export const PLATFORMS = ["linkedin", "x", "instagram", "facebook", "blog", "web
 export type Platform = (typeof PLATFORMS)[number];
 export const platformSchema = z.enum(PLATFORMS);
 
-/** What the owner sees (plain-language spec): never the key. */
+/** Display names for the owner; code uses the platform key. */
 export const PLATFORM_NAMES: Record<Platform, string> = {
   linkedin: "LinkedIn",
   x: "X",
@@ -30,7 +30,7 @@ export const pieceIdSchema = z
 export function slugify(text: string, max = 40): string {
   const slug = text
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
