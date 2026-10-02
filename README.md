@@ -91,7 +91,7 @@ explainable breakdowns. The roadmap continues with:
 |---|---|
 | `/` | Today |
 | `/products/<id>` | A product's scores, issues, pages and sources |
-| `/content` | Content (only when `HARBOUR_CONTENT=on`, else 404): ideas and drafts in six tabs, with Copy buttons; nothing is posted for you |
+| `/content` | Content (only when `HARBOUR_CONTENT=on`, else 404): ideas and drafts in six tabs, with Copy, Approve, Edit and Discard; nothing is posted for you |
 | `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`; the status values are the stored ones, which the board shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed) |
 | `/settings` | Settings overview: products, schedules, connections, budget and backups |
 | `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors, content pillars) |
@@ -136,6 +136,20 @@ signed-in session:
   cancelled (as **Try again** does). Try again is limited to four requests per idea per local day
   with every other manual request for it, and refuses with `404 not_found`, `409 nothing_to_retry`
   or `429 rate_limited`. Both only queue work: the web process never writes the brain.
+- `POST /api/content` decisions (as **Approve**, **Edit** and **Discard** do) only queue a
+  `content-decision` job; the worker saves it, commits just those files and pushes. They need
+  `HARBOUR_CONTENT=on` but no Claude token, because no model runs.
+  `{"action": "approve", "pieceId": "<ideaId>.<platform>", "revision": 2, "checkedFlags": [], "confirmOpen": false}`
+  must list every flag the piece carries and, for a piece that still needs you, set `confirmOpen`.
+  `{"action": "edit", ..., "body": "..."}` replaces the piece's main text (up to the platform's length
+  plus 10%) and re-checks only the numbers and the platform's limits, never the writing.
+  `{"action": "discard", "pieceId": "...", "revision": 2}` or `{"action": "discard", "ideaId": "..."}`
+  keeps the file, marked discarded. `revision` is the one the page showed: an older one is refused
+  (`409 stale`). Other refusals: `400 flags_unchecked`, `400 confirm_needed`, `400 too_long`,
+  `404 not_found`, `409 not_approvable`, `409 not_editable`, `409 already_discarded`,
+  `409 brain_unreadable`, `413 too_large` and `429 busy`. Approving writes
+  `content/approved/<platform>/<date>-<slug>.md` in the brain (never over an existing file; a clash
+  gets `-2` to `-9`); discarding an approved piece removes that file. Nothing is ever posted.
 - `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
   moves an action to a new status. `from` is the status your page showed: if the action changed
   since, the request is refused (`409 stale`) instead of overwriting it. `to` is `open`,

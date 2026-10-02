@@ -20,6 +20,7 @@ export const REFUSAL_MESSAGES: Record<string, string> = {
   not_found: "Harbour couldn't find that. Refresh the page and try again.",
   not_an_idea: "That idea is already being written. Refresh the page to see it.",
   nothing_to_retry: "There is nothing to try again. Refresh the page to see where it is.",
+  too_large: "That is too much text to send at once. Shorten it and try again.",
   network_error: "Harbour couldn't be reached, so nothing was started. Try again in a moment.",
 };
 export const REFUSAL_FALLBACK = "Harbour couldn't start that. Try again in a moment.";

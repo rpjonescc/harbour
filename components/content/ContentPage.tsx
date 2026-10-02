@@ -4,6 +4,7 @@ import type { ContentView, TabId } from "@/lib/content/read/view-types";
 import { CAP_NOTES, EMPTY_TABS, FOLDER_ERROR } from "@/lib/explain/content";
 import { Gaps } from "./Gaps";
 import { IdeaCard } from "./IdeaCard";
+import { IdeaDiscard } from "./IdeaDiscard";
 import { PieceGroup } from "./PieceGroup";
 import { RunButton } from "./RunButton";
 
@@ -30,7 +31,9 @@ function TabPanel({ view, id }: { view: ContentView; id: TabId }) {
   return (
     <div className="flex flex-col gap-3">
       {cards.map((idea) => (
-        <IdeaCard key={idea.id} idea={idea} />
+        <IdeaCard key={idea.id} idea={idea}>
+          {id !== "discarded" && <IdeaDiscard idea={idea} />}
+        </IdeaCard>
       ))}
       {groups.map((idea) => (
         <PieceGroup key={idea.id} idea={idea} tab={id} />

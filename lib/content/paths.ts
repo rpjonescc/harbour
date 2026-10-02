@@ -15,6 +15,12 @@ const piecesDir = (ideaId: string) => `content/pieces/${ok(ideaIdSchema, ideaId)
 const pieceBase = (ideaId: string, platform: Platform) =>
   `${piecesDir(ideaId)}/${ok(platformSchema, platform)}`;
 
+/** True only for a path `contentPaths.approved` could have built for `platform`: the one kind of path a discard may remove. */
+export const isApprovedPath = (platform: Platform, path: string): boolean =>
+  new RegExp(
+    `^content/approved/${platform}/\\d{4}-\\d{2}-\\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\\.md$`,
+  ).test(path) && path.length <= 120;
+
 /** The only place a content path is built; all of them are inside `content/` in the brain. */
 export const contentPaths = {
   voice: (productId: string) => `content/voices/${ok(productIdSchema, productId)}.md`,

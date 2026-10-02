@@ -2,6 +2,7 @@ import { PLATFORM_NAMES, pieceId } from "@/lib/content/ids";
 import { contentPaths } from "@/lib/content/paths";
 import { copyParts, primaryText, renderPiece } from "@/lib/content/render";
 import { type FailedStep, stepSentence } from "./chain-status";
+import type { DecisionStatus } from "./decisions";
 import type { ReadPiece } from "./pieces";
 import type { PieceView, TabId } from "./view-types";
 
@@ -23,11 +24,17 @@ function flagLines(piece: ReadPiece): string[] {
   return counts.length > 0 ? [`Check before posting: ${counts.join(", ")}`] : [];
 }
 
+/** The sentence for a decision that failed at this very revision; one asked of an older file is stale. */
+function failedDecision(decisions: DecisionStatus, id: string, revision: number): string | null {
+  const failed = decisions.failed.get(id);
+  return failed && failed.revision === String(revision) ? failed.error : null;
+}
+
 /** One piece for the page: plain text, clean copy parts, and the tab its state puts it in. */
 export function pieceView(
   piece: ReadPiece,
   failed: FailedStep | null,
-  saving: ReadonlySet<string>,
+  decisions: DecisionStatus,
 ): PieceView {
   const { front, content, platform } = piece;
   const derived = front.state === "drafting" && failed !== null;
@@ -49,7 +56,8 @@ export function pieceView(
     revision: front.revision,
     edited: front.edited,
     state: front.state,
-    saving: saving.has(id),
+    saving: decisions.saving.has(id),
+    decisionError: failedDecision(decisions, id, front.revision),
     gates: piece.gates,
     claims: front.claims,
     file: contentPaths.piece(front.ideaId, platform),

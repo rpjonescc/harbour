@@ -1,11 +1,10 @@
 import { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Config } from "@/lib/config";
-import type { Db } from "@/lib/db/client";
 import { voiceMissingMessage } from "@/lib/explain/content";
 import { isoDateIn } from "@/lib/format/date";
 import { addDays } from "@/lib/format/zoned-time";
-import type { ContentProduct } from "@/lib/products/content";
+import { DecisionBody } from "./decision";
 import { ideaIdSchema, productForIdea, productIdSchema } from "./ids";
 import { type ContentKind, DAILY_CAP_MESSAGE, enqueueContent } from "./limits";
 import { activeStepId, latestFailedStep } from "./read/chain-status";
@@ -16,35 +15,18 @@ import {
   TooManyIdeaFilesError,
 } from "./read/ideas";
 import { readVoice } from "./read/voice";
+import { requestDecision } from "./request-decision";
+import { BRAIN_UNREADABLE, type RequestContext, type RequestResult, refuse } from "./request-types";
 
-/** Every action the Content page can request; later tasks add their own. */
-export const ContentBody = z.discriminatedUnion("action", [
+const RunBody = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("make-digest") }),
   z.strictObject({ action: z.literal("find-ideas"), productId: productIdSchema }),
   z.strictObject({ action: z.literal("write-this"), ideaId: ideaIdSchema }),
   z.strictObject({ action: z.literal("try-again"), ideaId: ideaIdSchema }),
 ]);
+/** Every action the Content page can request: running a step, or deciding about a piece or idea. */
+export const ContentBody = z.union([RunBody, DecisionBody]);
 export type ContentBody = z.infer<typeof ContentBody>;
-
-export type RequestContext = {
-  db: Db;
-  config: Config;
-  login: string;
-  now: Date;
-  /** The brain folder (read only here) and the products with content on. */
-  root: string;
-  products: readonly ContentProduct[];
-};
-export type RequestResult =
-  | { ok: true; jobIds: number[] }
-  | { ok: false; status: number; error: string; message?: string };
-
-const refuse = (status: number, error: string, message?: string): RequestResult => ({
-  ok: false,
-  status,
-  error,
-  ...(message ? { message } : {}),
-});
 
 /** Checks that every content request needs: the machine is on and the Claude token is set. */
 export function contentPreconditions(config: Config): RequestResult | null {
@@ -58,9 +40,6 @@ function limitRefusal(reason: "daily_cap" | "rate_limited"): RequestResult {
     ? refuse(429, "daily_cap", DAILY_CAP_MESSAGE)
     : refuse(429, "rate_limited");
 }
-
-const BRAIN_UNREADABLE =
-  "Harbour couldn't read the ideas folder, so it started nothing. Check the brain folder and try again.";
 
 type Kind = ContentKind;
 
@@ -167,6 +146,12 @@ function tryAgain(ctx: RequestContext, ideaId: string): RequestResult {
 
 /** Applies one request from the Content page: enqueue a job (never write the brain) and audit it. */
 export function requestContent(ctx: RequestContext, body: ContentBody): RequestResult {
+  if (body.action === "approve" || body.action === "edit" || body.action === "discard") {
+    // A decision runs no model, so it needs only the machine on, not the Claude token.
+    return ctx.config.HARBOUR_CONTENT === "on"
+      ? requestDecision(ctx, body)
+      : refuse(409, "content_off");
+  }
   const blocked = contentPreconditions(ctx.config);
   if (blocked) return blocked;
   if (body.action === "make-digest") {

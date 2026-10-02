@@ -1,5 +1,7 @@
 import { Panel } from "@/components/ui/Panel";
 import type { IdeaView, TabId } from "@/lib/content/read/view-types";
+import { IdeaDiscard } from "./IdeaDiscard";
+import { PieceActions } from "./PieceActions";
 import { PieceView } from "./PieceView";
 import { RunButton } from "./RunButton";
 import { StateTag } from "./StateTag";
@@ -45,11 +47,13 @@ export function PieceGroup({ idea, tab }: { idea: IdeaView; tab: TabId }) {
                       />
                     </div>
                   )}
+                  <PieceActions piece={piece} />
                 </PieceView>
               </details>
             </li>
           ))}
         </ul>
+        {tab !== "discarded" && <IdeaDiscard idea={idea} />}
       </Panel>
     </article>
   );

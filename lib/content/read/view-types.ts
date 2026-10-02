@@ -36,6 +36,8 @@ export type PieceView = {
   state: string;
   /** A decision for this piece is queued or running. */
   saving: boolean;
+  /** Why the newest decision on this piece (asked at its current revision) saved nothing. */
+  decisionError: string | null;
   gates: GateEntry[];
   claims: Claim[];
   /** The piece's brain path, for the Second Brain link. */
@@ -58,6 +60,8 @@ export type IdeaView = {
   note: string | null;
   retry: boolean;
   saving: boolean;
+  /** Why the newest decision on this idea saved nothing. */
+  decisionError: string | null;
   pieces: PieceView[];
   rollup: string;
 };

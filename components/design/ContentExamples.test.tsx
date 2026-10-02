@@ -18,7 +18,7 @@ describe("ContentExamples", () => {
     ).toBeInTheDocument();
   });
 
-  it("gives every example its own ids, and a stub never offers Try again", () => {
+  it("gives every example its own ids, and a stub offers Discard but never Try again", () => {
     const { container } = render(<ContentExamples />);
     const ids = [...container.querySelectorAll("[id]")].map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -27,6 +27,9 @@ describe("ContentExamples", () => {
     );
     expect(new Set(labels).size).toBe(labels.length);
     const stub = screen.getByText(/Discard this idea and write it again/).closest("section");
-    expect(stub?.querySelector("button")).toBeNull();
+    const names = [...(stub?.querySelectorAll("button") ?? [])].map((b) => b.textContent);
+    expect(names).toContain("Discard");
+    expect(names).not.toContain("Try again");
+    expect(names).not.toContain("Approve");
   });
 });

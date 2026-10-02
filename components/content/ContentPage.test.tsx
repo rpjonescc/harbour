@@ -123,4 +123,36 @@ describe("ContentPage", () => {
     );
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
+
+  it("lets the owner discard an idea whose pieces were not written, and a stuck one, but not a discarded one", () => {
+    const stub = piece({
+      tab: "needs-you",
+      empty: true,
+      text: "",
+      copy: [],
+      needsYou: "Not written.",
+    });
+    const tabs = view().tabs.map((t) => (t.id === "needs-you" ? { ...t, count: 2 } : t));
+    const { rerender } = render(
+      <ContentPage
+        view={view({
+          defaultTab: "needs-you",
+          tabs,
+          ideas: [
+            idea({ tab: null, pieces: [stub], rollup: "1 needs you" }),
+            idea({ id: "acme-docs-20261002-stuck", tab: "needs-you", retry: true }),
+          ],
+        })}
+        template={null}
+      />,
+    );
+    expect(screen.getAllByRole("button", { name: "Discard idea" })).toHaveLength(2);
+    rerender(
+      <ContentPage
+        view={view({ defaultTab: "discarded", ideas: [idea({ tab: "discarded" })] })}
+        template={null}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Discard idea" })).toBeNull();
+  });
 });

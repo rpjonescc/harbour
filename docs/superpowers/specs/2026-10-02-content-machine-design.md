@@ -1102,3 +1102,27 @@ Each step is its own reviewed change, with tests and README updates in the same 
   are not caught; the owner's own read before approving covers them.
 - **No shouting policy field exists** in the voice profile, so capitals-only words of four letters
   or more are always flagged (unless the facts pack writes them that way).
+
+## 20. As built: decisions and the approved export (Task 15)
+
+- **Not an agent job.** `content-decision` runs no model, so a decision needs `HARBOUR_CONTENT=on`
+  but not the Claude token, and is not counted against the daily content runs. It is bounded by
+  dedupe on its params (a double click returns the same job and is audited once) and by at most
+  20 decisions waiting.
+- **Edit.** The owner's text is sanitised (a hidden character is stripped, HTML, an image, a code
+  fence, a line of three dashes, a control character or a link off the product's own host refuses
+  the edit and saves nothing) and must fit the platform's shape, because a piece that does not
+  fit its shape cannot be read back; those refusals are plain sentences that never echo the text.
+  Past that, only the numbers check and the platform check decide Ready or Needs you. Earlier
+  no-ai-slop and humanizer results are kept as they were and no longer hold the piece, an open
+  question still does, and flags the piece already had stay until ticked.
+- **Safe repeats.** A decision whose result is already in the file (one revision on, same state)
+  finishes `ok` with "Already saved", and anything else that moved is `stale`, so a newer edit is
+  never overwritten. A failed commit puts the files back and fails the job with a fixed sentence.
+- **Discard.** A discarded idea or piece stays in the brain, marked `discarded`. An approved
+  piece's export is removed in the same commit, and only a path that `contentPaths.approved` could
+  have built is ever removed. A discarded idea is not written again: the owner finds new ideas.
+- **Export names.** The file is created exclusively (written aside, then linked into place), so it
+  never replaces anything, including a file the owner has not committed.
+- **Failed decisions are shown.** The newest decision job per piece or idea, when it failed at the
+  revision the page shows, appears under the buttons with its own sentence.

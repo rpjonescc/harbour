@@ -1,11 +1,10 @@
 import { readdirSync } from "node:fs";
-import { and, eq, inArray } from "drizzle-orm";
 import { contentPaths } from "@/lib/content/paths";
 import type { Db } from "@/lib/db/client";
-import { jobs } from "@/lib/db/schema";
 import { addDays } from "@/lib/format/zoned-time";
 import type { ContentProduct } from "@/lib/products/content";
 import { type FailedStep, ideaActivity, stepSentence } from "./chain-status";
+import { type DecisionStatus, decisionStatus } from "./decisions";
 import { type IdeaEntry, scanContent } from "./scan";
 import { pieceView, rollup } from "./view-pieces";
 import { type ContentView, type IdeaView, type PieceView, TABS, type TabId } from "./view-types";
@@ -21,7 +20,7 @@ function ideaView(
   entry: IdeaEntry,
   pieces: PieceView[],
   activity: Activity,
-  saving: ReadonlySet<string>,
+  decisions: DecisionStatus,
 ): IdeaView {
   const { idea, product } = entry;
   const { front } = idea;
@@ -54,25 +53,12 @@ function ideaView(
     created: front.created,
     tab,
     retry: failed !== null,
-    saving: saving.has(idea.id),
+    saving: decisions.saving.has(idea.id),
+    decisionError: decisions.failed.get(idea.id)?.error ?? null,
     pieces,
     rollup: rollup(pieces),
     note: front.needsYou ?? (failed ? stepSentence(failed.kind, failed.params) : null),
   };
-}
-
-/** Ids (pieces and ideas) with a decision queued or running: the page shows "Saving". */
-function savingSet(db: Db): Set<string> {
-  const rows = db
-    .select({ params: jobs.params })
-    .from(jobs)
-    .where(and(eq(jobs.kind, "content-decision"), inArray(jobs.status, ["queued", "running"])))
-    .all();
-  return new Set(
-    rows.flatMap(({ params }) =>
-      [params.pieceId, params.ideaId].filter((v): v is string => Boolean(v)),
-    ),
-  );
 }
 
 /** True when there is no digest from the last few days (a gap, said calmly on the page). */
@@ -118,13 +104,13 @@ export function contentView(input: {
     db,
     scan.entries.map((e) => e.idea.id),
   );
-  const saving = savingSet(db);
+  const decisions = decisionStatus(db);
   const ideas = scan.entries.map((entry) => {
     const state = activity.get(entry.idea.id) ?? { active: false, failed: null };
     const views = (scan.pieces.get(entry.idea.id) ?? []).map((p) =>
-      pieceView(p, state.failed, saving),
+      pieceView(p, state.failed, decisions),
     );
-    return ideaView(entry, views, state, saving);
+    return ideaView(entry, views, state, decisions);
   });
   const tabs = tabsOf(ideas);
   const defaultTab =

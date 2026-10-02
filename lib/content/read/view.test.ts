@@ -247,4 +247,45 @@ describe("contentView", () => {
       cleanup();
     }
   });
+
+  it("shows why the newest decision saved nothing, only while the piece is still at the revision it was asked at", () => {
+    const db = openTestDb();
+    const ask = (revision: string) => {
+      enqueueJob(
+        db,
+        "content-decision",
+        { action: "approve", pieceId: `${IDEA}.linkedin`, revision, flags: "" },
+        "owner@example.com",
+      );
+      const job = claimNextJob(db);
+      finishJob(db, job?.id ?? 0, "failed", "Tick every flag before approving.", new Date());
+    };
+    ask("1");
+    const linkedin = (v: ReturnType<typeof contentView>) =>
+      v.ideas[0]?.pieces.find((p) => p.platform === "linkedin");
+    expect(linkedin(view({ ...base, ...pieces(2, 0) }, db))?.decisionError).toBe(
+      "Tick every flag before approving.",
+    );
+    ask("5"); // asked of a revision the piece is no longer at
+    expect(linkedin(view({ ...base, ...pieces(2, 0) }, db))?.decisionError).toBeNull();
+  });
+
+  it("marks a piece Saving while its decision job is waiting", () => {
+    const db = openTestDb();
+    enqueueJob(
+      db,
+      "content-decision",
+      { action: "approve", pieceId: `${IDEA}.linkedin`, revision: "1", flags: "" },
+      "owner@example.com",
+    );
+    const v = view({ ...base, ...pieces(2, 0) }, db);
+    expect(v.ideas[0]?.pieces.map((p) => p.saving)).toEqual([
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
 });

@@ -4,6 +4,7 @@ import type { Db } from "@/lib/db/client";
 import type { RunDeps } from "@/lib/jobs/run-job";
 import { getContentProducts, getExcludeApps } from "@/lib/products/catalog";
 import { type ChainDeps, chainHook, resumeChains } from "./chain-controller";
+import type { DecisionDeps } from "./decision-job";
 
 type Wiring = { db: Db; root: string; config: Config; now: () => Date };
 
@@ -34,3 +35,13 @@ export function contentRunDeps(w: Wiring): Pick<RunDeps, "content" | "afterOk"> 
 export function resumeContentChains(w: Wiring): number {
   return w.config.HARBOUR_CONTENT === "on" ? resumeChains(chainDeps(w)) : 0;
 }
+
+/** What the decision job needs: the brain, where interrupted runs wait, and the products with content on. */
+export const decisionDeps = (w: Wiring & { quarantineRoot: string }): DecisionDeps => ({
+  db: w.db,
+  root: w.root,
+  quarantineRoot: w.quarantineRoot,
+  now: w.now,
+  timeZone: w.config.HARBOUR_TIMEZONE,
+  products: getContentProducts(),
+});

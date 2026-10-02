@@ -75,6 +75,30 @@ describe("POST /api/content", () => {
     expect(listJobs(db())).toEqual([]);
   });
 
+  it("refuses a huge body without parsing it, and deeply nested or oddly shaped decisions as invalid", async () => {
+    const huge = JSON.stringify({
+      action: "edit",
+      pieceId: "a-1.x",
+      revision: 1,
+      body: "a".repeat(200_000),
+    });
+    expect((await ask(huge)).status).toBe(413);
+    const deep = `${"[".repeat(5000)}${"]".repeat(5000)}`;
+    expect((await ask(deep)).status).toBe(400);
+    const piece = "acme-docs-20261001-five-minutes.linkedin";
+    for (const body of [
+      { action: "edit", pieceId: piece, revision: 1, body: { nested: { deep: "x" } } },
+      { action: "edit", pieceId: piece, revision: 1, body: "x".repeat(20_001) },
+      { action: "approve", pieceId: piece, revision: 1, state: "approved" },
+      { action: "approve", pieceId: "../x.linkedin", revision: 1 },
+      { action: "discard", pieceId: piece },
+      { action: "discard" },
+    ]) {
+      expect((await ask(body)).status).toBe(400);
+    }
+    expect(listJobs(db())).toEqual([]);
+  });
+
   it("queues one digest job and returns its id; a second click returns the same one", async () => {
     const first = (await (await ask({ action: "make-digest" })).json()) as { jobIds: number[] };
     const second = (await (await ask({ action: "make-digest" })).json()) as { jobIds: number[] };
