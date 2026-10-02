@@ -1,5 +1,5 @@
 import { AREA_KEYS } from "@/lib/scan/views";
-import { AREA_ORDER, AREAS, areaKeyOf } from "./areas";
+import { AREA_ORDER, AREAS, areaKeyOf, areaNextStep } from "./areas";
 import { isComplete } from "./four-parts";
 
 describe("AREAS", () => {
@@ -37,5 +37,12 @@ describe("AREAS", () => {
 
   it("knows a blank part is incomplete", () => {
     expect(isComplete({ ...AREAS.seo.parts, worth: " " })).toBe(false);
+  });
+
+  it("points an area's next step at its actions, promising what's worth doing", () => {
+    expect(areaNextStep("geo")).toEqual({
+      href: "/actions?area=GEO",
+      label: "See what's worth doing for Recommended by AI assistants",
+    });
   });
 });

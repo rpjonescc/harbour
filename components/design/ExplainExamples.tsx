@@ -3,7 +3,7 @@ import { Explainer } from "@/components/explain/Explainer";
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { VerdictLine } from "@/components/explain/VerdictLine";
 import { NOTHING_TO_DO } from "@/components/today/WorthDoingNext";
-import { AREAS } from "@/lib/explain/areas";
+import { AREAS, areaNextStep } from "@/lib/explain/areas";
 import { subScoreExplanation, subScoreLine } from "@/lib/explain/subscores";
 import { GAP_REASONS } from "@/lib/explain/verdict";
 import { Example } from "./Example";
@@ -44,7 +44,7 @@ export function ExplainExamples() {
           topic={`${geo.name} example`}
           oneLiner={geo.oneLiner}
           parts={geo.parts}
-          nextStep={{ href: "/actions?area=GEO", label: `See ideas for ${geo.name}` }}
+          nextStep={areaNextStep("geo")}
         />
       </Example>
       {concise && (

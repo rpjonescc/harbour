@@ -82,6 +82,15 @@ export const AREAS: Readonly<Record<AreaKey, AreaExplanation>> = {
   },
 };
 
+/**
+ * An area's next step: its actions on the board. The board opens on To do and In progress, so
+ * the label promises what's worth doing there, not new ideas.
+ */
+export function areaNextStep(key: AreaKey): { href: string; label: string } {
+  const area = AREAS[key];
+  return { href: `/actions?area=${area.code}`, label: `See what's worth doing for ${area.name}` };
+}
+
 const KEY_OF: Readonly<Record<IssueArea, AreaKey>> = { SEO: "seo", GEO: "geo", AEO: "aeo" };
 
 /** The area key for an action's area code. */

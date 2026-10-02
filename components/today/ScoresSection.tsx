@@ -1,6 +1,6 @@
 import { Explainer } from "@/components/explain/Explainer";
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
-import { AREA_ORDER, AREAS } from "@/lib/explain/areas";
+import { AREA_ORDER, AREAS, areaNextStep } from "@/lib/explain/areas";
 import type { ProductScores } from "@/lib/today/types";
 import { ScoreTable } from "./ScoreTable";
 import { VerdictTable } from "./VerdictTable";
@@ -23,10 +23,7 @@ export function ScoresSection({ scores }: { scores: ProductScores[] }) {
                 topic={area.name}
                 oneLiner={area.oneLiner}
                 parts={area.parts}
-                nextStep={{
-                  href: `/actions?area=${area.code}`,
-                  label: `See ideas for ${area.name}`,
-                }}
+                nextStep={areaNextStep(key)}
               />
             </li>
           );

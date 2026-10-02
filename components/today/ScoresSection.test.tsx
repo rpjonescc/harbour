@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { getProducts } from "@/lib/products/catalog";
 import { sampleToday } from "@/lib/today/sample";
 import { ScoresSection } from "./ScoresSection";
@@ -15,6 +15,15 @@ describe("ScoresSection", () => {
     for (const name of ["Found on Google", "Recommended by AI assistants", "Answer-ready"]) {
       expect(within(guide).getByRole("button", { name: `What's this? (${name})` })).toBeVisible();
     }
+  });
+
+  // The board opens on To do and In progress, so "ideas" would promise a column it hides.
+  it("points each area's next step at what's worth doing on the Actions board", () => {
+    render(<ScoresSection scores={scores} />);
+    fireEvent.click(screen.getByRole("button", { name: "What's this? (Answer-ready)" }));
+    expect(
+      screen.getByRole("link", { name: "See what's worth doing for Answer-ready" }),
+    ).toHaveAttribute("href", "/actions?area=AEO");
   });
 
   it("keeps the numbers, codes and 30-day trend one click away under Technical details", () => {

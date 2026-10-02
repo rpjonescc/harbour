@@ -50,12 +50,14 @@ describe("Explainer", () => {
   });
 
   it("links the next step inside the panel", () => {
-    const button = renderSeo({ href: "/actions?area=SEO", label: "See ideas for Found on Google" });
+    const button = renderSeo({
+      href: "/actions?area=SEO",
+      label: "See what's worth doing for Found on Google",
+    });
     fireEvent.click(button);
-    expect(screen.getByRole("link", { name: "See ideas for Found on Google" })).toHaveAttribute(
-      "href",
-      "/actions?area=SEO",
-    );
+    expect(
+      screen.getByRole("link", { name: "See what's worth doing for Found on Google" }),
+    ).toHaveAttribute("href", "/actions?area=SEO");
   });
 
   it("gives each explainer on a page its own button name", () => {
