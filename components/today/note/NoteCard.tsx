@@ -3,7 +3,7 @@ import { Tag } from "@/components/ui/Tag";
 import type { Note } from "@/lib/explain/voice/note";
 import { formatShortDateTime } from "@/lib/format/date";
 import type { NoteSlot } from "@/lib/note/view";
-import { FreshNoteButton } from "./FreshNoteButton";
+import { type ExampleButtonState, FreshNoteButton } from "./FreshNoteButton";
 
 function NoteText({ note }: { note: Note }) {
   return (
@@ -37,11 +37,15 @@ export function NoteCard({
   timeZone,
   locale,
   demo = false,
+  demoState,
 }: {
   slot: NoteSlot;
   timeZone: string;
   locale: string;
+  /** /design example: the buttons do nothing. */
   demo?: boolean;
+  /** /design example: the button state to show. */
+  demoState?: ExampleButtonState;
 }) {
   const { view } = slot;
   const celebrating = view.kind === "note" && view.note.mood === "celebrate";
@@ -69,9 +73,11 @@ export function NoteCard({
       {view.kind !== "sample" && (
         <FreshNoteButton
           latestAt={view.kind === "note" ? view.at.toISOString() : null}
+          latestRun={slot.latestRun}
           tokenSet={slot.tokenSet}
           noteTime={slot.noteTime}
           demo={demo}
+          demoState={demoState}
         />
       )}
     </section>

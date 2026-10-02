@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { SAMPLE_NOTE } from "@/lib/explain/voice/fallback";
 import type { NoteSlot } from "@/lib/note/view";
 import { GOOD_NOTE } from "@/tests/helpers/note";
 import { NoteCard } from "./NoteCard";
 
+const api = vi.hoisted(() => ({ postJson: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("@/lib/auth/client-api", () => api);
 
 const AT = new Date("2026-10-02T05:30:00Z");
 const GAP = "No note yet today. The next one is written at 06:30.";
@@ -13,6 +15,7 @@ const slot = (view: NoteSlot["view"], over: Partial<NoteSlot> = {}): NoteSlot =>
   view,
   noteTime: "06:30",
   tokenSet: true,
+  latestRun: null,
   ...over,
 });
 const renderCard = (s: NoteSlot) =>
@@ -31,6 +34,30 @@ describe("NoteCard", () => {
     expect(c.getByRole("link", { name: note.picks[0] ?? "" })).toHaveAttribute("href", "/actions");
     expect(c.getByText("Written 2 Oct, 06:30")).toBeInTheDocument();
     expect(c.getByRole("button", { name: "Write me a fresh one" })).toBeEnabled();
+  });
+
+  it("adds no rest paragraph when the note has none", () => {
+    renderCard(slot({ kind: "note", note: GOOD_NOTE, at: AT }));
+    expect(GOOD_NOTE).not.toHaveProperty("rest");
+    // The greeting, the headline and the body are the only paragraphs above the footer.
+    const paragraphs = card().querySelectorAll("p");
+    expect([...paragraphs].map((p) => p.textContent)).toEqual([
+      GOOD_NOTE.greeting,
+      GOOD_NOTE.headline,
+      GOOD_NOTE.body,
+      "Written 2 Oct, 06:30",
+      "", // the button's status line
+    ]);
+  });
+
+  it("hands the newest run to the button, so a failed run is said", async () => {
+    api.postJson.mockResolvedValue({ ok: true, data: { jobIds: [3] } });
+    renderCard(slot({ kind: "gap", line: GAP }, { latestRun: { id: 3, status: "failed" } }));
+    await act(
+      async () =>
+        void fireEvent.click(screen.getByRole("button", { name: "Write me a fresh one" })),
+    );
+    expect(within(card()).getByRole("status")).toHaveTextContent("didn't pass Harbour's checks");
   });
 
   it("adds no heading: the briefing stays the page's h1", () => {

@@ -513,7 +513,11 @@ on the same runner, git gate and Claude subscription as the other agents.
   A failed run is not retried automatically. Without `HARBOUR_CLAUDE_OAUTH_TOKEN` the worker
   skips it and says so in its log. `HARBOUR_SCHEDULED_NOTE=off` stops the schedule.
 - **Write me a fresh one** — the button on Today queues a note now (one at a time, at most 5 a
-  day; the scheduled note does not count). Today shows the newest valid note from the last 24
+  day; the scheduled note does not count). It says "Starting…", then "Writing a fresh one now"
+  while it waits (it re-checks every 5 seconds, for ten minutes at most), and it stops waiting
+  when its run ends: a succeeded run, or a failed one (the checker rejected the note twice, or
+  the run broke), which it says calmly: "That note didn't pass Harbour's checks, so nothing was
+  shown. You can try again." Every state is on `/design`. Today shows the newest valid note from the last 24
   hours; older than that, or with none, it shows "No note yet today. The next one is written at
   06:30." (or just "No note yet today." when the schedule is off or there is no token). The sample Today shows a fixed, labelled sample note.
 - **Changing the personality** — edit `lib/note/persona/warm-friend.md` (the voice, the honesty

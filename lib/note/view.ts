@@ -1,4 +1,6 @@
+import { desc, eq } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
+import { jobs } from "@/lib/db/schema";
 import { gapLine, NOTE_MESSAGES, SAMPLE_NOTE } from "@/lib/explain/voice/fallback";
 import type { Note } from "@/lib/explain/voice/note";
 import { freshNote, readNotes } from "./read";
@@ -9,8 +11,34 @@ export type NoteView =
   | { kind: "gap"; line: string }
   | { kind: "unavailable"; line: string };
 
-/** What the note card needs besides the note itself. */
-export type NoteSlot = { view: NoteView; noteTime: string; tokenSet: boolean };
+/** The newest daily-note job, so the button can tell when its own run is over, and how it ended. */
+export type LatestRun = {
+  id: number;
+  status: "queued" | "running" | "ok" | "failed" | "cancelled";
+};
+
+/**
+ * What the note card needs besides the note itself. `noteTime` is when the worker writes the
+ * next note each day, or null when no schedule runs; `latestRun` is null when no note was ever
+ * queued (and on the sample Today).
+ */
+export type NoteSlot = {
+  view: NoteView;
+  noteTime: string | null;
+  tokenSet: boolean;
+  latestRun: LatestRun | null;
+};
+
+function latestNoteRun(db: Db): LatestRun | null {
+  const row = db
+    .select({ id: jobs.id, status: jobs.status })
+    .from(jobs)
+    .where(eq(jobs.kind, "daily-note"))
+    .orderBy(desc(jobs.id))
+    .limit(1)
+    .get();
+  return row ?? null;
+}
 
 /**
  * What Today's note card shows (spec §4), or null when the personality is quiet. The sample
@@ -25,12 +53,20 @@ export function noteSlot(input: {
   root: string;
   timeZone: string;
   noteTime: string;
+  /** The worker is queueing the note by itself (the schedule is on and there is a token). */
+  scheduled: boolean;
   tokenSet: boolean;
   now: Date;
 }): NoteSlot | null {
-  const { noteTime, tokenSet } = input;
+  const { tokenSet } = input;
+  const noteTime = input.scheduled ? input.noteTime : null;
   if (input.personality === "quiet") return null;
-  const slot = (view: NoteView): NoteSlot => ({ view, noteTime, tokenSet });
+  const slot = (view: NoteView, latestRun: LatestRun | null = null): NoteSlot => ({
+    view,
+    noteTime,
+    tokenSet,
+    latestRun,
+  });
   if (input.isSample) return slot({ kind: "sample", note: SAMPLE_NOTE });
   try {
     const fresh = freshNote(
@@ -41,6 +77,7 @@ export function noteSlot(input: {
       fresh
         ? { kind: "note", note: fresh.note, at: fresh.at }
         : { kind: "gap", line: gapLine(noteTime) },
+      latestNoteRun(input.db),
     );
   } catch (error) {
     console.error("could not read the daily note", error);

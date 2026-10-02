@@ -208,6 +208,7 @@ describe("TodayView", () => {
     renderToday(real, EXAMPLE_BACKUPS.ok, {
       view: { kind: "gap", line: "No note yet today. The next one is written at 06:30." },
       noteTime: "06:30",
+      latestRun: null,
       tokenSet: true,
     });
     const card = screen.getByRole("region", { name: "A note from Harbour" });

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { SAMPLE_NOTE } from "@/lib/explain/voice/fallback";
 import { makeBrain } from "@/tests/helpers/brain";
 import { openTestDb } from "@/tests/helpers/db";
-import { GOOD_NOTE, noteFileText, vouchForFiles } from "@/tests/helpers/note";
+import { GOOD_NOTE, noteFileText, seedNoteJob, vouchForFiles } from "@/tests/helpers/note";
 import { noteSlot } from "./view";
 
 /** A db where every stamp-named file in the brain has a succeeded job holding its digest. */
@@ -20,6 +20,7 @@ const base = (root: string, over = {}) => ({
   root,
   timeZone: "Europe/London",
   noteTime: "06:30",
+  scheduled: true,
   tokenSet: true,
   now: NOW,
   ...over,
@@ -78,6 +79,56 @@ describe("noteSlot", () => {
       old.cleanup();
       none.cleanup();
     }
+  });
+
+  it("words the gap without a time when no schedule runs (off, or no token)", () => {
+    const brain = makeBrain({ "README.md": "# Brain\n" });
+    try {
+      expect(noteSlot(base(brain.root, { scheduled: false }))).toMatchObject({
+        noteTime: null,
+        view: { kind: "gap", line: "No note yet today." },
+      });
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  describe("the latest run", () => {
+    const slotWith = (jobs: ("queued" | "running" | "ok" | "failed" | "cancelled")[]) => {
+      const brain = makeBrain({ "README.md": "# Brain\n" });
+      try {
+        const db = openTestDb();
+        jobs.forEach((status, i) => {
+          seedNoteJob(db, `2026-10-02-0${i}30`, status);
+        });
+        return noteSlot(base(brain.root, { db }))?.latestRun;
+      } finally {
+        brain.cleanup();
+      }
+    };
+
+    it("is null when no note was ever queued", () => {
+      expect(slotWith([])).toBeNull();
+    });
+
+    it("is the newest daily-note job, whatever its status", () => {
+      expect(slotWith(["ok", "failed"])).toEqual({ id: 2, status: "failed" });
+      expect(slotWith(["failed", "ok"])).toEqual({ id: 2, status: "ok" });
+      expect(slotWith(["ok", "running"])).toEqual({ id: 2, status: "running" });
+      expect(slotWith(["queued"])).toEqual({ id: 1, status: "queued" });
+    });
+
+    it("is null on the sample Today and when the notes cannot be read", () => {
+      const brain = makeBrain({ "notes/daily": "a file where the folder should be" });
+      const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      try {
+        expect(noteSlot(base(brain.root, { isSample: true }))?.latestRun).toBeNull();
+        expect(noteSlot(base(brain.root))?.latestRun).toBeNull();
+      } finally {
+        error.mockRestore();
+        brain.cleanup();
+      }
+    });
   });
 
   it("never shows a note that is not valid: the gap, not the file", () => {

@@ -245,3 +245,9 @@ Where the build differs from this spec or fills a gap, and why.
   moves into `notes/daily/`. Today shows a note only when a succeeded `daily-note` job vouches for
   its stamp and the file's content hash equals the one the checker accepted, so a file added,
   edited or overwritten afterwards (by any agent) is never shown.
+- **(m) The card knows how the newest run ended.** The note slot carries the newest `daily-note`
+  job's id and status, so "Write me a fresh one" stops waiting when its own run ends: a rejected
+  or failed run is said calmly ("That note didn't pass Harbour's checks, so nothing was shown. You
+  can try again."), and a note re-written in the same minute (same stamp) still ends the wait. The
+  card only promises "the next one is written at HH:MM" when the schedule is on and a token is
+  set. A catch-up note is stamped with the minute it is written, so "Written …" is true.

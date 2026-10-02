@@ -65,9 +65,6 @@ export const EMPTY_STATE: Record<
   },
 };
 
-/** What a /design example says instead of changing anything. */
-export const DEMO_NOTE = "Example only — nothing changed";
-
 /** One status button: its label, the status it moves to, and what is announced after. */
 export type StatusControl = { label: string; to: StatusChange["to"]; done: string };
 

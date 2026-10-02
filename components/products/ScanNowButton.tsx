@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { DEMO_NOTE } from "@/components/actions/action-labels";
 import { Button } from "@/components/ui/Button";
+import { DEMO_NOTE } from "@/components/ui/demo-note";
 import { postJson } from "@/lib/auth/client-api";
 import { SCAN_NOW } from "@/lib/explain/scan-status";
 

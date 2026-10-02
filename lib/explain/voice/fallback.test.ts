@@ -9,6 +9,14 @@ describe("the fixed texts", () => {
     expect(gapLine("06:30")).toBe("No note yet today. The next one is written at 06:30.");
   });
 
+  it("do not promise a schedule that is not running", () => {
+    expect(gapLine(null)).toBe("No note yet today.");
+    expect(NOTE_MESSAGES.rateLimited(null)).toBe(
+      "That's plenty of notes for one day. You can ask again tomorrow.",
+    );
+    expect(NOTE_MESSAGES.rateLimited(null)).not.toMatch(/written at/);
+  });
+
   it("keep the same tone rules as the agent's notes", () => {
     const texts = [
       gapLine("06:30"),
@@ -18,6 +26,10 @@ describe("the fixed texts", () => {
       NOTE_MESSAGES.noToken,
       NOTE_MESSAGES.unavailable,
       NOTE_MESSAGES.rateLimited("06:30"),
+      NOTE_MESSAGES.rateLimited(null),
+      NOTE_MESSAGES.rejected,
+      NOTE_MESSAGES.starting,
+      gapLine(null),
       SAMPLE_NOTE.greeting,
       SAMPLE_NOTE.headline,
       SAMPLE_NOTE.body,
