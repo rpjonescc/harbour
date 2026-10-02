@@ -1065,3 +1065,27 @@ Each step is its own reviewed change, with tests and README updates in the same 
   own vocabulary. Mitigation: a theme sharing a verbatim run of 20 or more characters with the
   filtered snippets (product terms excepted) is dropped and counted.
 - **Not built:** digest pruning and `HARBOUR_DIGEST_KEEP_DAYS` (Decision 8).
+
+## 18. As built: idea generation (Task 9)
+
+- **Inputs.** The ideas job reads only validated digest themes (the last 7 days, this product's),
+  approved pillars, the first 6 KiB of the product's `notes.md` and `discovery.md`, the owner's
+  voice-profile audience line and the titles of the 30 newest ideas. Raw screen text never reaches
+  it. Notes are read through one descriptor (no symlink, FIFO or directory), must be UTF-8, have
+  invisible characters stripped and fail the job on a control character; a digest in the window
+  that cannot be read fails the job rather than counting as a quiet week.
+- **Output rules.** 1 to 5 ideas; every source ref must be one the prompt offered; plain text only
+  (no markup, markdown, links, emoji, line breaks or hidden characters); the same title twice in
+  one answer is rejected. The worker makes the id and every frontmatter field, never overwrites a
+  file (a file the owner is editing, even an invalid one, owns its name) and skips a title the
+  owner already has. Only as many ideas as fit under 12 waiting are written. Nothing new to write
+  is a rejection, retried once.
+- **Quiet run.** The agent's own words stay out of the run record (`AgentSpec.quiet`), as for the
+  digest, because it can quote its inputs.
+- **Backlog at run time.** A queued run that finds 12 ideas waiting fails with "12 ideas are
+  waiting; skipped" (the request and the schedule check first, so this is only a race). The spec's
+  "records instead of failing" is not built: a failed job is the one existing way to say it.
+- **Monday schedule.** One run per ready product (valid voice profile, under 12 waiting) once the
+  Monday 07:00 slot has passed, derived from the jobs table so a restart never repeats it. A worker
+  that was down catches up once in the same local week (Monday 07:00 to Sunday); it never writes an
+  earlier week's run. A manual or failed run since the slot settles that product for the week.

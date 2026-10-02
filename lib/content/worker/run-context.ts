@@ -1,3 +1,4 @@
+import type { Pillar } from "@/lib/agents/proposals";
 import type { ContentProduct } from "@/lib/products/content";
 
 /** What the digest agent is given: filtered snippets per product (worker memory only, never stored). */
@@ -13,6 +14,8 @@ export type ContentRunContext = {
   skillsDir: string;
   products: readonly ContentProduct[];
   excludeApps: readonly string[];
+  /** The pillars the owner approved for a product (a read of the database). */
+  approvedPillars: (productId: string) => Pillar[];
   digest?: DigestInputs;
 };
 

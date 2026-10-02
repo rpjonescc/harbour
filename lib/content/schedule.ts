@@ -2,6 +2,7 @@ import type { Db } from "@/lib/db/client";
 import {
   addDays,
   latestDailySlotDay,
+  localMoment,
   localTime,
   nextDailySlot,
   zonedInstant,
@@ -71,6 +72,82 @@ export function makeDigestSchedule(deps: DigestScheduleDeps) {
         dailyRuns: deps.dailyRuns,
       });
       return queued.ok && queued.created ? { jobId: queued.id, day } : null;
+    },
+  };
+}
+
+const IDEAS_MINUTE = 7 * 60; // Monday 07:00, after the 05:45 digest
+const MONDAY_FIRST = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+/** The Monday of the local week that `now` falls in, and whether its 07:00 slot has passed. */
+function thisWeeksSlot(now: Date, timeZone: string): { monday: string; passed: boolean } {
+  const local = localMoment(timeZone, now);
+  const sinceMonday = MONDAY_FIRST.indexOf(local.weekday);
+  return {
+    monday: addDays(local.day, -sinceMonday),
+    passed: sinceMonday > 0 || local.hour * 60 + local.minute >= IDEAS_MINUTE,
+  };
+}
+
+/** The Monday whose 07:00 slot is the latest at or before `now`. */
+export function latestIdeasSlotDay(now: Date, timeZone: string): string {
+  const { monday, passed } = thisWeeksSlot(now, timeZone);
+  return passed ? monday : addDays(monday, -7);
+}
+
+/** The next Monday 07:00, or null when the schedule is off. */
+export function nextIdeasRun(now: Date, timeZone: string, enabled: boolean): Date | null {
+  return enabled
+    ? zonedInstant(addDays(latestIdeasSlotDay(now, timeZone), 7), IDEAS_MINUTE, timeZone)
+    : null;
+}
+
+export type IdeasScheduleDeps = {
+  db: Db;
+  timeZone: string;
+  /** HARBOUR_CONTENT on and HARBOUR_SCHEDULED_IDEAS on. */
+  enabled: boolean;
+  tokenSet: boolean;
+  dailyRuns: number;
+  clock: () => number;
+  /** Ids of the content products with a valid voice profile and fewer than 12 ideas waiting. */
+  readyProducts: () => string[];
+};
+
+/**
+ * Monday's idea runs: one per ready product per Monday, derived from the jobs table so a restart
+ * never queues twice. After an outage it catches up once, for this week's Monday only (never an
+ * earlier week: a worker that was down for a fortnight does not write two weeks of ideas). A
+ * manual run since that slot, or a failed one, settles the product for the week.
+ */
+export function makeIdeasSchedule(deps: IdeasScheduleDeps) {
+  const due = makeThrottle(CHECK_MS);
+  return {
+    tick(): { jobId: number; productId: string }[] {
+      if (!deps.enabled || !deps.tokenSet || !due(deps.clock())) return [];
+      const now = new Date(deps.clock());
+      const since = zonedInstant(
+        latestIdeasSlotDay(now, deps.timeZone),
+        IDEAS_MINUTE,
+        deps.timeZone,
+      );
+      if (!thisWeeksSlot(now, deps.timeZone).passed) return [];
+      const done = new Set(
+        jobsCreatedSince(deps.db, "content-ideas", since).map((j) => j.params.productId),
+      );
+      const queued: { jobId: number; productId: string }[] = [];
+      for (const productId of deps.readyProducts().filter((id) => !done.has(id))) {
+        const result = enqueueContent(deps.db, {
+          kind: "content-ideas",
+          params: { productId },
+          requestedBy: null,
+          timeZone: deps.timeZone,
+          now,
+          dailyRuns: deps.dailyRuns,
+        });
+        if (result.ok && result.created) queued.push({ jobId: result.id, productId });
+      }
+      return queued;
     },
   };
 }

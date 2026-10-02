@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ANALYST_PROMPT_VERSION, weeklyAnalystPrompt, weeklyPaths } from "@/lib/analyst/prompt";
 import { digestSpec } from "@/lib/content/worker/digest";
+import { ideasSpec } from "@/lib/content/worker/ideas";
 import type { ContentRunContext } from "@/lib/content/worker/run-context";
 import type { Facts } from "@/lib/explain/voice/facts";
 import { dailyNoteSpec } from "@/lib/note/spec";
@@ -182,5 +183,6 @@ export function specForJob(
   if (kind === "weekly-analyst") return weeklySpec(params, context);
   if (kind === "daily-note") return dailyNoteSpec(params, context);
   if (kind === "content-digest") return digestSpec(params, context);
+  if (kind === "content-ideas") return ideasSpec(params, context);
   throw new Error(`Not an agent job: ${kind}`);
 }

@@ -122,6 +122,13 @@ signed-in session:
   and `HARBOUR_SCREENPIPE_API_KEY` are set. It answers `{"jobIds": [12]}` (the same job on a second
   click) and refuses with `409 content_off`, `409 token_missing`, `409 screenpipe_missing` or
   `429 daily_cap` / `429 rate_limited`.
+- `POST /api/content` with `{"action": "find-ideas", "productId": "acme-docs"}` queues one ideas run
+  for a content-enabled product (as **Find new ideas** will). It needs `HARBOUR_CONTENT=on`, the
+  Claude token and a voice profile for that product, and refuses with `404 not_found`,
+  `409 voice_missing`, `409 backlog` ("12 ideas are waiting; skipped"), `409 brain_unreadable`,
+  `429 daily_cap` or `429 rate_limited`. The same Monday 07:00 run is queued by the worker for
+  every product with a voice profile (`HARBOUR_SCHEDULED_IDEAS`); it reads only the last 7 days of
+  activity themes, your approved pillars, the product's notes and the titles you already have.
 - `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
   moves an action to a new status. `from` is the status your page showed: if the action changed
   since, the request is refused (`409 stale`) instead of overwriting it. `to` is `open`,

@@ -34,3 +34,27 @@ export function readBoundedBytes(path: string, max: number): Buffer | null {
 
 /** A note file's bytes, or null when it is a symlink or over MAX_NOTE_BYTES. */
 export const readNoteBytes = (path: string) => readBoundedBytes(path, MAX_NOTE_BYTES);
+
+/**
+ * The first `max` bytes of a regular file (never a symlink, FIFO or directory), and whether more
+ * followed. Anything else throws, so a caller can fail closed with its own sentence.
+ */
+export function readPrefixBytes(path: string, max: number): { bytes: Buffer; truncated: boolean } {
+  if (!Number.isSafeInteger(max) || max < 0)
+    throw new RangeError("max must be a non-negative integer");
+  // O_NONBLOCK so opening a FIFO never waits for a writer; the fstat below then refuses it.
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    if (!fstatSync(fd).isFile()) throw new Error("Not a regular file");
+    const buffer = Buffer.alloc(max + 1);
+    let length = 0;
+    while (length < buffer.length) {
+      const read = readSync(fd, buffer, length, buffer.length - length, length);
+      if (read === 0) break;
+      length += read;
+    }
+    return { bytes: buffer.subarray(0, Math.min(length, max)), truncated: length > max };
+  } finally {
+    closeSync(fd);
+  }
+}

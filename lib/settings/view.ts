@@ -5,12 +5,12 @@ import { approvalsWaiting } from "@/lib/actions/board-notices";
 import { nextMonthlyRefresh } from "@/lib/agents/refresh-schedule";
 import { nextWeeklyRun } from "@/lib/analyst/schedule";
 import type { Config } from "@/lib/config";
-import { nextDigestRun } from "@/lib/content/schedule";
+import { nextDigestRun, nextIdeasRun } from "@/lib/content/schedule";
 import { audToMicro } from "@/lib/costs/budget";
 import { type Reservation, reservationsBetween } from "@/lib/costs/ledger";
 import { type CostMeterView, costMeterView } from "@/lib/costs/meter-view";
 import type { Db } from "@/lib/db/client";
-import { DIGEST_OFF_REASON, NOTE_OFF_REASON } from "@/lib/explain/settings";
+import { DIGEST_OFF_REASON, IDEAS_OFF_REASON, NOTE_OFF_REASON } from "@/lib/explain/settings";
 import { monthWindow } from "@/lib/format/zoned-time";
 import { nextScheduledScans } from "@/lib/jobs/scan-schedule";
 import { nextNoteRun, noteEnabled } from "@/lib/note/schedule";
@@ -20,7 +20,7 @@ import type { Hue, Product, ProductKind } from "@/lib/products/catalog";
 import { type KeyRow, keyStatusRows } from "./key-status";
 
 export type ScheduleRow = {
-  id: "scan" | "analyst" | "refresh" | "backup" | "note" | "digest";
+  id: "scan" | "analyst" | "refresh" | "backup" | "note" | "digest" | "ideas";
   label: string;
   when: string;
   setting: string;
@@ -77,6 +77,8 @@ function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] 
   const digestSwitch = on(config.HARBOUR_SCHEDULED_DIGEST);
   const keySet = Boolean(config.HARBOUR_SCREENPIPE_API_KEY);
   const digest = digestSwitch && tokenSet && keySet;
+  const ideasSwitch = on(config.HARBOUR_SCHEDULED_IDEAS);
+  const ideas = ideasSwitch && tokenSet;
   return [
     {
       id: "scan",
@@ -133,6 +135,19 @@ function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] 
             offReason: digest ? null : digestOffReason(digestSwitch, tokenSet),
             enabled: digest,
             next: nextDigestRun(now, zone, config.HARBOUR_DIGEST_TIME, digest),
+          },
+          {
+            id: "ideas" as const,
+            label: "Content ideas",
+            when: "Mondays at 07:00",
+            setting: "HARBOUR_SCHEDULED_IDEAS",
+            offReason: ideas
+              ? null
+              : ideasSwitch
+                ? IDEAS_OFF_REASON.token
+                : IDEAS_OFF_REASON.schedule,
+            enabled: ideas,
+            next: nextIdeasRun(now, zone, ideas),
           },
         ]
       : []),

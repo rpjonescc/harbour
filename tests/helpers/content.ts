@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { renderFile } from "@/lib/content/files";
 import { connectionOf, type Db } from "@/lib/db/client";
 import type { ContentProduct } from "@/lib/products/content";
 import { setup } from "./run-job";
@@ -109,7 +110,13 @@ export function contentSetup(
 ) {
   const skills = makeSkillsDir(options.skills);
   const s = setup("content-work", files);
-  s.deps.content = { root: s.brain.root, skillsDir: skills.dir, products: [ACME], excludeApps: [] };
+  s.deps.content = {
+    root: s.brain.root,
+    skillsDir: skills.dir,
+    products: [ACME],
+    excludeApps: [],
+    approvedPillars: () => [],
+  };
   const calls: { prompt: string; tools: string; args: string[] }[] = [];
   const run = s.deps.run;
   s.deps.run = (o) => {
@@ -168,5 +175,46 @@ export function dumpDb(db: Db): string {
   }[];
   return JSON.stringify(
     tables.map(({ name }) => [name, client.prepare(`SELECT * FROM "${name}"`).all()]),
+  );
+}
+
+/** A valid idea file (state `idea`, one source); `over` overrides frontmatter fields. */
+export const ideaFile = (over: Record<string, unknown> = {}) =>
+  renderFile(
+    {
+      title: "Five minutes to a first deploy",
+      kind: "content-idea",
+      productId: "acme-docs",
+      state: "idea",
+      pillar: null,
+      angle: "Show the shortest path.",
+      audienceQuestion: "How long does it take?",
+      why: "You rebuilt this guide this week.",
+      sources: ["product:acme-docs"],
+      needsYou: null,
+      created: "2026-10-02",
+      createdBy: "job-1",
+      ...over,
+    },
+    "Body.",
+  );
+
+/** A digest file for `day` with `[productId, text]` themes numbered t1.. */
+export function digestFile(day: string, themes: [string, string][]): string {
+  return renderFile(
+    {
+      title: `Activity themes ${day}`,
+      kind: "content-digest",
+      date: day,
+      window: { start: `${day}T00:00:00.000Z`, end: `${day}T23:59:59.000Z` },
+      status: "ok",
+      themes: themes.map(([productId, text], i) => ({
+        id: `t${i + 1}`,
+        productId,
+        text,
+        kind: "built",
+      })),
+    },
+    themes.map(([, text]) => `- ${text}`).join("\n"),
   );
 }

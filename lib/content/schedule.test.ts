@@ -1,7 +1,13 @@
 import { jobs as jobsTable } from "@/lib/db/schema";
 import { enqueueJob, listJobs } from "@/lib/jobs/queue";
 import { openTestDb } from "@/tests/helpers/db";
-import { makeDigestSchedule, nextDigestRun } from "./schedule";
+import {
+  latestIdeasSlotDay,
+  makeDigestSchedule,
+  makeIdeasSchedule,
+  nextDigestRun,
+  nextIdeasRun,
+} from "./schedule";
 
 const ZONE = "Australia/Brisbane"; // UTC+10 all year: 05:45 local is 19:45 UTC the evening before
 
@@ -111,5 +117,114 @@ describe("the digest schedule", () => {
     const now = new Date("2026-10-01T20:00:00Z");
     expect(nextDigestRun(now, ZONE, "05:45", true)?.toISOString()).toBe("2026-10-02T19:45:00.000Z");
     expect(nextDigestRun(now, ZONE, "05:45", false)).toBeNull();
+  });
+});
+
+describe("the ideas schedule", () => {
+  // Brisbane is UTC+10: Monday 5 October 2026, 07:00 local is Sunday 4 October 21:00 UTC.
+  const make = (
+    db: ReturnType<typeof openTestDb>,
+    clock: () => number,
+    over: { enabled?: boolean; tokenSet?: boolean; dailyRuns?: number; ready?: string[] } = {},
+  ) =>
+    makeIdeasSchedule({
+      db,
+      timeZone: ZONE,
+      enabled: over.enabled ?? true,
+      tokenSet: over.tokenSet ?? true,
+      dailyRuns: over.dailyRuns ?? 24,
+      clock,
+      readyProducts: () => over.ready ?? ["acme-docs", "lighthouse-cafe"],
+    });
+  const harness = (over: Parameters<typeof make>[2] = {}) => {
+    const db = openTestDb();
+    let now = 0;
+    const schedule = make(db, () => now, over);
+    return {
+      db,
+      at: (iso: string) => {
+        now = Date.parse(iso);
+        return schedule.tick();
+      },
+    };
+  };
+
+  it("finds the latest Monday 07:00 at or before now", () => {
+    expect(latestIdeasSlotDay(new Date("2026-10-04T21:00:00Z"), ZONE)).toBe("2026-10-05"); // Monday 07:00 local
+    expect(latestIdeasSlotDay(new Date("2026-10-04T20:59:00Z"), ZONE)).toBe("2026-09-28"); // Monday 06:59 local
+    expect(latestIdeasSlotDay(new Date("2026-10-07T05:00:00Z"), ZONE)).toBe("2026-10-05"); // Wednesday
+  });
+
+  it("queues one run per ready product once after the slot, and not again", () => {
+    const h = harness();
+    expect(h.at("2026-10-04T20:00:00Z")).toEqual([]);
+    expect(h.at("2026-10-04T21:05:00Z")).toHaveLength(2);
+    expect(h.at("2026-10-04T22:00:00Z")).toEqual([]);
+    expect(
+      listJobs(h.db)
+        .map((j) => j.params.productId)
+        .sort(),
+    ).toEqual(["acme-docs", "lighthouse-cafe"]);
+  });
+
+  it("catches up once, on the latest Monday only, after the worker was down", () => {
+    const h = harness({ ready: ["acme-docs"] });
+    expect(h.at("2026-10-08T00:00:00Z")).toHaveLength(1);
+    expect(h.at("2026-10-08T01:00:00Z")).toEqual([]);
+    expect(listJobs(h.db)).toHaveLength(1);
+  });
+
+  it("does not queue a second run after a restart (a new schedule over the same database)", () => {
+    const h = harness();
+    expect(h.at("2026-10-04T21:05:00Z")).toHaveLength(2);
+    const restarted = make(h.db, () => Date.parse("2026-10-04T21:10:00Z"));
+    expect(restarted.tick()).toEqual([]);
+    expect(listJobs(h.db)).toHaveLength(2);
+  });
+
+  it("counts the owner's own run since the slot, and a failed run, as that week's run", () => {
+    const h = harness();
+    enqueueJob(
+      h.db,
+      "content-ideas",
+      { productId: "acme-docs" },
+      "owner@example.com",
+      new Date("2026-10-04T21:02:00Z"),
+    );
+    expect(h.at("2026-10-04T21:05:00Z").map((q) => q.productId)).toEqual(["lighthouse-cafe"]);
+    h.db.update(jobsTable).set({ status: "failed" }).run();
+    expect(h.at("2026-10-04T23:00:00Z")).toEqual([]);
+    expect(listJobs(h.db)).toHaveLength(2);
+  });
+
+  it("still queues on Monday when the owner asked for ideas the Sunday before", () => {
+    const h = harness({ ready: ["acme-docs"] });
+    enqueueJob(
+      h.db,
+      "content-ideas",
+      { productId: "acme-docs" },
+      "owner@example.com",
+      new Date("2026-10-04T10:00:00Z"),
+    );
+    h.db.update(jobsTable).set({ status: "ok" }).run();
+    expect(h.at("2026-10-04T21:05:00Z")).toHaveLength(1);
+  });
+
+  it.each([
+    ["off", { enabled: false }],
+    ["without a Claude token", { tokenSet: false }],
+    ["with no product ready", { ready: [] }],
+    ["past the daily cap", { dailyRuns: 0 }],
+  ])("queues nothing %s", (_label, over) => {
+    const h = harness(over);
+    expect(h.at("2026-10-04T21:05:00Z")).toEqual([]);
+    expect(listJobs(h.db)).toEqual([]);
+  });
+
+  it("names the next Monday 07:00, or none when off", () => {
+    expect(nextIdeasRun(new Date("2026-10-05T01:00:00Z"), ZONE, true)?.toISOString()).toBe(
+      "2026-10-11T21:00:00.000Z",
+    );
+    expect(nextIdeasRun(new Date("2026-10-05T01:00:00Z"), ZONE, false)).toBeNull();
   });
 });

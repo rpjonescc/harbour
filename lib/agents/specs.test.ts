@@ -99,6 +99,7 @@ describe("specForJob", () => {
       skillsDir: "/tmp/skills",
       products: products.map((p) => ({ ...p, terms: ["docs"], platforms: ["blog" as const] })),
       excludeApps: [],
+      approvedPillars: () => [],
     };
     const on = specForJob("discovery", { productId: "acme-docs" }, { ...context, content });
     expect(on.prompt).toContain('"pillars"');

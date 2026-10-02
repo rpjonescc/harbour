@@ -119,6 +119,28 @@ describe("settingsView", () => {
     expect(row({})?.next).toBeNull();
   });
 
+  it("shows the Monday ideas run only when content is on, and says why it is off", () => {
+    const row = (env: Record<string, string>, tokenSet = true) =>
+      settingsView(db, PRODUCTS, config(env), NOW, false, tokenSet).schedules.find(
+        (s) => s.id === "ideas",
+      );
+    expect(row({})).toBeUndefined();
+    const on = row({ HARBOUR_CONTENT: "on" });
+    expect(on).toMatchObject({
+      label: "Content ideas",
+      when: "Mondays at 07:00",
+      setting: "HARBOUR_SCHEDULED_IDEAS",
+      enabled: true,
+      offReason: null,
+    });
+    // Friday 2 October 2026 in London: the next Monday 07:00 BST is 5 October 06:00 UTC.
+    expect(on?.next?.toISOString()).toBe("2026-10-05T06:00:00.000Z");
+    const off = row({ HARBOUR_CONTENT: "on", HARBOUR_SCHEDULED_IDEAS: "off" });
+    expect(off).toMatchObject({ enabled: false, next: null });
+    expect(off?.offReason).toMatch(/switched off/);
+    expect(row({ HARBOUR_CONTENT: "on" }, false)?.offReason).toMatch(/Claude/);
+  });
+
   it("has no next run for a schedule that is off", () => {
     const off = config({
       HARBOUR_SCHEDULED_SCANS: "off",

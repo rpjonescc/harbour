@@ -4,10 +4,13 @@
 import { makeSnoozeWaker } from "@/lib/actions/store";
 import { quarantineRootFor } from "@/lib/agents/brain-status";
 import { runProcess } from "@/lib/agents/process";
+import { approvedPillars } from "@/lib/agents/proposals";
 import { makeRefreshSchedule, type QueuedRefresh } from "@/lib/agents/refresh-schedule";
 import { makeAnalystSchedule } from "@/lib/analyst/schedule";
 import { getConfig } from "@/lib/config";
-import { makeDigestSchedule } from "@/lib/content/schedule";
+import { countWaitingIdeas, MAX_WAITING_IDEAS } from "@/lib/content/read/ideas";
+import { readVoice } from "@/lib/content/read/voice";
+import { makeDigestSchedule, makeIdeasSchedule } from "@/lib/content/schedule";
 import { runDigestJob } from "@/lib/content/worker/digest-job";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
@@ -50,6 +53,19 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const logQueued = (why: string, scans: readonly QueuedScan[]) => {
   for (const s of scans) console.log(`${why}: queued scan #${s.jobId} for ${s.productId}`);
 };
+
+/** A product with a usable voice profile and room in its backlog; an unreadable brain queues nothing. */
+function readyForIdeas(root: string, productId: string): boolean {
+  try {
+    return (
+      readVoice(root, productId).state === "ok" &&
+      countWaitingIdeas(root, productId) < MAX_WAITING_IDEAS
+    );
+  } catch {
+    console.warn(`ideas: could not read the brain for ${productId}; skipped`);
+    return false;
+  }
+}
 
 async function main() {
   const config = getConfig();
@@ -96,6 +112,22 @@ async function main() {
   const logDigest = (why: string, queued: { jobId: number; day: string } | null) => {
     if (queued) console.log(`${why}: queued content digest #${queued.jobId} for ${queued.day}`);
   };
+  const ideas = makeIdeasSchedule({
+    db,
+    timeZone: config.HARBOUR_TIMEZONE,
+    enabled: config.HARBOUR_CONTENT === "on" && config.HARBOUR_SCHEDULED_IDEAS === "on",
+    tokenSet: Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN),
+    dailyRuns: config.HARBOUR_CONTENT_DAILY_RUNS,
+    clock: Date.now,
+    readyProducts: () =>
+      getContentProducts()
+        .filter((p) => readyForIdeas(root, p.id))
+        .map((p) => p.id),
+  });
+  const logIdeas = (why: string, queued: readonly { jobId: number; productId: string }[]) => {
+    for (const q of queued)
+      console.log(`${why}: queued content ideas #${q.jobId} for ${q.productId}`);
+  };
   const refreshes = makeRefreshSchedule({
     db,
     root,
@@ -134,6 +166,7 @@ async function main() {
   logAnalyst("catch-up", analyst.tick());
   logNote("catch-up", notes.tick());
   logDigest("catch-up", digests.tick());
+  logIdeas("catch-up", ideas.tick());
   logRefreshes("catch-up", refreshes.tick());
   logBackup("catch-up", backups.tick());
   console.log(
@@ -181,6 +214,7 @@ async function main() {
             skillsDir: config.HARBOUR_SKILLS_DIR,
             products: getContentProducts(),
             excludeApps: getExcludeApps(),
+            approvedPillars: (id) => approvedPillars(db, id),
           }
         : undefined,
   });
@@ -231,6 +265,7 @@ async function main() {
     logAnalyst("weekly", analyst.tick());
     logNote("daily", notes.tick());
     logDigest("daily", digests.tick());
+    logIdeas("weekly", ideas.tick());
     logRefreshes("monthly", refreshes.tick());
     logBackup("nightly", backups.tick());
     const woken = snoozes.tick();
