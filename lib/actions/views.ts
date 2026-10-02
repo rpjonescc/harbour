@@ -149,7 +149,7 @@ function toViews(db: Db, rows: ActionRow[]): ActionView[] {
   });
 }
 
-/** Most actions the board shows at once; the rest are counted ("N more — narrow the filter"). */
+/** Most actions the board shows at once; the rest are counted ("N more aren't shown. Use the filters above to narrow the list."). */
 export const MAX_BOARD_ACTIONS = 200;
 
 /**

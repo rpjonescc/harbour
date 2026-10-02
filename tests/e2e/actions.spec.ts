@@ -19,9 +19,9 @@ const LOCALE = "en-US";
 const card = (page: Page, title: string, product = CAFE.name) =>
   page.getByRole("article", { name: title, exact: true }).filter({ hasText: product });
 
-/** The board header's counts: "3 open · 1 in progress · 2 suggested". */
+/** The board header's counts: "3 to do · 1 in progress · 2 new ideas". */
 async function headerCounts(page: Page) {
-  const text = await page.getByText(/^\d+ open · \d+ in progress · \d+ suggested$/).textContent();
+  const text = await page.getByText(/^\d+ to do · \d+ in progress · \d+ new ideas?$/).textContent();
   const [open = 0, inProgress = 0, suggested = 0] = (text?.match(/\d+/g) ?? []).map(Number);
   return { open, inProgress, suggested, active: open + inProgress };
 }
@@ -140,7 +140,7 @@ test("snooze hides an action until its date; Bring back now brings it back", asy
   const wake = card(page, title).getByRole("button", { name: `Bring back now: ${title}` });
   await hydrated(wake);
   await wake.click();
-  await expect(page.getByText("Nothing snoozed.")).toBeVisible();
+  await expect(page.getByText("Nothing is snoozed.")).toBeVisible();
   await page.goto(CAFE_BOARD);
   await expect(card(page, title).getByText("To do", { exact: true })).toBeVisible();
 });
