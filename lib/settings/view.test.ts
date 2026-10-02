@@ -67,7 +67,7 @@ describe("settingsView", () => {
     ]);
     expect(view.schedules.map((s) => [s.label, s.when])).toEqual([
       ["Daily check", "Every day at 06:00"],
-      ["Weekly analyst", "Sundays at 20:00"],
+      ["Weekly report", "Sundays at 20:00"],
       ["Monthly research refresh", "First Sunday of the month at 21:00"],
       ["Nightly backup", "Every night at 03:15"],
       ["Morning note", "Every day at 06:30"],

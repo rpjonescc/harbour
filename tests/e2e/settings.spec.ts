@@ -73,29 +73,31 @@ test("every schedule is off in the E2E environment", async ({ page }) => {
   const table = page.getByRole("table", { name: "What runs on a schedule and when it runs next" });
   const rows = [
     ["Daily check", "HARBOUR_SCHEDULED_SCANS"],
-    ["Weekly analyst", "HARBOUR_SCHEDULED_ANALYST"],
+    ["Weekly report", "HARBOUR_SCHEDULED_ANALYST"],
     ["Monthly research refresh", "HARBOUR_SCHEDULED_RESEARCH"],
     ["Nightly backup", "HARBOUR_SCHEDULED_BACKUP"],
     ["Morning note", "HARBOUR_SCHEDULED_NOTE"],
   ];
-  for (const [label, setting] of rows) {
+  for (const [label] of rows) {
     const row = table.getByRole("row", { name: new RegExp(`^${label}`) });
     await expect(row.getByRole("cell").nth(1)).toHaveText("Off");
-    await expect(row).toContainText(`Off — ${setting}=off`);
+    await expect(row.getByRole("cell").nth(2)).toHaveText("Off");
   }
+  await page.getByText(/Technical details \(how to turn a schedule on or off\)/).click();
+  for (const [, setting] of rows) await expect(page.getByText(setting ?? "").first()).toBeVisible();
 });
 
-test("API keys show status only, never a value", async ({ page }) => {
+test("Connections show status only, never a value", async ({ page }) => {
   const response = await page.goto("/settings");
-  const table = page.getByRole("table", { name: "API keys and whether each is set" });
+  const table = page.getByRole("table", { name: "Connections and whether each is connected" });
   const status = (label: string) =>
     table
       .getByRole("row", { name: new RegExp(`^${label}`) })
       .getByRole("cell")
       .last();
-  await expect(status("Claude token")).toHaveText("Present");
-  await expect(status("PageSpeed Insights")).toHaveText("Missing");
-  await expect(status("DataForSEO")).toHaveText("Missing");
+  await expect(status("Claude token")).toHaveText("Connected");
+  await expect(status("PageSpeed Insights")).toHaveText(/^Not connected yet/);
+  await expect(status("DataForSEO")).toHaveText("Not available yet");
   // The HTML (including the serialised server components) never carries the token.
   expect(await response?.text()).not.toContain(FAKE_TOKEN);
   expect(await page.content()).not.toContain(FAKE_TOKEN);

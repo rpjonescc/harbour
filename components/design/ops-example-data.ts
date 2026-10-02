@@ -151,7 +151,7 @@ export const EXAMPLE_SETTINGS: SettingsView = {
     },
     {
       id: "analyst",
-      label: "Weekly analyst",
+      label: "Weekly report",
       when: "Sundays at 20:00",
       setting: "HARBOUR_SCHEDULED_ANALYST",
       enabled: true,
@@ -189,8 +189,6 @@ export const EXAMPLE_SETTINGS: SettingsView = {
       label: "Claude token",
       settings: ["HARBOUR_CLAUDE_OAUTH_TOKEN"],
       status: "present",
-      usedFor:
-        "Agents: research, discovery, the weekly analyst, research refreshes and the morning note",
       inUse: true,
       paid: false,
     },
@@ -199,7 +197,6 @@ export const EXAMPLE_SETTINGS: SettingsView = {
       label: "Search Console",
       settings: ["HARBOUR_GSC_CREDENTIALS"],
       status: "file-not-found",
-      usedFor: "Clicks, impressions and queries from Google Search Console",
       inUse: true,
       paid: false,
     },
@@ -208,7 +205,6 @@ export const EXAMPLE_SETTINGS: SettingsView = {
       label: "OpenAI",
       settings: ["HARBOUR_OPENAI_API_KEY"],
       status: "missing",
-      usedFor: "Whether ChatGPT search mentions and cites each product",
       inUse: false,
       paid: true,
     },

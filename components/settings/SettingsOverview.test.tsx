@@ -41,9 +41,7 @@ describe("SettingsOverview", () => {
   it("opens with a headline and one plain line, files and settings under Technical details", () => {
     const { container } = renderView();
     expect(screen.getByText(SETTINGS_INTRO.line)).toBeInTheDocument();
-    // The header only: the Schedules and Connections tables are rewritten in the next task.
-    const header = container.querySelector("header") as HTMLElement;
-    expect(textOutsideDetails(header)).not.toMatch(/HARBOUR_[A-Z_]+|\.env|harbour\.config/);
+    expect(textOutsideDetails(container)).not.toMatch(/HARBOUR_[A-Z_]+|\.env|harbour\.config/);
     const details = screen.getByText(/where settings live/).closest("details");
     expect(details).toHaveTextContent(SETTINGS_INTRO.files);
     expect(screen.getByRole("link", { name: /Configuration/ })).toHaveAttribute(
@@ -87,30 +85,51 @@ describe("SettingsOverview", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows each schedule's next run, or how it was turned off", () => {
-    renderView();
+  it("shows each schedule's next run, or Off, with setting names only in Technical details", () => {
+    const { container } = renderView();
     const schedules = within(section("Schedules"));
-    expect(schedules.getByRole("row", { name: /Weekly analyst/ })).toHaveTextContent(
+    expect(schedules.getByText("Daily check")).toBeInTheDocument();
+    expect(schedules.getByText("Weekly report")).toBeInTheDocument();
+    expect(schedules.getByRole("row", { name: /Weekly report/ })).toHaveTextContent(
       "Sunday 4 Oct, 20:00",
     );
     expect(schedules.getByRole("row", { name: /Monthly research refresh/ })).toHaveTextContent(
-      "Off — HARBOUR_SCHEDULED_RESEARCH=off",
+      "Off",
     );
-    expect(schedules.getByRole("row", { name: /Morning note/ })).toHaveTextContent(
-      "Off — HARBOUR_PERSONALITY=quiet",
-    );
+    expect(schedules.getByRole("row", { name: /Morning note/ })).not.toHaveTextContent(/HARBOUR_/);
     expect(schedules.getByText(/Europe\/London/)).toBeInTheDocument();
+    expect(textOutsideDetails(container)).not.toMatch(/HARBOUR_SCHEDULED|HARBOUR_PERSONALITY/);
+    const details = schedules
+      .getByText(/how to turn a schedule on or off/, { selector: "summary span" })
+      .closest("details");
+    expect(details).toHaveTextContent("HARBOUR_SCHEDULED_RESEARCH");
+    expect(details).toHaveTextContent("HARBOUR_PERSONALITY=quiet");
   });
 
-  it("shows key status by name, with the setting and a not-used-yet tag", () => {
-    renderView();
-    const keys = within(section("Connections"));
-    expect(keys.getByRole("row", { name: /Claude token/ })).toHaveTextContent("Present");
-    expect(keys.getByRole("row", { name: /Search Console/ })).toHaveTextContent("File not found");
-    const openai = keys.getByRole("row", { name: /OpenAI/ });
-    expect(openai).toHaveTextContent("Missing");
-    expect(openai).toHaveTextContent("not used yet");
-    expect(openai).toHaveTextContent("HARBOUR_OPENAI_API_KEY");
+  it("reads Connected or Not connected yet, with the setting names only in Technical details", () => {
+    const { container } = renderView();
+    const connections = within(section("Connections"));
+    expect(
+      connections.getByRole("table", { name: "Connections and whether each is connected" }),
+    ).toBeInTheDocument();
+    expect(
+      connections.getAllByText(/^(Connected|Not connected yet|Not available yet)$/).length,
+    ).toBeGreaterThan(0);
+    expect(connections.getByRole("row", { name: /Claude token/ })).toHaveTextContent("Connected");
+    const gsc = connections.getByRole("row", { name: /Search Console/ });
+    expect(gsc).toHaveTextContent("Not connected yet");
+    expect(gsc).toHaveTextContent("can't find the credentials file");
+    expect(connections.getByRole("row", { name: /OpenAI/ })).toHaveTextContent("Not available yet");
+    expect(textOutsideDetails(container)).not.toMatch(/HARBOUR_[A-Z_]+/);
+  });
+
+  it("gives each not-connected row its own setup steps with a unique accessible name", () => {
+    const { container } = renderView();
+    const names = [...container.querySelectorAll("summary")]
+      .map((el) => el.textContent ?? "")
+      .filter((text) => /\(how to connect /.test(text));
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.length).toBeGreaterThan(1);
   });
 
   it("shows the budget, spend and unconfirmed reservations read-only", () => {

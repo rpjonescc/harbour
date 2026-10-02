@@ -69,7 +69,7 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
     },
     {
       id: "analyst",
-      label: "Weekly analyst",
+      label: "Weekly report",
       when: "Sundays at 20:00",
       setting: "HARBOUR_SCHEDULED_ANALYST",
       enabled: analyst,

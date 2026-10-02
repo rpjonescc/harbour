@@ -1,3 +1,4 @@
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { Tag } from "@/components/ui/Tag";
 import { SETTINGS_PURPOSE } from "@/lib/explain/settings";
 import { formatWeekdayTime } from "@/lib/format/date";
@@ -54,12 +55,7 @@ export function SchedulesCard({
                   {row.next ? (
                     formatWeekdayTime(row.next, timeZone, locale)
                   ) : (
-                    <span className="text-ink-muted">
-                      Off —{" "}
-                      <code className="font-mono text-xs">
-                        {row.setting}={row.offValue ?? "off"}
-                      </code>
-                    </span>
+                    <span className="text-ink-muted">Off</span>
                   )}
                 </td>
               </tr>
@@ -67,6 +63,23 @@ export function SchedulesCard({
           </tbody>
         </table>
       </div>
+      <TechnicalDetails id="schedule-settings" topic="how to turn a schedule on or off">
+        <p>
+          Set the setting to <code className="font-mono">off</code> in{" "}
+          <code className="font-mono">.env</code> to stop a schedule, remove it to start it, then
+          restart Harbour:
+        </p>
+        <ul className="mt-1 flex flex-col gap-0.5">
+          {schedules.map((row) => (
+            <li key={row.id}>
+              {row.label}:{" "}
+              <code className="font-mono">
+                {row.offValue ? `${row.setting}=${row.offValue}` : row.setting}
+              </code>
+            </li>
+          ))}
+        </ul>
+      </TechnicalDetails>
     </SettingsSection>
   );
 }
