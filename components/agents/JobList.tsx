@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/explain/EmptyState";
 import { Tag } from "@/components/ui/Tag";
-import { formatDuration, jobLabel } from "@/lib/agents/view";
+import { formatDuration, jobLabel, type Named } from "@/lib/agents/view";
 import { JOB_STATUS_PHRASE } from "@/lib/explain/agents";
 import { formatDateTime } from "@/lib/format/date";
 import type { Job, JobStatus } from "@/lib/jobs/queue";
-import type { Product } from "@/lib/products/catalog";
 
 const TONE: Record<JobStatus, "accent" | "warn" | "neutral"> = {
   ok: "accent",
@@ -24,7 +23,7 @@ export function JobList({
   importsGivenUp = new Set(),
 }: {
   jobs: Job[];
-  products: readonly Product[];
+  products: readonly Named[];
   timeZone: string;
   locale: string;
   /** Runs whose committed suggestions were never imported (see `importsGivenUp`). */

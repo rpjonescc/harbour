@@ -1,3 +1,6 @@
+import { todaySummary } from "@/lib/today/from-scans";
+import { queueScans } from "@/scripts/scan-now";
+import { openTestDb } from "@/tests/helpers/db";
 import { getContentProducts, getProducts, productById } from "./catalog";
 
 // vitest.config.mts points HARBOUR_CONFIG_PATH at the example config.
@@ -26,5 +29,23 @@ describe("product catalog", () => {
       ["acme-docs", "site"],
       ["acme-tools", "project"],
     ]);
+  });
+
+  it("keeps a project out of Today and out of scans", () => {
+    const summary = todaySummary(
+      openTestDb(),
+      getProducts(),
+      new Date("2026-10-02T09:00:00Z"),
+      "ok",
+    );
+    expect(summary.scores.map((row) => row.productId)).toEqual([
+      "acme-docs",
+      "lighthouse-cafe",
+      "fern-and-field",
+    ]);
+    const queued = queueScans(openTestDb(), getProducts());
+    expect(queued.map((job) => job.productId)).not.toContain("acme-tools");
+    expect(queued).toHaveLength(3);
+    expect(() => queueScans(openTestDb(), getProducts(), "acme-tools")).toThrow(/Unknown product/);
   });
 });

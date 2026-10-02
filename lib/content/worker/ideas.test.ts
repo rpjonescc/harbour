@@ -190,7 +190,10 @@ describe("the ideas job", () => {
   it("says what to do when the voice profile or the notes are missing", async () => {
     for (const [missing, reason] of [
       ["content/voices/acme-docs.md", /voice profile first/],
-      ["products/acme-docs/notes.md", /notes for this product first/],
+      [
+        "products/acme-docs/notes.md",
+        /short notes file for Acme Docs.*products\/acme-docs\/notes\.md/,
+      ],
     ] as const) {
       const { [missing]: _gone, ...rest } = FILES;
       const r = run({ ideas: { ideas: [IDEA] } }, rest);

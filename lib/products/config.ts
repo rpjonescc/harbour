@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
 import { PLATFORMS, platformSchema, productIdSchema } from "@/lib/content/ids";
+import { hasControlChars, hasInvisible } from "@/lib/text/hidden-chars";
 
 export const HUES = ["amber", "violet", "blue", "green", "rose", "teal"] as const;
 export type Hue = (typeof HUES)[number];
@@ -19,9 +20,14 @@ function isSearchConsoleProperty(value: string): boolean {
   return /^https?:$/.test(new URL(value).protocol) && value.endsWith("/");
 }
 
+/** A name or term is one line of visible text: no control, zero-width or bidi characters. */
+const isPlainText = (value: string) =>
+  !hasInvisible(value) && !hasControlChars(value, { tab: false }) && !/[\r\n]/.test(value);
+const PLAIN = "must be plain visible text on one line (no control or hidden characters)";
+
 const productSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/, "id must be a lowercase slug (a-z, 0-9, -)"),
-  name: z.string().trim().min(1, "name must not be empty"),
+  name: z.string().trim().min(1, "name must not be empty").refine(isPlainText, `name ${PLAIN}`),
   url: z.url({ protocol: /^https?$/, message: "url must be an http(s) URL" }),
   hue: z.enum(HUES, { message: `hue must be one of: ${HUES.join(", ")}` }),
   kind: z
@@ -48,20 +54,31 @@ const ownerNameSchema = z
     "ownerName may only use letters, spaces, apostrophes, dots and hyphens",
   );
 
-const termsSchema = z.array(z.string().trim().min(2).max(40)).min(1).max(10);
-const platformsSchema = z
+const termsSchema = z
+  .array(z.string().trim().min(2).max(40).refine(isPlainText, `a term ${PLAIN}`))
+  .min(1)
+  .max(10);
+const platformList = z
   .array(platformSchema)
   .min(1)
-  .refine((list) => new Set(list).size === list.length, "list each platform once")
-  .default([...PLATFORMS]);
+  .refine((list) => new Set(list).size === list.length, "list each platform once");
 
-const contentProductSchema = z.strictObject({ terms: termsSchema, platforms: platformsSchema });
+const contentProductSchema = z.strictObject({
+  terms: termsSchema,
+  platforms: platformList.default([...PLATFORMS]),
+});
 
 // A project with no website: content only, so no url, hue or Search Console property.
 const contentProjectSchema = z.strictObject({
-  name: z.string().trim().min(1, "name must not be empty").max(80),
+  name: z
+    .string()
+    .trim()
+    .min(1, "name must not be empty")
+    .max(80)
+    .refine(isPlainText, `name ${PLAIN}`),
   terms: termsSchema,
-  platforms: platformsSchema,
+  // No website to put a section on, so the default leaves that platform out (an explicit list may keep it).
+  platforms: platformList.default(PLATFORMS.filter((p) => p !== "website")),
 });
 
 // Postiz settings are not part of this version: an unknown key is an error, not ignored.
@@ -106,7 +123,7 @@ const configSchema = z
     }
     // A project id names a content folder, a voice file and idea ids, so it must be its own.
     for (const id of Object.keys(config.content?.projects ?? {})) {
-      if (ids.has(id) || id in (config.content?.products ?? {})) {
+      if (ids.has(id)) {
         ctx.addIssue({
           code: "custom",
           message: `content.projects lists "${id}", which is already a product id`,

@@ -53,7 +53,7 @@ describe("content-only projects (spec 18)", () => {
   const parse = (projects: unknown, extra: Record<string, unknown> = {}) =>
     parseProductConfig({ products, content: { projects, ...extra } });
 
-  it("lists a project after the sites, with no URL, no allowed host and every platform by default", () => {
+  it("lists a project after the sites, with no URL, no allowed host and every platform but website by default", () => {
     const config = parseProductConfig({
       products,
       content: {
@@ -74,8 +74,13 @@ describe("content-only projects (spec 18)", () => {
       name: "Acme Tools",
       url: null,
       allowedHosts: [],
-      platforms: ["linkedin", "x", "instagram", "facebook", "blog", "website"],
+      platforms: ["linkedin", "x", "instagram", "facebook", "blog"],
     });
+  });
+
+  it("lets a project list website explicitly", () => {
+    const config = parse({ "acme-tools": { ...project, platforms: ["website"] } });
+    expect(contentProducts(config)[0]?.platforms).toEqual(["website"]);
   });
 
   it("strips www. from a site's allowed host and allows none for an odd URL's host check", () => {
@@ -106,9 +111,39 @@ describe("content-only projects (spec 18)", () => {
     expect(() => parse(projects)).toThrow();
   });
 
-  it("rejects an id that is already a content.products key, and says which one", () => {
+  it("accepts `constructor` as a project id without a false collision, and never lists `__proto__`", () => {
+    expect(contentProducts(parse({ constructor: project })).map((p) => p.id)).toEqual([
+      "constructor",
+    ]);
+    // Either refused or ignored: never a project named __proto__.
+    const ids = (() => {
+      try {
+        return contentProducts(parse(JSON.parse('{"__proto__": {"name": "X", "terms": ["xx"]}}')));
+      } catch {
+        return [];
+      }
+    })().map((p) => p.id);
+    expect(ids).not.toContain("__proto__");
+  });
+
+  const hidden = ["a\nb", "a\u200bb", "a\u202eb", "a\u0000b", "a\u0085b"];
+  it.each(hidden)(
+    "rejects control or hidden characters in a project name and terms (%j)",
+    (bad) => {
+      expect(() => parse({ "acme-tools": { ...project, name: `Acme${bad}` } })).toThrow();
+      expect(() => parse({ "acme-tools": { ...project, terms: [`acme${bad}`] } })).toThrow();
+    },
+  );
+
+  it.each(hidden)("rejects them in content.products terms and a product name too (%j)", (bad) => {
     expect(() =>
-      parse({ "acme-docs": project }, { products: { "acme-docs": { terms: ["acme docs"] } } }),
-    ).toThrow(/acme-docs/);
+      parseProductConfig({
+        products,
+        content: { products: { "acme-docs": { terms: [`acme${bad}`] } } },
+      }),
+    ).toThrow();
+    expect(() =>
+      parseProductConfig({ products: [{ ...products[0], name: `Acme${bad}` }] }),
+    ).toThrow();
   });
 });

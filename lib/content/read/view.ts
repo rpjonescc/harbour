@@ -1,4 +1,5 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { contentPaths } from "@/lib/content/paths";
 import type { Db } from "@/lib/db/client";
 import { addDays } from "@/lib/format/zoned-time";
@@ -135,7 +136,11 @@ export function contentView(input: {
 }
 
 function voiceStatus(root: string, product: ContentProduct): ContentView["voice"][number] {
-  const base = { productId: product.id, name: product.name };
+  const base = {
+    productId: product.id,
+    name: product.name,
+    notesMissing: !existsSync(join(root, "products", product.id, "notes.md")),
+  };
   try {
     const voice = readVoice(root, product.id);
     return {

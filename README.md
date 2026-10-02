@@ -371,7 +371,7 @@ Second Brain; the Copy buttons give you the text without any of Harbour's notes.
 
 A project that is not a site you monitor (a side project, a book, a talk) can still get content.
 List it under `content.projects` in `harbour.config.json`, with a `name`, 1 to 10 `terms` and
-optionally `platforms` (all six by default):
+optionally `platforms` (every platform but the website section by default, since there is no site to put one on; list `"website"` yourself if you want it):
 
 ```json
 {
@@ -388,7 +388,9 @@ of one of your products. A project is not a product: Harbour does not check or s
 does not appear on Today, Actions or the product pages, so it needs no `url`, `hue` or Search
 Console property. Everywhere else it works like a site: the digest looks for its terms, ideas are
 suggested for it, and it needs a voice profile at `content/voices/<id>.md` and notes at
-`products/<id>/notes.md` in your Second Brain. Because it has no website, a piece for it may carry
+`products/<id>/notes.md` in your Second Brain. Both files are written by hand: a project has no
+Discovery run, no content pillars and no settings page, and the Content page tells you in plain
+words when either file is missing. Because it has no website, a piece for it may carry
 no links at all: any link is refused.
 
 | Setting | Default | What it does |

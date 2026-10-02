@@ -124,7 +124,9 @@ describe("contentView", () => {
 
   it("reports a missing or invalid voice profile per product, and a digest gap when none is recent", () => {
     const none = view({});
-    expect(none.voice).toEqual([{ productId: "acme-docs", name: "Acme Docs", state: "missing" }]);
+    expect(none.voice).toEqual([
+      { productId: "acme-docs", name: "Acme Docs", state: "missing", notesMissing: true },
+    ]);
     expect(none.digest.gap).toBe(true);
     expect(view({ "content/voices/acme-docs.md": "no frontmatter" }).voice[0]).toMatchObject({
       state: "invalid",

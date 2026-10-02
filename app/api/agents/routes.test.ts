@@ -41,6 +41,7 @@ vi.mock("@/lib/products/catalog", () => ({
       kind: "product" as const,
     },
   ],
+  getNamedProducts: () => [{ id: "acme-docs", name: "Acme Docs" }],
 }));
 
 const ORIGIN = "https://harbour.example.ts.net";

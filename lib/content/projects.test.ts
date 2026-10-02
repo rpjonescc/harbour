@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { PLATFORMS } from "@/lib/content/ids";
 import { sanitiseContent } from "@/lib/content/sanitise";
 import { gateInputs } from "@/lib/content/worker/gate-inputs";
+import { notesMissingMessage } from "@/lib/explain/content";
 import { eventsSince } from "@/lib/jobs/queue";
 import { makeBrain } from "@/tests/helpers/brain";
 import { seedPieces } from "@/tests/helpers/chain";
@@ -90,6 +91,40 @@ describe("a content-only project in the content machine", () => {
       expect(s.calls[0]?.prompt).not.toMatch(/https?:|\(null\)|at null/);
     } finally {
       s.cleanup();
+    }
+  });
+
+  it("fails ideas with a plain sentence, not a path, when the notes file is missing", async () => {
+    const s = contentSetup({}, { "content/voices/acme-tools.md": VOICE_TOOLS });
+    if (s.deps.content) s.deps.content.products = [ACME_TOOLS];
+    try {
+      const job = await runOne(s.deps, "content-ideas", { productId: "acme-tools" });
+      expect(job.status).toBe("failed");
+      expect(job.error).toBe(notesMissingMessage("Acme Tools", "acme-tools"));
+      expect(job.error).not.toMatch(/Missing /);
+    } finally {
+      s.cleanup();
+    }
+  });
+
+  it("tells the Content page when a project's notes are missing, and not when they exist", () => {
+    const notes = { "products/acme-tools/notes.md": "# Acme Tools\n" };
+    for (const [files, missing] of [
+      [{ "content/voices/acme-tools.md": VOICE_TOOLS }, true],
+      [{ "content/voices/acme-tools.md": VOICE_TOOLS, ...notes }, false],
+    ] as const) {
+      const brain = makeBrain(files);
+      try {
+        const v = contentView({
+          db: openTestDb(),
+          root: brain.root,
+          products: [ACME_TOOLS],
+          ...NOW,
+        });
+        expect(v.voice[0]).toMatchObject({ state: "ok", notesMissing: missing });
+      } finally {
+        brain.cleanup();
+      }
     }
   });
 

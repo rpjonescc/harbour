@@ -53,6 +53,8 @@ export type AgentSpec = {
   output: AgentOutput;
   /** Brain files that must exist before the run starts. */
   requiredFiles: string[];
+  /** What to tell the owner when a required file is missing, instead of the generic "Missing <path>". */
+  missingFileMessage?: string;
   /** Brain files the run must write, or it fails and nothing is committed. */
   requiredOutputs: string[];
   /** Recorded with the run, so output can be traced to the prompt that produced it. */
