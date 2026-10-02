@@ -17,6 +17,7 @@ const ROOTS = [
   "lib/actions/rule-sync.ts",
   "lib/ops/backup-job.ts",
   "lib/ops/retention.ts",
+  "lib/scan/issue-rules.ts",
 ];
 const WORD = /\b(?:re)?scan(?:s|ned|ning|ner|ners)?\b/i;
 const LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g;

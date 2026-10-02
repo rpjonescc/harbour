@@ -9,8 +9,8 @@ import { ScanStatusNote } from "./ScanStatusNote";
 import { ScoringNote } from "./ScoringNote";
 
 /**
- * Product name and links, Scan now, where scanning stands, a one-line summary and the three area
- * cards.
+ * Product name and links, Check now, where the latest check stands, a one-line summary and the
+ * three area cards.
  */
 export function ProductHeader({
   product,

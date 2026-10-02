@@ -193,7 +193,6 @@ export const EXAMPLE_SETTINGS: SettingsView = {
     {
       id: "claude",
       label: "Claude token",
-      settings: ["HARBOUR_CLAUDE_OAUTH_TOKEN"],
       status: "present",
       inUse: true,
       paid: false,
@@ -201,7 +200,6 @@ export const EXAMPLE_SETTINGS: SettingsView = {
     {
       id: "search-console",
       label: "Search Console",
-      settings: ["HARBOUR_GSC_CREDENTIALS"],
       status: "file-not-found",
       inUse: true,
       paid: false,
@@ -209,7 +207,6 @@ export const EXAMPLE_SETTINGS: SettingsView = {
     {
       id: "openai",
       label: "OpenAI",
-      settings: ["HARBOUR_OPENAI_API_KEY"],
       status: "missing",
       inUse: false,
       paid: true,

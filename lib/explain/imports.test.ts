@@ -5,6 +5,8 @@ import { join } from "node:path";
 // lib/scan/scoring/sub-score.ts (plus zod, for validating note frontmatter), so client
 // components never bundle the database layer.
 const ALLOWED = [
+  // Only voice/note.ts uses it. A client component that imports a value from there would bundle
+  // zod, so those imports stay `import type`.
   /^zod$/,
   /^\.\.?\//,
   /^@\/lib\/explain\//,

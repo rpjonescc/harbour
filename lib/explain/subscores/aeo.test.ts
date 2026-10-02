@@ -74,6 +74,10 @@ describe("AEO explanations", () => {
     );
   });
 
+  it("explains Fresh pages without the news-only button, since product sites do not have it", () => {
+    expect(explanation("aeo.preferredSources").parts.why).not.toMatch(/chosen|readers|button/i);
+  });
+
   it("never read featured snippets, which are always missing for now", () => {
     expect(explanation("aeo.snippets").summarise("anything")).toBeNull();
   });

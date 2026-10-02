@@ -1,7 +1,8 @@
 import { RESTART_WORKER } from "./sources";
 
 /** What Claude does for Harbour, in one line. */
-export const CLAUDE_PURPOSE = "Lets Claude write your research, ideas and the weekly report.";
+export const CLAUDE_PURPOSE =
+  "Lets Claude write your research, ideas, the weekly report and the morning note.";
 
 /** Shown at the top of the Agents page while Claude isn't connected. */
 export const CLAUDE_OFF = "Claude isn't connected yet, so the Run buttons are switched off.";

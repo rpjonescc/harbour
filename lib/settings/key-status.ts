@@ -9,8 +9,6 @@ export type KeyStatus = "present" | "missing" | "file-not-found";
 export type KeyRow = {
   id: string;
   label: string;
-  /** The `.env` setting(s) to fill in. */
-  settings: string[];
   status: KeyStatus;
   /** False for a source whose collector does not exist yet ("not used yet"). */
   inUse: boolean;
@@ -44,7 +42,6 @@ export function keyStatusRows(
     {
       id: "claude",
       label: "Claude token",
-      settings: ["HARBOUR_CLAUDE_OAUTH_TOKEN"],
       status: presence(config, ["HARBOUR_CLAUDE_OAUTH_TOKEN"]),
       inUse: true,
       paid: false,
@@ -52,7 +49,6 @@ export function keyStatusRows(
     {
       id: "pagespeed",
       label: "PageSpeed Insights",
-      settings: ["HARBOUR_PAGESPEED_API_KEY"],
       status: presence(config, ["HARBOUR_PAGESPEED_API_KEY"]),
       inUse: true,
       paid: false,
@@ -60,7 +56,6 @@ export function keyStatusRows(
     {
       id: "search-console",
       label: "Search Console",
-      settings: ["HARBOUR_GSC_CREDENTIALS"],
       status: !gsc ? "missing" : fileExists(gsc) ? "present" : "file-not-found",
       inUse: true,
       paid: false,
@@ -68,7 +63,6 @@ export function keyStatusRows(
     ...PAID_SOURCES.map((source) => ({
       id: source.id,
       label: source.label,
-      settings: [...source.settings],
       status: presence(config, source.settings),
       inUse: source.collector !== null,
       paid: true,

@@ -25,14 +25,14 @@ const status = (rows: ReturnType<typeof keyStatusRows>) =>
 describe("keyStatusRows", () => {
   it("lists every key Harbour reads, all missing on a bare config", () => {
     const rows = keyStatusRows(config(), () => true);
-    expect(rows.map((row) => [row.id, row.settings, row.inUse, row.paid])).toEqual([
-      ["claude", ["HARBOUR_CLAUDE_OAUTH_TOKEN"], true, false],
-      ["pagespeed", ["HARBOUR_PAGESPEED_API_KEY"], true, false],
-      ["search-console", ["HARBOUR_GSC_CREDENTIALS"], true, false],
-      ["dataforseo", ["HARBOUR_DATAFORSEO_LOGIN", "HARBOUR_DATAFORSEO_PASSWORD"], false, true],
-      ["openai", ["HARBOUR_OPENAI_API_KEY"], false, true],
-      ["perplexity", ["HARBOUR_PERPLEXITY_API_KEY"], false, true],
-      ["gemini", ["HARBOUR_GEMINI_API_KEY"], false, true],
+    expect(rows.map((row) => [row.id, row.inUse, row.paid])).toEqual([
+      ["claude", true, false],
+      ["pagespeed", true, false],
+      ["search-console", true, false],
+      ["dataforseo", false, true],
+      ["openai", false, true],
+      ["perplexity", false, true],
+      ["gemini", false, true],
     ]);
     expect(rows.every((row) => row.status === "missing")).toBe(true);
     expect(rows.every((row) => row.label.length > 0)).toBe(true);

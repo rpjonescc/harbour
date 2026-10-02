@@ -86,7 +86,7 @@ export const AEO_EXPLANATIONS: readonly SubScoreExplanation[] = [
         "Whether you've published or updated at least three pages in the last 30 days. News " +
         "sites also get credit for Google's Preferred Sources button, which lets readers choose " +
         "to see more of you in Google's news results.",
-      why: "Google favours sources that readers have chosen, and fresh pages show the site is looked after.",
+      why: "Search engines and AI assistants trust a site that is looked after, and fresh pages show it is.",
       todo:
         "Keep publishing or updating pages regularly, even small ones. If you run a news site, " +
         "add the Preferred Sources button too.",

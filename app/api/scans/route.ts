@@ -10,7 +10,7 @@ import { getProducts } from "@/lib/products/catalog";
 
 const Body = z.object({ productId: z.string().min(1) });
 
-/** "Scan now": queues a scan of one product for the worker (never runs it here). */
+/** "Check now": queues a check of one product for the worker (never runs it here). */
 export async function POST(request: Request) {
   const blocked = rejectCrossSite(request, getConfig().HARBOUR_ORIGIN);
   if (blocked) return blocked;
