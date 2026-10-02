@@ -101,8 +101,13 @@ Optional. To add PageSpeed (Core Web Vitals), follow
 `HARBOUR_PAGESPEED_API_KEY=`, then `systemctl --user restart harbour-worker`. The next scan's
 job events say "PageSpeed: not connected — …" until the key is set.
 
-To add Search Console, follow [Connect Search Console](../README.md#connect-search-console):
-create a service account (or an OAuth desktop client), add the service account's email as a
+To add Search Console, follow [Connect Search Console](../README.md#connect-search-console).
+With your own Google account (needed when your Workspace organisation blocks service-account
+keys), save the downloaded Desktop app OAuth client as `~/harbour-data/gsc-client.json` and run
+`pnpm gsc:connect` in the app folder: it signs you in, checks which properties your account
+can read and writes `~/harbour-data/gsc.json` with mode 600. Its sign-in page is served on
+`127.0.0.1` on this machine, so from another computer forward the port in the printed link
+first (`ssh -L <port>:127.0.0.1:<port> ...`). With a service account instead, add its email as a
 **Restricted** user on each Search Console property, then on this machine:
 
 ```bash
@@ -111,7 +116,7 @@ mv path/to/downloaded.json ~/harbour-data/gsc.json
 chmod 600 ~/harbour-data/gsc.json
 ```
 
-Set `HARBOUR_GSC_CREDENTIALS` in `.env` to that file's absolute path (the output of
+Either way, set `HARBOUR_GSC_CREDENTIALS` in `.env` to that file's absolute path (the output of
 `echo ~/harbour-data/gsc.json`; `.env` does not expand `~`), add
 `"searchConsoleProperty"` to each product in `harbour.config.json` (`"sc-domain:example.com"`
 or a URL prefix like `"https://www.example.com/"`), and

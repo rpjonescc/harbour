@@ -28,6 +28,7 @@
     "analyst:now": "tsx --env-file=.env scripts/analyst-now.ts",
     "backup:now": "tsx --env-file=.env scripts/backup-now.ts",
     "retention:check": "tsx --env-file=.env scripts/retention-check.ts",
+    "gsc:connect": "tsx --env-file=.env scripts/gsc-connect.ts",
     "worker": "tsx --env-file=.env worker/index.ts",
     "prepare": "lefthook install"
   },

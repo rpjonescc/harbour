@@ -283,6 +283,7 @@ pnpm scan:now       # queues a visibility scan of every product now (or: pnpm sc
 pnpm analyst:now    # queues the weekly analyst report for the current week now
 pnpm backup:now     # queues a backup of the database now (see "Backups and restore")
 pnpm retention:check  # read-only: what the next retention run would delete (see "Data kept")
+pnpm gsc:connect    # signs in with Google to connect Search Console (see "Connect Search Console")
 ```
 
 A deployed install runs the worker as the `harbour-worker` systemd user service (see
@@ -633,39 +634,52 @@ plus the top 250 queries and top 100 pages, and daily totals for the 28 days bef
 score can show whether impressions are rising or falling. The worker asks for read-only access and talks only
 to Google.
 
-Harbour reads one credentials file, of either kind. Use a service account unless you have a
-reason not to: it can only read the properties you share with it.
+Harbour reads one credentials file, of either kind: an OAuth **authorized-user** file made
+with your own Google sign-in, or a **service account** key.
 
-- **A service account** (recommended). In the
+- **Your own Google account** (use this when your Google Workspace organisation blocks
+  service-account keys, the `iam.managed.disableServiceAccountKeyCreation` policy). Your
+  account already sees your properties, so there is nothing to share. In the
   [Google Cloud console](https://console.cloud.google.com/):
   1. Pick or create a project, and under **APIs & Services → Library** enable the
      **Google Search Console API**.
+  2. Under **Google Auth Platform**, configure the consent screen. Choose **Internal** if you
+     can (a Workspace account), or publish the app (**Audience → Publish app**): an
+     **External** app left in *Testing* gets refresh tokens that Google expires after 7 days.
+  3. Under **Google Auth Platform → Clients → Create client**, choose **Desktop app** and
+     download its JSON. Save it as `~/harbour-data/gsc-client.json` (or pass
+     `--client <path>` below). A *Web application* client does not work: it needs a
+     registered redirect address.
+  4. On the Harbour machine, run:
+     ```bash
+     pnpm gsc:connect                # options: --client <file> --out <file> --force
+     ```
+     It prints a Google sign-in link and tries to open it in your browser. Sign in, allow
+     read-only Search Console access, and Google sends you back to a page Harbour serves on
+     `127.0.0.1` for the next 5 minutes. Open the link in a browser on the Harbour machine; if
+     Harbour runs on a headless server, first forward the port the link names from the
+     computer you browse on (for a link with `127.0.0.1:41234`:
+     `ssh -L 41234:127.0.0.1:41234 you@harbour.example.com`), then open it there. The
+     command then lists the Search Console properties your account can read, flags any
+     `searchConsoleProperty` in `harbour.config.json` that is not among them, and writes
+     `~/harbour-data/gsc.json` (or `--out`) with mode 600. It never replaces an existing file
+     unless you pass `--force`, and never prints the client secret or any token. It asks only
+     for the read-only Search Console scope, and you can revoke it at any time at
+     [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
+- **A service account** (when your organisation allows key files; it can only read the
+  properties you share with it). In the [Google Cloud console](https://console.cloud.google.com/):
+  1. Enable the **Google Search Console API** as above.
   2. Under **IAM & Admin → Service accounts**, create a service account (it needs no roles).
      Open it, then **Keys → Add key → Create new key → JSON** downloads its key file.
   3. In [Search Console](https://search.google.com/search-console), for each property open
      **Settings → Users and permissions → Add user**, enter the service account's email
      (`client_email` in the key file, e.g. `harbour@your-project.iam.gserviceaccount.com`)
      and choose **Restricted** permission.
-- **An OAuth desktop client** (uses your own Google account, which already sees your
-  properties):
-  1. Enable the **Google Search Console API** as above.
-  2. Under **APIs & Services → OAuth consent screen**, configure the app and add yourself as a
-     user; then under **Credentials → Create credentials → OAuth client ID** create a
-     **Desktop app** client and download its JSON.
-  3. Turn it into an authorized-user file with a refresh token, for example with the
-     [gcloud CLI](https://cloud.google.com/sdk/docs/install), which insists on the
-     `cloud-platform` scope alongside the one Harbour needs:
-     `gcloud auth application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/webmasters.readonly,https://www.googleapis.com/auth/cloud-platform`.
-     It writes `application_default_credentials.json` (`"type": "authorized_user"`). Trade-off:
-     that refresh token can then reach all of Google Cloud as you, not just Search Console
-     (Harbour itself only ever asks for read-only Search Console access), so guard the file
-     closely; this is why the service account is the better choice.
-     While the consent screen's publishing status is *Testing*, Google expires the refresh
-     token after 7 days; publish the app, or use a service account, for a lasting connection.
 
 Then, on the Harbour machine:
 
-1. Store the file outside the repo, readable only by you:
+1. Store the file outside the repo, readable only by you (`pnpm gsc:connect` has already
+   done this for its own file):
    ```bash
    mkdir -p ~/harbour-data
    mv path/to/downloaded.json ~/harbour-data/gsc.json

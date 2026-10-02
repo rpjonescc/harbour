@@ -195,7 +195,7 @@ Collectors write raw observations only; they never compute scores.
 | `crawler` | Own HTTP crawler (sitemap-seeded, capped at 500 pages/site) | status codes, titles/descriptions, headings, canonical, robots meta, schema.org types, internal links, broken links |
 | `pagespeed` | PageSpeed Insights API (free) | Core Web Vitals on key pages (mobile) |
 | `readiness` | Own checks | robots.txt rules for Googlebot and AI crawlers (GPTBot, OAI-SearchBot, PerplexityBot, ClaudeBot, Google-Extended), sitemap validity, `llms.txt` presence, FAQ/HowTo/Organization/LocalBusiness schema presence, NAP consistency (local businesses), Google Preferred Sources button/deeplink and regularly updated content section |
-| `search-console` | GSC API, read-only service account | daily clicks, impressions, CTR, position; top queries and pages; new queries |
+| `search-console` | GSC API, read-only scope (service account, or the owner's own OAuth sign-in via `pnpm gsc:connect`) | daily clicks, impressions, CTR, position; top queries and pages; new queries |
 | `rankings` | DataForSEO SERP API, the product's Google market (the target market's Google domain) | position for each keyword, ranking URL, competitor positions |
 | `aeo-serp` | DataForSEO SERP API | AI Overview presence and whether we are cited, featured snippet owner, People Also Ask questions |
 | `ai-engines` | OpenAI (web search), Perplexity Sonar, Gemini (grounding), Claude (web search) | for each question: mentioned?, cited (URL)?, position in answer, competitors named, raw answer stored |
