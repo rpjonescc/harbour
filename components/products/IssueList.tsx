@@ -1,8 +1,21 @@
+import { EmptyState } from "@/components/explain/EmptyState";
 import { Panel } from "@/components/ui/Panel";
 import type { RuleActionStatus } from "@/lib/actions/views";
 import type { Product } from "@/lib/products/catalog";
 import type { Issue } from "@/lib/scan/issues";
 import { IssueItem } from "./IssueItem";
+
+const NONE_FOUND = {
+  what: "No problems found in the last scan.",
+  when: "Harbour checks again with every scan.",
+  why: "Anything new it finds appears here and on the Actions board.",
+};
+
+const NOT_SCANNED = {
+  what: "Problems Harbour finds will be listed here.",
+  when: "They appear after the first scan finishes.",
+  why: "Each comes with what to do about it and how to tell it's fixed.",
+};
 
 /**
  * The scan's issues, highest impact first, each with its action's status; `scanned` tells
@@ -28,12 +41,15 @@ export function IssueList({
       className="flex scroll-mt-8 flex-col gap-3"
     >
       <h2 id="issues-heading" className="font-serif text-xl">
-        Issues
+        What to fix
       </h2>
-      {issues.length === 0 ? (
+      {issues.length > 0 && (
         <p className="text-sm text-ink-muted">
-          {scanned ? "No issues found in the last scan." : "Issues appear after the first scan."}
+          Each problem says why it matters, and the same list is tracked on the Actions board.
         </p>
+      )}
+      {issues.length === 0 ? (
+        <EmptyState {...(scanned ? NONE_FOUND : NOT_SCANNED)} />
       ) : (
         <Panel className="px-4">
           <ul className="divide-y divide-line">

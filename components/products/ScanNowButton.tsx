@@ -5,6 +5,7 @@ import { useState } from "react";
 import { DEMO_NOTE } from "@/components/actions/action-labels";
 import { Button } from "@/components/ui/Button";
 import { postJson } from "@/lib/auth/client-api";
+import { SCAN_NOW } from "@/lib/explain/scan-status";
 
 type Active = "queued" | "running" | null;
 
@@ -32,8 +33,8 @@ export function ScanNowButton({
     setBusy(true);
     const result = await postJson<{ jobId: number; created: boolean }>("/api/scans", { productId });
     setBusy(false);
-    if (!result.ok) return setNote("Couldn't queue the scan — try again.");
-    setNote(result.data.created ? "Scan queued" : "A scan is already queued");
+    if (!result.ok) return setNote(SCAN_NOW.failed);
+    setNote(result.data.created ? SCAN_NOW.queued : SCAN_NOW.already);
     router.refresh();
   }
 

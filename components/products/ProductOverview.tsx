@@ -1,4 +1,5 @@
 import { Tabs } from "@/components/ui/Tabs";
+import { AREAS } from "@/lib/explain/areas";
 import type { Product } from "@/lib/products/catalog";
 import type { ProductView } from "@/lib/scan/product-view";
 import { AREA_KEYS } from "@/lib/scan/views";
@@ -25,7 +26,7 @@ export function ProductOverview({
   const { latest } = view.scores;
   const tabs = AREA_KEYS.map((area) => ({
     id: area,
-    label: area.toUpperCase(),
+    label: AREAS[area].name,
     panel: (
       <ScoreBreakdown
         area={area}
@@ -46,7 +47,7 @@ export function ProductOverview({
       />
       <section aria-labelledby="breakdown-heading" className="flex flex-col gap-2">
         <h2 id="breakdown-heading" className="font-serif text-xl">
-          What the scores are made of
+          What's behind each rating
         </h2>
         <Tabs label="Score breakdown" tabs={tabs} />
       </section>

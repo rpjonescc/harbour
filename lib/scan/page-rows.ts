@@ -7,14 +7,14 @@ export type PageRow = { url: string; status: number; title: string | null; probl
 const MAX_ROWS = 50;
 
 function problemsOf(page: PageFacts): string[] {
-  if (page.status >= 400) return [`HTTP ${page.status}`];
+  if (page.status >= 400) return ["Didn't load"];
   if (!isHtmlPage(page)) return [];
   const problems: string[] = [];
-  if (page.titleLength === 0) problems.push("No title");
-  if (page.descriptionLength === 0) problems.push("No description");
-  if (page.h1Count === 0) problems.push("No h1");
-  if (page.h1Count !== null && page.h1Count > 1) problems.push(`${page.h1Count} h1s`);
-  if (page.noindex) problems.push("noindex");
+  if (page.titleLength === 0) problems.push("Missing title");
+  if (page.descriptionLength === 0) problems.push("Missing description");
+  if (page.h1Count === 0) problems.push("No main heading");
+  if (page.h1Count !== null && page.h1Count > 1) problems.push(`${page.h1Count} main headings`);
+  if (page.noindex) problems.push("Hidden from search");
   return problems;
 }
 

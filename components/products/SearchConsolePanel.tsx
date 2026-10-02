@@ -1,143 +1,109 @@
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { DocsLink } from "@/components/ui/DocsLink";
-import { Sparkline } from "@/components/ui/Sparkline";
 import { DOCS_LINKS } from "@/lib/docs-links";
+import { searchSummarySentence } from "@/lib/explain/search-console";
+import { sourceExplanation, sourceName, sourceStatusPhrase } from "@/lib/explain/sources";
 import { formatIsoDay } from "@/lib/format/date";
 import type { SearchState } from "@/lib/scan/product-view";
 import type { SearchSummary } from "@/lib/scan/search-summary";
+import { numberFormat, TopQueries, Totals } from "./SearchConsoleNumbers";
 import { SourcePanel } from "./SourcePanel";
 
-type Format = (value: number) => string;
+const ID = "search-console";
+const TITLE = sourceName(ID);
+const MISSING_NOT_ZERO = "Until then, these numbers are missing, not zero.";
 
-const numberFormat = (locale: string): Format =>
-  new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format;
+/**
+ * The Product page speaks of "scans" throughout (spec Decision 7), while Today's shared phrase
+ * says "check". Reword it here so this panel uses one word.
+ */
+const LAST_SCAN = (phrase: string) => phrase.replace("last check", "last scan");
 
-function Totals({
-  summary,
-  number,
-  period,
-}: {
-  summary: SearchSummary;
-  number: Format;
-  period: string;
-}) {
-  const series = (key: "clicks" | "impressions") => summary.days.map((d) => d[key]);
+/** The raw reason Harbour recorded (setting names, API errors): only under Technical details. */
+function Raw({ reason }: { reason: string | null }) {
+  if (!reason) return null;
   return (
-    <dl className="grid h-fit grid-cols-2 gap-3">
-      {(["clicks", "impressions"] as const).map((key) => (
-        <div key={key}>
-          <dt className="text-xs capitalize text-ink-muted">{key}</dt>
-          <dd className="flex flex-col gap-1">
-            <span className="font-serif text-2xl tabular-nums">{number(summary[key])}</span>
-            {summary.days.length > 1 && (
-              <Sparkline
-                values={series(key)}
-                label={`Daily ${key}, ${period}`}
-                width={120}
-                height={28}
-              />
-            )}
-          </dd>
-        </div>
-      ))}
-    </dl>
+    <TechnicalDetails id="search-console-reason" topic="what Harbour recorded">
+      <p>{reason}</p>
+    </TechnicalDetails>
   );
 }
 
-function TopQueries({ summary, number }: { summary: SearchSummary; number: Format }) {
-  if (summary.topQueries.length === 0) {
-    return <p className="text-xs text-ink-muted">No queries in this window.</p>;
-  }
+function ConnectLink({ lead }: { lead: string }) {
   return (
-    <table className="w-full text-left text-xs">
-      <caption className="sr-only">Top queries by clicks</caption>
-      <thead className="text-ink-muted">
-        <tr className="border-b border-line">
-          <th scope="col" className="py-1.5 font-normal">
-            Query
-          </th>
-          <th scope="col" className="py-1.5 text-right font-normal">
-            Clicks
-          </th>
-          <th scope="col" className="py-1.5 text-right font-normal">
-            Impr.
-          </th>
-          <th scope="col" className="py-1.5 text-right font-normal">
-            Pos.
-          </th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-line">
-        {summary.topQueries.map((q) => (
-          <tr key={q.query}>
-            <th scope="row" className="py-1.5 pr-2 font-normal break-all">
-              {q.query}
-            </th>
-            <td className="py-1.5 text-right tabular-nums">{number(q.clicks)}</td>
-            <td className="py-1.5 text-right tabular-nums">{number(q.impressions)}</td>
-            <td className="py-1.5 text-right tabular-nums">{number(q.position)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <p className="text-xs text-ink-muted">
+      {lead} <DocsLink href={DOCS_LINKS.searchConsole}>How to connect {TITLE}</DocsLink>
+    </p>
   );
 }
 
-function ConnectLink() {
-  return <DocsLink href={DOCS_LINKS.searchConsole}>How to connect Search Console</DocsLink>;
+function ConnectedBody({ summary, locale }: { summary: SearchSummary; locale: string }) {
+  const number = numberFormat(locale);
+  const period = `${formatIsoDay(summary.startDate, locale)} to ${formatIsoDay(summary.endDate, locale)}`;
+  return (
+    <>
+      <p className="text-base text-ink">
+        {searchSummarySentence(summary.clicks, summary.impressions, number)}
+      </p>
+      <p className="text-xs text-ink-muted">{period} (Google's numbers run about 3 days behind)</p>
+      <Totals summary={summary} number={number} period={period} />
+      <TechnicalDetails id="search-console-queries" topic="top searches in numbers">
+        <TopQueries summary={summary} number={number} />
+      </TechnicalDetails>
+    </>
+  );
 }
 
-/** Clicks and impressions over the scan's 28-day window and the top queries, or why there are none. */
+/** What Google showed and how many clicked over the scan's 28 days, or why there is nothing yet. */
 export function SearchConsolePanel({ search, locale }: { search: SearchState; locale: string }) {
   if (search.state === "ok" && search.summary) {
-    const { summary } = search;
-    const number = numberFormat(locale);
-    const period = `${formatIsoDay(summary.startDate, locale)} to ${formatIsoDay(summary.endDate, locale)}`;
     return (
-      <SourcePanel id="search-console" title="Search Console" status="connected">
-        <p className="text-xs text-ink-muted">{period} (Google's data lags about 3 days)</p>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-[2fr_3fr]">
-          <Totals summary={summary} number={number} period={period} />
-          <TopQueries summary={summary} number={number} />
-        </div>
+      <SourcePanel
+        id={ID}
+        title={TITLE}
+        status="connected"
+        statusLabel={sourceStatusPhrase(ID, "ok")}
+      >
+        <ConnectedBody summary={search.summary} locale={locale} />
+      </SourcePanel>
+    );
+  }
+  if (search.state === "ok") {
+    return (
+      <SourcePanel
+        id={ID}
+        title={TITLE}
+        status="connected"
+        statusLabel={sourceStatusPhrase(ID, "ok")}
+      >
+        <p className="text-sm text-ink-muted">
+          Connected, but Google sent no search data for this scan.
+        </p>
       </SourcePanel>
     );
   }
   if (search.state === "failed") {
     return (
-      <SourcePanel id="search-console" title="Search Console" status="failed">
+      <SourcePanel id={ID} title={TITLE} status="failed" statusLabel="Needs a look">
         <p className="text-sm text-ink">
-          Failed in the last scan{search.reason ? `: ${search.reason}` : "."}
+          {LAST_SCAN(sourceStatusPhrase(ID, "failed"))}, so these numbers are missing, not zero.
         </p>
-        <p className="text-xs">
-          <ConnectLink />
-        </p>
+        <ConnectLink lead="Harbour will try again with the next scan." />
+        <Raw reason={search.reason} />
       </SourcePanel>
     );
   }
-  if (search.state === "not_configured") {
-    return (
-      <SourcePanel id="search-console" title="Search Console" status="not-connected">
-        <p className="text-sm text-ink-muted">{search.reason ?? "Not connected."}</p>
-        <p className="text-xs">
-          <ConnectLink />
-        </p>
-      </SourcePanel>
-    );
-  }
-  if (search.state === "ok") {
-    // It ran and connected but stored no summary: nothing to set up.
-    return (
-      <SourcePanel id="search-console" title="Search Console" status="connected">
-        <p className="text-sm text-ink-muted">No Search Console data in this scan.</p>
-      </SourcePanel>
-    );
-  }
+  // not_configured, skipped or never run: connect it to get the numbers.
   return (
-    <SourcePanel id="search-console" title="Search Console" status="not-connected">
-      <p className="text-sm text-ink-muted">No Search Console data yet.</p>
-      <p className="text-xs">
-        <ConnectLink />
-      </p>
+    <SourcePanel
+      id={ID}
+      title={TITLE}
+      status="not-connected"
+      statusLabel={sourceStatusPhrase(ID, "not_configured")}
+    >
+      <p className="text-sm text-ink-muted">{sourceExplanation(ID).gives}</p>
+      <ConnectLink lead={MISSING_NOT_ZERO} />
+      <Raw reason={search.state === "none" ? null : search.reason} />
     </SourcePanel>
   );
 }

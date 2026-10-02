@@ -28,10 +28,13 @@ const PAID_STATUS = {
 };
 const ASKED = "when asked your customers' questions.";
 
+/** What every paid source says today: there is no collector for it yet. */
+export const NOT_COLLECTED_YET = "Harbour doesn't collect this data yet.";
+
 /** Paid sources have no collector yet (lib/costs/paid-sources), so connecting is a later step. */
 function paidSteps(settings: string): string[] {
   return [
-    "Harbour doesn't collect this data yet.",
+    NOT_COLLECTED_YET,
     `When it does, you'll add ${settings} to .env, set a monthly budget (HARBOUR_MONTHLY_BUDGET_AUD) and restart the worker.`,
   ];
 }
@@ -153,6 +156,13 @@ const STATE_OF: Readonly<Record<CollectorStatus, SourceState>> = {
 /** A data source's plain name; an unknown id falls back to its collector label. */
 export function sourceName(id: string): string {
   return BY_ID.get(id)?.name ?? collectorLabel(id);
+}
+
+/** A data source's explanation by id. Throws for an id Harbour doesn't know, so a typo is loud. */
+export function sourceExplanation(id: string): SourceExplanation {
+  const found = BY_ID.get(id);
+  if (!found) throw new Error(`No explanation for data source "${id}"`);
+  return found;
 }
 
 /** How a source stands after its latest run (null: it has not run yet), in plain words. */

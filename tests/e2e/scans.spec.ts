@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { E2E_SITE_PORT } from "../../playwright.config";
-import { expectPlainLanguage } from "./plain-language";
+import { hydrated } from "./hydration";
+import { expectPlainIssueTitles, expectPlainLanguage } from "./plain-language";
 
 // The worker scans the fictional Acme Docs site served by tests/e2e/fixture-site.ts
 // (tests/fixtures/sites/acme-docs): /about has no title, / and /about link to a missing page.
@@ -10,14 +11,17 @@ const SITE = `http://127.0.0.1:${E2E_SITE_PORT}`;
 
 test.describe.configure({ mode: "serial" });
 
-/** A score tile in the product header, e.g. "SEO" (headline name "Search engines"). */
-const scoreTile = (page: Page, name: string) =>
-  page.getByRole("term").filter({ hasText: name }).locator("..");
+/** An area card in the product header, found by its plain name. */
+const areaCard = (page: Page, name: string) =>
+  page
+    .getByRole("list", { name: "Your three scores" })
+    .getByRole("listitem")
+    .filter({ hasText: name });
 
 test("Scan now runs a scan and the product page shows its results", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto("/products/acme-docs");
-  await expect(page.getByText("Not scanned yet")).toBeVisible();
+  await expect(page.getByText(/hasn't scanned this site yet/)).toBeVisible();
   const scanNow = page.getByRole("button", { name: "Scan now" });
   // A click before hydration is lost; a repeat click is harmless (one scan per product queues).
   await expect(async () => {
@@ -28,25 +32,33 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
   await expect(page.getByText(/^Last scan .+\.$/)).toBeVisible({ timeout: 90_000 });
   await expect(scanNow).toBeEnabled();
 
-  for (const [area, name] of [
-    ["SEO", "Search engines"],
-    ["GEO", "AI assistants"],
-    ["AEO", "Direct answers"],
-  ] as const) {
-    await expect(scoreTile(page, name)).toContainText(new RegExp(`${area}.*${name}\\s*\\d+`));
+  await expect(
+    page.getByText(/^Acme Docs (is in (strong|good|fair) shape|needs some work)\./),
+  ).toBeVisible();
+  for (const name of ["Found on Google", "Recommended by AI assistants", "Answer-ready"]) {
+    await expect(areaCard(page, name)).toContainText(
+      /(Strong|Good|Fair|Needs work) \d+ out of 100/,
+    );
+  }
+  await expectPlainLanguage(page);
+  await expectPlainIssueTitles(page);
+  for (const old of ["Search engines", "Direct answers"]) {
+    await expect(page.getByText(old, { exact: true })).toHaveCount(0);
   }
 
-  const breakdown = page.getByRole("tabpanel", { name: "SEO" });
-  await expect(breakdown.getByRole("heading", { name: "Technical health" })).toBeVisible();
+  const breakdown = page.getByRole("tabpanel", { name: "Found on Google" });
+  await expect(breakdown.getByRole("heading", { name: "Page health" })).toBeVisible();
   // Evidence for a source that is not set up says so rather than scoring it zero.
-  await expect(breakdown.getByText("Not connected").first()).toBeVisible();
+  await expect(
+    breakdown.getByText("Not connected yet, so it isn't counted.").first(),
+  ).toBeVisible();
 
-  const issues = page.getByRole("region", { name: "Issues" });
-  const noTitle = issues.getByRole("article", { name: "1 page has no title" });
-  await noTitle.getByText("Where").click();
+  const issues = page.getByRole("region", { name: "What to fix" });
+  const noTitle = issues.getByRole("article", { name: "1 page is missing a title" });
+  await noTitle.getByText("Technical details").click();
   await expect(noTitle.getByText(`${SITE}/about`)).toBeVisible();
-  const broken = issues.getByRole("article", { name: "1 linked page is broken" });
-  await broken.getByText("Where").click();
+  const broken = issues.getByRole("article", { name: "1 page you link to can't be found" });
+  await broken.getByText("Technical details").click();
   await expect(broken.getByText(`${SITE}/missing (HTTP 404)`, { exact: false })).toBeVisible();
   // The scan's rule sync opened an action for each issue; the issue links to it on the board.
   await expect(noTitle.getByText("To do", { exact: true })).toBeVisible();
@@ -55,19 +67,23 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
     /^\/actions\?product=acme-docs&status=all#action-\d+$/,
   );
 
-  const pages = page.getByRole("region", { name: "Pages" }).getByRole("table");
-  await expect(pages.getByRole("row", { name: /\/about\b.*No title/ })).toBeVisible();
-  await expect(pages.getByRole("row", { name: /\/missing\b.*404.*HTTP 404/ })).toBeVisible();
+  const pagesRegion = page.getByRole("region", { name: "Pages Harbour checked" });
+  await pagesRegion.getByText("Technical details").click();
+  const pages = pagesRegion.getByRole("table");
+  await expect(pages.getByRole("row", { name: /\/about\b.*Missing title/ })).toBeVisible();
+  await expect(
+    pages.getByRole("row", { name: /\/missing\b.*Not found \(404\).*Didn't load/ }),
+  ).toBeVisible();
   await expect(pages.getByRole("row", { name: /\/guides\/faq\b/ })).toBeVisible();
 
-  const searchConsole = page.getByRole("region", { name: "Search Console" });
-  await expect(searchConsole.getByText("Not connected", { exact: true })).toBeVisible();
+  const searchConsole = page.getByRole("region", { name: "Google Search Console" });
+  await expect(searchConsole.getByText("Not connected yet", { exact: true })).toBeVisible();
   await expect(
-    searchConsole.getByRole("link", { name: /How to connect Search Console/ }),
+    searchConsole.getByRole("link", { name: /How to connect Google Search Console/ }),
   ).toHaveAttribute("href", /#connect-search-console$/);
-  for (const name of ["AI engines", "Rankings"]) {
+  for (const name of ["What AI assistants say about you", "Where you rank on Google"]) {
     const panel = page.getByRole("region", { name });
-    await expect(panel.getByText("Not connected", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Not available yet", { exact: true })).toBeVisible();
     await expect(panel.getByRole("link", { name: /What the scores use today/ })).toBeVisible();
   }
 });
@@ -76,32 +92,56 @@ test("keyboard: the score breakdown tabs move with the arrow keys", async ({ pag
   await page.goto("/products/acme-docs");
   const tabs = page.getByRole("tablist", { name: "Score breakdown" });
   const tab = (name: string) => tabs.getByRole("tab", { name });
-  await expect(tab("SEO")).toHaveAttribute("aria-selected", "true");
+  const [SEO, GEO, AEO] = [
+    "Found on Google",
+    "Recommended by AI assistants",
+    "Answer-ready",
+  ] as const;
+  await expect(tab(SEO)).toHaveAttribute("aria-selected", "true");
   // Keys pressed before hydration are lost; a click that selects GEO shows the tabs are live.
   await expect(async () => {
-    await tab("GEO").click();
-    await expect(tab("GEO")).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+    await tab(GEO).click();
+    await expect(tab(GEO)).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
   }).toPass();
   await page.keyboard.press("ArrowLeft");
-  await expect(tab("SEO")).toBeFocused();
-  await expect(tab("SEO")).toHaveAttribute("aria-selected", "true");
+  await expect(tab(SEO)).toBeFocused();
+  await expect(tab(SEO)).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowRight");
-  await expect(tab("GEO")).toBeFocused();
+  await expect(tab(GEO)).toBeFocused();
   await expect(
-    page.getByRole("tabpanel", { name: "GEO" }).getByRole("heading", { name: "llms.txt" }),
+    page
+      .getByRole("tabpanel", { name: GEO })
+      .getByRole("heading", { name: "A guide for AI assistants (llms.txt)" }),
   ).toBeVisible();
-  await expect(page.getByRole("tabpanel", { name: "SEO" })).toBeHidden();
+  await expect(page.getByRole("tabpanel", { name: SEO })).toBeHidden();
   await page.keyboard.press("End");
-  await expect(tab("AEO")).toBeFocused();
+  await expect(tab(AEO)).toBeFocused();
   await page.keyboard.press("ArrowRight");
-  await expect(tab("SEO")).toBeFocused();
+  await expect(tab(SEO)).toBeFocused();
   await page.keyboard.press("ArrowLeft");
-  await expect(tab("AEO")).toBeFocused();
+  await expect(tab(AEO)).toBeFocused();
   await page.keyboard.press("Home");
-  await expect(tab("SEO")).toBeFocused();
+  await expect(tab(SEO)).toBeFocused();
   // One tab stop: Tab leaves the tab list for the selected panel.
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("tabpanel", { name: "SEO" })).toBeFocused();
+  await expect(page.getByRole("tabpanel", { name: SEO })).toBeFocused();
+});
+
+test("an area card's explainer opens from the keyboard and the numbers stay one click away", async ({
+  page,
+}) => {
+  await page.goto("/products/acme-docs");
+  const button = page.getByRole("button", { name: /What's this\? \(Found on Google\)/ });
+  await hydrated(button);
+  await button.focus();
+  await page.keyboard.press("Enter");
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText("Why Harbour checks it").first()).toBeVisible();
+  // The sub-score numbers and keys sit under Technical details, closed until asked for.
+  const panel = page.getByRole("tabpanel", { name: "Found on Google" });
+  await expect(panel.getByText("seo.technical")).toBeHidden();
+  await panel.getByText("Technical details").click();
+  await expect(panel.getByText("seo.technical")).toBeVisible();
 });
 
 test("Sources lists each source's last run and how to connect the missing ones", async ({
@@ -164,7 +204,7 @@ test("Today shows the real verdicts instead of the sample, with the numbers a cl
     await expect(cell).toHaveText(/^\d+/);
   }
   // Worth doing next lists the actions the scan opened, each linked to its board card.
-  await expect(page.getByRole("link", { name: "1 page has no title" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "1 page is missing a title" })).toHaveAttribute(
     "href",
     /^\/actions#action-\d+$/,
   );

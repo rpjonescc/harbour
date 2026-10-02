@@ -1,4 +1,12 @@
-import { GAP_REASONS, trendPhrase, VERDICT_BANDS, verdictBandsText, verdictFor } from "./verdict";
+import {
+  averageScore,
+  GAP_REASONS,
+  gapReason,
+  trendPhrase,
+  VERDICT_BANDS,
+  verdictBandsText,
+  verdictFor,
+} from "./verdict";
 
 describe("verdictFor", () => {
   it.each([
@@ -76,5 +84,21 @@ describe("verdictBandsText", () => {
     expect(verdictBandsText()).toBe(
       "Strong (85 or more), Good (70–84), Fair (50–69), Needs work (under 50)",
     );
+  });
+});
+
+describe("averageScore", () => {
+  it("rounds the mean and says nothing for no scores", () => {
+    expect(averageScore([64, 41])).toBe(53);
+    expect(averageScore([85])).toBe(85);
+    expect(averageScore([])).toBeNull();
+  });
+});
+
+describe("gapReason", () => {
+  it("tells data that didn't arrive from a failed or missing check", () => {
+    expect(gapReason({ scanned: true, lastCheckFailed: true })).toBe(GAP_REASONS.dataMissing);
+    expect(gapReason({ scanned: false, lastCheckFailed: true })).toBe(GAP_REASONS.checkFailed);
+    expect(gapReason({ scanned: false, lastCheckFailed: false })).toBe(GAP_REASONS.notChecked);
   });
 });

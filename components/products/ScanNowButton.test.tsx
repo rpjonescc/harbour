@@ -16,7 +16,7 @@ describe("ScanNowButton", () => {
     api.postJson.mockResolvedValue({ ok: true, data: { jobId: 7, created: true } });
     render(<ScanNowButton productId="acme-docs" active={null} />);
     fireEvent.click(button());
-    expect(await screen.findByRole("status")).toHaveTextContent("Scan queued");
+    expect(await screen.findByRole("status")).toHaveTextContent("Scan queued. It starts shortly.");
     expect(api.postJson).toHaveBeenCalledWith("/api/scans", { productId: "acme-docs" });
     expect(nav.refresh).toHaveBeenCalled();
   });
@@ -25,14 +25,16 @@ describe("ScanNowButton", () => {
     api.postJson.mockResolvedValue({ ok: true, data: { jobId: 7, created: false } });
     render(<ScanNowButton productId="acme-docs" active={null} />);
     fireEvent.click(button());
-    expect(await screen.findByRole("status")).toHaveTextContent("A scan is already queued");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "A scan is already waiting to run.",
+    );
   });
 
   it("reports a failure without refreshing", async () => {
     api.postJson.mockResolvedValue({ ok: false, error: "network_error" });
     render(<ScanNowButton productId="acme-docs" active={null} />);
     fireEvent.click(button());
-    expect(await screen.findByRole("status")).toHaveTextContent("Couldn't queue the scan");
+    expect(await screen.findByRole("status")).toHaveTextContent("Harbour couldn't start the scan");
     expect(nav.refresh).not.toHaveBeenCalled();
     expect(button()).toBeEnabled();
   });

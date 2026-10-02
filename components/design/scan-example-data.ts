@@ -76,6 +76,10 @@ export const EXAMPLE_SCAN_STATES: { label: string; scan: ScanState }[] = [
     label: "Running",
     scan: { active: { jobId: 9, status: "running", since: AT }, last: last("ok") },
   },
+  {
+    label: "Running after a failed scan",
+    scan: { active: { jobId: 9, status: "running", since: AT }, last: last("failed") },
+  },
   { label: "Partly failed", scan: { active: null, last: last("partial") } },
   { label: "Failed", scan: { active: null, last: last("failed") } },
 ];

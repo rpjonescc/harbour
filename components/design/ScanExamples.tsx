@@ -1,14 +1,15 @@
+import { AreaCards } from "@/components/products/AreaCards";
 import { IssueItem } from "@/components/products/IssueItem";
 import { PagesTable } from "@/components/products/PagesTable";
 import { PaidSourcePanels } from "@/components/products/PaidSourcePanels";
 import { ScanNowButton } from "@/components/products/ScanNowButton";
 import { ScanStatusNote } from "@/components/products/ScanStatusNote";
 import { ScoreBreakdown } from "@/components/products/ScoreBreakdown";
-import { ScoreTiles } from "@/components/products/ScoreTiles";
 import { SearchConsolePanel } from "@/components/products/SearchConsolePanel";
 import { ScoreBar } from "@/components/ui/ScoreBar";
 import { ScoreValue } from "@/components/ui/ScoreValue";
 import { Tabs } from "@/components/ui/Tabs";
+import { AREAS } from "@/lib/explain/areas";
 import {
   EXAMPLE_ISSUE,
   EXAMPLE_PRODUCT,
@@ -36,7 +37,10 @@ export function ScanExamples() {
         </div>
         <ScanNowButton productId={EXAMPLE_PRODUCT.id} active={null} demo />
       </div>
-      <ScoreTiles scores={EXAMPLE_SCORES} />
+      <AreaCards
+        scores={EXAMPLE_SCORES}
+        scan={EXAMPLE_SCAN_STATES[0]?.scan ?? { active: null, last: null }}
+      />
       {EXAMPLE_SCAN_STATES.map(({ label, scan }) => (
         <div key={label} className="flex flex-col gap-1">
           <p className="text-2xs uppercase tracking-widest text-ink-muted">{label}</p>
@@ -48,17 +52,17 @@ export function ScanExamples() {
         tabs={[
           {
             id: "seo",
-            label: "SEO",
+            label: AREAS.seo.name,
             panel: <ScoreBreakdown area="seo" entries={breakdown} complete />,
           },
           {
             id: "geo",
-            label: "GEO",
+            label: AREAS.geo.name,
             panel: <ScoreBreakdown area="geo" entries={breakdown} complete={false} />,
           },
           {
             id: "aeo",
-            label: "AEO",
+            label: AREAS.aeo.name,
             panel: <ScoreBreakdown area="aeo" entries={[]} complete={false} />,
           },
         ]}
@@ -76,9 +80,14 @@ export function ScanExamples() {
             url: "https://docs.example.com/pricing",
             status: 200,
             title: null,
-            problems: ["No title", "No description"],
+            problems: ["Missing title", "Missing description"],
           },
-          { url: "https://docs.example.com/old", status: 404, title: null, problems: ["HTTP 404"] },
+          {
+            url: "https://docs.example.com/old",
+            status: 404,
+            title: null,
+            problems: ["Didn't load"],
+          },
         ]}
       />
       <SearchConsolePanel

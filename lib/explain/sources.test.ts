@@ -1,7 +1,13 @@
 import { readFileSync } from "node:fs";
 import { PAID_SOURCES } from "@/lib/costs/paid-sources";
 import { COLLECTOR_IDS } from "@/lib/scan/labels";
-import { SOURCES, sourceName, sourceStatusPhrase, sourceTrouble } from "./sources";
+import {
+  SOURCES,
+  sourceExplanation,
+  sourceName,
+  sourceStatusPhrase,
+  sourceTrouble,
+} from "./sources";
 
 const ENV_EXAMPLE = readFileSync(".env.example", "utf8");
 const SETTING = /HARBOUR_[A-Z_]+/;
@@ -62,5 +68,12 @@ describe("source phrases", () => {
     );
     expect(sourceName("crawler")).toBe("Page check");
     expect(sourceName("retired-collector")).toBe("retired-collector");
+  });
+});
+
+describe("sourceExplanation", () => {
+  it("finds a source by id and knows when it doesn't", () => {
+    expect(sourceExplanation("search-console").name).toBe("Google Search Console");
+    expect(() => sourceExplanation("nope")).toThrow(/nope/);
   });
 });

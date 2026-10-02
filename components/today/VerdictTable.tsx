@@ -3,15 +3,9 @@ import { VerdictLine } from "@/components/explain/VerdictLine";
 import { Panel } from "@/components/ui/Panel";
 import { ProductDot } from "@/components/ui/ProductDot";
 import { AREA_ORDER, AREAS } from "@/lib/explain/areas";
-import { GAP_REASONS } from "@/lib/explain/verdict";
+import { gapReason } from "@/lib/explain/verdict";
 import { productById } from "@/lib/products/catalog";
 import type { ProductScores } from "@/lib/today/types";
-
-/** Why a product's cell has no score: its data didn't arrive, its check failed, or no check yet. */
-function gapReason(row: ProductScores): string {
-  if (row.scanned) return GAP_REASONS.dataMissing;
-  return row.lastCheckFailed ? GAP_REASONS.checkFailed : GAP_REASONS.notChecked;
-}
 
 /** One row per product, one plain-named column per area, each cell a compact verdict. */
 export function VerdictTable({ scores }: { scores: ProductScores[] }) {

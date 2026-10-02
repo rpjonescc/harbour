@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { ProductDot } from "@/components/ui/ProductDot";
+import { productSummary } from "@/lib/explain/product-summary";
 import type { Product } from "@/lib/products/catalog";
 import type { ScanState, ScoreTrend } from "@/lib/scan/views";
+import { AreaCards } from "./AreaCards";
 import { ScanNowButton } from "./ScanNowButton";
 import { ScanStatusNote } from "./ScanStatusNote";
-import { ScoreTiles } from "./ScoreTiles";
 
-/** Product name and links, Scan now, where scanning stands and the three scores. */
+/**
+ * Product name and links, Scan now, where scanning stands, a one-line summary and the three area
+ * cards.
+ */
 export function ProductHeader({
   product,
   scores,
@@ -40,7 +44,10 @@ export function ProductHeader({
         <ScanNowButton productId={product.id} active={scan.active?.status ?? null} />
       </div>
       <ScanStatusNote scan={scan} latest={scores.latest} timeZone={timeZone} locale={locale} />
-      <ScoreTiles scores={scores} />
+      <p className="text-base text-ink">
+        {productSummary(product.name, scores.latest?.totals ?? null)}
+      </p>
+      <AreaCards scores={scores} scan={scan} />
     </header>
   );
 }

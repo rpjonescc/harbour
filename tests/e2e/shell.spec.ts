@@ -157,13 +157,22 @@ for (const colorScheme of ["light", "dark"] as const) {
       ]) {
         await expect(page.getByRole("heading", { name })).toBeVisible();
       }
+      // A scan running after a failed one says so without offering the disabled Scan now.
+      const running = page.getByText("Running after a failed scan").locator("..");
+      await expect(running).toBeVisible();
+      await expect(running).toContainText("The last scan didn't finish");
+      await expect(running).not.toContainText("Try Scan now");
       const whatsThis = page.getByRole("button", {
         name: "What's this? (Recommended by AI assistants example)",
       });
       await hydrated(whatsThis);
       await whatsThis.click();
       await expect(whatsThis).toHaveAttribute("aria-expanded", "true");
-      await expect(page.getByText(AREAS.geo.parts.worth)).toBeVisible();
+      // The area cards further down the page carry the same text, so scope to this explainer.
+      const explainerId = await whatsThis.getAttribute("aria-controls");
+      await expect(
+        page.locator(`[id="${explainerId}"]`).getByText(AREAS.geo.parts.worth),
+      ).toBeVisible();
       await page.waitForLoadState("networkidle");
       expect(cspErrors).toEqual([]);
     });

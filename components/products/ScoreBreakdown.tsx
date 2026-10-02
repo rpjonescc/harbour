@@ -1,29 +1,48 @@
-import { ScoreBar } from "@/components/ui/ScoreBar";
-import { ScoreValue } from "@/components/ui/ScoreValue";
-import { Tag } from "@/components/ui/Tag";
+import { EmptyState } from "@/components/explain/EmptyState";
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
+import { Panel } from "@/components/ui/Panel";
 import type { ScoreBreakdownEntry } from "@/lib/db/schema";
+import { AREAS } from "@/lib/explain/areas";
+import { weakestFirst } from "@/lib/explain/subscores";
 import type { AreaKey } from "@/lib/scan/views";
+import { SubScoreRow } from "./SubScoreRow";
 
-function weightNote(entry: ScoreBreakdownEntry, area: string): string {
-  return entry.weight > 0 ? `${Math.round(entry.weight * 100)}% of ${area}` : "Not counted yet";
-}
+const WEAKEST_FIRST = "Weakest first, so the top one is the best place to start.";
+const WITH_GAPS =
+  "Weakest first. Parts marked “Not counted yet” had no data, so they're left out, not counted as zero.";
 
-// Scoring words an unconfigured source's reason "<Source> is not connected" (scoring/inputs.ts),
-// and the paid-source notes "… not connected …": those need setting up, not a retry.
-const NOT_CONNECTED = /\bnot connected\b/i;
-
-function statusTag(entry: ScoreBreakdownEntry) {
-  if (entry.status === "ok") return null;
-  return NOT_CONNECTED.test(entry.evidence) ? (
-    <Tag tone="neutral">Not connected</Tag>
-  ) : (
-    <Tag tone="warn">Missing</Tag>
+function Numbers({ entries }: { entries: ScoreBreakdownEntry[] }) {
+  return (
+    <table className="w-full text-left text-xs">
+      <caption className="sr-only">Sub-scores in numbers</caption>
+      <thead className="text-ink-muted">
+        <tr className="border-b border-line">
+          {["Sub-score", "Weight", "Score", "What Harbour recorded"].map((name) => (
+            <th key={name} scope="col" className="py-1.5 pr-3 font-normal">
+              {name}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-line">
+        {entries.map((entry) => (
+          <tr key={entry.key} className="align-top">
+            <th scope="row" className="py-1.5 pr-3 font-mono font-normal">
+              {entry.key}
+            </th>
+            <td className="py-1.5 pr-3 tabular-nums">{Math.round(entry.weight * 100)}%</td>
+            <td className="py-1.5 pr-3 tabular-nums">{entry.score ?? "none"}</td>
+            <td className="py-1.5">{entry.evidence}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
 /**
- * One score's sub-scores: label, weight, number, bar and the evidence behind it — or why it is
- * missing. Entries come from the stored breakdown, keyed "<area>.<name>".
+ * One area's sub-scores as plain sentences, weakest first, with the numbers, keys and raw
+ * evidence under Technical details. Entries come from the stored breakdown, keyed "<area>.<name>".
  */
 export function ScoreBreakdown({
   area,
@@ -34,40 +53,30 @@ export function ScoreBreakdown({
   entries: ScoreBreakdownEntry[];
   complete: boolean;
 }) {
-  const name = area.toUpperCase();
-  const own = entries.filter((entry) => entry.key.startsWith(`${area}.`));
+  const { name, code } = AREAS[area];
+  const own = weakestFirst(entries.filter((entry) => entry.key.startsWith(`${area}.`)));
   if (own.length === 0) {
     return (
-      <p className="text-sm text-ink-muted">
-        No {name} breakdown yet: it appears after the first scan.
-      </p>
+      <EmptyState
+        what={`The details behind ${name} will appear here.`}
+        when="They appear after the first scan finishes."
+        why="Each one says what Harbour looked at and how your site did."
+      />
     );
   }
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs text-ink-muted">
-        {complete
-          ? `Every source ${name} needs reported in this scan.`
-          : `Incomplete: parts marked Missing had no data in this scan and are left out, not counted as zero.`}
-      </p>
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-ink-muted">{complete ? WEAKEST_FIRST : WITH_GAPS}</p>
       <ul className="divide-y divide-line">
         {own.map((entry) => (
-          <li key={entry.key} className="flex flex-col gap-1.5 py-3">
-            <div className="flex items-baseline gap-3">
-              <h3 className="text-sm font-medium text-ink">{entry.label}</h3>
-              <span className="text-2xs text-ink-muted">{weightNote(entry, name)}</span>
-              <span className="ml-auto text-sm">
-                <ScoreValue value={entry.score} />
-              </span>
-            </div>
-            {entry.weight > 0 && <ScoreBar value={entry.score} />}
-            <p className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-              {statusTag(entry)}
-              <span>{entry.evidence}</span>
-            </p>
-          </li>
+          <SubScoreRow key={entry.key} entry={entry} />
         ))}
       </ul>
+      <TechnicalDetails id={`breakdown-${area}`} topic={`${code} scores in numbers`}>
+        <Panel className="overflow-x-auto px-3 py-2">
+          <Numbers entries={own} />
+        </Panel>
+      </TechnicalDetails>
     </div>
   );
 }

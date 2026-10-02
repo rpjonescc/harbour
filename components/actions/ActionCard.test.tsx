@@ -21,6 +21,11 @@ function technicalDetails(card: HTMLElement): HTMLDetailsElement {
   return details;
 }
 
+/** The chips: the first block on the card, ahead of the title. */
+function chipTexts(card: HTMLElement): (string | null)[] {
+  return [...(card.firstElementChild?.children ?? [])].map((el) => el.textContent);
+}
+
 function renderCard(over: Partial<ActionView> = {}) {
   const action = exampleActionView(over);
   render(
@@ -36,24 +41,72 @@ function renderCard(over: Partial<ActionView> = {}) {
 }
 
 describe("ActionCard", () => {
-  it("leads with the plain title, reason, impact, effort, status and who's on it", () => {
+  it("leads with the title, one line, the win and who's on it, then a quiet meta line", () => {
     const card = renderCard();
     expect(within(card).getByRole("heading", { level: 3 })).toHaveTextContent(
       "3 pages have no title",
     );
-    for (const text of [
-      "Big win",
-      "Found on Google · quick job",
-      "To do",
-      "Acme Docs",
-      "Waiting for you",
-    ]) {
+    for (const text of ["Big win", "Waiting for you"]) {
       expect(within(card).getByText(text)).toBeInTheDocument();
     }
     expect(card).toHaveTextContent("Search results show a generated title");
+    expect(card).toHaveTextContent("Found on Google · quick job · Acme Docs");
+    // The status is implied by who's on it, so it is not repeated as a third tag.
+    expect(within(card).queryByText("To do")).toBeNull();
     // Codes and the old effort wording are gone from the surface.
     expect(within(card).queryByText("SEO")).toBeNull();
     expect(within(card).queryByText("Small")).toBeNull();
+  });
+
+  it("puts area, effort and product in one small muted line, not tags", () => {
+    const card = renderCard();
+    const meta = within(card)
+      .getByText(/^Found on Google · quick job/)
+      .closest("p");
+    expect(meta).toHaveTextContent("Found on Google · quick job · Acme Docs");
+    expect(meta).toHaveClass("text-xs", "text-ink-muted");
+    // The meta line is plain text: neither chip lives in it.
+    expect(meta).not.toContainElement(within(card).getByText("Big win"));
+    expect(meta).not.toContainElement(within(card).getByText("Waiting for you"));
+  });
+
+  it("shows at most two chips: the size of the win and who's on it or the status", () => {
+    expect(chipTexts(renderCard())).toEqual(["Big win", "Waiting for you"]);
+  });
+
+  it("shows only the first sentence of the reason on the surface; the full text folds away", () => {
+    const why = "Search results show a generated title. Visitors skip generic ones. Fix it soon.";
+    const card = renderCard({ why });
+    const surface = card.cloneNode(true) as HTMLElement;
+    technicalDetails(surface).remove();
+    expect(surface).toHaveTextContent("Search results show a generated title.");
+    expect(surface).not.toHaveTextContent("Visitors skip generic ones");
+    const inside = within(technicalDetails(card));
+    expect(technicalDetails(card).querySelector("dt")).toHaveTextContent("Full reason");
+    expect(inside.getByText("Full reason")).toBeInTheDocument();
+    expect(inside.getByText(why)).toBeInTheDocument();
+  });
+
+  it("leaves no stray line or Full reason for a blank reason", () => {
+    const card = renderCard({ why: "  \n " });
+    expect(within(technicalDetails(card)).queryByText("Full reason")).toBeNull();
+    const heading = within(card).getByRole("heading", { level: 3 });
+    expect(heading.nextElementSibling?.textContent).toContain("Found on Google");
+  });
+
+  it("names the status quietly only for work in progress, and as the chip when no one is on it", () => {
+    const working = renderCard({ status: "in_progress", who: "claude" });
+    expect(within(working).getByText(/· In progress$/)).toBeInTheDocument();
+    expect(within(working).getByText("Claude is on it")).toBeInTheDocument();
+  });
+
+  it.each([
+    [{ status: "in_progress", who: null }, "In progress"],
+    [{ status: "snoozed", who: null, snoozedUntil: "2026-10-12" }, "Snoozed until 12 Oct 2026"],
+    [{ status: "done", who: null }, "Done"],
+  ] as const)("shows %j as the status chip %j when no one is on it", (over, chip) => {
+    const card = renderCard(over);
+    expect(chipTexts(card)).toEqual(["Big win", chip]);
   });
 
   it("keeps the fix, source, rule key, evidence, docs and prompt inside Technical details", () => {

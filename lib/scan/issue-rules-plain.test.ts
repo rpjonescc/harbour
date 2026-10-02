@@ -1,5 +1,5 @@
 import { ALL_OK, crawlSite, htmlPage, readiness } from "@/tests/helpers/scoring";
-import { evaluateRules } from "./issues";
+import { evaluateRules, type Issue } from "./issues";
 import { AI_RETRIEVAL_AGENTS } from "./robots";
 
 // What reaches the owner on the Actions board, Today and the product page: no tags, header
@@ -10,7 +10,7 @@ const SEARCH_AGENT = [...AI_RETRIEVAL_AGENTS][0] ?? "";
 const TRAINING_ONLY = "CCBot";
 
 /** Every rule fires: a bare page, a broken link, no llms.txt, no FAQ, one agent blocked. */
-function problemsWhenBlocked(agent: string): string[] {
+function issuesWhenBlocked(agent: string): Issue[] {
   const observations = [
     htmlPage("/", { titleLength: 0, descriptionLength: 0, noindex: true }),
     crawlSite(),
@@ -22,9 +22,14 @@ function problemsWhenBlocked(agent: string): string[] {
     }),
   ];
   return evaluateRules(observations, ALL_OK).flatMap((o) =>
-    o.state === "present" ? [o.issue.problem] : [],
+    o.state === "present" ? [o.issue] : [],
   );
 }
+const problemsWhenBlocked = (agent: string) => issuesWhenBlocked(agent).map((i) => i.problem);
+const titlesWhenBlocked = (agent: string) => issuesWhenBlocked(agent).map((i) => i.title);
+
+const TITLE_JARGON =
+  /robots\.txt|llms\.txt|noindex|meta |structured data|JSON-LD|schema|Preferred Sources|crawler|\w+Bot\b/i;
 
 describe("rule reasons in plain words", () => {
   it("uses real fixtures: a search agent and a training-only crawler", () => {
@@ -54,5 +59,37 @@ describe("rule reasons in plain words", () => {
     expect(problemsWhenBlocked(TRAINING_ONLY)[4]).toBe(
       "Only the tools that collect training data are blocked; AI assistants can still read and cite your site.",
     );
+  });
+});
+
+describe("rule titles in plain words", () => {
+  it("titles every rule without jargon, for both blocked-agent variants", () => {
+    for (const agent of [SEARCH_AGENT, TRAINING_ONLY]) {
+      const titles = titlesWhenBlocked(agent);
+      expect(titles).toHaveLength(8);
+      for (const title of titles) expect(title).not.toMatch(TITLE_JARGON);
+    }
+  });
+
+  it("pins the titles", () => {
+    expect(titlesWhenBlocked(SEARCH_AGENT)).toEqual([
+      "1 page is missing a title",
+      "1 page has no summary for search results",
+      "1 page you link to can't be found",
+      "1 page is hidden from search",
+      "AI assistants can't read your site",
+      "Your questions and answers aren't labelled for Google and AI",
+      "No guide to your site for AI assistants",
+      "No favourite-source link for Google readers",
+    ]);
+    expect(titlesWhenBlocked(TRAINING_ONLY)[4]).toBe("Your site opts out of AI training");
+  });
+
+  it("counts in the plural", () => {
+    const titles = evaluateRules(
+      [htmlPage("/a", { titleLength: 0 }), htmlPage("/b", { titleLength: 0 }), crawlSite()],
+      ALL_OK,
+    ).flatMap((o) => (o.state === "present" ? [o.issue.title] : []));
+    expect(titles).toContain("2 pages are missing a title");
   });
 });

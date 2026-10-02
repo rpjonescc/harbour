@@ -66,3 +66,15 @@ export function verdictBandsText(): string {
     return `${band.label} (${band.min}–${above.min - 1})`;
   }).join(", ");
 }
+
+/** The mean of the scores, rounded; null when there are none (a gap, never a zero). */
+export function averageScore(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
+}
+
+/** Why a score is missing: its data didn't arrive, its check failed, or no check has run. */
+export function gapReason(state: { scanned: boolean; lastCheckFailed: boolean }): string {
+  if (state.scanned) return GAP_REASONS.dataMissing;
+  return state.lastCheckFailed ? GAP_REASONS.checkFailed : GAP_REASONS.notChecked;
+}

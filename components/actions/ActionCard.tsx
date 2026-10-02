@@ -6,6 +6,7 @@ import { EFFORT_PHRASE, IMPACT_PHRASE, STATUS_COLUMN, WHO_PHRASE } from "@/lib/e
 import { AREAS, areaKeyOf } from "@/lib/explain/areas";
 import { formatIsoDay } from "@/lib/format/date";
 import type { Product } from "@/lib/products/catalog";
+import { firstSentence } from "@/lib/today/reason";
 import { ActionHistory } from "./ActionHistory";
 import { ActionStatusControls } from "./ActionStatusControls";
 import { ActionTechnical } from "./ActionTechnical";
@@ -19,9 +20,10 @@ function statusText(action: ActionView, locale: string): string {
 }
 
 /**
- * One action on the board: the plain title, why it matters, how big and how much of a win, who's
- * on it and its pull request; the technical parts are folded away. Every text field is rendered
- * as plain text: agent-written titles and reasons are untrusted.
+ * One action on the board: the plain title and one line on why, how big a win it is and who's on
+ * it, a quiet area, effort and product line, and its pull request; the full reason and the
+ * technical parts are folded away. Every text field is rendered as plain text: agent-written
+ * titles and reasons are untrusted.
  */
 export function ActionCard({
   action,
@@ -41,6 +43,7 @@ export function ActionCard({
   demo?: boolean;
 }) {
   const headingId = `action-${action.id}-title`;
+  const reason = firstSentence(action.why);
   return (
     <Panel className="p-4">
       <article
@@ -48,29 +51,28 @@ export function ActionCard({
         aria-labelledby={headingId}
         data-action-id={action.id}
         data-impact={action.impact}
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-4"
       >
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
           <Tag tone={action.impact === "high" ? "warn" : "neutral"}>
             {IMPACT_PHRASE[action.impact]}
           </Tag>
-          <Tag tone="accent">
-            {AREAS[areaKeyOf(action.area)].name} · {EFFORT_PHRASE[action.effort]}
+          <Tag tone={action.who ? "accent" : "neutral"}>
+            {action.who ? WHO_PHRASE[action.who] : statusText(action, locale)}
           </Tag>
-          <Tag tone={action.status === "suggested" ? "accent" : "neutral"}>
-            {statusText(action, locale)}
-          </Tag>
-          <span className="inline-flex items-center gap-1.5 px-1 text-2xs text-ink-muted">
-            <ProductDot product={product} />
-            {product.name}
-          </span>
         </div>
-        <div className="flex flex-col gap-1">
-          <h3 id={headingId} tabIndex={-1} className="text-base font-medium text-ink">
+        <div className="flex flex-col gap-1.5">
+          <h3 id={headingId} tabIndex={-1} className="text-lg font-medium text-ink">
             {action.title}
           </h3>
-          <p className="text-sm text-ink-muted">{action.why}</p>
-          {action.who && <p className="text-sm text-ink">{WHO_PHRASE[action.who]}</p>}
+          {reason && <p className="text-sm text-ink-muted">{reason}</p>}
+          <p className="flex items-center gap-1.5 text-xs text-ink-muted">
+            <ProductDot product={product} />
+            <span>
+              {AREAS[areaKeyOf(action.area)].name} · {EFFORT_PHRASE[action.effort]} · {product.name}
+              {action.status === "in_progress" && action.who && ` · ${STATUS_COLUMN.in_progress}`}
+            </span>
+          </p>
         </div>
         <PullRequestLink url={action.prUrl} />
         <ActionHistory

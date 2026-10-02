@@ -48,4 +48,25 @@ describe("VerdictLine", () => {
     expect(screen.queryByText("Recommended by AI assistants")).toBeNull();
     expect(container).toHaveTextContent("Needs work 46 out of 100* (some data missing)");
   });
+
+  it("stacks the area name over a large serif verdict word, with the notes on their own lines", () => {
+    const { container } = render(
+      <VerdictLine stacked area="seo" score={78} delta={2} complete={false} />,
+    );
+    expect(screen.getByText("Found on Google")).toHaveClass("block", "text-sm", "text-ink-muted");
+    expect(screen.getByText("Good")).toHaveClass("font-serif", "text-2xl", "text-good");
+    expect(screen.getByText("up 2 since the last check")).toHaveClass("block", "text-2xs");
+    expect(screen.getByText("Some data was missing, so this may change.")).toHaveClass("block");
+    expect(container.firstElementChild).toHaveClass("block");
+  });
+
+  it("stacks a missing score the same way, in the muted tone", () => {
+    render(<VerdictLine stacked area="aeo" score={null} missingReason="Not scored yet." />);
+    expect(screen.getByText("No score yet")).toHaveClass(
+      "font-serif",
+      "text-2xl",
+      "text-ink-muted",
+    );
+    expect(screen.getByText("Not scored yet.")).toHaveClass("block");
+  });
 });

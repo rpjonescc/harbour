@@ -17,11 +17,6 @@ const AI_CRAWLERS = [topicPath("llms-txt-and-ai-crawlers")];
 const atSite = (readiness: ReadinessFacts, path: string) => new URL(path, readiness.url).href;
 const NO_READINESS = { unknown: "The readiness check recorded no usable result" };
 
-function list(names: string[]): string {
-  if (names.length <= 1) return names.join("");
-  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
-}
-
 const missingTitle = rule(
   { id: "missing-title", needs: ["crawler"], effort: "small", docs: TECHNICAL_SEO },
   ({ pages }) => {
@@ -35,7 +30,7 @@ const missingTitle = rule(
     return {
       area: "SEO",
       impact: "high",
-      title: `${count(urls.length, "page has", "pages have")} no title`,
+      title: `${count(urls.length, "page is", "pages are")} missing a title`,
       problem: "Without a title, search results and AI answers have nothing to call these pages.",
       fix: "Give each page a unique, descriptive <title> of 10–60 characters.",
       check: "Each listed URL serves a <title> of 10–60 characters.",
@@ -58,7 +53,7 @@ const missingDescription = rule(
     return {
       area: "SEO",
       impact: "medium",
-      title: `${count(urls.length, "page has", "pages have")} no meta description`,
+      title: `${count(urls.length, "page has", "pages have")} no summary for search results`,
       problem:
         "Without a short summary written for them, Google picks a snippet from the page text.",
       fix: "Add a meta description of 50–160 characters summarising each page.",
@@ -85,7 +80,7 @@ const brokenLinks = rule(
     return {
       area: "SEO",
       impact: "high",
-      title: `${count(locations.length, "linked page is", "linked pages are")} broken`,
+      title: `${count(locations.length, "page you link to", "pages you link to")} can't be found`,
       problem:
         "Links on your site lead to pages that are gone or show an error, so visitors and Google hit dead ends.",
       fix: "Fix or remove each link, or restore (or redirect) the missing page.",
@@ -135,7 +130,7 @@ const aiCrawlersBlocked = rule(
     return {
       area: "GEO",
       impact: search ? "high" : "low",
-      title: `robots.txt blocks ${list(blocked)}`,
+      title: search ? "AI assistants can't read your site" : "Your site opts out of AI training",
       problem: search
         ? "AI assistants' search tools are blocked from reading your site, so they can't cite it."
         : "Only the tools that collect training data are blocked; AI assistants can still read and cite your site.",
@@ -161,7 +156,7 @@ const noFaqSchema = rule(
     return {
       area: "AEO",
       impact: "medium",
-      title: "No page has FAQ structured data",
+      title: "Your questions and answers aren't labelled for Google and AI",
       problem:
         "Your pages don't label their questions and answers in a way Google and AI assistants can read, so they're less likely to quote you.",
       fix: "Add FAQPage JSON-LD to the pages that answer common questions (each question with a short answer).",
@@ -182,7 +177,7 @@ const noLlmsTxt = rule(
     return {
       area: "GEO",
       impact: "low",
-      title: "No llms.txt",
+      title: "No guide to your site for AI assistants",
       problem:
         "There's no short guide to your site written for AI assistants, so they have to guess which pages matter.",
       fix: "Publish /llms.txt: a Markdown summary of the site with links to its most useful pages.",
@@ -207,7 +202,7 @@ const noPreferredSources = rule(
     return {
       area: "AEO",
       impact: "low",
-      title: "No Google Preferred Sources button",
+      title: "No favourite-source link for Google readers",
       problem: "Readers can't pick your site as a favourite source in Google's Top Stories.",
       fix: "Link to https://www.google.com/preferences/source?q=<your domain> from the site, e.g. as a button near recent articles.",
       check: "A page links to google.com/preferences/source with the site's domain.",
