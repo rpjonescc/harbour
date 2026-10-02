@@ -125,7 +125,8 @@ export function numbersIn(text: string): number[] {
 /**
  * Every figure the note may use: scores, changes, counts, the date and time, and the figures
  * inside the facts' own sentences (titles, wins, trouble). Past headlines are left out, so an
- * old note's number cannot make a new one look honest.
+ * old note's number cannot make a new one look honest. Known limit: a figure is only checked
+ * against the whole set, so it can still sit in the wrong place when it appears elsewhere.
  */
 export function figuresOf(facts: Facts): Set<number> {
   const figures = new Set<number>([

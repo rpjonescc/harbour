@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FACT_CAPS } from "./facts";
 
 /** Hard caps (spec §3.4). The prompt asks for ASKED_BODY_CHARS: a few over never costs a retry. */
 export const NOTE_LIMITS = {
@@ -6,31 +7,26 @@ export const NOTE_LIMITS = {
   headline: 110,
   body: 360,
   rest: 160,
-  pick: 120,
+  pick: FACT_CAPS.text,
   picks: 3,
 } as const;
 export const ASKED_BODY_CHARS = 330;
 export const MOODS = ["celebrate", "steady", "attention"] as const;
 
-const MARKUP = /[<>`*_#[\]{}\\|]|https?:|www\.|:\/\//i;
+const MARKUP =
+  /[<>`*_#[\]{}\\|]|https?:|www\.|:\/\/|javascript\s*:|\S+@\S+\.\S+|\b[a-z0-9-]+\.(?:com|net|org|io|co|uk|app|dev)\b/i;
 const EMOJI = /\p{Extended_Pictographic}/u;
+// Control, format (zero-width, bidi, soft hyphen, tags), separator, private-use and surrogate
+// characters, variation selectors and blank-looking letters: they can hide or reorder text.
+const INVISIBLE =
+  /\p{Cc}|\p{Cf}|\p{Zl}|\p{Zp}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[\u034f\u115f\u1160\u180e\u3164]/u;
+// Digits that are not 0-9 (full-width, Arabic-Indic...) and number-like symbols (superscripts,
+// fractions, Roman numerals) would slip past the "every figure is in the facts" check.
+const FOREIGN_NUMBER = /(?![0-9])\p{Nd}|[\p{No}\p{Nl}]/u;
 
-/** Control, zero-width and bidirectional formatting characters: they can hide or reorder text. */
-function isInvisible(code: number): boolean {
-  return (
-    code < 0x20 ||
-    (code >= 0x7f && code <= 0x9f) ||
-    (code >= 0x200b && code <= 0x200f) ||
-    (code >= 0x202a && code <= 0x202e) ||
-    (code >= 0x2066 && code <= 0x2069) ||
-    code === 0xfeff
-  );
-}
-
-/** Plain text on one line: no markdown, HTML, links, code, emoji or hidden characters. */
+/** Plain text on one line: no markdown, HTML, links, code, emoji, hidden characters or odd digits. */
 export function isPlainText(text: string): boolean {
-  if (MARKUP.test(text) || EMOJI.test(text)) return false;
-  return ![...text].some((char) => isInvisible(char.codePointAt(0) ?? 0));
+  return ![MARKUP, EMOJI, INVISIBLE, FOREIGN_NUMBER].some((pattern) => pattern.test(text));
 }
 
 const PLAIN = "must be plain text on one line: no markup, links, emoji or hidden characters";
@@ -42,7 +38,8 @@ export const noteSchema = z.strictObject({
   greeting: text(NOTE_LIMITS.greeting),
   headline: text(NOTE_LIMITS.headline),
   body: text(NOTE_LIMITS.body),
-  picks: z.array(text(NOTE_LIMITS.pick)).max(NOTE_LIMITS.picks).default([]),
+  // Picks are checked by exact membership in the board's titles, which may hold markup characters.
+  picks: z.array(z.string().trim().min(1).max(NOTE_LIMITS.pick)).max(NOTE_LIMITS.picks).default([]),
   rest: text(NOTE_LIMITS.rest).optional(),
   mood: z.enum(MOODS),
 });

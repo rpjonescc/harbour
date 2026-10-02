@@ -62,6 +62,49 @@ describe("checkNote rejects", () => {
     expect(check({ body: `This is ${shouted} for you.` })).toMatch(/banned/);
   });
 
+  it.each([
+    ["a sentence-opening stranger", "Zenith is your new rival."],
+    ["a stranger before a comma", "Zenith, hello."],
+    ["a quoted stranger", "\u00abZenith\u00bb is lovely."],
+    ["a mix of two known products", "Lighthouse Docs is doing well."],
+  ])("%s", (_name, body) => {
+    expect(check({ body, picks: [] })).toMatch(/Zenith|Lighthouse/);
+  });
+
+  it.each([
+    ["a tens word", "Forty things are waiting.", /"forty"/],
+    ["a teens word", "Fourteen things are waiting.", /"fourteen"/],
+    ["hundred", "A hundred things are waiting.", /"hundred"/],
+    ["dozen", "A dozen things are waiting.", /"dozen"/],
+    ["score", "A score of things are waiting.", /"score"/],
+    ["half", "Acme Docs is up half.", /"half"/],
+    ["doubled", "Acme Docs doubled overnight.", /"doubled"/],
+    ["tripled", "Acme Docs tripled overnight.", /"tripled"/],
+  ])("a figure said as a word: %s", (_name, body, reason) => {
+    expect(check({ body })).toMatch(reason);
+  });
+
+  it.each([
+    ["a negation that does not reach the trouble", "Not today, but the backup failed."],
+    ["a crash", "The site crashed overnight."],
+    ["offline", "The checker is offline."],
+    ["an error", "There was an error in the check."],
+    ["something missing", "The guide is missing."],
+  ])("invented trouble: %s", (_name, body) => {
+    expect(check({ body })).toMatch(/trouble/);
+  });
+
+  it.each([
+    ["mustn't", "You mustn't forget the guide."],
+    ["hurried", "You hurried the guide."],
+    ["urgently", "This needs doing urgently."],
+    ["hurrying", "No need for hurrying."],
+    ["a lowercase area code", "Your seo is up a little."],
+    ["a look-alike letter", `Acme D${String.fromCodePoint(0x43e)}cs is fine.`],
+  ])("tone and spelling: %s", (_name, body) => {
+    expect(check({ body })).not.toBeNull();
+  });
+
   it("an area with no score in the facts", () => {
     const acmeOnly = buildFacts(factsInput({ products: [factsInput().products[0] ?? never()] }));
     expect(check({ body: "Answer-ready needs the most care.", picks: [] }, acmeOnly)).toMatch(
@@ -79,6 +122,30 @@ describe("checkNote rejects", () => {
     const strong = { body: "A strong start, honestly.", picks: [], mood: "steady" as const };
     expect(check(strong, WEAK_FACTS)).toMatch(/not strong/);
     expect(check(strong, FACTS)).toBeNull();
+  });
+});
+
+describe("what the board's own words allow", () => {
+  const onBoard = (title: string) =>
+    buildFacts(
+      factsInput({
+        actions: [{ id: 3, title, impact: "high", effort: "small", who: "you" }],
+      }),
+    );
+
+  it("a pick whose title holds markup characters is fine: membership is the check", () => {
+    const title = "Fix the missing <title> tags";
+    expect(check({ picks: [title] }, onBoard(title))).toBeNull();
+  });
+
+  it("a capitalised word from the facts is not shouting, but other shouting is", () => {
+    const facts = onBoard("Serve the site over HTTPS");
+    expect(check({ body: "HTTPS is the one to start with.", picks: [] }, facts)).toBeNull();
+    expect(check({ body: "HTTPS is the one to start with.", picks: [] })).toMatch(/capitals/);
+  });
+
+  it("honest negations of trouble stay accepted", () => {
+    expect(check({ body: "No errors to report, and nothing is offline." })).toBeNull();
   });
 });
 

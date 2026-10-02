@@ -44,6 +44,40 @@ describe("parseNoteFile", () => {
     expect(parseNoteFile(bomb).ok).toBe(false);
   });
 
+  it.each([
+    ["a soft hyphen inside a banned word", { body: "ur\u00adgent" }],
+    ["a word joiner inside a banned word", { body: "mu\u2060st" }],
+    ["a soft hyphen inside a figure", { body: "Up 10\u00ad0 points" }],
+    ["full-width digits", { body: "Up \uff19\uff13 points" }],
+  ])("refuses %s", (_name, over) => {
+    expect(parseNoteFile(noteFileText({ ...GOOD_NOTE, ...over })).ok).toBe(false);
+  });
+
+  it("ignores a leading byte-order mark", () => {
+    expect(parseNoteFile(`\uFEFF${noteFileText(GOOD_NOTE)}`)).toEqual({
+      ok: true,
+      note: GOOD_NOTE,
+    });
+  });
+
+  it("treats rest: null as no rest sentence", () => {
+    const text = noteFileText(GOOD_NOTE).replace("---\n", "---\nrest: null\n");
+    expect(parseNoteFile(text)).toEqual({ ok: true, note: GOOD_NOTE });
+  });
+
+  it("does not print a process warning for an unknown tag", () => {
+    const warn = vi.spyOn(process, "emitWarning").mockImplementation(() => undefined);
+    const text = noteFileText(GOOD_NOTE).replace('greeting: "', 'greeting: !custom "');
+    parseNoteFile(text);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("measures the size limit in bytes, not characters", () => {
+    const wide = `---\n---\n${"é".repeat(MAX_NOTE_BYTES / 2)}`;
+    expect(parseNoteFile(wide)).toEqual({ ok: false, reason: "The note file is too large." });
+  });
+
   it("refuses a file over the size limit before parsing it", () => {
     const result = parseNoteFile(`---\n---\n${"a".repeat(MAX_NOTE_BYTES)}`);
     expect(result).toEqual({ ok: false, reason: "The note file is too large." });

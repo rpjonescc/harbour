@@ -27,36 +27,105 @@ export const NEXT_STEP_PHRASES = [
 type Context = { note: Note; facts: Facts; parts: string[]; text: string };
 type Rule = (context: Context) => string | null;
 
-const NUMBER_WORDS = new Map(
-  ["two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"].map(
-    (word, i) => [word, i + 2] as const,
+const NUMBER_WORDS = new Map<string, number>([
+  ...[
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+  ].map((word, i) => [word, i + 2] as const),
+  ...["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"].map(
+    (word, i) => [word, (i + 2) * 10] as const,
   ),
+  ["hundred", 100],
+  ["thousand", 1000],
+  ["dozen", 12],
+  ["score", 20],
+]);
+// Quantities with no set value can never be checked against the facts.
+const VAGUE_QUANTITIES = new Set(["half", "halved", "double", "doubled", "triple", "tripled"]);
+// "nothing is broken" and "no problems" are honest; only a claim of trouble is rejected. The
+// window stops at a clause boundary, so "Not today, but the backup failed" is still caught.
+const TROUBLE_WORDS =
+  "broken|broke|not working|went wrong|problems?|trouble|didn't finish|did not finish|failed|outage|crashed|down|offline|errors?|unreachable|missing";
+const NEGATED = new RegExp(
+  `\\b(?:no|nothing|not|never|without|isn't|aren't|hasn't)\\b[^.,;:]{0,25}?\\b(?:${TROUBLE_WORDS})\\b`,
+  "gi",
 );
-// "nothing is broken" and "no problems" are honest; only a claim of trouble is rejected.
-const NEGATED =
-  /\b(?:no|nothing|not|never|without|isn't|aren't|hasn't)\b[^.]{0,25}?\b(?:broken|problems?|trouble|failed|wrong)\b/gi;
-const TROUBLE =
-  /\b(?:broken|not working|went wrong|problems?|trouble|didn't finish|did not finish|failed|outage)\b/i;
+const TROUBLE = new RegExp(`\\b(?:${TROUBLE_WORDS})\\b`, "i");
 const PRAISE = /\b(?:strong|excellent|thriving|brilliant|flying|crushing|nailed)\b/i;
+// Stems, so "hurried", "urgently" and "mustn't" are caught like their root.
+const BANNED_PATTERNS: Record<(typeof BANNED_WORDS)[number], string> = {
+  hurry: "hurr(?:y|ied|ying)",
+  urgent: "urgent(?:ly)?",
+  behind: "behind",
+  overdue: "overdue",
+  "falling behind": "falling behind",
+  failing: "failing",
+  must: "must(?:n['’]t)?",
+  "should have": "should have",
+};
 
 const has = (text: string, phrase: string) => new RegExp(`\\b${phrase}\\b`, "i").test(text);
+const factsText = (facts: Facts) =>
+  [
+    ...facts.products.map((p) => p.name),
+    ...facts.actions.map((a) => a.title),
+    ...facts.wins,
+    ...facts.trouble,
+  ].join(" ");
+
+/** Capitalised words the facts themselves use (HTTPS, a product name): not shouting. */
+function capsIn(text: string): Set<string> {
+  return new Set(text.match(/\b[A-Z]{4,}\b/g) ?? []);
+}
+
+/** A word that mixes Latin letters with Cyrillic or Greek ones: a look-alike spelling trick. */
+const mixedScript = (text: string) =>
+  text
+    .split(/\s+/)
+    .some(
+      (word) =>
+        /\p{Script=Latin}/u.test(word) && /[\p{Script=Cyrillic}\p{Script=Greek}]/u.test(word),
+    );
 
 /** The first tone problem in `text` (exclamation runs, shouting, banned words), else null. */
-export function toneProblem(text: string): string | null {
+export function toneProblem(
+  text: string,
+  allowedCaps: ReadonlySet<string> = new Set(),
+): string | null {
   if (/!{2,}/.test(text)) {
     return "The note has a run of exclamation marks. Keep it calm: one at most, usually none.";
   }
-  if (/\b[A-Z]{4,}\b/.test(text)) return "The note shouts in capitals. Write in normal case.";
-  const banned = BANNED_WORDS.find((word) => has(text, word));
+  if ((text.match(/\b[A-Z]{4,}\b/g) ?? []).some((word) => !allowedCaps.has(word))) {
+    return "The note shouts in capitals. Write in normal case.";
+  }
+  if (mixedScript(text))
+    return "The note mixes alphabets inside one word. Use plain Latin letters.";
+  const banned = BANNED_WORDS.find((word) => has(text, BANNED_PATTERNS[word]));
   return banned ? `The note uses "${banned}", which is banned. Say it more gently.` : null;
 }
 
 const codes: Rule = ({ text }) =>
-  /\b(?:SEO|GEO|AEO)\b/.test(text)
+  /\b(?:SEO|GEO|AEO)\b/i.test(text)
     ? "The note uses an area code (SEO, GEO or AEO). Use the plain area names from the facts."
     : null;
 
-const tone: Rule = ({ text }) => toneProblem(text);
+const tone: Rule = ({ text, facts }) => toneProblem(text, capsIn(factsText(facts)));
 
 const figures: Rule = ({ text, facts }) => {
   const known = figuresOf(facts);
@@ -64,9 +133,15 @@ const figures: Rule = ({ text, facts }) => {
   if (stray !== undefined) {
     return `The note uses the figure ${stray}, which is not in the facts. Use only figures from the facts, or say it in words.`;
   }
+  const inFacts = new Set(
+    factsText(facts)
+      .toLowerCase()
+      .match(/[a-z]+/g),
+  );
   for (const word of text.toLowerCase().match(/[a-z]+/g) ?? []) {
     const value = NUMBER_WORDS.get(word);
-    if (value !== undefined && !known.has(value)) {
+    const invented = value !== undefined ? !known.has(value) : VAGUE_QUANTITIES.has(word);
+    if (invented && !inFacts.has(word)) {
       return `The note says "${word}", a figure that is not in the facts. Use only figures from the facts.`;
     }
   }
