@@ -13,3 +13,12 @@ export const SETTINGS_PURPOSE = {
   backups: "Spare copies of Harbour's data, kept in case something goes wrong.",
   more: "Where to change sources, devices and research for each site.",
 } as const;
+
+/** Why a schedule shows Off when the setting alone doesn't say. */
+export const NOTE_OFF_REASON = {
+  quiet: "Off while the personality is quiet",
+  schedule: "Off: the morning note schedule is switched off",
+} as const;
+
+/** The morning note also stops when the personality is quiet; shown only in Technical details. */
+export const NOTE_ALSO_OFF = "(or HARBOUR_PERSONALITY=quiet)";

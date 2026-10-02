@@ -64,7 +64,7 @@ export function KeyStatusCard({ keys, section }: { keys: KeyRow[]; section?: Sec
                   <td className="py-2 align-top">
                     <Tag tone={phrase.tone}>{phrase.text}</Tag>
                     {phrase.note && <p className="mt-1 text-xs text-ink">{phrase.note}</p>}
-                    {phrase.text !== "Connected" && (
+                    {row.inUse && !phrase.connected && (
                       <div className="mt-1">
                         <Setup row={row} />
                       </div>

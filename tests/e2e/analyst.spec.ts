@@ -38,7 +38,7 @@ test("Run weekly report now writes the report and suggests an action", async ({ 
 
   await page.goto("/actions?product=acme-docs&status=suggested");
   const suggestion = page.getByRole("article", { name: SUGGESTION });
-  await expect(suggestion).toContainText("Suggested by the weekly analyst");
+  await expect(suggestion).toContainText("Suggested by the weekly report");
   await expect(suggestion.getByRole("button", { name: `Accept: ${SUGGESTION}` })).toBeVisible();
 });
 

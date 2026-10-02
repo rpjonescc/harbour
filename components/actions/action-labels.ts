@@ -6,7 +6,7 @@ import { STATUS_COLUMN } from "@/lib/explain/actions";
 /** Where an action came from, in Technical details. */
 export const SOURCE_LABEL = {
   rule: "Found by a check",
-  agent: "Suggested by the weekly analyst",
+  agent: "Suggested by the weekly report",
 } as const;
 
 /** Who made a change, in the card's history. */
@@ -14,7 +14,7 @@ export const ACTOR_LABEL: Record<ActionActor, string> = {
   owner: "You",
   claude: "Claude",
   scan: "Harbour's check",
-  agent: "Weekly analyst",
+  agent: "Weekly report",
   system: "Harbour",
 };
 
@@ -40,7 +40,7 @@ export const EMPTY_STATE: Record<
   },
   suggested: {
     what: "No new ideas waiting.",
-    when: "The weekly analyst adds ideas with each report, on Sundays.",
+    when: "The weekly report adds ideas, on Sundays.",
     why: "You decide which ones to accept.",
   },
   snoozed: {

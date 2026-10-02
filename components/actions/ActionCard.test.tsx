@@ -200,7 +200,7 @@ describe("ActionCard", () => {
     });
     expect(within(card).getByText("Snoozed until 12 Oct 2026")).toBeInTheDocument();
     expect(
-      within(technicalDetails(card)).getByText("Suggested by the weekly analyst"),
+      within(technicalDetails(card)).getByText("Suggested by the weekly report"),
     ).toBeInTheDocument();
     expect(within(card).queryByText("Waiting for you")).toBeNull();
   });

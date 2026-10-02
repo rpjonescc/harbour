@@ -90,11 +90,18 @@ describe("settingsView", () => {
   it("shows the morning note as off by the personality when it is quiet", () => {
     const view = settingsView(db, PRODUCTS, config({ HARBOUR_PERSONALITY: "quiet" }), NOW, false);
     expect(view.schedules.find((s) => s.id === "note")).toMatchObject({
-      setting: "HARBOUR_PERSONALITY",
-      offValue: "quiet",
+      setting: "HARBOUR_SCHEDULED_NOTE",
+      offReason: "Off while the personality is quiet",
       enabled: false,
       next: null,
     });
+  });
+
+  it("gives the morning note its own reason when only the schedule is off", () => {
+    const view = settingsView(db, PRODUCTS, config({ HARBOUR_SCHEDULED_NOTE: "off" }), NOW, false);
+    const rows = view.schedules.map((s) => [s.id, s.offReason]);
+    expect(rows).toContainEqual(["note", "Off: the morning note schedule is switched off"]);
+    expect(rows.filter(([id]) => id !== "note").every(([, reason]) => reason === null)).toBe(true);
   });
 
   it("counts research targets awaiting approval per product", () => {

@@ -28,11 +28,12 @@ describe("keys", () => {
       text: "Connected",
       tone: "accent",
       note: null,
+      connected: true,
     });
   });
 
   it("reads Not connected yet for a missing key", () => {
-    expect(keyPhrase(row("claude")).text).toBe("Not connected yet");
+    expect(keyPhrase(row("claude"))).toMatchObject({ text: "Not connected yet", connected: false });
   });
 
   it("never says Connected for a credentials file Harbour can't find, and says why", () => {

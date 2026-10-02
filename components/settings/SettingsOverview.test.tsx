@@ -96,14 +96,19 @@ describe("SettingsOverview", () => {
     expect(schedules.getByRole("row", { name: /Monthly research refresh/ })).toHaveTextContent(
       "Off",
     );
-    expect(schedules.getByRole("row", { name: /Morning note/ })).not.toHaveTextContent(/HARBOUR_/);
+    const note = schedules.getByRole("row", { name: /Morning note/ });
+    expect(note).toHaveTextContent("Off while the personality is quiet");
+    expect(note).not.toHaveTextContent(/HARBOUR_/);
     expect(schedules.getByText(/Europe\/London/)).toBeInTheDocument();
     expect(textOutsideDetails(container)).not.toMatch(/HARBOUR_SCHEDULED|HARBOUR_PERSONALITY/);
     const details = schedules
       .getByText(/how to turn a schedule on or off/, { selector: "summary span" })
       .closest("details");
-    expect(details).toHaveTextContent("HARBOUR_SCHEDULED_RESEARCH");
-    expect(details).toHaveTextContent("HARBOUR_PERSONALITY=quiet");
+    expect(details).toHaveTextContent("Monthly research refresh: HARBOUR_SCHEDULED_RESEARCH=off");
+    expect(details).toHaveTextContent(
+      "Morning note: HARBOUR_SCHEDULED_NOTE=off (or HARBOUR_PERSONALITY=quiet)",
+    );
+    expect(details).toHaveTextContent("to the value shown");
   });
 
   it("reads Connected or Not connected yet, with the setting names only in Technical details", () => {
@@ -129,7 +134,15 @@ describe("SettingsOverview", () => {
       .map((el) => el.textContent ?? "")
       .filter((text) => /\(how to connect /.test(text));
     expect(new Set(names).size).toBe(names.length);
-    expect(names.length).toBeGreaterThan(1);
+    expect(names.length).toBeGreaterThan(0);
+  });
+
+  it("offers no how-to-connect steps for a source that isn't available yet", () => {
+    const { container } = renderView();
+    const openai = within(section("Connections")).getByRole("row", { name: /OpenAI/ });
+    expect(openai.querySelector("details")).toBeNull();
+    const summaries = [...container.querySelectorAll("summary")].map((el) => el.textContent);
+    expect(summaries.join(" ")).not.toContain("how to connect OpenAI");
   });
 
   it("shows the budget, spend and unconfirmed reservations read-only", () => {

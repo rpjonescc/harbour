@@ -9,6 +9,7 @@ import { audToMicro } from "@/lib/costs/budget";
 import { type Reservation, reservationsBetween } from "@/lib/costs/ledger";
 import { type CostMeterView, costMeterView } from "@/lib/costs/meter-view";
 import type { Db } from "@/lib/db/client";
+import { NOTE_OFF_REASON } from "@/lib/explain/settings";
 import { monthWindow } from "@/lib/format/zoned-time";
 import { nextScheduledScans } from "@/lib/jobs/scan-schedule";
 import { nextNoteRun, noteEnabled } from "@/lib/note/schedule";
@@ -22,8 +23,8 @@ export type ScheduleRow = {
   label: string;
   when: string;
   setting: string;
-  /** The value that switches it off, when it is not `off`. */
-  offValue?: string;
+  /** A plain reason for Off when the row's own setting doesn't explain it; else null. */
+  offReason: string | null;
   enabled: boolean;
   next: Date | null;
 };
@@ -64,6 +65,7 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
       label: "Daily check",
       when: "Every day at 06:00",
       setting: "HARBOUR_SCHEDULED_SCANS",
+      offReason: null,
       enabled: scans,
       next: nextScheduledScans(now, zone, scans),
     },
@@ -72,6 +74,7 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
       label: "Weekly report",
       when: "Sundays at 20:00",
       setting: "HARBOUR_SCHEDULED_ANALYST",
+      offReason: null,
       enabled: analyst,
       next: nextWeeklyRun(now, zone, analyst),
     },
@@ -80,6 +83,7 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
       label: "Monthly research refresh",
       when: "First Sunday of the month at 21:00",
       setting: "HARBOUR_SCHEDULED_RESEARCH",
+      offReason: null,
       enabled: refresh,
       next: nextMonthlyRefresh(now, zone, refresh),
     },
@@ -88,6 +92,7 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
       label: "Nightly backup",
       when: "Every night at 03:15",
       setting: "HARBOUR_SCHEDULED_BACKUP",
+      offReason: null,
       enabled: backup,
       next: nextBackupRun(now, zone, backup),
     },
@@ -95,8 +100,8 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
       id: "note",
       label: "Morning note",
       when: `Every day at ${config.HARBOUR_NOTE_TIME}`,
-      setting: quiet ? "HARBOUR_PERSONALITY" : "HARBOUR_SCHEDULED_NOTE",
-      ...(quiet ? { offValue: "quiet" } : {}),
+      setting: "HARBOUR_SCHEDULED_NOTE",
+      offReason: note ? null : quiet ? NOTE_OFF_REASON.quiet : NOTE_OFF_REASON.schedule,
       enabled: note,
       next: nextNoteRun(now, zone, config.HARBOUR_NOTE_TIME, note),
     },

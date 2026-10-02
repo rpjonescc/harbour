@@ -11,7 +11,7 @@ const ACTOR: Record<ActionActor, string> = {
   owner: "Owner",
   claude: "Claude",
   scan: "Scan",
-  agent: "Weekly analyst",
+  agent: "Weekly report",
   system: "Harbour",
 };
 
