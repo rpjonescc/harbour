@@ -6,6 +6,7 @@ import type { PieceView } from "@/lib/content/read/view-types";
 import { ApprovePanel } from "./ApprovePanel";
 import { ConfirmDiscard } from "./ConfirmDiscard";
 import { EditPanel } from "./EditPanel";
+import { STILL_WAITING } from "./savingPoller";
 import { useContentDecision } from "./useContentDecision";
 
 type Mode = "idle" | "approve" | "edit" | "discard";
@@ -14,7 +15,7 @@ type Mode = "idle" | "approve" | "edit" | "discard";
 export function PieceActions({ piece }: { piece: PieceView }) {
   const [mode, setMode] = useState<Mode>("idle");
   const opener = useRef<HTMLElement | null>(null);
-  const { busy, error, clearError, send } = useContentDecision(piece.saving);
+  const { busy, error, clearError, send, stalled } = useContentDecision(piece.saving);
 
   const open = (next: Mode) => (event: React.MouseEvent<HTMLElement>) => {
     opener.current = event.currentTarget;
@@ -75,7 +76,7 @@ export function PieceActions({ piece }: { piece: PieceView }) {
         />
       )}
       <p role="status" aria-live="polite" className="text-xs text-ink-muted">
-        {piece.saving ? "Saving…" : ""}
+        {stalled ? STILL_WAITING : piece.saving ? "Saving…" : ""}
       </p>
       {error && (
         <p role="alert" className="text-sm text-ink">

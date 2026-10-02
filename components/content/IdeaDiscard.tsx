@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import type { IdeaView } from "@/lib/content/read/view-types";
 import { ConfirmDiscard } from "./ConfirmDiscard";
+import { STILL_WAITING } from "./savingPoller";
 import { useContentDecision } from "./useContentDecision";
 
 /** Discards an idea and every piece it has, after a question; the worker does the saving. */
 export function IdeaDiscard({ idea }: { idea: IdeaView }) {
   const [asking, setAsking] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
-  const { busy, error, clearError, send } = useContentDecision(idea.saving);
+  const { busy, error, clearError, send, stalled } = useContentDecision(idea.saving);
   const hasApproved = idea.pieces.some((p) => p.tab === "approved");
   // Focus goes back to the Discard button when the question closes.
   const wasAsking = useRef(false);
@@ -48,7 +49,7 @@ export function IdeaDiscard({ idea }: { idea: IdeaView }) {
         />
       )}
       <p role="status" aria-live="polite" className="text-xs text-ink-muted">
-        {idea.saving ? "Saving…" : ""}
+        {stalled ? STILL_WAITING : idea.saving ? "Saving…" : ""}
       </p>
       {error && (
         <p role="alert" className="text-sm text-ink">

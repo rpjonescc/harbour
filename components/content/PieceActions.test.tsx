@@ -129,15 +129,20 @@ describe("PieceActions", () => {
     expect(screen.getByText(/You have unsaved changes to this piece/)).toBeVisible();
   });
 
-  it("shows Saving… in a status region and refreshes every two seconds while a decision is pending", () => {
+  it("shows Saving… in a status region, refreshes after two seconds and backs off, then says it is still waiting", () => {
     vi.useFakeTimers();
     try {
       render(<PieceActions piece={piece({ saving: true })} />);
       expect(screen.getByRole("status")).toHaveTextContent("Saving…");
       expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "Discard" })).toBeDisabled();
-      act(() => void vi.advanceTimersByTime(4100));
-      expect(mocks.refresh).toHaveBeenCalledTimes(2);
+      act(() => void vi.advanceTimersByTime(2100));
+      expect(mocks.refresh).toHaveBeenCalledTimes(1);
+      act(() => void vi.advanceTimersByTime(4 * 60_000));
+      expect(screen.getByRole("status")).toHaveTextContent(/Still saving/);
+      const calls = mocks.refresh.mock.calls.length;
+      act(() => void vi.advanceTimersByTime(60_000));
+      expect(mocks.refresh).toHaveBeenCalledTimes(calls);
     } finally {
       vi.useRealTimers();
     }
