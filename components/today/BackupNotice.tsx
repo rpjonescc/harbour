@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { formatShortDateTime, formatWeekdayTime } from "@/lib/format/date";
 import type { BackupStatus } from "@/lib/ops/backup-status";
 
@@ -8,52 +9,73 @@ const SETTINGS = (text: string) => (
     {text}
   </Link>
 );
+/** Does it matter: the live database is untouched; only the spare copy is behind. */
+const STILL_SAFE = "Your live data is fine, but your newest spare copy is older than it should be.";
 
 type Props = {
   backup: Pick<BackupStatus, "health" | "lastFailure" | "enabled" | "next">;
   timeZone: string;
   locale: string;
+  /** Names the Technical details for screen readers when several notices share a page (/design). */
+  detailsTopic?: string;
 };
 
-function message({ backup, timeZone, locale }: Props): ReactNode {
-  const { health, lastFailure, next } = backup;
-  if (health === "stale") {
+function failedMessage({ backup, timeZone, locale }: Props): ReactNode {
+  const { lastFailure, next } = backup;
+  const what = lastFailure
+    ? `The backup on ${formatShortDateTime(lastFailure.at, timeZone, locale)} didn't finish.`
+    : "The last backup didn't finish.";
+  // Only the schedule retries; with it off, nothing runs until the owner chooses Back up now.
+  if (backup.enabled && next) {
     return (
       <>
-        No backup in the last 2 days. Check that the worker is running —{" "}
+        {what} {STILL_SAFE} Harbour tries again at {formatWeekdayTime(next, timeZone, locale)} —{" "}
         {SETTINGS("details in Settings")}.
       </>
     );
   }
-  if (health === "unreadable") {
-    return (
-      <>
-        Harbour can't read the backup folder — check its permissions.{" "}
-        {SETTINGS("Details in Settings")}.
-      </>
-    );
-  }
-  const when = lastFailure ? ` on ${formatShortDateTime(lastFailure.at, timeZone, locale)}` : "";
-  const failed = `The backup${when} failed: ${lastFailure?.error ?? "unknown error"}.`;
-  // Only the schedule retries; with it off, nothing runs until the owner chooses Back up now.
-  return backup.enabled && next ? (
+  return (
     <>
-      {failed} Harbour tries again at {formatWeekdayTime(next, timeZone, locale)} —{" "}
-      {SETTINGS("details in Settings")}.
-    </>
-  ) : (
-    <>
-      {failed} Nightly backups are off — run {SETTINGS("Back up now in Settings")}.
+      {what} {STILL_SAFE} Nightly backups are off, so run {SETTINGS("Back up now in Settings")}.
     </>
   );
 }
 
-/** Today's warning when backups need a look (failed, stale or unreadable); nothing otherwise. */
+function message(props: Props): ReactNode {
+  if (props.backup.health === "stale") {
+    return (
+      <>
+        No backup in the last 2 days. Your live data is fine, but there's no recent spare copy.
+        Check that Harbour's background worker is running — {SETTINGS("details in Settings")}.
+      </>
+    );
+  }
+  if (props.backup.health === "unreadable") {
+    return (
+      <>
+        Harbour can't open the backup folder, so it can't check your spare copies. Check the
+        folder's permissions — {SETTINGS("details in Settings")}.
+      </>
+    );
+  }
+  return failedMessage(props);
+}
+
+/** Today's notice when backups need a look: what happened, whether it matters, what to do. */
 export function BackupNotice(props: Props) {
-  if (!["failed", "stale", "unreadable"].includes(props.backup.health)) return null;
+  const { health, lastFailure } = props.backup;
+  if (health !== "failed" && health !== "stale" && health !== "unreadable") return null;
   return (
-    <div role="status" className="rounded-sm bg-warn-soft px-3 py-2 text-xs text-ink">
+    <div
+      role="status"
+      className="flex flex-col gap-1 rounded-sm bg-warn-soft px-3 py-2 text-xs text-ink"
+    >
       <p>{message(props)}</p>
+      {health === "failed" && (
+        <TechnicalDetails id="today-backup" topic={props.detailsTopic ?? "backup error"}>
+          <p className="font-mono">{lastFailure?.error ?? "No error was recorded."}</p>
+        </TechnicalDetails>
+      )}
     </div>
   );
 }

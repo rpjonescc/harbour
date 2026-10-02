@@ -10,24 +10,30 @@ const renderMeter = (view: CostMeterView) =>
   render(<CostMeter view={view} now={NOW} timeZone="Europe/London" locale="en-GB" />);
 
 describe("CostMeter", () => {
-  it("says no paid source is connected, without a spend line when nothing was spent", () => {
+  it("says no paid data is connected and that nothing is being spent", () => {
     renderMeter({ state: "no-paid-sources", spentMicro: 0, unconfirmedMicro: 0 });
-    expect(screen.getByText("No paid sources connected")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "No paid data connected — Harbour is using free data only, so nothing is being spent.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/spent this month/)).toBeNull();
     expect(screen.queryByRole("meter")).toBeNull();
   });
 
   it("still shows what was spent this month after a source was disconnected", () => {
     renderMeter({ state: "no-paid-sources", spentMicro: A$(1.23), unconfirmedMicro: 0 });
-    expect(screen.getByText(/A\$1\.23 spent this month/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/^No paid data connected · A\$1\.23 spent this month/),
+    ).toBeInTheDocument();
   });
 
-  it("says paid sources are off and links to the budget docs when no budget is set", () => {
+  it("says paid data is off until a budget is set, and links to how", () => {
     renderMeter({ state: "no-budget", spentMicro: 0, unconfirmedMicro: 0 });
-    expect(screen.getByText(/Paid sources are off:/)).toHaveTextContent(
-      "Paid sources are off: no monthly budget set",
-    );
-    expect(screen.getByRole("link", { name: /no monthly budget set/ })).toHaveAttribute(
+    expect(
+      screen.getByText(/^Paid data is off until you set a monthly budget/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /how to set one/ })).toHaveAttribute(
       "href",
       expect.stringMatching(/#costs-and-budget$/),
     );
@@ -84,7 +90,7 @@ describe("CostMeter", () => {
       unconfirmedMicro: 0,
     });
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Budget reached — paid sources are paused until 1 Nov",
+      "Budget reached — paid data is paused until 1 Nov. Free checks carry on as normal.",
     );
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByRole("meter", { name: "Paid API spend this month" })).toHaveAttribute(

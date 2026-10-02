@@ -81,7 +81,8 @@ describe("TodayView", () => {
     expect(
       screen.getByText(/the last check didn't finish \(1 Oct 2026, 06:02\)/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Crawler · Acme Docs/)).toHaveTextContent("Could not crawl");
+    expect(screen.getByText("Page check · Acme Docs")).toBeInTheDocument();
+    expect(screen.getByText("crawler · acme-docs: Could not crawl")).not.toBeVisible();
   });
 
   it("says when the first scan is running", () => {
@@ -101,9 +102,11 @@ describe("TodayView", () => {
       "/actions#action-7",
     );
     expect(
-      screen.getByRole("heading", { name: "A source failed in the last scan" }),
+      screen.getByRole("heading", {
+        name: "Google speed test (PageSpeed) had a problem in the last check",
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/PageSpeed · Acme Docs/)).toHaveTextContent("quota exceeded");
+    expect(screen.getByText("Google speed test (PageSpeed) · Acme Docs")).toBeInTheDocument();
   });
 
   it("links the actions beyond the top ones to the Actions board", () => {
@@ -136,24 +139,35 @@ describe("TodayView", () => {
 
   it("shows the cost meter on the sample and on real Today", () => {
     const { unmount } = renderToday(sampleToday(getProducts()));
-    expect(screen.getByText("No paid sources connected")).toBeInTheDocument();
+    expect(screen.getByText(/^No paid data connected/)).toBeInTheDocument();
     unmount();
     renderToday(real);
-    expect(screen.getByText("No paid sources connected")).toBeInTheDocument();
+    expect(screen.getByText(/^No paid data connected/)).toBeInTheDocument();
   });
 
   it("warns about a failed or stale backup, and says nothing when backups are fine", () => {
     const { unmount } = renderToday(real, EXAMPLE_BACKUPS.failed);
-    expect(screen.getByText(/The backup on 2 Oct, 03:10 failed: No space left/)).toBeVisible();
+    expect(screen.getByText(/The backup on 2 Oct, 03:10 didn't finish/)).toBeVisible();
     unmount();
     const stale = renderToday(real, EXAMPLE_BACKUPS.stale);
     expect(screen.getByText(/No backup in the last 2 days/)).toBeVisible();
     stale.unmount();
     const unreadable = renderToday(real, EXAMPLE_BACKUPS.unreadable);
-    expect(screen.getByText(/can't read the backup folder/)).toBeVisible();
+    expect(screen.getByText(/can't open the backup folder/)).toBeVisible();
     unreadable.unmount();
     renderToday(real);
     expect(screen.queryByText(/backup/i)).toBeNull();
+  });
+
+  it("keeps spend, backups and data source trouble together, behind the scenes", () => {
+    renderToday(real, EXAMPLE_BACKUPS.stale);
+    const behind = screen.getByRole("region", { name: "Behind the scenes" });
+    expect(behind).toHaveTextContent(/^Behind the scenes/);
+    expect(behind).toHaveTextContent("No paid data connected");
+    expect(behind).toHaveTextContent("No backup in the last 2 days");
+    expect(behind).toHaveTextContent(
+      "Google speed test (PageSpeed) had a problem in the last check",
+    );
   });
 
   it("shows plain verdicts per product, with the numbers under Technical details", () => {

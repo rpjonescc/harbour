@@ -9,7 +9,7 @@ const A$ = (aud: number) => Math.round(aud * MICRO_PER_AUD);
 /** Today's cost meter in each state. */
 export const EXAMPLE_METERS: { label: string; view: CostMeterView }[] = [
   {
-    label: "No paid sources",
+    label: "No paid data",
     view: { state: "no-paid-sources", spentMicro: 0, unconfirmedMicro: 0 },
   },
   {

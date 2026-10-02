@@ -26,8 +26,10 @@ continues with:
   Needs work under 50, with the score and its change beside it; "What's this?" explains each
   area, and the numbers with a 30-day SEO trend sit under Technical details), **Worth doing
   next** (the top three actions as plain cards: why each matters, its area, how big a job it
-  is and who's on it), and a banner when a source failed in the last scan. Until the first
-  scan finishes it shows clearly labelled sample data.
+  is and who's on it), and **Behind the scenes**: paid spend, backup warnings and any data
+  source that failed in the last check, each saying what happened, whether it matters and what
+  to do (raw errors under Technical details). Until the first scan finishes it shows clearly
+  labelled sample data.
 - **Product pages** — per product: the three scores, **Scan now**, SEO/GEO/AEO tabs explaining
   every sub-score (its weight, evidence, or why it is missing), the issues the scan found with
   a **Hand to Claude** button that copies a ready prompt, the crawled pages and their problems,
@@ -51,7 +53,7 @@ continues with:
   (see [Research refresh](#research-refresh)).
 - **Cost meter** — Today shows this month's paid API spend against your monthly budget, with a
   month-end projection, a warning at 80 % and a pause at 100 %. No paid source exists yet, so it
-  says "No paid sources connected" (see [Costs and budget](#costs-and-budget)).
+  says "No paid data connected" (see [Costs and budget](#costs-and-budget)).
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
   a living reference at `/design` showing every component in its main states.
 - **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14
@@ -565,11 +567,11 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
 
 | Meter | Meaning |
 |---|---|
-| No paid sources connected | No paid collector exists (or its keys are missing). Spend so far this month is shown if there is any. |
-| Paid sources are off: no monthly budget set | A paid source is connected but the budget is 0. |
+| No paid data connected — Harbour is using free data only, so nothing is being spent | No paid collector exists (or its keys are missing). With spend earlier this month it reads "No paid data connected · A$1.23 spent this month". |
+| Paid data is off until you set a monthly budget — how to set one | A paid source is connected but the budget is 0. |
 | A$12.40 of A$60.00 this month · on track for A$31.00 | Spend so far, the budget and a straight-line month-end projection (from the second day of the month). |
 | … with "80 % of budget" | You have used at least 80 % of the budget. |
-| Budget reached — paid sources are paused until 1 Nov | Paid collectors are skipped until the next month starts. |
+| Budget reached — paid data is paused until 1 Nov. Free checks carry on as normal. | Paid collectors are skipped until the next month starts. |
 
 ## Reading the results
 

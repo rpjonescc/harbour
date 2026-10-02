@@ -33,13 +33,19 @@ export function OpsExamples() {
         </Example>
       ))}
       <Example label="Today backup notice · failed">
-        <BackupNotice backup={EXAMPLE_BACKUPS.failed} timeZone={timeZone} locale={locale} />
+        <BackupNotice
+          backup={EXAMPLE_BACKUPS.failed}
+          timeZone={timeZone}
+          locale={locale}
+          detailsTopic="backup error, failed example"
+        />
       </Example>
       <Example label="Today backup notice · failed, nightly backups off">
         <BackupNotice
           backup={{ ...EXAMPLE_BACKUPS.failed, enabled: false, next: null }}
           timeZone={timeZone}
           locale={locale}
+          detailsTopic="backup error, backups off example"
         />
       </Example>
       <Example label="Today backup notice · stale">

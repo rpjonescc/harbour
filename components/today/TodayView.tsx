@@ -10,7 +10,10 @@ import { SourceFailures } from "./SourceFailures";
 import { TodayHeader } from "./TodayHeader";
 import { WorthDoingNext } from "./WorthDoingNext";
 
-/** Today: scan status, briefing, paid spend, backup warnings, scores per product and the open actions worth a look. */
+/**
+ * Today: the briefing, a verdict per product and area, what's worth doing next, and the
+ * housekeeping notices (paid spend, backups, data sources) behind the scenes.
+ */
 export function TodayView({
   today,
   costMeter,
@@ -29,7 +32,7 @@ export function TodayView({
   locale: string;
 }) {
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-8">
       <RefreshWhileScanning active={today.scanning} />
       <TodayHeader
         now={now}
@@ -41,12 +44,17 @@ export function TodayView({
         briefing={today.briefing}
         isSample={today.isSample}
       />
-      <CostMeter view={costMeter} now={now} timeZone={timeZone} locale={locale} />
-      <BackupNotice backup={backup} timeZone={timeZone} locale={locale} />
       {today.isSample && <SampleBanner />}
-      <SourceFailures failures={today.failures} />
       <ScoresSection scores={today.scores} />
       <WorthDoingNext actions={today.actions} more={today.moreActions} />
+      <section aria-labelledby="behind-heading" className="flex flex-col gap-3">
+        <h2 id="behind-heading" className="font-serif text-xl">
+          Behind the scenes
+        </h2>
+        <CostMeter view={costMeter} now={now} timeZone={timeZone} locale={locale} />
+        <BackupNotice backup={backup} timeZone={timeZone} locale={locale} />
+        <SourceFailures failures={today.failures} />
+      </section>
     </div>
   );
 }
