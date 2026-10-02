@@ -70,7 +70,7 @@ function refusal(cmd: Extract<CliCommand, { name: "set" }>, error: string, today
     case "until_required":
       return "Snoozing needs --until YYYY-MM-DD";
     case "until_invalid":
-      return `--until must be a real date after today (${today}) and at most ${MAX_SNOOZE_DAYS} days ahead`;
+      return `--until must be a real YYYY-MM-DD date after today (${today}) and at most ${MAX_SNOOZE_DAYS} days ahead`;
     default:
       return `Action #${id} changed while saving: try again`;
   }

@@ -89,16 +89,21 @@ describe("parseCliArgs", () => {
     expect(usage(["set", "7", "done", "--note", "Shipped"])).toMatch(/--from is required/);
   });
 
-  it("refuses a bad target, a bad from and a misplaced or malformed --until", () => {
+  it("refuses a bad target, a bad from and a misplaced --until", () => {
     const set = (...rest: string[]) => ["set", "7", ...rest, "--note", "Why"];
     expect(usage(set("suggested", "--from", "open"))).toMatch(/Unknown target status: suggested/);
     expect(usage(set("done", "--from", "lost"))).toMatch(/Unknown status: lost/);
     expect(usage(set("done", "--from", "open", "--until", "2026-10-09"))).toMatch(
       /--until is only for snoozed/,
     );
-    expect(usage(set("snoozed", "--from", "open", "--until", "next week"))).toMatch(
-      /--until must be YYYY-MM-DD/,
-    );
+  });
+
+  it("leaves checking the --until date to the status rules", () => {
+    expect(
+      parseCliArgs(["set", "7", "snoozed", "--from", "open", "--note", "x", "--until", "soon"]),
+    ).toMatchObject({
+      change: { to: "snoozed", until: "soon" },
+    });
   });
 
   it("parses link with a URL or --clear, but not both or neither", () => {

@@ -97,9 +97,9 @@ function parseNote(raw: string | undefined): string {
 }
 
 function parseUntil(to: StatusChange["to"], until: string | undefined): { until?: string } {
+  // The date itself is checked with the status rules (checkTransition), like the board's.
   if (until === undefined) return {};
   if (to !== "snoozed") throw new CliUsageError("--until is only for snoozed");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(until)) throw new CliUsageError("--until must be YYYY-MM-DD");
   return { until };
 }
 

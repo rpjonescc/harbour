@@ -213,8 +213,21 @@ describe("runActionsCli", () => {
       );
       expect(today.code).toBe(1);
       expect(today.stderr).toBe(
-        "--until must be a real date after today (2026-10-03) and at most 365 days ahead\n",
+        "--until must be a real YYYY-MM-DD date after today (2026-10-03) and at most 365 days ahead\n",
       );
+      const malformed = run(
+        "set",
+        String(id),
+        "snoozed",
+        "--from",
+        "open",
+        "--note",
+        "x",
+        "--until",
+        "next week",
+      );
+      expect(malformed.code).toBe(1);
+      expect(malformed.stderr).toMatch(/^--until must be a real YYYY-MM-DD date/);
       const later = run(
         "set",
         String(id),
