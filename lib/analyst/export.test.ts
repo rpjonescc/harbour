@@ -1,6 +1,7 @@
 import { insertAction, setStatus } from "@/lib/actions/store";
 import { decideProposal, importProposals, listProposals } from "@/lib/agents/proposals";
 import type { ScoreBreakdownEntry } from "@/lib/db/schema";
+import type { Product } from "@/lib/products/catalog";
 import { deriveIssues } from "@/lib/scan/issues";
 import type { Observation } from "@/lib/scan/types";
 import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
@@ -133,7 +134,7 @@ function seedActions(db: ReturnType<typeof openTestDb>) {
   return { openId };
 }
 
-const build = (db: ReturnType<typeof openTestDb>, products = [acme, beta, quiet]) =>
+const build = (db: ReturnType<typeof openTestDb>, products: Product[] = [acme, beta, quiet]) =>
   buildWeeklyExport(db, { products, week: "2026-W40", now: NOW, timeZone: TZ });
 
 describe("buildWeeklyExport", () => {
@@ -172,16 +173,31 @@ describe("buildWeeklyExport", () => {
     expect(product?.deltas).toEqual({ seo: 10, geo: null, aeo: null });
   });
 
-  it("has null deltas against a baseline scored on another formula", () => {
-    const db = openTestDb();
-    seedScan(db, { productId: "acme-docs", at: at("2026-09-25T06:00:00Z") });
-    seedScan(db, {
-      productId: "acme-docs",
-      at: at("2026-10-03T06:00:00Z"),
-      totals: { seo: 55, geo: 45, aeo: 17 },
-      formulaVersion: "v2",
+  describe("against a baseline scored on another formula", () => {
+    const seedAcross = () => {
+      const db = openTestDb();
+      seedScan(db, {
+        productId: "acme-docs",
+        at: at("2026-09-25T06:00:00Z"),
+        totals: { seo: 50, geo: 40, aeo: 30 },
+      });
+      seedScan(db, {
+        productId: "acme-docs",
+        at: at("2026-10-03T06:00:00Z"),
+        totals: { seo: 55, geo: 45, aeo: 17 },
+        formulaVersion: "v2",
+      });
+      return db;
+    };
+
+    it("leaves out only the AEO change on a product site, which v2 changed", () => {
+      expect(build(seedAcross()).products[0]?.deltas).toEqual({ seo: 5, geo: 5, aeo: null });
     });
-    expect(build(db).products[0]?.deltas).toEqual({ seo: null, geo: null, aeo: null });
+
+    it("keeps every change on a news site, which v2 did not change", () => {
+      const news = { ...acme, kind: "news" as const };
+      expect(build(seedAcross(), [news]).products[0]?.deltas).toEqual({ seo: 5, geo: 5, aeo: -13 });
+    });
   });
 
   it("labels each point of the series with its formula version", () => {

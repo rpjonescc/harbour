@@ -911,9 +911,12 @@ evidence behind its number, so the product page can explain it.
   is at most 14 days old, and say which day it is from.
 - **AI engine mentions and featured snippets** are listed as not connected: they need paid APIs.
 - **Scores never change after they are stored.** Each row records its formula version (`v2` now);
-  a formula change gets a new version rather than rewriting history. A change in a score is
-  only shown between two scores of the same version, so the first check after a formula change
-  has no change beside it, and the 30-day SEO trend line keeps its older points as they were.
+  a formula change gets a new version rather than rewriting history. A change in an area's score
+  is not shown across a formula version that changed that area (v2 changed only Answer-ready on
+  product sites), so the first check after the change has no change beside that one score, and the
+  daily note and the weekly report never call it an improvement or a decline. The weekly report's
+  data labels each score with its version, and the 30-day SEO trend line keeps its older points as
+  they were.
 - **Preferred Sources only counts for news sites.** It is a Top Stories feature, so the "No
   favourite-source link for Google readers" action is raised only for `kind: "news"` products; one
   still open on any other product moves to Done at its next check, with the ordinary note "Resolved

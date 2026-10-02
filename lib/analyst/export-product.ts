@@ -1,13 +1,15 @@
 import { and, asc, eq, inArray, lte } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { proposals, type ScoreBreakdownEntry, scanRuns, scores } from "@/lib/db/schema";
+import { formulaChangedArea } from "@/lib/explain/scoring-notes";
 import { isoDateIn } from "@/lib/format/date";
-import type { Product } from "@/lib/products/catalog";
+import type { Product, ProductKind } from "@/lib/products/catalog";
 import { deriveIssues } from "@/lib/scan/issues";
 import { scanFindings } from "@/lib/scan/product-view";
 import { searchSummary } from "@/lib/scan/search-summary";
 import type { ScanObservation } from "@/lib/scan/types";
 import { gscRows } from "@/lib/scan/view-shapes";
+import type { AreaKey } from "@/lib/scan/views";
 import type { ProductExport } from "./export";
 import { scrub } from "./scrub";
 
@@ -59,20 +61,20 @@ const diff = (now: number | null | undefined, before: number | null | undefined)
 /**
  * Latest − baseline, where the baseline is the last scored scan at or before the window start,
  * else the first in the window. With nothing to compare (no scan in the window, or just one
- * and none before) every delta is null: no change measured is a gap, not a zero. So is every
- * delta against a baseline from another scoring formula, which measures the formula, not the site.
+ * and none before) every delta is null: no change measured is a gap, not a zero. So is the
+ * delta of an area whose formula changed between the two scans, which measures the formula, not
+ * the site.
  */
-function deltas(rows: ScoreRow[], series: ScoreRow[]): ProductExport["deltas"] {
+function deltas(rows: ScoreRow[], series: ScoreRow[], kind: ProductKind): ProductExport["deltas"] {
   const latest = series.at(-1);
   const before = rows.filter((r) => !series.includes(r)).at(-1);
   const baseline = before ?? (series.length > 1 ? series[0] : undefined);
-  if (!latest || !baseline || latest.formulaVersion !== baseline.formulaVersion)
-    return { seo: null, geo: null, aeo: null };
-  return {
-    seo: diff(latest.seo, baseline.seo),
-    geo: diff(latest.geo, baseline.geo),
-    aeo: diff(latest.aeo, baseline.aeo),
-  };
+  if (!latest || !baseline) return { seo: null, geo: null, aeo: null };
+  const change = (area: AreaKey) =>
+    formulaChangedArea(kind, area, baseline.formulaVersion, latest.formulaVersion)
+      ? null
+      : diff(latest[area], baseline[area]);
+  return { seo: change("seo"), geo: change("geo"), aeo: change("aeo") };
 }
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
@@ -133,7 +135,7 @@ export function productExport(
       aeo: r.aeo,
       complete: r.complete,
     })),
-    deltas: deltas(rows, series),
+    deltas: deltas(rows, series, product.kind),
     subScores: (latest?.breakdown ?? []).map(({ key, label, score, status, evidence }) => ({
       key,
       label,

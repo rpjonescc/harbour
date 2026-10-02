@@ -69,7 +69,7 @@ function finishedSince(db: Db, productIds: string[], now: Date): string[] {
 export function gatherFacts(deps: GatherDeps): Facts {
   const { db, products, now, timeZone } = deps;
   const ids = products.map((p) => p.id);
-  const today = products.map((product) => ({ product, ...productToday(db, product.id, now) }));
+  const today = products.map((product) => ({ product, ...productToday(db, product, now) }));
   const board = attentionFromActions(db, ids, FACT_CAPS.actions);
   return buildFacts({
     local: localMoment(timeZone, now),

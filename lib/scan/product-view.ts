@@ -64,7 +64,7 @@ function searchState(observations: ScanObservation[], runs: CollectorRunView[]):
 
 /** The product page's data, all from the scan behind the latest scores. */
 export function productView(db: Db, product: Pick<Product, "id" | "kind">, now: Date): ProductView {
-  const scores = productScoreTrend(db, product.id, now);
+  const scores = productScoreTrend(db, product.id, product.kind, now);
   const { observations, runs, statuses } = scanFindings(db, scores.latest?.scanId);
   return {
     scores,

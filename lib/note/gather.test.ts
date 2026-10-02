@@ -163,6 +163,27 @@ describe("gatherFacts", () => {
     }
   });
 
+  it("celebrates a real rise across the v2 formula, but not the AEO jump the formula caused", () => {
+    const { brain, db, gather } = setup();
+    try {
+      seedScan(db, {
+        productId: "acme-docs",
+        at: new Date("2026-10-01T05:00:00Z"),
+        totals: { seo: 50, geo: 40, aeo: 30 },
+      });
+      seedScan(db, {
+        productId: "acme-docs",
+        at: new Date("2026-10-02T05:00:00Z"),
+        totals: { seo: 53, geo: 40, aeo: 60 },
+        formulaVersion: "v2",
+      });
+      expect(gather().wins).toEqual(["Found on Google for Acme Docs is up 3 since the last check"]);
+      expect(gather().products[0]?.areas.find((a) => a.name === "Answer-ready")?.change).toBeNull();
+    } finally {
+      brain.cleanup();
+    }
+  });
+
   it("does not count a score rise from a scan older than a day as a win", () => {
     const { brain, db, gather } = setup();
     try {

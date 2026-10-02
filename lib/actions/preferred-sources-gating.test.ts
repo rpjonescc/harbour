@@ -6,7 +6,7 @@ import { openTestDb } from "@/tests/helpers/db";
 import { ACME_CRAWL, ALL_OK, readiness } from "@/tests/helpers/scoring";
 import { planRuleSync } from "./rule-sync";
 import { syncRuleActions } from "./rule-sync-store";
-import { insertAction } from "./store";
+import { actionEventsFor, insertAction } from "./store";
 import type { ActionStatus } from "./types";
 
 const NOW = new Date("2026-10-03T06:00:00Z");
@@ -44,6 +44,11 @@ describe("existing no-preferred-sources actions after the formula change", () =>
       const counts = sync(db, "product");
       expect(counts.resolved).toBeGreaterThanOrEqual(1);
       expect(row(db, id)?.status).toBe("done");
+      expect(actionEventsFor(db, id).at(-1)).toMatchObject({
+        actor: "scan",
+        to: "done",
+        note: "Resolved — not found in the check of 2026-10-03",
+      });
     },
   );
 

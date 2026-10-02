@@ -15,7 +15,7 @@ const totals = (seo: number | null, geo: number | null, aeo: number | null) => (
 describe("productScoreTrend", () => {
   it("is empty for a product that was never scored", () => {
     const db = openTestDb();
-    expect(productScoreTrend(db, "acme-docs", T0)).toEqual({
+    expect(productScoreTrend(db, "acme-docs", "product", T0)).toEqual({
       latest: null,
       deltas: { seo: null, geo: null, aeo: null },
       trend: [],
@@ -33,7 +33,7 @@ describe("productScoreTrend", () => {
       totals: totals(55, 38, null),
       complete: { seo: true, geo: false, aeo: false },
     });
-    const view = productScoreTrend(db, "acme-docs", T0);
+    const view = productScoreTrend(db, "acme-docs", "product", T0);
     expect(view.latest).toMatchObject({
       scanId,
       computedAt: daysAfter(-1),
@@ -45,7 +45,7 @@ describe("productScoreTrend", () => {
     expect(view.trend).toEqual([50, 55]);
   });
 
-  it("has no deltas across a change of formula: that move is the formula's, not the site's", () => {
+  it("hides only the AEO change across the v2 formula on a product site: the rest still moved", () => {
     const db = openTestDb();
     seedScan(db, { productId: "acme-docs", at: daysAfter(-2), totals: totals(50, 40, 60) });
     seedScan(db, {
@@ -54,19 +54,55 @@ describe("productScoreTrend", () => {
       totals: totals(52, 41, 47),
       formulaVersion: "v2",
     });
-    expect(productScoreTrend(db, "acme-docs", T0).deltas).toEqual({
-      seo: null,
-      geo: null,
+    expect(productScoreTrend(db, "acme-docs", "product", T0).deltas).toEqual({
+      seo: 2,
+      geo: 1,
       aeo: null,
     });
-    // The next scan on the same formula compares again.
+    // The next scan on the same formula compares AEO again.
     seedScan(db, {
       productId: "acme-docs",
       at: daysAfter(0),
       totals: totals(53, 41, 49),
       formulaVersion: "v2",
     });
-    expect(productScoreTrend(db, "acme-docs", T0).deltas).toEqual({ seo: 1, geo: 0, aeo: 2 });
+    expect(productScoreTrend(db, "acme-docs", "product", T0).deltas).toEqual({
+      seo: 1,
+      geo: 0,
+      aeo: 2,
+    });
+  });
+
+  it("keeps every change visible on a news site, whose v2 scores did not change", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-news", at: daysAfter(-2), totals: totals(50, 40, 60) });
+    seedScan(db, {
+      productId: "acme-news",
+      at: daysAfter(-1),
+      totals: totals(52, 41, 47),
+      formulaVersion: "v2",
+    });
+    expect(productScoreTrend(db, "acme-news", "news", T0).deltas).toEqual({
+      seo: 2,
+      geo: 1,
+      aeo: -13,
+    });
+  });
+
+  it("hides every change across a formula nobody has described yet", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-2), totals: totals(50, 40, 60) });
+    seedScan(db, {
+      productId: "acme-docs",
+      at: daysAfter(-1),
+      totals: totals(52, 41, 47),
+      formulaVersion: "v9",
+    });
+    expect(productScoreTrend(db, "acme-docs", "news", T0).deltas).toEqual({
+      seo: null,
+      geo: null,
+      aeo: null,
+    });
   });
 
   it("ignores failed scans, so a failed run never hides the last good scores", () => {
@@ -78,7 +114,7 @@ describe("productScoreTrend", () => {
       status: "failed",
       totals: totals(null, null, null),
     });
-    const view = productScoreTrend(db, "acme-docs", T0);
+    const view = productScoreTrend(db, "acme-docs", "product", T0);
     expect(view.latest?.totals).toEqual({ seo: 50, geo: 40, aeo: 30 });
     expect(view.deltas).toEqual({ seo: null, geo: null, aeo: null });
   });
@@ -88,7 +124,7 @@ describe("productScoreTrend", () => {
     seedScan(db, { productId: "acme-docs", at: daysAfter(-3), totals: totals(40, 1, 1) });
     seedScan(db, { productId: "acme-docs", at: daysAfter(-2), totals: totals(null, 1, 1) });
     seedScan(db, { productId: "acme-docs", at: daysAfter(-1), totals: totals(44, 1, 1) });
-    expect(productScoreTrend(db, "acme-docs", T0).trend).toEqual([40, 44]);
+    expect(productScoreTrend(db, "acme-docs", "product", T0).trend).toEqual([40, 44]);
   });
 });
 
@@ -214,6 +250,18 @@ describe("formulaChange", () => {
     seedScan(db, { productId: "acme-docs", at: daysAfter(-3) });
     seedScan(db, { productId: "acme-docs", at: daysAfter(-2), formulaVersion: "v2" });
     seedScan(db, { productId: "acme-docs", at: daysAfter(-1), formulaVersion: "v2" });
+    expect(formulaChange(db, "acme-docs", T0)).toEqual({
+      from: "v1",
+      to: "v2",
+      at: daysAfter(-2),
+    });
+  });
+
+  it("falls back to the newest change that has a note when a later formula has none", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-3) });
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-2), formulaVersion: "v2" });
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-1), formulaVersion: "v3" });
     expect(formulaChange(db, "acme-docs", T0)).toEqual({
       from: "v1",
       to: "v2",
