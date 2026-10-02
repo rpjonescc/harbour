@@ -1,12 +1,12 @@
 import { commitChanges, pushBrain } from "@/lib/agents/brain-git";
 import { agentEnv, claudeArgs } from "@/lib/agents/claude-args";
 import type { AgentSpec } from "@/lib/agents/specs";
-import { type StreamResult, summariseLine } from "@/lib/agents/stream";
+import { type AgentEvent, type StreamResult, summariseLine } from "@/lib/agents/stream";
 import type { agentRuns } from "@/lib/db/schema";
 import { JobFailure, recordTouched } from "./agent-gate";
 import { importAfterCommit, readAgentOutput } from "./agent-output";
 import { finish } from "./git-jobs";
-import { addEvent, type EventKind, isCancelRequested, type Job } from "./queue";
+import { type EventKind, isCancelRequested, type Job } from "./queue";
 import type { RunDeps } from "./run-job";
 import { removeRunMarker } from "./run-marker";
 import type { Attempt } from "./run-reviewed";
@@ -15,6 +15,8 @@ import type { TouchedLog } from "./touched-log";
 // The steps of an agent run that sit between the git gate and the finished job row.
 
 /** Stands in for the output tails of a run whose words must not be kept (see `AgentSpec.quiet`). */
+/** What a quiet run says when the agent did not finish: no agent text, ever. */
+export const QUIET_FAILURE = "The note agent didn't finish.";
 export const QUIET_TAIL = "(not recorded for the daily note)";
 
 export type AttemptInput = {
@@ -25,6 +27,13 @@ export type AttemptInput = {
   log: TouchedLog;
   event: (kind: EventKind, text: string) => void;
 };
+
+/** Records a stream event; a quiet run keeps no agent text, and tool errors lose their detail. */
+function quietly(spec: AgentSpec, e: AgentEvent, event: AttemptInput["event"]): void {
+  if (!spec.quiet) event(e.kind, e.text);
+  else if (e.kind === "error") event("error", "A tool call failed");
+  else if (e.kind !== "text") event(e.kind, e.text);
+}
 
 /** One CLI invocation that records the files it writes and its activity as it streams. */
 export function cliAttempt({ deps, job, spec, token, log, event }: AttemptInput) {
@@ -41,8 +50,7 @@ export function cliAttempt({ deps, job, spec, token, log, event }: AttemptInput)
         const summary = summariseLine(line, root);
         for (const raw of summary.touched)
           recordTouched(root, log, raw, (text) => event("error", text));
-        for (const e of summary.events)
-          if (!(spec.quiet && e.kind === "text")) event(e.kind, e.text);
+        for (const e of summary.events) quietly(spec, e, event);
         if (summary.result) result = summary.result;
       },
       shouldCancel: () => deps.stopping() || isCancelRequested(db, job.id),

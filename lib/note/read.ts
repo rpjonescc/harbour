@@ -1,5 +1,8 @@
 import { lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { and, desc, eq } from "drizzle-orm";
+import type { Db } from "@/lib/db/client";
+import { jobs } from "@/lib/db/schema";
 import type { Note } from "@/lib/explain/voice/note";
 import { MAX_NOTE_BYTES, parseNoteFile } from "./file";
 import { isNoteStamp, NOTE_DIR, stampInstant } from "./stamp";
@@ -8,6 +11,8 @@ export type ShownNote = { stamp: string; at: Date; note: Note };
 
 /** The newest files looked at: bounds the work however many notes pile up. */
 const SCAN_LIMIT = 30;
+/** The recent succeeded note jobs looked at: bounds the query, covers the files scanned. */
+const JOB_LIMIT = 200;
 const DAY_MS = 24 * 60 * 60_000;
 /** A note stamped a little ahead of the clock is fine; one from tomorrow is not. */
 const SKEW_MS = 5 * 60_000;
@@ -45,13 +50,39 @@ function readOne(root: string, stamp: string): Note | null {
 }
 
 /**
- * The valid notes in the brain, newest first (at most `limit`). The web process only reads:
- * every note is re-validated here, and a file that is not a valid note is skipped, never shown.
+ * The stamps whose note the worker accepted: a succeeded daily-note job exists only once the
+ * checker passed the note and it was committed. The agent can write any file in the brain but
+ * cannot write the jobs table, so this is the one rule a file inside the brain cannot fake.
  */
-export function readNotes(root: string, timeZone: string, now: Date, limit: number): ShownNote[] {
+function publishedStamps(db: Db): Set<string> {
+  const rows = db
+    .select({ params: jobs.params })
+    .from(jobs)
+    .where(and(eq(jobs.kind, "daily-note"), eq(jobs.status, "ok")))
+    .orderBy(desc(jobs.id))
+    .limit(JOB_LIMIT)
+    .all();
+  return new Set(rows.map((row) => row.params.stamp ?? ""));
+}
+
+/**
+ * The published notes in the brain, newest first (at most `limit`). The web process only reads.
+ * A file is shown only when a succeeded job vouches for its stamp (so never a stray file, a
+ * hand-written one, or one whose job is still running or failed), and it is still re-validated
+ * here: a file that is not a small regular file holding a valid note is skipped.
+ */
+export function readNotes(
+  db: Db,
+  root: string,
+  timeZone: string,
+  now: Date,
+  limit: number,
+): ShownNote[] {
   const notes: ShownNote[] = [];
+  const published = publishedStamps(db);
   for (const stamp of stampsNewestFirst(root)) {
     if (notes.length >= limit) break;
+    if (!published.has(stamp)) continue;
     const at = stampInstant(stamp, timeZone);
     if (at.getTime() > now.getTime() + SKEW_MS) continue;
     const note = readOne(root, stamp);

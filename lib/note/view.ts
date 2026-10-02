@@ -1,3 +1,4 @@
+import type { Db } from "@/lib/db/client";
 import { gapLine, NOTE_MESSAGES, SAMPLE_NOTE } from "@/lib/explain/voice/fallback";
 import type { Note } from "@/lib/explain/voice/note";
 import { freshNote, readNotes } from "./read";
@@ -18,6 +19,7 @@ export type NoteSlot = { view: NoteView; noteTime: string; tokenSet: boolean };
  * as a gap. Read-only: the web process never writes a note.
  */
 export function noteSlot(input: {
+  db: Db;
   personality: "warm" | "quiet";
   isSample: boolean;
   root: string;
@@ -31,7 +33,10 @@ export function noteSlot(input: {
   const slot = (view: NoteView): NoteSlot => ({ view, noteTime, tokenSet });
   if (input.isSample) return slot({ kind: "sample", note: SAMPLE_NOTE });
   try {
-    const fresh = freshNote(readNotes(input.root, input.timeZone, input.now, 1), input.now);
+    const fresh = freshNote(
+      readNotes(input.db, input.root, input.timeZone, input.now, 1),
+      input.now,
+    );
     return slot(
       fresh
         ? { kind: "note", note: fresh.note, at: fresh.at }

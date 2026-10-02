@@ -20,6 +20,7 @@ export default async function TodayPage() {
     <TodayView
       today={today}
       note={noteSlot({
+        db,
         personality: config.HARBOUR_PERSONALITY,
         isSample: today.isSample,
         root: config.HARBOUR_BRAIN_DIR,

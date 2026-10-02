@@ -1,3 +1,7 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import type { Db } from "@/lib/db/client";
+import { jobs } from "@/lib/db/schema";
 import { buildFacts, type FactsInput } from "@/lib/explain/voice/facts";
 import type { Note } from "@/lib/explain/voice/note";
 
@@ -101,4 +105,33 @@ export function noteFileText(note: Note): string {
     "",
   ];
   return lines.join("\n");
+}
+
+/**
+ * A job row for a daily note, as the worker leaves it. Only a succeeded one makes the note at
+ * that stamp show (the worker's checker accepted it and the commit succeeded).
+ */
+export function seedNoteJob(
+  db: Db,
+  stamp: string,
+  status: "queued" | "running" | "ok" | "failed" | "cancelled" = "ok",
+): void {
+  db.insert(jobs)
+    .values({
+      kind: "daily-note",
+      params: { stamp },
+      dedupeKey: `daily-note:${JSON.stringify([["stamp", stamp]])}`,
+      status,
+      requestedBy: null,
+      createdAt: new Date("2026-10-02T05:30:00Z"),
+    })
+    .run();
+}
+
+/** A published note: the file in the brain and the succeeded job that vouches for it. */
+export function seedPublishedNote(db: Db, root: string, stamp: string, note: Note): void {
+  const file = join(root, `notes/daily/${stamp}.md`);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, noteFileText(note));
+  seedNoteJob(db, stamp);
 }

@@ -2,7 +2,7 @@ import { insertAction } from "@/lib/actions/store";
 import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
 import { makeBrain } from "@/tests/helpers/brain";
 import { openTestDb } from "@/tests/helpers/db";
-import { GOOD_NOTE, noteFileText } from "@/tests/helpers/note";
+import { GOOD_NOTE, noteFileText, seedNoteJob } from "@/tests/helpers/note";
 import { seedScan } from "@/tests/helpers/scan-views";
 import { gatherFacts } from "./gather";
 
@@ -43,6 +43,7 @@ describe("gatherFacts", () => {
       }),
     });
     try {
+      seedNoteJob(db, "2026-10-01-0630");
       seedScan(db, {
         productId: "acme-docs",
         at: new Date("2026-10-01T05:00:00Z"),

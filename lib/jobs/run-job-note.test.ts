@@ -7,6 +7,7 @@ import { NOTE_PROMPT_VERSION } from "@/lib/note/prompt";
 import { FACTS, TROUBLE_FACTS, WEEKEND_FACTS } from "@/tests/helpers/note";
 import { runOne, setup } from "@/tests/helpers/run-job";
 import { eventsSince } from "./queue";
+import { touchedPath } from "./run-paths";
 
 const STAMP = "2026-10-02-0630";
 const PATH = `notes/daily/${STAMP}.md`;
@@ -117,7 +118,7 @@ describe("runAgentJob for the daily note", () => {
     const { brain, deps, calls } = noteSetup("fail");
     try {
       const job = await runOne(deps, "daily-note", PARAMS);
-      expect(job).toMatchObject({ status: "failed", error: "Agent failed: Not logged in" });
+      expect(job).toMatchObject({ status: "failed", error: "The note agent didn't finish." });
       expect(calls).toHaveLength(1);
       expect(existsSync(join(brain.root, DRAFT))).toBe(false);
       expect(existsSync(join(brain.root, PATH))).toBe(false);
@@ -157,6 +158,49 @@ describe("runAgentJob for the daily note", () => {
       expect(events.some((e) => e.kind === "text")).toBe(false);
       expect(JSON.stringify([run, events])).not.toContain("Sam");
       expect(events.map((e) => e.text)).toContain("Started Daily note: 2026-10-02 06:30");
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("keeps the agent's failure text, with its name and figures, out of the job row and events", async () => {
+    const { brain, db, deps } = noteSetup("note-fail-text");
+    try {
+      const job = await runOne(deps, "daily-note", PARAMS);
+      expect(job).toMatchObject({ status: "failed", error: "The note agent didn't finish." });
+      const record = JSON.stringify([job, eventsSince(db, job.id, 0)]);
+      expect(record).not.toContain("Sam");
+      expect(record).not.toContain("93");
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("leaves no draft and no final note when the agent writes the draft and then fails", async () => {
+    const { brain, deps } = noteSetup("note-write-then-fail");
+    try {
+      const job = await runOne(deps, "daily-note", PARAMS);
+      expect(job.status).toBe("failed");
+      expect(existsSync(join(brain.root, DRAFT))).toBe(false);
+      expect(existsSync(join(brain.root, PATH))).toBe(false);
+      expect(brain.git("status", "--porcelain")).toBe("");
+      expect(brain.git("log", "--oneline").trim().split("\n")).toHaveLength(1);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("counts the published path as the run's own before the agent starts", async () => {
+    const { brain, deps } = noteSetup("note-ok");
+    const run = deps.run;
+    let sidecar = "";
+    deps.run = (options) => {
+      sidecar = readFileSync(touchedPath(deps.quarantineRoot, 1), "utf8");
+      return run(options);
+    };
+    try {
+      await runOne(deps, "daily-note", PARAMS);
+      expect(sidecar).toContain(JSON.stringify(PATH));
     } finally {
       brain.cleanup();
     }

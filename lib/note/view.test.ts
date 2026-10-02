@@ -1,10 +1,18 @@
 import { SAMPLE_NOTE } from "@/lib/explain/voice/fallback";
 import { makeBrain } from "@/tests/helpers/brain";
-import { GOOD_NOTE, noteFileText } from "@/tests/helpers/note";
+import { openTestDb } from "@/tests/helpers/db";
+import { GOOD_NOTE, noteFileText, seedNoteJob } from "@/tests/helpers/note";
 import { noteSlot } from "./view";
 
 const NOW = new Date("2026-10-02T09:00:00Z"); // 10:00 in London
+const STAMPS = ["2026-10-01-0630", "2026-10-02-0630", "2026-09-30-0630"];
+function vouched() {
+  const db = openTestDb();
+  for (const stamp of STAMPS) seedNoteJob(db, stamp);
+  return db;
+}
 const base = (root: string, over = {}) => ({
+  db: vouched(),
   personality: "warm" as const,
   isSample: false,
   root,
@@ -95,6 +103,15 @@ describe("noteSlot", () => {
       expect(error).toHaveBeenCalledOnce();
     } finally {
       error.mockRestore();
+      brain.cleanup();
+    }
+  });
+
+  it("shows the gap for a stamp-named note with no succeeded job, whatever it says", () => {
+    const brain = makeBrain({ "notes/daily/2026-10-02-0630.md": noteFileText(GOOD_NOTE) });
+    try {
+      expect(noteSlot(base(brain.root, { db: openTestDb() }))?.view.kind).toBe("gap");
+    } finally {
       brain.cleanup();
     }
   });

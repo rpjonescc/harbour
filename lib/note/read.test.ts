@@ -1,11 +1,28 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { makeBrain } from "@/tests/helpers/brain";
-import { GOOD_NOTE, noteFileText } from "@/tests/helpers/note";
+import { openTestDb } from "@/tests/helpers/db";
+import { GOOD_NOTE, noteFileText, seedNoteJob } from "@/tests/helpers/note";
 import { freshNote, readNotes } from "./read";
 
 const NOW = new Date("2026-10-02T09:00:00Z"); // 10:00 in London (BST)
 const ZONE = "Europe/London";
+/** Every stamp these tests write has a succeeded job: the job rule is tested on its own below. */
+const VOUCHED = [
+  "2026-10-01-0630",
+  "2026-10-02-0630",
+  "2026-10-02-0500",
+  "2026-10-02-0600",
+  "2026-10-02-0645",
+  "2026-10-02-0700",
+  "2026-10-03-0630",
+  ...Array.from({ length: 31 }, (_, i) => `2026-08-${String(i + 1).padStart(2, "0")}-0630`),
+];
+function vouched() {
+  const db = openTestDb();
+  for (const stamp of VOUCHED) seedNoteJob(db, stamp);
+  return db;
+}
 const file = (stamp: string, headline = "Headline") =>
   [`notes/daily/${stamp}.md`, noteFileText({ ...GOOD_NOTE, headline })] as const;
 
@@ -15,13 +32,13 @@ describe("readNotes", () => {
       Object.fromEntries([file("2026-10-01-0630", "Old"), file("2026-10-02-0630", "New")]),
     );
     try {
-      const notes = readNotes(brain.root, ZONE, NOW, 5);
+      const notes = readNotes(vouched(), brain.root, ZONE, NOW, 5);
       expect(notes.map((n) => [n.stamp, n.note.headline])).toEqual([
         ["2026-10-02-0630", "New"],
         ["2026-10-01-0630", "Old"],
       ]);
       expect(notes[0]?.at.toISOString()).toBe("2026-10-02T05:30:00.000Z");
-      expect(readNotes(brain.root, ZONE, NOW, 1)).toHaveLength(1);
+      expect(readNotes(vouched(), brain.root, ZONE, NOW, 1)).toHaveLength(1);
     } finally {
       brain.cleanup();
     }
@@ -30,7 +47,7 @@ describe("readNotes", () => {
   it("is empty when the folder does not exist yet", () => {
     const brain = makeBrain({ "README.md": "# Brain\n" });
     try {
-      expect(readNotes(brain.root, ZONE, NOW, 5)).toEqual([]);
+      expect(readNotes(vouched(), brain.root, ZONE, NOW, 5)).toEqual([]);
     } finally {
       brain.cleanup();
     }
@@ -50,7 +67,9 @@ describe("readNotes", () => {
         join(brain.root, "notes/daily/2026-10-02-0630.md"),
         join(brain.root, "notes/daily/2026-10-02-0645.md"),
       );
-      expect(readNotes(brain.root, ZONE, NOW, 10).map((n) => n.note.headline)).toEqual(["Good"]);
+      expect(readNotes(vouched(), brain.root, ZONE, NOW, 10).map((n) => n.note.headline)).toEqual([
+        "Good",
+      ]);
     } finally {
       brain.cleanup();
     }
@@ -62,7 +81,7 @@ describe("readNotes", () => {
       "notes/daily/2026-10-02-0645.draft.md": noteFileText({ ...GOOD_NOTE, headline: "Draft" }),
     });
     try {
-      expect(readNotes(brain.root, ZONE, NOW, 10).map((n) => n.note.headline)).toEqual([
+      expect(readNotes(vouched(), brain.root, ZONE, NOW, 10).map((n) => n.note.headline)).toEqual([
         "Published",
       ]);
     } finally {
@@ -78,7 +97,7 @@ describe("readNotes", () => {
         const stamp = `2026-08-${String(day).padStart(2, "0")}-0630`;
         writeFileSync(join(brain.root, `notes/daily/${stamp}.md`), noteFileText(GOOD_NOTE));
       }
-      expect(readNotes(brain.root, ZONE, NOW, 100)).toHaveLength(30);
+      expect(readNotes(vouched(), brain.root, ZONE, NOW, 100)).toHaveLength(30);
     } finally {
       brain.cleanup();
     }
@@ -87,10 +106,45 @@ describe("readNotes", () => {
   it("propagates a real read error instead of pretending there are no notes", () => {
     const brain = makeBrain({ "notes/daily": "this is a file, not a folder" });
     try {
-      expect(() => readNotes(brain.root, ZONE, NOW, 5)).toThrow();
+      expect(() => readNotes(vouched(), brain.root, ZONE, NOW, 5)).toThrow();
     } finally {
       brain.cleanup();
     }
+  });
+});
+
+describe("readNotes needs a succeeded job for the stamp", () => {
+  const STAMP = "2026-10-02-0630";
+  const read = (
+    status: "queued" | "running" | "ok" | "failed" | "cancelled" | null,
+    jobStamp = STAMP,
+  ) => {
+    const brain = makeBrain(Object.fromEntries([file(STAMP, "Shown")]));
+    const db = openTestDb();
+    if (status) seedNoteJob(db, jobStamp, status);
+    try {
+      return readNotes(db, brain.root, ZONE, NOW, 5).map((n) => n.note.headline);
+    } finally {
+      brain.cleanup();
+    }
+  };
+
+  it("does not show a note no job vouches for: an agent's stray file, or one typed by hand", () => {
+    expect(read(null)).toEqual([]);
+  });
+
+  it("does not show a note whose job is still running, queued, failed or cancelled", () => {
+    for (const status of ["running", "queued", "failed", "cancelled"] as const) {
+      expect(read(status)).toEqual([]);
+    }
+  });
+
+  it("shows the note once its job has succeeded", () => {
+    expect(read("ok")).toEqual(["Shown"]);
+  });
+
+  it("is not vouched for by a succeeded job for another stamp", () => {
+    expect(read("ok", "2026-10-01-0630")).toEqual([]);
   });
 });
 

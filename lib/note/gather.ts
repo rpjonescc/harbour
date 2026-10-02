@@ -76,7 +76,7 @@ export function gatherFacts(deps: GatherDeps): Facts {
       failedChecks: today.filter((t) => t.row.lastCheckFailed).map((t) => t.product.id),
       backup: deps.backup,
     }),
-    recentHeadlines: readNotes(deps.root, timeZone, now, FACT_CAPS.headlines).map(
+    recentHeadlines: readNotes(deps.db, deps.root, timeZone, now, FACT_CAPS.headlines).map(
       (n) => n.note.headline,
     ),
   });

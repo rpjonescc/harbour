@@ -82,6 +82,18 @@ function write(rel, content) {
   const abs = join(process.cwd(), rel);
   if (rel.startsWith("notes/daily/") && existsSync(abs)) {
     tool("Write", { file_path: abs });
+    out({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            is_error: true,
+            content: "File has not been read yet. Read it first before writing to it.",
+          },
+        ],
+      },
+    });
     return;
   }
   mkdirSync(dirname(abs), { recursive: true });
@@ -104,6 +116,14 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
     () => out({ type: "result", subtype: "success", is_error: false, result: "late" }),
     60_000,
   );
+} else if (scenario === "note-fail-text") {
+  // A failed result whose text holds what a note run must never record.
+  out({
+    type: "result",
+    subtype: "success",
+    is_error: true,
+    result: "Sam, your score jumped to 93",
+  });
 } else if (scenario === "fail") {
   out({ type: "result", subtype: "success", is_error: true, result: "Not logged in" });
 } else {
@@ -117,6 +137,10 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
         // The agent's own words stream too: a run record must not keep them for a note.
         out({ type: "assistant", message: { content: [{ type: "text", text }] } });
         write(rel, text);
+        if (scenario === "note-write-then-fail") {
+          out({ type: "result", subtype: "success", is_error: true, result: "Crashed" });
+          process.exit(1);
+        }
       } else if (/^reports\/weekly\/.+\.proposals\.json$/.test(rel)) {
         const productId = scenario === "bad-weekly" ? "ghost-product" : "acme-docs";
         write(rel, JSON.stringify(weeklyProposals(productId), null, 2));

@@ -2,25 +2,24 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { discardRun } from "@/lib/agents/brain-discard";
-import { commitChanges, pushBrain, type RunSnapshot, snapshotRun } from "@/lib/agents/brain-git";
-import { agentEnv, claudeArgs } from "@/lib/agents/claude-args";
+import { type RunSnapshot, snapshotRun } from "@/lib/agents/brain-git";
 import type { RunOutcome, runProcess } from "@/lib/agents/process";
 import { type AgentSpec, specForJob } from "@/lib/agents/specs";
-import { type StreamResult, summariseLine } from "@/lib/agents/stream";
+import type { StreamResult } from "@/lib/agents/stream";
 import { buildWeeklyExport } from "@/lib/analyst/export";
 import { capExport } from "@/lib/analyst/export-cap";
 import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import type { Facts } from "@/lib/explain/voice/facts";
 import type { Product } from "@/lib/products/catalog";
-import { gatedPaths, JobFailure, recordTouched } from "./agent-gate";
-import { checkRequiredOutputs, importAfterCommit, readAgentOutput } from "./agent-output";
+import { gatedPaths, JobFailure } from "./agent-gate";
+import { checkRequiredOutputs } from "./agent-output";
 import { brainRootError, finish, recoveryBlock, saveOwnerNotes } from "./git-jobs";
 import { newestOwnerChange } from "./housekeeping";
-import { addEvent, deferJob, type EventKind, isCancelRequested, type Job } from "./queue";
+import { addEvent, deferJob, type EventKind, type Job } from "./queue";
 import { freshQuarantineDir, removeRunMarker, writeRunMarker } from "./run-marker";
 import { runReviewed } from "./run-reviewed";
-import { cliAttempt, commitAndPush, publishReviewed, QUIET_TAIL } from "./run-steps";
+import { cliAttempt, commitAndPush, publishReviewed, QUIET_FAILURE, QUIET_TAIL } from "./run-steps";
 import { type TouchedLog, touchedLog } from "./touched-log";
 
 export type RunDeps = {
@@ -105,9 +104,16 @@ function deferWhileEditing(deps: RunDeps, job: Job): boolean {
 }
 
 /** Throws unless the CLI finished successfully. */
-function checkOutcome(timeoutMs: number, outcome: RunOutcome, result: StreamResult | undefined) {
+function checkOutcome(
+  spec: AgentSpec,
+  timeoutMs: number,
+  outcome: RunOutcome,
+  result: StreamResult | undefined,
+) {
   if (outcome.timedOut) throw new JobFailure(`Timed out after ${describeDuration(timeoutMs)}`);
   if (outcome.exitCode !== 0 || result?.isError) {
+    // A quiet run's agent text can hold the note and the owner's name: it never reaches the record.
+    if (spec.quiet) throw new JobFailure(QUIET_FAILURE);
     const detail = result?.text || outcome.stderrTail.slice(-300) || `exit ${outcome.exitCode}`;
     throw new JobFailure(`Agent failed: ${detail}`);
   }
@@ -195,7 +201,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
       finish(db, job.id, "cancelled", stopped ? STOPPED : null, deps.now());
       return { pushed: null };
     }
-    checkOutcome(totalMs, outcome, result);
+    checkOutcome(spec, totalMs, outcome, result);
 
     publishReviewed(spec, root);
     const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
