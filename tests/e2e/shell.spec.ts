@@ -163,7 +163,11 @@ for (const colorScheme of ["light", "dark"] as const) {
       await hydrated(whatsThis);
       await whatsThis.click();
       await expect(whatsThis).toHaveAttribute("aria-expanded", "true");
-      await expect(page.getByText(AREAS.geo.parts.worth)).toBeVisible();
+      // The area cards further down the page carry the same text, so scope to this explainer.
+      const explainerId = await whatsThis.getAttribute("aria-controls");
+      await expect(
+        page.locator(`[id="${explainerId}"]`).getByText(AREAS.geo.parts.worth),
+      ).toBeVisible();
       await page.waitForLoadState("networkidle");
       expect(cspErrors).toEqual([]);
     });

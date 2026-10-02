@@ -208,7 +208,7 @@ test("Today lists the top three actions in board order; issues link to their act
   );
 
   await page.goto(`/products/${CAFE.id}`);
-  const issues = page.getByRole("region", { name: "Issues" });
+  const issues = page.getByRole("region", { name: "What to fix" });
   for (const title of [
     "Your questions and answers aren't labelled for Google and AI",
     "No guide to your site for AI assistants",

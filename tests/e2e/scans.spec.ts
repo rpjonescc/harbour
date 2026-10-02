@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { E2E_SITE_PORT } from "../../playwright.config";
-import { expectPlainLanguage } from "./plain-language";
+import { hydrated } from "./hydration";
+import { expectPlainIssueTitles, expectPlainLanguage } from "./plain-language";
 
 // The worker scans the fictional Acme Docs site served by tests/e2e/fixture-site.ts
 // (tests/fixtures/sites/acme-docs): /about has no title, / and /about link to a missing page.
@@ -38,6 +39,11 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
     await expect(areaCard(page, name)).toContainText(
       /(Strong|Good|Fair|Needs work) \d+ out of 100/,
     );
+  }
+  await expectPlainLanguage(page);
+  await expectPlainIssueTitles(page);
+  for (const old of ["Search engines", "Direct answers"]) {
+    await expect(page.getByText(old, { exact: true })).toHaveCount(0);
   }
 
   const breakdown = page.getByRole("tabpanel", { name: "Found on Google" });
@@ -119,6 +125,23 @@ test("keyboard: the score breakdown tabs move with the arrow keys", async ({ pag
   // One tab stop: Tab leaves the tab list for the selected panel.
   await page.keyboard.press("Tab");
   await expect(page.getByRole("tabpanel", { name: SEO })).toBeFocused();
+});
+
+test("an area card's explainer opens from the keyboard and the numbers stay one click away", async ({
+  page,
+}) => {
+  await page.goto("/products/acme-docs");
+  const button = page.getByRole("button", { name: /What's this\? \(Found on Google\)/ });
+  await hydrated(button);
+  await button.focus();
+  await page.keyboard.press("Enter");
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText("Why Harbour checks it").first()).toBeVisible();
+  // The sub-score numbers and keys sit under Technical details, closed until asked for.
+  const panel = page.getByRole("tabpanel", { name: "Found on Google" });
+  await expect(panel.getByText("seo.technical")).toBeHidden();
+  await panel.getByText("Technical details").click();
+  await expect(panel.getByText("seo.technical")).toBeVisible();
 });
 
 test("Sources lists each source's last run and how to connect the missing ones", async ({
