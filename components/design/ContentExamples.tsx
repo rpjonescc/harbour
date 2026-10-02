@@ -3,8 +3,13 @@ import { Gaps } from "@/components/content/Gaps";
 import { IdeaCard } from "@/components/content/IdeaCard";
 import { IdeaDiscard } from "@/components/content/IdeaDiscard";
 import { PieceActions } from "@/components/content/PieceActions";
+import { PieceGroup } from "@/components/content/PieceGroup";
 import { PieceView } from "@/components/content/PieceView";
+import { StateTag } from "@/components/content/StateTag";
+import type { TabId } from "@/lib/content/read/view-types";
 import { Example } from "./Example";
+
+const STATES: TabId[] = ["ideas", "writing", "ready", "needs-you", "approved", "discarded"];
 
 function PieceWithActions({ piece: p }: { piece: ReturnType<typeof piece> }) {
   return (
@@ -29,6 +34,47 @@ export function ContentExamples() {
   };
   return (
     <div className="flex flex-col gap-6">
+      <Example label="The state of an idea or a piece, in words">
+        <p className="flex flex-wrap gap-2">
+          {STATES.map((tab) => (
+            <StateTag key={tab} tab={tab} />
+          ))}
+        </p>
+      </Example>
+      <Example label="An idea's pieces in one tab: a row each, opened to the piece">
+        <PieceGroup
+          tab="ready"
+          idea={idea({
+            id: "acme-docs-20261002-ex-group",
+            title: "Group example",
+            rollup: "2 ready, 1 needs you",
+            pieces: [
+              piece({
+                id: "acme-docs-20261002-ex-group.linkedin",
+                title: "Group example",
+                tab: "ready",
+              }),
+              piece({
+                id: "acme-docs-20261002-ex-group.x",
+                title: "Group example",
+                platform: "x",
+                platformName: "X",
+                tab: "ready",
+                flags: ["legal"],
+                flagLines: ["Check before posting: 1 legal claim"],
+              }),
+              piece({
+                id: "acme-docs-20261002-ex-group.blog",
+                title: "Group example",
+                platform: "blog",
+                platformName: "Blog post",
+                tab: "needs-you",
+                needsYou: "Two claims don't trace to your notes.",
+              }),
+            ],
+          })}
+        />
+      </Example>
       <Example label="Idea card">
         <IdeaCard
           idea={idea({ id: "acme-docs-20261002-ex-idea", title: "Five minutes to a first deploy" })}

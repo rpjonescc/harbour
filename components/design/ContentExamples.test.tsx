@@ -20,6 +20,22 @@ describe("ContentExamples", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows every state tag and a grouped idea with a row per piece", () => {
+    render(<ContentExamples />);
+    for (const word of [
+      "Idea",
+      "Being written",
+      "Ready for you",
+      "Needs you",
+      "Approved",
+      "Discarded",
+    ])
+      expect(screen.getAllByText(word).length).toBeGreaterThan(0);
+    const group = screen.getByRole("article", { name: "Group example" });
+    expect(group).toHaveTextContent("2 ready, 1 needs you");
+    expect(group.querySelectorAll("ul > li")).toHaveLength(3);
+  });
+
   it("gives every example its own ids, and a stub offers Discard but never Try again", () => {
     const { container } = render(<ContentExamples />);
     const ids = [...container.querySelectorAll("[id]")].map((e) => e.id);
