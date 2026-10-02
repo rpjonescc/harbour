@@ -32,7 +32,14 @@ const plainLine = (max: number) =>
     .trim()
     .min(1)
     .max(max)
-    .refine((v) => !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(v), "must be plain text on one line");
+    // Also look-alike blanks: any space separator but U+0020, Hangul filler and braille blank.
+    .refine(
+      (v) =>
+        !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\u3164\u2800]/u.test(
+          v,
+        ),
+      "must be plain text on one line",
+    );
 const pillar = z.object({
   key: z
     .string()
@@ -112,13 +119,18 @@ export function parseProposals(text: string): Proposals {
   return result.data;
 }
 
-/** Inserts new items as proposed; existing items (any status) are left untouched. */
+/**
+ * Inserts new items as proposed; existing items (any status) are left untouched.
+ * `pillars: false` (content off for the product) drops the agent's pillars, so they can never
+ * be approved. Returns how many were dropped, never their text.
+ */
 export function importProposals(
   db: Db,
   productId: string,
   data: Proposals,
   jobId: number | null,
   now = new Date(),
+  pillars = true,
 ) {
   const rows: { type: ProposalType; value: Record<string, string>; why: string }[] = [
     ...data.keywords.map(({ why: w, ...value }) => ({
@@ -132,7 +144,11 @@ export function importProposals(
       value,
       why: w,
     })),
-    ...data.pillars.map(({ why: w, ...value }) => ({ type: "pillar" as const, value, why: w })),
+    ...(pillars ? data.pillars : []).map(({ why: w, ...value }) => ({
+      type: "pillar" as const,
+      value,
+      why: w,
+    })),
   ];
   let added = 0;
   db.transaction((tx) => {
@@ -155,7 +171,11 @@ export function importProposals(
       added += inserted.length;
     }
   });
-  return { added, skipped: rows.length - added };
+  return {
+    added,
+    skipped: rows.length - added,
+    droppedPillars: pillars ? 0 : data.pillars.length,
+  };
 }
 
 export function listProposals(db: Db, productId: string): Record<ProposalType, ProposalRow[]> {
@@ -187,14 +207,18 @@ export function approvedPillars(db: Db, productId: string): Pillar[] {
     )
     .orderBy(asc(proposals.id))
     .all()
-    .map(({ value }) => ({
-      key: value.key ?? "",
-      name: value.name ?? "",
-      description: value.description ?? "",
-    }));
+    .flatMap(({ value }) =>
+      // A row without a valid key is skipped rather than shown as an unnamed pillar.
+      value.key && value.name && value.description
+        ? [{ key: value.key, name: value.name, description: value.description }]
+        : [],
+    );
 }
 
-/** Whether approving would take a product past six approved pillars (the owner must reject one first). */
+/**
+ * Whether approving would take a product past six approved pillars (the owner must reject one
+ * first). Count and update run synchronously in one process (SQLite), so nothing can slip between.
+ */
 export function pillarLimitReached(
   db: Db,
   productId: string,
@@ -209,7 +233,8 @@ export function pillarLimitReached(
   }
   if (action.action !== "approve" || action.proposalId === undefined) return false;
   const row = listProposals(db, productId).pillar.find((p) => p.id === action.proposalId);
-  return row?.status === "proposed" && approved >= MAX_APPROVED_PILLARS;
+  // A rejected pillar counts as new too: re-approving it must not slip past the cap.
+  return row !== undefined && row.status !== "approved" && approved >= MAX_APPROVED_PILLARS;
 }
 
 export function decideProposal(
@@ -238,6 +263,9 @@ export function editProposal(db: Db, productId: string, id: number, value: Recor
   if (!row) return { ok: false as const, error: "not_found" };
   if (row.status === "rejected")
     return { ok: false as const, error: "rejected items can't be edited" };
+  // Ideas cite an approved pillar by its key, so the key is fixed once approved.
+  if (row.type === "pillar" && row.status === "approved" && value.key !== row.value.key)
+    return { ok: false as const, error: "key: can't change once the pillar is approved" };
   const parsed = VALUE_SCHEMAS[row.type].safeParse(value);
   if (!parsed.success) return { ok: false as const, error: readableIssues(parsed.error) };
   const clean = parsed.data as Record<string, string>;

@@ -125,6 +125,9 @@ export function ProposalItem({
                   id={`p${item.id}-${field.name}`}
                   className={INPUT}
                   value={draft[field.name] ?? ""}
+                  readOnly={
+                    item.type === "pillar" && item.status === "approved" && field.name === "key"
+                  }
                   onChange={(e) => setDraft({ ...draft, [field.name]: e.target.value })}
                 />
               )}

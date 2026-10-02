@@ -44,7 +44,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       detail: { productId, ...detail },
     });
   const data = body.data;
-  if (pillarLimitReached(db, productId, data)) return jsonError(409, "pillar_limit");
+  if (pillarLimitReached(db, productId, data)) {
+    return jsonError(409, data.action === "approve-all" ? "pillar_limit_all" : "pillar_limit");
+  }
   if (data.action === "approve-all") {
     const count = approveAllProposed(db, productId, data.type);
     record({ action: data.action, type: data.type, count });

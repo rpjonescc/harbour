@@ -46,7 +46,7 @@ describe("importing and deciding", () => {
   it("imports as proposed, dedupes case-insensitively, and never overwrites decisions", () => {
     const db = openTestDb();
     const first = importProposals(db, "acme-docs", parseProposals(JSON.stringify(sample)), null);
-    expect(first).toEqual({ added: 4, skipped: 0 });
+    expect(first).toEqual({ added: 4, skipped: 0, droppedPillars: 0 });
 
     const keyword = listProposals(db, "acme-docs").keyword.find(
       (p) => p.value.term === "Example Widgets",
@@ -137,7 +137,7 @@ describe("stricter validation", () => {
       competitors: [],
     };
     expect(importProposals(db, "acme-docs", parseProposals(JSON.stringify(variant)), null)).toEqual(
-      { added: 0, skipped: 2 },
+      { added: 0, skipped: 2, droppedPillars: 0 },
     );
   });
 
@@ -235,6 +235,9 @@ describe("pillar proposals", () => {
     bad({ description: "Zero\u200Bwidth" });
     bad({ name: "Bidi \u202Eoverride" });
     bad({ description: "Tab\there" });
+    bad({ name: "No\u00A0break" });
+    bad({ name: "Hangul\u3164filler" });
+    bad({ name: "Braille\u2800blank" });
   });
 
   it("keeps markdown and HTML in a pillar as plain text, never as markup", () => {
@@ -247,8 +250,16 @@ describe("pillar proposals", () => {
   it("imports pillars as proposed, skips repeats by key, and lists them as their own group", () => {
     const db = openTestDb();
     const data = { ...none, pillars: [PILLAR] };
-    expect(importProposals(db, "acme-docs", data, null)).toEqual({ added: 1, skipped: 0 });
-    expect(importProposals(db, "acme-docs", data, null)).toEqual({ added: 0, skipped: 1 });
+    expect(importProposals(db, "acme-docs", data, null)).toEqual({
+      added: 1,
+      skipped: 0,
+      droppedPillars: 0,
+    });
+    expect(importProposals(db, "acme-docs", data, null)).toEqual({
+      added: 0,
+      skipped: 1,
+      droppedPillars: 0,
+    });
     const group = listProposals(db, "acme-docs").pillar;
     expect(group).toHaveLength(1);
     expect(group[0]).toMatchObject({
@@ -257,10 +268,25 @@ describe("pillar proposals", () => {
     });
   });
 
+  it("drops pillars, counting them, when content is off for the product", () => {
+    const db = openTestDb();
+    const data = { ...none, pillars: [PILLAR] };
+    expect(importProposals(db, "acme-docs", data, null, new Date(), false)).toEqual({
+      added: 0,
+      skipped: 0,
+      droppedPillars: 1,
+    });
+    expect(listProposals(db, "acme-docs").pillar).toHaveLength(0);
+  });
+
   it("skips a duplicate key inside one file, even with a different name", () => {
     const db = openTestDb();
     const data = { ...none, pillars: [PILLAR, { ...PILLAR, name: "Other name" }] };
-    expect(importProposals(db, "acme-docs", data, null)).toEqual({ added: 1, skipped: 1 });
+    expect(importProposals(db, "acme-docs", data, null)).toEqual({
+      added: 1,
+      skipped: 1,
+      droppedPillars: 0,
+    });
   });
 
   it("returns only approved pillars", () => {

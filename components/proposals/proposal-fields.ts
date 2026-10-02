@@ -16,7 +16,7 @@ export const FIELDS: Record<ProposalType, FieldSpec[]> = {
     { name: "url", label: "URL" },
   ],
   pillar: [
-    { name: "key", label: "Key" },
+    { name: "key", label: "Short code (used in filenames)" },
     { name: "name", label: "Name" },
     { name: "description", label: "Description" },
   ],

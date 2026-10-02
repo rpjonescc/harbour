@@ -185,13 +185,33 @@ describe("POST /api/products/[id]/proposals", () => {
       expect(rows().find((r) => r.id === seventh)?.status).toBe("proposed");
     });
 
+    it("refuses re-approving a rejected pillar once six others are approved", async () => {
+      const ids = seedPillars(["a", "b", "c", "d", "e", "f", "g"]);
+      const approve = (id?: number) => POST(post({ action: "approve", proposalId: id }), params());
+      for (const id of ids.slice(0, 6)) await approve(id);
+      await POST(post({ action: "reject", proposalId: ids[0] }), params());
+      expect((await approve(ids[6])).status).toBe(200);
+      const response = await approve(ids[0]);
+      expect(response.status).toBe(409);
+      expect(rows().find((r) => r.id === ids[0])?.status).toBe("rejected");
+    });
+
+    it("refuses editing the key of an approved pillar", async () => {
+      const [id] = seedPillars(["a"]);
+      await POST(post({ action: "approve", proposalId: id }), params());
+      const value = { key: "b", name: "A", description: "Fine." };
+      const response = await POST(post({ action: "edit", proposalId: id, value }), params());
+      expect(response.status).toBe(400);
+      expect(rows()[0]?.value.key).toBe("a");
+    });
+
     it("refuses approve-all for pillars when it would pass six", async () => {
       seedPillars(["a", "b", "c", "d", "e", "f", "g"]);
       const first = rows()[0];
       await POST(post({ action: "approve", proposalId: first?.id }), params());
       const response = await POST(post({ action: "approve-all", type: "pillar" }), params());
       expect(response.status).toBe(409);
-      expect(await response.json()).toEqual({ error: "pillar_limit" });
+      expect(await response.json()).toEqual({ error: "pillar_limit_all" });
       expect(rows().filter((r) => r.status === "approved")).toHaveLength(1);
     });
 
