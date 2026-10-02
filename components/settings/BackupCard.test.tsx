@@ -17,8 +17,7 @@ const card = (health: keyof typeof EXAMPLE_BACKUPS, dirSet = false) =>
 
 describe("BackupCard", () => {
   it("says it can't open the backup folder in the same words as Today and the briefing", () => {
-    const { container, unmount } = card("unreadable");
-    expect(container).toHaveTextContent(CANT_OPEN_BACKUP_FOLDER);
+    const { unmount } = card("unreadable");
     expect(screen.getByText("Can't open the backup folder")).toBeInTheDocument();
     unmount();
     const notice = render(<BackupNotice backup={EXAMPLE_BACKUPS.unreadable} {...zone} />);
@@ -32,6 +31,25 @@ describe("BackupCard", () => {
       backup: "unreadable",
     });
     expect(briefing.subLine).toContain(CANT_OPEN_BACKUP_FOLDER);
+  });
+
+  it("says it can't open the backup folder once, with what to do beside it", () => {
+    const { container } = card("unreadable");
+    expect(container.textContent?.match(/can't open the backup folder/gi)).toHaveLength(1);
+    expect(container).toHaveTextContent("Check the folder's permissions.");
+  });
+
+  it("words a tidy-up with no summary in plain words, never a stored status", () => {
+    const retention = { jobId: 9, at: new Date("2026-10-02T03:20:00Z"), summary: null } as const;
+    const backups = {
+      ...EXAMPLE_BACKUPS.ok,
+      lastRetention: { ...retention, status: "ok" as const },
+    };
+    const { container } = render(
+      <BackupCard backups={backups} backupDirSet={false} {...zone} section={{}} />,
+    );
+    expect(container).toHaveTextContent(/: Done/);
+    expect(container.textContent).not.toMatch(/\bok\b/);
   });
 
   it("keeps the folder setting and raw error text inside Technical details", () => {

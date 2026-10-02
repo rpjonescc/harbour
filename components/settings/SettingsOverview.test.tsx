@@ -139,6 +139,14 @@ describe("SettingsOverview", () => {
     expect(names.length).toBeGreaterThan(0);
   });
 
+  it("keeps setting names out of the Products, Budget and Backups sections until Technical details", () => {
+    renderView();
+    for (const name of ["Products", "Budget", "Backups"]) {
+      const text = textOutsideDetails(section(name));
+      expect(text, name).not.toMatch(/HARBOUR_[A-Z_]+|\.env|harbour\.config/);
+    }
+  });
+
   it("offers no how-to-connect steps for a source that isn't available yet", () => {
     const { container } = renderView();
     const openai = within(section("Connections")).getByRole("row", { name: /OpenAI/ });
@@ -188,7 +196,7 @@ describe("SettingsOverview", () => {
     renderView({ ...EXAMPLE_SETTINGS, backups: EXAMPLE_BACKUPS.unreadable });
     const backups = within(section("Backups"));
     expect(
-      backups.getByText("Harbour can't open the backup folder — check its permissions"),
+      backups.getByText("Harbour can't check your spare copies. Check the folder's permissions."),
     ).toBeInTheDocument();
     expect(backups.queryByText(/ of 14$/)).toBeNull();
     expect(backups.queryByText("No backup yet")).toBeNull();

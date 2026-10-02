@@ -10,14 +10,15 @@ export function BudgetReservations({
   reservations,
   timeZone,
   locale,
-}: Pick<SettingsView, "reservations"> & { timeZone: string; locale: string }) {
+  suffix,
+}: Pick<SettingsView, "reservations"> & { timeZone: string; locale: string; suffix: string }) {
   const n = reservations.length;
   return (
     <div className="flex flex-col gap-1">
       <p className="text-sm text-ink-muted">
         {n} paid {n === 1 ? "call is" : "calls are"} still being counted.
       </p>
-      <TechnicalDetails id="budget-reservations" topic="paid calls still being counted">
+      <TechnicalDetails id="budget-reservations" topic={`paid calls still being counted${suffix}`}>
         <p className="mb-2 text-ink-muted">
           Each counts against the budget at its estimate until its call is settled.
         </p>

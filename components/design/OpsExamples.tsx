@@ -73,12 +73,14 @@ export function OpsExamples() {
       <KeyStatusCard section={NESTED} keys={view.keys} />
       <BudgetCard
         section={NESTED}
+        which="spending example"
         budget={view.budget}
         reservations={view.reservations}
         {...EXAMPLE_ZONE}
       />
       <BudgetCard
         section={NESTED}
+        which="no budget example"
         budget={{ state: "no-budget", spentMicro: 0, unconfirmedMicro: 0, capMicro: 0 }}
         reservations={[]}
         now={now}

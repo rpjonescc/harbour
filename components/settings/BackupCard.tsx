@@ -3,7 +3,8 @@ import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { DocsLink } from "@/components/ui/DocsLink";
 import { Tag } from "@/components/ui/Tag";
 import { DOCS_LINKS } from "@/lib/docs-links";
-import { BACKUP_HEALTH_LABEL, CANT_OPEN_BACKUP_FOLDER } from "@/lib/explain/backups";
+import { JOB_STATUS_PHRASE } from "@/lib/explain/agents";
+import { BACKUP_HEALTH_LABEL } from "@/lib/explain/backups";
 import { SETTINGS_PURPOSE } from "@/lib/explain/settings";
 import { formatShortDateTime } from "@/lib/format/date";
 import { BACKUPS_KEPT } from "@/lib/ops/backup-files";
@@ -51,7 +52,7 @@ export function BackupCard(props: Props) {
         {backups.count === null ? (
           <>
             <dt className="text-ink-muted">Backups</dt>
-            <dd>{CANT_OPEN_BACKUP_FOLDER} — check its permissions</dd>
+            <dd>Harbour can't check your spare copies. Check the folder's permissions.</dd>
           </>
         ) : (
           <>
@@ -73,7 +74,8 @@ export function BackupCard(props: Props) {
         <dd>
           {lastRetention ? (
             <Link href={`/agents/${lastRetention.jobId}`} className={LINK}>
-              {at(lastRetention.at)}: {lastRetention.summary ?? lastRetention.status}
+              {at(lastRetention.at)}:{" "}
+              {lastRetention.summary ?? JOB_STATUS_PHRASE[lastRetention.status]}
             </Link>
           ) : (
             "Not tidied yet. That happens after each backup."
