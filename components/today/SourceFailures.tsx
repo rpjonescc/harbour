@@ -1,31 +1,47 @@
 import Link from "next/link";
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
+import { sourceName, sourceTrouble } from "@/lib/explain/sources";
 import { productById } from "@/lib/products/catalog";
-import { collectorLabel } from "@/lib/scan/labels";
 import type { SourceFailure } from "@/lib/today/types";
 
-/** Sources that failed in each product's last scan; scores they feed are incomplete. */
+const keyOf = (f: SourceFailure) => `${f.productId}:${f.collector}`;
+
+/** Data sources that failed in a product's last check: what happened, does it matter, what to do. */
 export function SourceFailures({ failures }: { failures: SourceFailure[] }) {
-  if (failures.length === 0) return null;
+  const heading = sourceTrouble(failures);
+  if (heading === null) return null;
   return (
     <section
       aria-labelledby="failures-heading"
-      className="rounded-sm bg-warn-soft px-3 py-2 text-xs text-ink"
+      className="flex flex-col gap-1 rounded-sm bg-warn-soft px-3 py-2 text-xs text-ink"
     >
-      <h2 id="failures-heading" className="font-medium">
-        {failures.length === 1 ? "A source failed" : `${failures.length} sources failed`} in the
-        last scan
-      </h2>
-      <ul className="mt-1 flex flex-col gap-0.5">
+      <h3 id="failures-heading" className="font-medium">
+        {heading}
+      </h3>
+      <ul className="flex flex-col gap-0.5">
         {failures.map((f) => (
-          <li key={`${f.productId}:${f.collector}`}>
-            {collectorLabel(f.collector)} · {productById(f.productId).name}
-            {f.error && <span className="text-ink-muted"> — {f.error}</span>}
+          <li key={keyOf(f)}>
+            {sourceName(f.collector)} · {productById(f.productId).name}
           </li>
         ))}
       </ul>
-      <Link href="/settings/sources" className="mt-1 inline-block text-accent hover:underline">
-        Check sources
-      </Link>
+      <p>
+        Scores that use this data are marked as missing some data until it works again. Harbour
+        tries again in the next check; if it keeps happening,{" "}
+        <Link href="/settings/sources" className="rounded-sm text-accent hover:underline">
+          check your data sources
+        </Link>
+        .
+      </p>
+      <TechnicalDetails id="today-source-failures" topic="data source errors">
+        <ul className="flex flex-col gap-0.5 font-mono">
+          {failures.map((f) => (
+            <li key={keyOf(f)}>
+              {f.collector} · {f.productId}: {f.error ?? "no error recorded"}
+            </li>
+          ))}
+        </ul>
+      </TechnicalDetails>
     </section>
   );
 }

@@ -1,0 +1,34 @@
+import { ActionCard } from "@/components/today/ActionCard";
+import { BriefingText } from "@/components/today/BriefingText";
+import { VerdictTable } from "@/components/today/VerdictTable";
+import { WHO_PHRASE } from "@/lib/explain/actions";
+import type { Product } from "@/lib/products/catalog";
+import { Example } from "./Example";
+import { exampleToday } from "./today-example-data";
+
+/** Fictional Today pieces: the briefing, the verdict table and a card for each "who's on it". */
+export function TodayExamples({ product }: { product: Pick<Product, "id" | "name"> }) {
+  const today = exampleToday(product);
+  return (
+    <div className="flex flex-col gap-6">
+      <p className="text-xs text-ink-muted">Illustrative briefing, verdicts and actions.</p>
+      <Example label="Briefing">
+        <BriefingText briefing={today.briefing} isSample={false} level={3} />
+      </Example>
+      <Example label="Briefing · sample data">
+        <BriefingText briefing={today.briefing} isSample level={3} />
+      </Example>
+      <Example label="Scores by product · a partial score and a gap">
+        <VerdictTable scores={today.scores} />
+      </Example>
+      {today.actions.map((action) => (
+        <Example
+          key={action.id}
+          label={`Worth doing next · ${action.who ? WHO_PHRASE[action.who] : "no one on it"}`}
+        >
+          <ActionCard action={action} />
+        </Example>
+      ))}
+    </div>
+  );
+}

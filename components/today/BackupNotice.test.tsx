@@ -8,21 +8,22 @@ const show = (backup: BackupStatus) =>
   render(<BackupNotice backup={backup} timeZone="Europe/London" locale="en-GB" />);
 
 describe("BackupNotice", () => {
-  it("names when the backup failed, its error, and the next try", () => {
+  it("says the backup didn't finish, that live data is fine, and when Harbour tries again", () => {
     show(EXAMPLE_BACKUPS.failed);
     expect(screen.getByRole("status")).toHaveTextContent(
-      "The backup on 2 Oct, 04:10 failed: No space left on device. Harbour tries again at Saturday 3 Oct, 03:15 — details in Settings.",
+      "The backup on 2 Oct, 04:10 didn't finish. Your live data is fine, but your newest spare copy is older than it should be. Harbour tries again at Saturday 3 Oct, 03:15 — details in Settings.",
     );
     expect(screen.getByRole("link", { name: "details in Settings" })).toHaveAttribute(
       "href",
       "/settings#backups",
     );
+    expect(screen.getByText("No space left on device")).not.toBeVisible();
   });
 
-  it("points to Back up now when a manual backup failed with the schedule off", () => {
+  it("points to Back up now when nightly backups are off", () => {
     show({ ...EXAMPLE_BACKUPS.failed, enabled: false, next: null });
     expect(screen.getByRole("status")).toHaveTextContent(
-      "The backup on 2 Oct, 04:10 failed: No space left on device. Nightly backups are off — run Back up now in Settings.",
+      "The backup on 2 Oct, 04:10 didn't finish. Your live data is fine, but your newest spare copy is older than it should be. Nightly backups are off, so run Back up now in Settings.",
     );
     expect(screen.queryByText(/tries again/)).toBeNull();
     expect(screen.getByRole("link", { name: "Back up now in Settings" })).toHaveAttribute(
@@ -31,21 +32,32 @@ describe("BackupNotice", () => {
     );
   });
 
-  it("says when there has been no backup for two days", () => {
-    show(EXAMPLE_BACKUPS.stale);
+  it("says plainly when there's no spare copy at all yet", () => {
+    show({ ...EXAMPLE_BACKUPS.failed, latest: null, count: 0 });
     expect(screen.getByRole("status")).toHaveTextContent(
-      "No backup in the last 2 days. Check that the worker is running — details in Settings.",
+      "The backup on 2 Oct, 04:10 didn't finish. Your live data is fine, but you don't have a spare copy yet, so getting this working matters. Harbour tries again at Saturday 3 Oct, 03:15 — details in Settings.",
+    );
+    expect(screen.queryByText(/older than it should be/)).toBeNull();
+  });
+
+  it("doesn't claim there's no spare copy when the backup folder can't be read", () => {
+    show({ ...EXAMPLE_BACKUPS.failed, latest: null, count: null });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "The backup on 2 Oct, 04:10 didn't finish. Your live data is fine, but Harbour can't open the backup folder to check your spare copies.",
     );
   });
 
-  it("says when the backup folder cannot be read", () => {
+  it("says when there has been no backup for two days", () => {
+    show(EXAMPLE_BACKUPS.stale);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "No backup in the last 2 days. Your live data is fine, but there's no recent spare copy. Check that Harbour's background worker is running — details in Settings.",
+    );
+  });
+
+  it("says when the backup folder can't be opened", () => {
     show(EXAMPLE_BACKUPS.unreadable);
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Harbour can't read the backup folder — check its permissions. Details in Settings.",
-    );
-    expect(screen.getByRole("link", { name: "Details in Settings" })).toHaveAttribute(
-      "href",
-      "/settings#backups",
+      "Harbour can't open the backup folder, so it can't check your spare copies. Check the folder's permissions — details in Settings.",
     );
   });
 

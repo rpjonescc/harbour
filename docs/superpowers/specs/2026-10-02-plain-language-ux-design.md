@@ -85,11 +85,14 @@ yet") instead of implying a worse score. Missing data is a gap, never a zero (AG
 
 Status values in the data model are unchanged.
 
-**Who's on it** (derived from the latest event and the PR link):
-- "Claude is on it"
-- "Pull request waiting for your OK"
-- "Waiting for you"
-- "New idea, not decided yet"
+**Who's on it** (derived from the status, the PR link and who made the latest *status-changing*
+event — its creation counts; a PR-link event, which keeps the status, does not):
+- "New idea, not decided yet": the action is suggested.
+- "Pull request waiting for your OK": it is in progress and has a PR link (whoever started it).
+- "Claude is on it": it is in progress, with no PR link, and Claude moved it there.
+- "Waiting for you": it is open, or in progress and moved there by anyone else (or by someone
+  Harbour no longer knows, after old history was pruned).
+- Done, snoozed and dismissed actions show no "who's on it".
 
 ## 4. Architecture
 
@@ -117,7 +120,7 @@ Each component works in light and dark, uses semantic tokens only, is fully keyb
 and appears on `/design`.
 
 - `<VerdictLine>`: area name, verdict word (tone colour plus text), small number, and trend
-  phrase ("up 2 this month", "steady").
+  phrase ("up 2 since the last check", "steady"; the stored change is against the previous check).
 - `<Explainer>`: the visible one-liner, plus a "What's this?" disclosure button
   (`aria-expanded`, one owner per label) revealing the four parts and an optional "Next step"
   link to the matching action.
@@ -130,9 +133,20 @@ and appears on `/design`.
 ### 5.1 Today
 
 1. Date and "last checked …".
-2. **Briefing sentence:** overall health plus the single biggest opportunity, chosen by rule:
-   the lowest area verdict across products that has an open action. Under it, a sub-line:
-   "N things worth doing · Claude is handling M · nothing is broken" (or what is broken).
+2. **Briefing sentence:** overall health plus the single biggest opportunity, chosen by rule.
+   Health is the verdict band of the rounded mean of every area score there is ("Your sites are
+   in fair shape." / "Your sites need some work."; "Your site …" with one product; "Harbour has
+   no scores yet, so there's no verdict." with none). The opportunity is the lowest-scoring area
+   (with a score) across products that has an active (open or in-progress) action — ties go to
+   the earlier product, then Found on Google → Recommended by AI assistants → Answer-ready —
+   written "Biggest opportunity: Answer-ready for Acme Docs (needs work)." and left out when
+   none qualifies. Under it, a sub-line: "N things worth doing · Claude is handling M · nothing
+   is broken" (M only when Claude is on something). "Nothing is broken" appears only when
+   nothing is; otherwise the sub-line names each problem in its place, in this order: a check
+   that failed outright with no failing source listed ("the last check for Acme Docs didn't
+   finish"), the failing data source (or "2 data sources had a problem in the last check"), and
+   a backup that needs a look ("the last backup didn't finish", "no backup in the last 2 days",
+   "Harbour can't open the backup folder", the same words as the backup notice).
 3. **Product table:** one row per product, one column per area, showing `<VerdictLine>` in
    compact form.
 4. **Worth doing next:** the top 3 actions as plain cards. Each card has a title, a one-line

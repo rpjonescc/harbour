@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { EXAMPLE_BACKUPS } from "@/components/design/ops-example-data";
 import type { BackupStatus } from "@/lib/ops/backup-status";
 import { getProducts } from "@/lib/products/catalog";
@@ -27,10 +27,16 @@ const real: TodaySummary = {
   scannedAt: new Date("2026-10-01T06:04:00Z"),
   scanning: false,
   lastFailedAt: null,
-  headline: "One thing worth your attention.",
+  briefing: {
+    sentence:
+      "Your site is in fair shape. Biggest opportunity: Found on Google for Acme Docs (fair).",
+    subLine: "1 thing worth doing · Google speed test (PageSpeed) had a problem in the last check",
+  },
   scores: [
     {
       productId: "acme-docs",
+      scanned: true,
+      lastCheckFailed: false,
       totals: { seo: 61, geo: 40, aeo: 22 },
       complete: { seo: true, geo: true, aeo: true },
       deltas: { seo: 2, geo: null, aeo: null },
@@ -43,8 +49,10 @@ const real: TodaySummary = {
       productId: "acme-docs",
       area: "SEO",
       impact: "high",
+      effort: "small",
       title: "2 pages have no title",
-      detail: "Give each page a unique, descriptive <title>.",
+      reason: "Google uses the title as the headline of each result.",
+      who: "claude",
       href: "/actions#action-7",
     },
   ],
@@ -54,9 +62,12 @@ const real: TodaySummary = {
 
 describe("TodayView", () => {
   it("before any scan shows the sample, flagged, with unlinked sample actions", () => {
-    renderToday(sampleToday(getProducts()));
+    const sample = sampleToday(getProducts());
+    renderToday(sample);
     expect(screen.getByRole("note")).toHaveTextContent(/Sample data/);
-    expect(screen.getByText(/no scan yet/)).toBeInTheDocument();
+    expect(screen.getByText("Sample", { exact: true })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(sample.briefing.sentence);
+    expect(screen.getByText(/not checked yet/)).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /competitor for one of your target questions/ }),
     ).toBeNull();
@@ -68,30 +79,35 @@ describe("TodayView", () => {
       lastFailedAt: new Date("2026-10-01T06:02:00Z"),
       failures: [{ productId: "acme-docs", collector: "crawler", error: "Could not crawl" }],
     });
-    expect(screen.getByText(/last scan failed 1 Oct 2026, 06:02/)).toBeInTheDocument();
-    expect(screen.getByText(/Crawler · Acme Docs/)).toHaveTextContent("Could not crawl");
+    expect(
+      screen.getByText(/the last check didn't finish \(1 Oct 2026, 06:02\)/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Page check · Acme Docs")).toBeInTheDocument();
+    expect(screen.getByText("crawler · acme-docs: Could not crawl")).not.toBeVisible();
   });
 
   it("says when the first scan is running", () => {
     renderToday({ ...sampleToday(getProducts()), scanning: true });
-    expect(screen.getByText(/scan running/)).toBeInTheDocument();
+    expect(screen.getByText(/checking your sites now/)).toBeInTheDocument();
   });
 
   it("with scans shows real scores, linked actions and failing sources, without the banner", () => {
     renderToday(real);
     expect(screen.queryByText(/Sample data/)).toBeNull();
-    expect(screen.getByText(/last scan 1 Oct 2026, 06:04/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "One thing worth your attention.",
-    );
+    expect(screen.getByText(/last checked 1 Oct 2026, 06:04/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(real.briefing.sentence);
+    expect(screen.getByText(real.briefing.subLine)).toBeInTheDocument();
+    expect(screen.queryByText("Sample", { exact: true })).toBeNull();
     expect(screen.getByRole("link", { name: "2 pages have no title" })).toHaveAttribute(
       "href",
       "/actions#action-7",
     );
     expect(
-      screen.getByRole("heading", { name: "A source failed in the last scan" }),
+      screen.getByRole("heading", {
+        name: "Google speed test (PageSpeed) had a problem in the last check",
+      }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/PageSpeed · Acme Docs/)).toHaveTextContent("quota exceeded");
+    expect(screen.getByText("Google speed test (PageSpeed) · Acme Docs")).toBeInTheDocument();
   });
 
   it("links the actions beyond the top ones to the Actions board", () => {
@@ -109,30 +125,76 @@ describe("TodayView", () => {
 
   it("says so when no action is open", () => {
     renderToday({ ...real, actions: [], failures: [] });
-    expect(
-      screen.getByText("Nothing open — new actions arrive with each scan."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Nothing to do right now.")).toBeInTheDocument();
+  });
+
+  it("lists what's worth doing next with why, the size of the job and who's on it", () => {
+    renderToday(real);
+    const section = screen.getByRole("region", { name: "Worth doing next" });
+    const card = within(section).getByRole("article", { name: "2 pages have no title" });
+    expect(card).toHaveTextContent("Big win");
+    expect(card).toHaveTextContent("Found on Google · quick job");
+    expect(card).toHaveTextContent("Google uses the title as the headline of each result.");
+    expect(card).toHaveTextContent("Acme Docs · Claude is on it");
   });
 
   it("shows the cost meter on the sample and on real Today", () => {
     const { unmount } = renderToday(sampleToday(getProducts()));
-    expect(screen.getByText("No paid sources connected")).toBeInTheDocument();
+    expect(screen.getByText(/^No paid data connected/)).toBeInTheDocument();
     unmount();
     renderToday(real);
-    expect(screen.getByText("No paid sources connected")).toBeInTheDocument();
+    expect(screen.getByText(/^No paid data connected/)).toBeInTheDocument();
   });
 
   it("warns about a failed or stale backup, and says nothing when backups are fine", () => {
     const { unmount } = renderToday(real, EXAMPLE_BACKUPS.failed);
-    expect(screen.getByText(/The backup on 2 Oct, 03:10 failed: No space left/)).toBeVisible();
+    expect(screen.getByText(/The backup on 2 Oct, 03:10 didn't finish/)).toBeVisible();
     unmount();
     const stale = renderToday(real, EXAMPLE_BACKUPS.stale);
     expect(screen.getByText(/No backup in the last 2 days/)).toBeVisible();
     stale.unmount();
     const unreadable = renderToday(real, EXAMPLE_BACKUPS.unreadable);
-    expect(screen.getByText(/can't read the backup folder/)).toBeVisible();
+    expect(screen.getByText(/can't open the backup folder/)).toBeVisible();
     unreadable.unmount();
     renderToday(real);
     expect(screen.queryByText(/backup/i)).toBeNull();
+  });
+
+  it("keeps spend, backups and data source trouble together, behind the scenes", () => {
+    renderToday(real, EXAMPLE_BACKUPS.stale);
+    const behind = screen.getByRole("region", { name: "Behind the scenes" });
+    expect(behind).toHaveTextContent(/^Behind the scenes/);
+    expect(behind).toHaveTextContent("No paid data connected");
+    expect(behind).toHaveTextContent("No backup in the last 2 days");
+    expect(behind).toHaveTextContent(
+      "Google speed test (PageSpeed) had a problem in the last check",
+    );
+  });
+
+  it("shows plain verdicts per product, with the numbers under Technical details", () => {
+    renderToday(real);
+    const table = screen.getByRole("table", { name: "Scores by product" });
+    const [seo, geo] = within(within(table).getByRole("row", { name: /Acme Docs/ })).getAllByRole(
+      "cell",
+    );
+    expect(seo).toHaveTextContent("Fair 61 out of 100 up 2 since the last check");
+    expect(geo).toHaveTextContent("Needs work 40 out of 100");
+    expect(
+      screen.getByRole("table", { name: "Visibility scores by product", hidden: true }),
+    ).not.toBeVisible();
+  });
+
+  it.each([
+    ["real", real],
+    ["sample", sampleToday(getProducts())],
+  ])("speaks plainly on the %s Today: no codes outside Technical details", (_label, today) => {
+    const { container } = renderToday(today, EXAMPLE_BACKUPS.failed);
+    const copy = container.cloneNode(true);
+    if (!(copy instanceof HTMLElement)) throw new Error("not an element");
+    for (const details of copy.querySelectorAll("details")) details.remove();
+    const text = copy.textContent ?? "";
+    expect(text).not.toMatch(/\b(?:SEO|GEO|AEO)\b/);
+    expect(text).not.toMatch(/HARBOUR_[A-Z_]+/);
+    expect(text).not.toMatch(/\b(?:seo|geo|aeo)\.[a-zA-Z]/);
   });
 });

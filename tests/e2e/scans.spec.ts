@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { E2E_SITE_PORT } from "../../playwright.config";
+import { expectPlainLanguage } from "./plain-language";
 
 // The worker scans the fictional Acme Docs site served by tests/e2e/fixture-site.ts
 // (tests/fixtures/sites/acme-docs): /about has no title, / and /about link to a missing page.
@@ -129,17 +130,23 @@ test("Sources lists each source's last run and how to connect the missing ones",
   await expect(page.getByRole("region", { name: "Fern & Field" })).toContainText("Never scanned");
 });
 
-test("Today shows the real scores instead of the sample", async ({ page }) => {
+test("Today shows the real verdicts instead of the sample, with the numbers a click away", async ({
+  page,
+}) => {
   await page.goto("/");
-  await expect(page.getByText(/· last scan /)).toBeVisible();
+  await expect(page.getByText(/· last checked /)).toBeVisible();
   await expect(page.getByText("Sample data")).toHaveCount(0);
-  const table = page.getByRole("table", { name: "Visibility scores by product" });
-  const acme = table.getByRole("row", { name: /Acme Docs/ });
-  for (const cell of await acme
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Your sites (are in (strong|good|fair) shape|need some work)\. Biggest opportunity: (Found on Google|Recommended by AI assistants|Answer-ready) for Acme Docs \((strong|good|fair|needs work)\)\.$/,
+  );
+  await expect(page.getByText(/^\d+ things? worth doing · nothing is broken$/)).toBeVisible();
+  await expectPlainLanguage(page);
+  const table = page.getByRole("table", { name: "Scores by product" });
+  for (const cell of await table
+    .getByRole("row", { name: /Acme Docs/ })
     .getByRole("cell")
-    .all()
-    .then((cells) => cells.slice(0, 3))) {
-    await expect(cell).toHaveText(/^\d+/);
+    .all()) {
+    await expect(cell).toHaveText(/^(Strong|Good|Fair|Needs work) \d+ out of 100/);
   }
   // Products not scanned yet show a gap, never a zero.
   await expect(
@@ -147,8 +154,16 @@ test("Today shows the real scores instead of the sample", async ({ page }) => {
       .getByRole("row", { name: /Fern & Field/ })
       .getByRole("cell")
       .first(),
-  ).toHaveText(/no score/);
-  // Worth your attention lists the actions the scan opened, each linked to its board card.
+  ).toHaveText(/No score yet/);
+  // The numbers stay one click away, under Technical details.
+  await page.getByText("Technical details (scores in numbers)").click();
+  const numbers = page.getByRole("table", { name: "Visibility scores by product" });
+  await expect(numbers).toBeVisible();
+  const acme = numbers.getByRole("row", { name: /Acme Docs/ });
+  for (const cell of (await acme.getByRole("cell").all()).slice(0, 3)) {
+    await expect(cell).toHaveText(/^\d+/);
+  }
+  // Worth doing next lists the actions the scan opened, each linked to its board card.
   await expect(page.getByRole("link", { name: "1 page has no title" })).toHaveAttribute(
     "href",
     /^\/actions#action-\d+$/,

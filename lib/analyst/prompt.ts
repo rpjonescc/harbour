@@ -1,9 +1,11 @@
 import { assertDate, oneLine, productContext, RULES } from "@/lib/agents/prompts";
+import { AREA_ORDER, AREAS } from "@/lib/explain/areas";
+import { verdictBandsText } from "@/lib/explain/verdict";
 import type { Product } from "@/lib/products/catalog";
 import { fenceFor } from "@/lib/text/fence";
 import { isWeekLabel } from "./week";
 
-export const ANALYST_PROMPT_VERSION = "4-v2";
+export const ANALYST_PROMPT_VERSION = "4-v3";
 
 /** The brain paths one weekly run writes: its report and its suggested actions. */
 export function weeklyPaths(week: string): { report: string; proposals: string } {
@@ -34,6 +36,12 @@ function proposalsShape(products: readonly Product[]): string {
 }`;
 }
 
+/** "Found on Google (SEO), Recommended by AI assistants (GEO) and Answer-ready (AEO)". */
+function areaNames(): string {
+  const names = AREA_ORDER.map((key) => `${AREAS[key].name} (${AREAS[key].code})`);
+  return `${names.slice(0, -1).join(", ")} and ${names.at(-1) ?? ""}`;
+}
+
 /** Prompt for the weekly analyst: a report on the week and suggested actions, from `exportJson`. */
 export function weeklyAnalystPrompt(input: {
   week: string;
@@ -49,8 +57,12 @@ export function weeklyAnalystPrompt(input: {
   return `TARGET_FILES: ${paths.report}, ${paths.proposals}
 
 You are a careful analyst writing the weekly report for a small business owner who is new to
-search (SEO), being cited by AI engines (GEO) and being the answer (AEO). Explain plainly, and
-be honest about what the data can and cannot tell.
+search and AI assistants. Explain plainly, and be honest about what the data can and cannot tell.
+
+Use the words Harbour shows the owner.
+The three areas are ${areaNames()}; the data names them by their codes, which belong only in brackets after a name.
+Give each score's verdict before its number: ${verdictBandsText()}.
+A missing score is a gap, never "Needs work".
 
 Week: ${week}
 Today's date: ${today}

@@ -1,5 +1,7 @@
+import { buildBriefing } from "@/lib/explain/briefing";
+import type { BackupHealth } from "@/lib/ops/backup-status";
 import type { Product, ProductId } from "@/lib/products/catalog";
-import type { ProductScores, TodaySummary } from "./types";
+import type { ActionPreview, ProductScores, SourceFailure, TodaySummary } from "./types";
 
 /** Stable 32-bit FNV-1a hash, so sample numbers never change between runs. */
 function stableHash(text: string): number {
@@ -21,6 +23,8 @@ function sampleScores(productId: ProductId): ProductScores {
   const trend = Array.from({ length: 6 }, (_, i) => clamp(seo - (5 - i) * (byte(3) % 3)));
   return {
     productId,
+    scanned: true,
+    lastCheckFailed: false,
     totals: { seo, geo: byte(1) % 30, aeo: 5 + (byte(2) % 35) },
     complete: { seo: true, geo: true, aeo: true },
     deltas: { seo: (byte(3) % 5) - 1, geo: (byte(1) % 3) - 1, aeo: byte(2) % 2 },
@@ -28,39 +32,59 @@ function sampleScores(productId: ProductId): ProductScores {
   };
 }
 
-/** Placeholder data for the configured products until a first scan is scored. Always flagged `isSample`. */
-export function sampleToday(products: readonly Product[]): TodaySummary {
+/** What is really broken while Today shows the sample; anything left out is fine. */
+export type RealTrouble = {
+  failures?: readonly SourceFailure[];
+  failedChecks?: readonly ProductId[];
+  backup?: BackupHealth;
+};
+
+/**
+ * Placeholder data for the configured products until a first scan is scored. Always flagged
+ * `isSample`; the briefing reads the sample's own scores and actions, but names real trouble.
+ */
+export function sampleToday(
+  products: readonly Product[],
+  { failures = [], failedChecks = [], backup = "ok" }: RealTrouble = {},
+): TodaySummary {
   const first = products[0];
   if (!first) throw new Error("sampleToday needs at least one product");
   const second = products[1] ?? first;
+  const scores = products.map((p) => sampleScores(p.id));
+  const actions: ActionPreview[] = [
+    {
+      id: "sample-1",
+      productId: first.id,
+      area: "GEO",
+      impact: "high",
+      effort: "medium",
+      title: "An AI assistant cites a competitor for one of your target questions",
+      reason: "When people ask that question, they're pointed somewhere else.",
+      who: "you",
+      href: null,
+    },
+    {
+      id: "sample-2",
+      productId: second.id,
+      area: "AEO",
+      impact: "medium",
+      effort: "small",
+      title: "Add FAQ structured data to your most-visited page",
+      reason: "Marked-up answers are the easiest for Google and AI assistants to quote.",
+      who: "you",
+      href: null,
+    },
+  ];
+  const work = actions.map((a) => ({ productId: a.productId, area: a.area, who: a.who }));
   return {
     isSample: true,
     scannedAt: null,
     scanning: false,
     lastFailedAt: null,
-    failures: [],
+    failures: [...failures],
     moreActions: 0,
-    headline: "Calm waters. Two things worth your attention.",
-    scores: products.map((p) => sampleScores(p.id)),
-    actions: [
-      {
-        id: "sample-1",
-        productId: first.id,
-        area: "GEO",
-        impact: "high",
-        title: "An AI assistant cites a competitor for one of your target questions",
-        detail: "~1 hr",
-        href: null,
-      },
-      {
-        id: "sample-2",
-        productId: second.id,
-        area: "AEO",
-        impact: "medium",
-        title: "Add FAQ structured data to your most-visited page",
-        detail: "~30 min",
-        href: null,
-      },
-    ],
+    briefing: buildBriefing({ products, scores, work, failures, failedChecks, backup }),
+    scores,
+    actions,
   };
 }

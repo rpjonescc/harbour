@@ -42,6 +42,25 @@ describe("sampleToday", () => {
     ]);
   });
 
+  it("briefs from its own sample scores and actions, and from real source failures", () => {
+    expect(sampleToday(products).briefing).toEqual({
+      sentence:
+        "Your sites need some work. Biggest opportunity: Recommended by AI assistants for Acme Docs (needs work).",
+      subLine: "2 things worth doing · nothing is broken",
+    });
+    const failing = sampleToday(products, {
+      failures: [{ productId: "acme-docs", collector: "crawler", error: "Could not crawl" }],
+    });
+    expect(failing.failures).toHaveLength(1);
+    expect(failing.briefing.subLine).toBe(
+      "2 things worth doing · Page check had a problem in the last check",
+    );
+    const stuck = sampleToday(products, { failedChecks: ["acme-docs"], backup: "unreadable" });
+    expect(stuck.briefing.subLine).toBe(
+      "2 things worth doing · the last check for Acme Docs didn't finish · Harbour can't open the backup folder",
+    );
+  });
+
   it("works with a single product", () => {
     const today = sampleToday(products.slice(0, 1));
     expect(today.actions.every((a) => a.productId === "acme-docs")).toBe(true);

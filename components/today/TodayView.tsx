@@ -1,17 +1,19 @@
-import Link from "next/link";
 import { RefreshWhileScanning } from "@/components/products/RefreshWhileScanning";
 import type { CostMeterView } from "@/lib/costs/meter-view";
 import type { BackupStatus } from "@/lib/ops/backup-status";
 import type { TodaySummary } from "@/lib/today/types";
-import { ActionCard } from "./ActionCard";
 import { BackupNotice } from "./BackupNotice";
 import { CostMeter } from "./CostMeter";
 import { SampleBanner } from "./SampleBanner";
-import { ScoreTable } from "./ScoreTable";
+import { ScoresSection } from "./ScoresSection";
 import { SourceFailures } from "./SourceFailures";
 import { TodayHeader } from "./TodayHeader";
+import { WorthDoingNext } from "./WorthDoingNext";
 
-/** Today: scan status, headline, paid spend, backup warnings, scores per product and the open actions worth a look. */
+/**
+ * Today: the briefing, a verdict per product and area, what's worth doing next, and the
+ * housekeeping notices (paid spend, backups, data sources) behind the scenes.
+ */
 export function TodayView({
   today,
   costMeter,
@@ -24,13 +26,13 @@ export function TodayView({
   /** Real spend even on the sample Today: the ledger is never sample data. */
   costMeter: CostMeterView;
   /** Real backup health even on the sample Today: shown only when it needs a look. */
-  backup: Pick<BackupStatus, "health" | "lastFailure" | "enabled" | "next">;
+  backup: Pick<BackupStatus, "health" | "lastFailure" | "enabled" | "next" | "latest" | "count">;
   now: Date;
   timeZone: string;
   locale: string;
 }) {
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-8">
       <RefreshWhileScanning active={today.scanning} />
       <TodayHeader
         now={now}
@@ -39,31 +41,19 @@ export function TodayView({
         scannedAt={today.scannedAt}
         scanning={today.scanning}
         lastFailedAt={today.lastFailedAt}
-        headline={today.headline}
+        briefing={today.briefing}
+        isSample={today.isSample}
       />
-      <CostMeter view={costMeter} now={now} timeZone={timeZone} locale={locale} />
-      <BackupNotice backup={backup} timeZone={timeZone} locale={locale} />
       {today.isSample && <SampleBanner />}
-      <SourceFailures failures={today.failures} />
-      <ScoreTable scores={today.scores} />
-      <section aria-labelledby="attention-heading" className="flex flex-col gap-3">
-        <h2 id="attention-heading" className="font-serif text-xl">
-          Worth your attention
+      <ScoresSection scores={today.scores} />
+      <WorthDoingNext actions={today.actions} more={today.moreActions} />
+      <section aria-labelledby="behind-heading" className="flex flex-col gap-3">
+        <h2 id="behind-heading" className="font-serif text-xl">
+          Behind the scenes
         </h2>
-        {today.actions.length === 0 ? (
-          <p className="text-sm text-ink-muted">
-            Nothing open — new actions arrive with each scan.
-          </p>
-        ) : (
-          today.actions.map((action) => <ActionCard key={action.id} action={action} />)
-        )}
-        {today.moreActions > 0 && (
-          <p className="text-sm">
-            <Link href="/actions" className="rounded-sm text-accent underline underline-offset-2">
-              {today.moreActions} more on the Actions board
-            </Link>
-          </p>
-        )}
+        <CostMeter view={costMeter} now={now} timeZone={timeZone} locale={locale} />
+        <BackupNotice backup={backup} timeZone={timeZone} locale={locale} />
+        <SourceFailures failures={today.failures} />
       </section>
     </div>
   );

@@ -102,9 +102,9 @@ test("no budget means no paid calls, on Settings and Today", async ({ page }) =>
   await page.goto("/settings");
   const budget = settingsRegion(page, "Budget");
   await expect(budget.getByText("A$0.00 — no paid calls allowed")).toBeVisible();
-  await expect(budget.getByText("No paid sources connected")).toBeVisible();
+  await expect(budget.getByText(/^No paid data connected/)).toBeVisible();
   await page.goto("/");
-  await expect(page.getByRole("main").getByText("No paid sources connected")).toBeVisible();
+  await expect(page.getByRole("main").getByText(/^No paid data connected/)).toBeVisible();
 });
 
 test("keyboard: Tab reaches the Settings links and Back up now with visible focus", async ({

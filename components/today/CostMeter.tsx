@@ -44,15 +44,17 @@ export function CostMeter({ view, now, timeZone, locale }: Props) {
   if (view.state === "no-paid-sources") {
     return (
       <p className="text-sm text-ink-muted">
-        No paid sources connected
-        {view.spentMicro > 0 && ` · ${aud(view.spentMicro)} spent this month${unconfirmed}`}
+        {view.spentMicro > 0
+          ? `No paid data connected · ${aud(view.spentMicro)} spent this month${unconfirmed}`
+          : "No paid data connected — Harbour is using free data only, so nothing is being spent."}
       </p>
     );
   }
   if (view.state === "no-budget") {
     return (
       <p className="text-sm text-ink-muted">
-        Paid sources are off: <DocsLink href={DOCS_LINKS.costs}>no monthly budget set</DocsLink>
+        Paid data is off until you set a monthly budget —{" "}
+        <DocsLink href={DOCS_LINKS.costs}>how to set one</DocsLink>
       </p>
     );
   }
@@ -72,8 +74,8 @@ export function CostMeter({ view, now, timeZone, locale }: Props) {
       <SpendBar view={view} label={amounts} />
       {view.state === "reached" && (
         <p role="status" className="text-ink">
-          Budget reached — paid sources are paused until{" "}
-          {resumes.format(monthWindow(now, timeZone).end)}
+          Budget reached — paid data is paused until{" "}
+          {resumes.format(monthWindow(now, timeZone).end)}. Free checks carry on as normal.
         </p>
       )}
     </div>

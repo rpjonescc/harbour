@@ -3,8 +3,15 @@ import { desc } from "drizzle-orm";
 import { createSession, revokeSession } from "@/lib/auth/sessions";
 import { openDb } from "@/lib/db/client";
 import { auditLog } from "@/lib/db/schema";
+import { AREAS } from "@/lib/explain/areas";
 import { E2E_DB, E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
+import { hydrated } from "./hydration";
+import { expectPlainLanguage } from "./plain-language";
 import { sessionStorageState } from "./session-state";
+
+/** The sample Today's briefing for the E2E products (lib/today/sample.ts is deterministic). */
+const SAMPLE_BRIEFING =
+  "Your sites need some work. Biggest opportunity: Recommended by AI assistants for Acme Docs (needs work).";
 
 /** Collects CSP violations reported to the console; assert the list is empty after the page settles. */
 function watchCspErrors(page: Page): string[] {
@@ -109,7 +116,7 @@ test("client navigation re-checks the session on every page", async ({ browser }
   const context = await browser.newContext({ storageState: sessionStorageState(token) });
   const page = await context.newPage();
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Calm waters");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(SAMPLE_BRIEFING);
   revokeSession(db, token);
   await page.getByRole("link", { name: "Design system" }).click();
   await expect(page).toHaveURL(/\/login$/);
@@ -120,18 +127,20 @@ for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`${colorScheme} mode`, () => {
     test.use({ colorScheme });
 
-    test("Today renders scores and actions", async ({ page }) => {
+    test("Today renders the briefing, verdicts and what's worth doing", async ({ page }) => {
       const cspErrors = watchCspErrors(page);
       await page.goto("/");
-      await expect(page.getByRole("heading", { level: 1 })).toContainText("Calm waters");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(SAMPLE_BRIEFING);
+      await expect(page.getByText("2 things worth doing · nothing is broken")).toBeVisible();
       await expect(page.getByRole("note")).toContainText("Sample data");
-      const table = page.getByRole("table", { name: "Visibility scores by product" });
+      const table = page.getByRole("table", { name: "Scores by product" });
       await expect(table.getByRole("rowheader", { name: "Fern & Field" })).toBeVisible();
       const products = page.getByRole("region", { name: "Products" });
       await expect(products.getByRole("link", { name: "Acme Docs" })).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "Worth your attention", exact: true }),
+        page.getByRole("heading", { name: "Worth doing next", exact: true }),
       ).toBeVisible();
+      await expectPlainLanguage(page);
       await page.waitForLoadState("networkidle");
       expect(cspErrors).toEqual([]);
     });
@@ -139,9 +148,22 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("design system page renders every section", async ({ page }) => {
       const cspErrors = watchCspErrors(page);
       await page.goto("/design");
-      for (const name of ["Colour tokens", "Type", "Components"]) {
+      for (const name of [
+        "Colour tokens",
+        "Type",
+        "Components",
+        "Plain-language examples",
+        "Today examples",
+      ]) {
         await expect(page.getByRole("heading", { name })).toBeVisible();
       }
+      const whatsThis = page.getByRole("button", {
+        name: "What's this? (Recommended by AI assistants example)",
+      });
+      await hydrated(whatsThis);
+      await whatsThis.click();
+      await expect(whatsThis).toHaveAttribute("aria-expanded", "true");
+      await expect(page.getByText(AREAS.geo.parts.worth)).toBeVisible();
       await page.waitForLoadState("networkidle");
       expect(cspErrors).toEqual([]);
     });

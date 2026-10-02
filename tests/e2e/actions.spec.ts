@@ -176,7 +176,7 @@ test("Today lists the top three actions in board order; issues link to their act
   );
 
   await page.goto("/");
-  const attention = page.getByRole("region", { name: "Worth your attention" });
+  const attention = page.getByRole("region", { name: "Worth doing next" });
   await expect(attention.getByRole("article")).toHaveCount(3);
   await expect(attention.getByRole("heading", { level: 3 })).toHaveText(titles.map((t) => t ?? ""));
   await expect(attention.getByRole("link", { name: /more on the Actions board$/ })).toHaveText(

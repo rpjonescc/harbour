@@ -19,10 +19,18 @@ continues with:
 
 ## Features
 
-- **Today** — date, scan status, a one-line summary, a score table per product (SEO, GEO, AEO
-  with the change since the last scan and a 30-day SEO trend), the three issues most worth
-  your attention, and a banner when a source failed in the last scan. Until the first scan
-  finishes it shows clearly labelled sample data.
+- **Today** — date, when your sites were last checked, a one-sentence briefing (overall health
+  and the biggest opportunity, then how many things are worth doing, how many Claude is
+  handling and anything broken: a check that didn't finish, a failing data source or a backup
+  that needs a look), a plain verdict per product and area (Found on Google, Recommended by
+  AI assistants, Answer-ready: Strong 85+, Good 70–84, Fair 50–69 or
+  Needs work under 50, with the score and its change beside it; "What's this?" explains each
+  area, and the numbers with a 30-day SEO trend sit under Technical details), **Worth doing
+  next** (the top three actions as plain cards: why each matters, its area, how big a job it
+  is and who's on it), and **Behind the scenes**: paid spend, backup warnings and any data
+  source that failed in the last check, each saying what happened, whether it matters and what
+  to do (raw errors under Technical details). Until the first scan finishes it shows clearly
+  labelled sample data.
 - **Product pages** — per product: the three scores, **Scan now**, SEO/GEO/AEO tabs explaining
   every sub-score (its weight, evidence, or why it is missing), the issues the scan found with
   a **Hand to Claude** button that copies a ready prompt, the crawled pages and their problems,
@@ -46,7 +54,7 @@ continues with:
   (see [Research refresh](#research-refresh)).
 - **Cost meter** — Today shows this month's paid API spend against your monthly budget, with a
   month-end projection, a warning at 80 % and a pause at 100 %. No paid source exists yet, so it
-  says "No paid sources connected" (see [Costs and budget](#costs-and-budget)).
+  says "No paid data connected" (see [Costs and budget](#costs-and-budget)).
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
   a living reference at `/design` showing every component in its main states.
 - **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14
@@ -560,21 +568,23 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
 
 | Meter | Meaning |
 |---|---|
-| No paid sources connected | No paid collector exists (or its keys are missing). Spend so far this month is shown if there is any. |
-| Paid sources are off: no monthly budget set | A paid source is connected but the budget is 0. |
+| No paid data connected — Harbour is using free data only, so nothing is being spent | No paid collector exists (or its keys are missing). With spend earlier this month it reads "No paid data connected · A$1.23 spent this month". |
+| Paid data is off until you set a monthly budget — how to set one | A paid source is connected but the budget is 0. |
 | A$12.40 of A$60.00 this month · on track for A$31.00 | Spend so far, the budget and a straight-line month-end projection (from the second day of the month). |
 | … with "80 % of budget" | You have used at least 80 % of the budget. |
-| Budget reached — paid sources are paused until 1 Nov | Paid collectors are skipped until the next month starts. |
+| Budget reached — paid data is paused until 1 Nov. Free checks carry on as normal. | Paid collectors are skipped until the next month starts. |
 
 ## Reading the results
 
-- **Today** (`/`) lists every product's scores. A dash is a gap (no data), never a zero; an
-  asterisk marks an incomplete score, where a source was not connected or failed. Each product
-  name opens its page. While a scan is queued or running, the page refreshes itself. **Worth
-  your attention** shows the top three open or in-progress actions (in the Actions board's
-  order), each linked to its card, and the headline counts every one of them; the rest are a
-  link away on the Actions board. Before the first scan is scored, Today shows clearly flagged
-  sample data instead.
+- **Today** (`/`) gives every product a verdict per area. A missing score reads "No score yet"
+  with the reason (a gap, never a zero); an asterisk marks a verdict where some data was
+  missing because a source was not connected or failed, and the numbers are under **Technical
+  details**. Each product name opens its page. While a scan is queued or running, the page
+  refreshes itself. **Worth doing next** shows the top three open or in-progress actions (in
+  the Actions board's order), each linked to its card and saying who's on it (Claude is on it,
+  Pull request waiting for your OK, or Waiting for you), and the briefing's second line counts
+  every one of them; the rest are a link away on the Actions board. Before the first scan is
+  scored, Today shows clearly flagged sample data instead.
 - **Product page** (`/products/<id>`) shows where scanning stands (never scanned, queued,
   running, or how the last scan ended — a failed scan never hides the last good results) and
   explains each score in its tab. **Issues** come from the scan's raw observations: pages
@@ -819,6 +829,10 @@ It also serves the fictional Acme Docs fixture site (`tests/fixtures/sites/acme-
 the scan specs choose **Scan now** and check the product page, Sources and Today on the real
 results. Only this environment may scan a loopback address (`HARBOUR_TEST_MODE` and
 `HARBOUR_SCAN_ALLOW_LOOPBACK`, both refused outside tests).
+
+The shell and scans specs also check that Today speaks plainly: no SEO, GEO or AEO heading, and
+no `HARBOUR_*` setting name or sub-score key outside **Technical details**
+(`tests/e2e/plain-language.ts`).
 
 The Playwright projects run in order — the shell and brain specs, then agents, scans, actions,
 the weekly analyst and finally operations (Settings) — because each later one changes what the

@@ -1,40 +1,41 @@
+import { activeWork } from "@/lib/actions/active-work";
 import type { ActionRow } from "@/lib/actions/types";
-import { activeImpactCounts, topActiveActions } from "@/lib/actions/views";
+import { topActiveActions } from "@/lib/actions/views";
 import type { Db } from "@/lib/db/client";
-import type { Impact } from "@/lib/scan/issues";
+import { type WhoOnIt, whoIsOnIt } from "@/lib/explain/actions";
+import type { BriefingWork } from "@/lib/explain/briefing";
+import { firstSentence } from "./reason";
 import type { ActionPreview } from "./types";
 
 const TOP_ACTIONS = 3;
-const IMPACTS: readonly Impact[] = ["high", "medium", "low"];
 
-const toPreview = (action: ActionRow): ActionPreview => ({
+const toPreview = (action: ActionRow, who: WhoOnIt | null): ActionPreview => ({
   id: action.id,
   productId: action.productId,
   area: action.area,
   impact: action.impact,
+  effort: action.effort,
   title: action.title,
-  detail: action.fix,
+  reason: firstSentence(action.why),
+  who,
   href: `/actions#action-${action.id}`,
 });
 
-/** The impact of every active action (high first), so the headline counts them all. */
-function activeImpacts(db: Db, productIds: readonly string[]): Impact[] {
-  const counts = activeImpactCounts(db, productIds);
-  return IMPACTS.flatMap((impact) => Array<Impact>(counts[impact]).fill(impact));
-}
-
 /**
- * Today's "Worth your attention": the top active actions (open and in progress, board order) of
- * the configured products, how many more the Actions board holds, and every active impact.
+ * Today's actions: the top active ones (open and in progress, board order) of the configured
+ * products with who's on each, how many more the Actions board holds, and every active action's
+ * area and who's on it, for the briefing.
  */
 export function attentionFromActions(
   db: Db,
   productIds: readonly string[],
-): { actions: ActionPreview[]; more: number; headlineImpacts: Impact[] } {
+): { actions: ActionPreview[]; more: number; work: BriefingWork[] } {
+  const active = activeWork(db, productIds);
+  const who = new Map(active.map((a) => [a.id, whoIsOnIt(a)]));
   const top = topActiveActions(db, productIds, TOP_ACTIONS);
   return {
-    actions: top.actions.map(toPreview),
+    actions: top.actions.map((row) => toPreview(row, who.get(row.id) ?? null)),
     more: top.more,
-    headlineImpacts: activeImpacts(db, productIds),
+    work: active.map((a) => ({ productId: a.productId, area: a.area, who: who.get(a.id) ?? null })),
   };
 }

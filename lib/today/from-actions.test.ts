@@ -1,4 +1,5 @@
-import { insertAction } from "@/lib/actions/store";
+import { linkPullRequest } from "@/lib/actions/pr-link";
+import { insertAction, setStatus } from "@/lib/actions/store";
 import type { NewAction } from "@/lib/actions/types";
 import type { Db } from "@/lib/db/client";
 import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
@@ -33,12 +34,19 @@ describe("attentionFromActions", () => {
       productId: "acme-docs",
       area: "SEO",
       impact: "high",
+      effort: "small",
       title: "high started",
-      detail: "Write a one-sentence description for each page.",
+      reason: "Pages without a description get a generated snippet.",
+      who: "you",
       href: `/actions#action-${started}`,
     });
     expect(result.more).toBe(1);
-    expect(result.headlineImpacts).toEqual(["high", "high", "medium", "low"]);
+    expect(result.work).toEqual([
+      { productId: "acme-docs", area: "SEO", who: "you" },
+      { productId: "acme-docs", area: "SEO", who: "you" },
+      { productId: "acme-docs", area: "SEO", who: "you" },
+      { productId: "acme-shop", area: "SEO", who: "you" },
+    ]);
   });
 
   it("leaves out suggested, snoozed, done and dismissed actions and unconfigured products", () => {
@@ -52,7 +60,7 @@ describe("attentionFromActions", () => {
     const result = attentionFromActions(db, PRODUCTS);
     expect(result.actions.map((a) => a.title)).toEqual(["open"]);
     expect(result.more).toBe(0);
-    expect(result.headlineImpacts).toEqual(["low"]);
+    expect(result.work).toEqual([{ productId: "acme-docs", area: "SEO", who: "you" }]);
   });
 
   it("is empty without active actions or configured products", () => {
@@ -60,9 +68,35 @@ describe("attentionFromActions", () => {
     expect(attentionFromActions(db, PRODUCTS)).toEqual({
       actions: [],
       more: 0,
-      headlineImpacts: [],
+      work: [],
     });
     add(db, { title: "open" });
-    expect(attentionFromActions(db, [])).toEqual({ actions: [], more: 0, headlineImpacts: [] });
+    expect(attentionFromActions(db, [])).toEqual({ actions: [], more: 0, work: [] });
+  });
+
+  it("says Claude is on what Claude started, and that a pull request waits for the owner", () => {
+    const db = openTestDb();
+    const claude = add(db, { title: "claude", area: "GEO" });
+    setStatus(db, claude, "open", "in_progress", {
+      actor: "claude",
+      note: "Adding llms.txt",
+      now: t0,
+    });
+    const pr = add(db, { title: "pr", area: "AEO" });
+    setStatus(db, pr, "open", "in_progress", { actor: "claude", note: "Opened a PR", now: t0 });
+    linkPullRequest(db, {
+      id: pr,
+      url: "https://github.com/example/site/pull/3",
+      productIds: [...PRODUCTS],
+      now: t0,
+    });
+    expect(attentionFromActions(db, PRODUCTS).work).toEqual([
+      { productId: "acme-docs", area: "GEO", who: "claude" },
+      { productId: "acme-docs", area: "AEO", who: "pr_waiting" },
+    ]);
+    expect(attentionFromActions(db, PRODUCTS).actions.map((a) => [a.title, a.who])).toEqual([
+      ["claude", "claude"],
+      ["pr", "pr_waiting"],
+    ]);
   });
 });
