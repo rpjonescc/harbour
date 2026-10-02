@@ -97,6 +97,31 @@ type CommitInput = {
   result: string | null;
 };
 
+/** What the next step is, or none: a step that cannot be worked out is recorded, never skipped silently. */
+function planNext(deps: RunDeps, job: Job, event: CommitInput["event"]) {
+  try {
+    return deps.afterOk?.(job) ?? null;
+  } catch {
+    event("error", "Harbour couldn't work out the next step. Open the idea and use Try again.");
+    return null;
+  }
+}
+
+/** Finishes the job and queues the next step of its chain in one transaction. */
+function finishAndQueue(
+  deps: RunDeps,
+  job: Job,
+  result: string | null,
+  event: CommitInput["event"],
+) {
+  const next = planNext(deps, job, event);
+  const note = deps.db.transaction(
+    (tx) => (finish(tx, job.id, "ok", null, deps.now(), result) ? (next?.(tx) ?? null) : null),
+    { behavior: "immediate" },
+  );
+  if (note) event("status", note);
+}
+
 /**
  * Commits exactly `paths`, imports the run's structured output, pushes, and finishes the job.
  * `committed` runs right after the commit, so the caller stops treating the run as discardable.
@@ -122,6 +147,6 @@ export function commitAndPush(
   setRun({ pushed: push.ok });
   if (push.ok) event("status", "Pushed to the brain repository");
   else event("error", `Push failed — commit kept locally, will retry automatically: ${push.error}`);
-  finish(db, job.id, "ok", null, deps.now(), result);
+  finishAndQueue(deps, job, result, event);
   return { pushed: push.ok };
 }

@@ -23,6 +23,15 @@ import { runReviewed } from "./run-reviewed";
 import { cliAttempt, commitAndPush, publishReviewed, QUIET_FAILURE, QUIET_TAIL } from "./run-steps";
 import { type TouchedLog, touchedLog } from "./touched-log";
 
+/** A transaction (or the database): what a step queued after a job finishes may read and write. */
+export type JobTx = Pick<Db, "select" | "insert" | "update">;
+/**
+ * What to queue after a job succeeds. Decided before the job is finished and carried out in the
+ * same transaction that finishes it, so no other job can be claimed between the two and a restart
+ * never finds a finished job whose next step was lost. Returns a note for the job's activity.
+ */
+export type AfterOk = (job: Job) => ((tx: JobTx) => string | null) | null;
+
 export type RunDeps = {
   db: Db;
   root: string;
@@ -46,6 +55,8 @@ export type RunDeps = {
   noteFacts?: (now: Date) => Facts;
   /** Content machine inputs (worker only). */
   content?: ContentRunContext;
+  /** The content chain's next step (worker only; see `AfterOk`). */
+  afterOk?: AfterOk;
 };
 
 // How long the brain must be unchanged before an agent run starts.

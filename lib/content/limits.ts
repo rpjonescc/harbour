@@ -62,28 +62,31 @@ function manualLimitHit(db: JobWriter, input: EnqueueInput): boolean {
 }
 
 /**
+ * `enqueueContent` inside a transaction the caller already holds (it must be IMMEDIATE), so a
+ * chained step can be queued in the same transaction that finishes the job before it.
+ */
+export function enqueueContentIn(tx: JobWriter, input: EnqueueInput): EnqueueResult {
+  // Types are erased at the HTTP and worker boundaries: an unknown kind must not fall through.
+  if (!(CONTENT_AGENT_KINDS as readonly string[]).includes(input.kind)) {
+    throw new Error(`${input.kind} is not a content agent kind`);
+  }
+  const existing = findActiveJob(tx, input.kind, input.params);
+  if (existing !== null) return { ok: true, id: existing, created: false };
+  if (!input.chained) {
+    if (contentRunsToday(tx, input.timeZone, input.now) >= input.dailyRuns) {
+      return { ok: false, reason: "daily_cap" };
+    }
+    if (manualLimitHit(tx, input)) return { ok: false, reason: "rate_limited" };
+  }
+  const job = enqueueJobIn(tx, input.kind, input.params, input.requestedBy, input.now);
+  return { ok: true, ...job };
+}
+
+/**
  * Queues a content job unless the daily cap or the owner's own rate limit says no. A job already
  * queued or running for the same request is returned first, so a double click at a limit is not
  * an error; the check and the insert share one transaction, so two requests cannot both pass.
  */
 export function enqueueContent(db: Db, input: EnqueueInput): EnqueueResult {
-  // Types are erased at the HTTP and worker boundaries: an unknown kind must not fall through.
-  if (!(CONTENT_AGENT_KINDS as readonly string[]).includes(input.kind)) {
-    throw new Error(`${input.kind} is not a content agent kind`);
-  }
-  return db.transaction(
-    (tx): EnqueueResult => {
-      const existing = findActiveJob(tx, input.kind, input.params);
-      if (existing !== null) return { ok: true, id: existing, created: false };
-      if (!input.chained) {
-        if (contentRunsToday(tx, input.timeZone, input.now) >= input.dailyRuns) {
-          return { ok: false, reason: "daily_cap" };
-        }
-        if (manualLimitHit(tx, input)) return { ok: false, reason: "rate_limited" };
-      }
-      const job = enqueueJobIn(tx, input.kind, input.params, input.requestedBy, input.now);
-      return { ok: true, ...job };
-    },
-    { behavior: "immediate" },
-  );
+  return db.transaction((tx) => enqueueContentIn(tx, input), { behavior: "immediate" });
 }

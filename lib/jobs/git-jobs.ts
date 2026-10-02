@@ -12,16 +12,18 @@ export type GitJobDeps = { db: Db; root: string; quarantineRoot: string; now: ()
 
 /** Finishes a running job; warns when another path (e.g. recovery) already finished it. */
 export function finish(
-  db: Db,
+  db: Pick<Db, "update">,
   id: number,
   status: "ok" | "failed" | "cancelled",
   error: string | null,
   now: Date,
   result: string | null = null,
-): void {
-  if (!finishJob(db, id, status, error, now, result)) {
+): boolean {
+  const done = finishJob(db, id, status, error, now, result);
+  if (!done) {
     console.warn(`job ${id} was no longer running; its result (${status}) was not recorded`);
   }
+  return done;
 }
 
 /** Why git must not run in `root` (not its own repository root), or null when it may. */

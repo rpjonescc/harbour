@@ -3,6 +3,7 @@ import { ANALYST_PROMPT_VERSION, weeklyAnalystPrompt, weeklyPaths } from "@/lib/
 import { atomiseSpec } from "@/lib/content/worker/atomise";
 import { digestSpec } from "@/lib/content/worker/digest";
 import { draftSpec } from "@/lib/content/worker/draft";
+import { gateSpec } from "@/lib/content/worker/gate";
 import { ideasSpec } from "@/lib/content/worker/ideas";
 import type { ContentRunContext } from "@/lib/content/worker/run-context";
 import type { Facts } from "@/lib/explain/voice/facts";
@@ -188,5 +189,6 @@ export function specForJob(
   if (kind === "content-ideas") return ideasSpec(params, context);
   if (kind === "content-draft") return draftSpec(params, context);
   if (kind === "content-atomise") return atomiseSpec(params, context);
+  if (kind === "content-gate") return gateSpec(params, context);
   throw new Error(`Not an agent job: ${kind}`);
 }

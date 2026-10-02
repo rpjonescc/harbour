@@ -163,7 +163,7 @@ export function heartbeat(db: Db, id: number, now = new Date()): void {
 
 /** Moves a running job to a terminal state. Returns false if it was no longer running. */
 export function finishJob(
-  db: Db,
+  db: Pick<Db, "update">,
   id: number,
   status: "ok" | "failed" | "cancelled",
   error: string | null,

@@ -255,8 +255,13 @@ export const PIECES: { [P in Platform]: ContentOf<P> } = {
   },
 };
 
-/** A valid piece file (drafting, revision 1, every gate pending) for `ideaId` and `platform`. */
-export function pieceFile(ideaId: string, platform: Platform = "linkedin"): string {
+/** A valid piece file (drafting, revision 1, every gate pending) for `ideaId` and `platform`; `over` replaces frontmatter fields and `body` the rendered text. */
+export function pieceFile(
+  ideaId: string,
+  platform: Platform = "linkedin",
+  over: Record<string, unknown> = {},
+  body?: string,
+): string {
   const content = PIECES[platform];
   return renderFile(
     {
@@ -276,7 +281,8 @@ export function pieceFile(ideaId: string, platform: Platform = "linkedin"): stri
       approvedAt: null,
       exportPath: null,
       content,
+      ...over,
     },
-    renderPiece(platform, content),
+    body ?? renderPiece(platform, content),
   );
 }

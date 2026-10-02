@@ -4,7 +4,6 @@
 import { makeSnoozeWaker } from "@/lib/actions/store";
 import { quarantineRootFor } from "@/lib/agents/brain-status";
 import { runProcess } from "@/lib/agents/process";
-import { approvedPillars } from "@/lib/agents/proposals";
 import { makeRefreshSchedule, type QueuedRefresh } from "@/lib/agents/refresh-schedule";
 import { makeAnalystSchedule } from "@/lib/analyst/schedule";
 import { getConfig } from "@/lib/config";
@@ -13,6 +12,7 @@ import { readVoice } from "@/lib/content/read/voice";
 import { makeDigestSchedule, makeIdeasSchedule } from "@/lib/content/schedule";
 import { deferForOtherChain } from "@/lib/content/worker/chain-wait";
 import { runDigestJob } from "@/lib/content/worker/digest-job";
+import { contentRunDeps, resumeContentChains } from "@/lib/content/worker/wire";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
 import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
@@ -29,12 +29,7 @@ import { makeNoteSchedule, noteEnabled } from "@/lib/note/schedule";
 import { type OpsJobDeps, runBackupJob, runRetentionJob } from "@/lib/ops/backup-job";
 import { describeNextBackup, makeBackupSchedule } from "@/lib/ops/backup-schedule";
 import { backupStatus } from "@/lib/ops/backup-status";
-import {
-  getContentProducts,
-  getExcludeApps,
-  getOwnerFirstName,
-  getProducts,
-} from "@/lib/products/catalog";
+import { getContentProducts, getOwnerFirstName, getProducts } from "@/lib/products/catalog";
 import { runScan } from "@/lib/scan/run-scan";
 import { failInterruptedScans } from "@/lib/scan/store";
 import { workerScanDeps } from "@/lib/scan/worker-deps";
@@ -168,6 +163,8 @@ async function main() {
   });
   scheduler.startup();
   failInterruptedScans(db); // their jobs were just failed by startup()
+  const resumed = resumeContentChains({ db, root, config, now: () => new Date() });
+  if (resumed > 0) console.log(`resumed ${resumed} content chain(s) interrupted by the last stop`);
   logQueued("catch-up", scans.catchUp());
   logAnalyst("catch-up", analyst.tick());
   logNote("catch-up", notes.tick());
@@ -213,16 +210,7 @@ async function main() {
         backup: backupStatus(db, config, at).health,
         now: at,
       }),
-    content:
-      config.HARBOUR_CONTENT === "on"
-        ? {
-            root,
-            skillsDir: config.HARBOUR_SKILLS_DIR,
-            products: getContentProducts(),
-            excludeApps: getExcludeApps(),
-            approvedPillars: (id) => approvedPillars(db, id),
-          }
-        : undefined,
+    ...contentRunDeps({ db, root, config, now }),
   });
 
   const runJob = async (job: Job) => {
