@@ -11,6 +11,11 @@ continues with:
 
 - **Paid sources** — AI engine mentions and citations, keyword rankings and featured snippets
   (they need API keys, so they show as "not connected" for now).
+- **Plain-language UX** (in progress) — every screen says what something is, why it matters
+  and what to do, in plain words; technical detail stays one click away
+  ([spec](docs/superpowers/specs/2026-10-02-plain-language-ux-design.md)).
+- **Content machine** (idea) — content pillars, drafts, atomising and quality passes before
+  anything is published ([idea note](docs/superpowers/ideas/2026-10-02-content-machine.md)).
 
 ## Features
 
