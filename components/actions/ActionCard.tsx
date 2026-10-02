@@ -12,6 +12,7 @@ import { ActionEvidence } from "./ActionEvidence";
 import { ActionHistory } from "./ActionHistory";
 import { ActionStatusControls } from "./ActionStatusControls";
 import { EFFORT_LABEL, IMPACT_LABEL, SOURCE_LABEL, STATUS_LABEL } from "./action-labels";
+import { PullRequestLink } from "./PullRequestLink";
 
 function statusText(action: ActionView, locale: string): string {
   if (action.status === "snoozed" && action.snoozedUntil) {
@@ -105,6 +106,7 @@ export function ActionCard({
         </dl>
         <ActionEvidence evidence={action.evidence} invalid={action.evidenceInvalid} />
         <DocLinks links={action.docLinks} invalid={action.docsInvalid} />
+        <PullRequestLink url={action.prUrl} />
         <ActionHistory
           events={action.events}
           truncated={action.historyTruncated}

@@ -14,6 +14,7 @@ function row(action: NewAction, over: Partial<ActionRow> = {}): ActionRow {
     sourceJobId: action.sourceJobId ?? null,
     snoozedUntil: action.snoozedUntil ?? null,
     issuePresent: action.issuePresent ?? null,
+    prUrl: null,
     titleKey: action.title.toLowerCase(),
     createdAt: t0,
     updatedAt: t0,

@@ -124,4 +124,49 @@ describe("ActionCard", () => {
     expect(items).toContain("2 Oct 2026, 10:30 · You · Open → In progress · Started on the docs");
     expect(card).toHaveTextContent("Older history pruned.");
   });
+
+  it("links the fix's pull request in a new tab", () => {
+    const card = renderCard({ prUrl: "https://github.com/acme/widget/pull/42" });
+    const link = within(card).getByRole("link", { name: /pull request acme\/widget#42/i });
+    expect(link).toHaveAttribute("href", "https://github.com/acme/widget/pull/42");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toHaveAccessibleName("Pull request acme/widget#42 (opens in a new tab)");
+  });
+
+  it("shows no pull request link without one, or for a stored value that is not one", () => {
+    expect(within(renderCard()).queryByRole("link", { name: /pull request/i })).toBeNull();
+    const bad = renderCard({ id: 2, title: "Other", prUrl: "javascript:alert(1)" });
+    expect(within(bad).queryByRole("link", { name: /pull request/i })).toBeNull();
+  });
+
+  it("shows Claude's notes, and a link change without a status move", () => {
+    const card = renderCard({
+      events: [
+        {
+          at: new Date("2026-10-02T09:30:00Z"),
+          actor: "claude",
+          from: "open",
+          to: "in_progress",
+          note: "Fixing in the docs repo",
+        },
+        {
+          at: new Date("2026-10-02T09:40:00Z"),
+          actor: "claude",
+          from: "in_progress",
+          to: "in_progress",
+          note: "Linked PR https://github.com/acme/widget/pull/42",
+        },
+      ],
+    });
+    const items = within(card)
+      .getAllByRole("listitem")
+      .map((li) => li.textContent);
+    expect(items).toContain(
+      "2 Oct 2026, 10:30 · Claude · Open → In progress · Fixing in the docs repo",
+    );
+    expect(items).toContain(
+      "2 Oct 2026, 10:40 · Claude · Linked PR https://github.com/acme/widget/pull/42",
+    );
+  });
 });

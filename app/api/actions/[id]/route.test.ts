@@ -141,7 +141,7 @@ describe("POST /api/actions/[id]", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ id, status: "open", snoozedUntil: null });
     expect(audits()).toEqual([
-      ["action_status_changed", { id, from: "suggested", to: "open", until: null }],
+      ["action_status_changed", { id, actor: "owner", from: "suggested", to: "open", until: null }],
     ]);
   });
 
@@ -168,7 +168,10 @@ describe("POST /api/actions/[id]", () => {
       note: "Starting",
     });
     expect(audits()).toEqual([
-      ["action_status_changed", { id, from: "open", to: "in_progress", until: null }],
+      [
+        "action_status_changed",
+        { id, actor: "owner", from: "open", to: "in_progress", until: null },
+      ],
     ]);
     expect(JSON.stringify(audits())).not.toContain("Starting");
   });
@@ -196,7 +199,7 @@ describe("POST /api/actions/[id]", () => {
       snoozedUntil: until,
     });
     expect(audits()).toEqual([
-      ["action_status_changed", { id, from: "open", to: "snoozed", until }],
+      ["action_status_changed", { id, actor: "owner", from: "open", to: "snoozed", until }],
     ]);
     expect(actionEventsFor(db(), id).at(-1)?.note).toBeNull();
   });

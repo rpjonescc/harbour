@@ -14,6 +14,7 @@ export type AuditEvent =
   | "proposal_decided"
   | "scan_requested"
   | "action_status_changed"
+  | "action_pr_linked"
   | "backup_requested";
 
 /** Appends a security-relevant event to the audit log. */

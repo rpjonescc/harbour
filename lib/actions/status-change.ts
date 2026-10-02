@@ -3,14 +3,19 @@ import { audit } from "@/lib/audit";
 import type { Db } from "@/lib/db/client";
 import { actions } from "@/lib/db/schema";
 import { setStatus } from "./store";
-import { checkTransition, type OwnerChange } from "./transitions";
+import { checkTransition, type StatusChange } from "./transitions";
 import type { ActionStatus } from "./types";
 
-export type OwnerChangeRequest = {
+/** Who changes the status: Claude must always say why (its note), the owner may. */
+type ChangedBy =
+  | { actor: "owner"; change: StatusChange }
+  | { actor: "claude"; change: StatusChange & { note: string } };
+
+export type StatusChangeRequest = ChangedBy & {
   id: number;
-  /** The status the owner's page showed; a different stored status means the click is stale. */
+  /** The status the caller last saw; a different stored status means the change is stale. */
   from: ActionStatus;
-  change: OwnerChange;
+  /** The audit log's login: the owner's, or "claude". */
   login: string;
   productIds: readonly string[];
   /** YYYY-MM-DD in HARBOUR_TIMEZONE, for snooze dates. */
@@ -18,18 +23,22 @@ export type OwnerChangeRequest = {
   now: Date;
 };
 
-export type OwnerChangeResult =
+export type StatusChangeResult =
   | { ok: true; id: number; status: ActionStatus; snoozedUntil: string | null }
-  | { ok: false; error: "not_found" }
+  | { ok: false; error: "not_found" | "note_required" }
   | { ok: false; error: string; conflict: true };
 
 /**
- * Applies the owner's status change: the read, the checks, the status write and its audit
- * entry share one IMMEDIATE transaction, so they land together or not at all.
+ * Applies a hand-made status change (owner or Claude) under the same rules: the read, the
+ * checks, the status write and its audit entry share one IMMEDIATE transaction, so they land
+ * together or not at all.
  */
-export function applyOwnerChange(db: Db, req: OwnerChangeRequest): OwnerChangeResult {
+export function applyStatusChange(db: Db, req: StatusChangeRequest): StatusChangeResult {
+  // The type asks for a note; this also refuses a blank one, whoever builds the request.
+  if (req.actor === "claude" && !req.change.note?.trim())
+    return { ok: false, error: "note_required" };
   return db.transaction(
-    (tx): OwnerChangeResult => {
+    (tx): StatusChangeResult => {
       const row = tx.select().from(actions).where(eq(actions.id, req.id)).get();
       if (!row || !req.productIds.includes(row.productId)) return { ok: false, error: "not_found" };
       if (row.status !== req.from) return { ok: false, error: "stale", conflict: true };
@@ -37,8 +46,8 @@ export function applyOwnerChange(db: Db, req: OwnerChangeRequest): OwnerChangeRe
       if (reason) return { ok: false, error: reason, conflict: true };
       const { to, until } = req.change;
       const snoozedUntil = until ?? null;
-      const note = req.change.note || null;
-      const opts = { actor: "owner" as const, note, snoozedUntil, now: req.now };
+      const note = req.change.note?.trim() || null;
+      const opts = { actor: req.actor, note, snoozedUntil, now: req.now };
       // Unreachable today (the read above holds the IMMEDIATE lock); kept so a future change that
       // moves the read out of this transaction still refuses instead of writing a stale audit.
       if (!setStatus(tx, req.id, req.from, to, opts)) {
@@ -49,8 +58,8 @@ export function applyOwnerChange(db: Db, req: OwnerChangeRequest): OwnerChangeRe
         {
           login: req.login,
           event: "action_status_changed",
-          // Never the note: it is the owner's free text.
-          detail: { id: req.id, from: req.from, to, until: snoozedUntil },
+          // Never the note: it is free text.
+          detail: { id: req.id, actor: req.actor, from: req.from, to, until: snoozedUntil },
         },
         req.now,
       );
