@@ -18,7 +18,10 @@ export const ACTOR_LABEL: Record<ActionActor, string> = {
   system: "Harbour",
 };
 
-/** Status filter options, in menu order; the default comes first. URL values stay the stored statuses. */
+/**
+ * Status filter options, in menu order; the default comes first. URL values stay the stored
+ * statuses.
+ */
 export const STATUS_FILTER_LABEL: Record<ActionFilter["status"], string> = {
   active: "To do and in progress",
   suggested: STATUS_COLUMN.suggested,

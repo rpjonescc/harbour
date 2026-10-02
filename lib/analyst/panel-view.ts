@@ -17,7 +17,9 @@ export type WeeklyPanelSettings = {
 };
 
 export type WeeklyPanelView = {
-  /** One line on the schedule: off, paused, a report waiting or being written, one due, or the next. */
+  /**
+   * One line on the schedule: off, paused, a report waiting or being written, one due, or the next.
+   */
   schedule: string;
   latestReport: { week: string; href: string } | null;
   tokenSet: boolean;

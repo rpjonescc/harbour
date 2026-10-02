@@ -1,4 +1,7 @@
-/** The Settings page's own words: one plain line per section, files named only for Technical details. */
+/**
+ * The Settings page's own words: one plain line per section, files named only for Technical
+ * details.
+ */
 export const SETTINGS_INTRO = {
   line: "What Harbour is set up to do. To change something, use the steps under Technical details.",
   files:

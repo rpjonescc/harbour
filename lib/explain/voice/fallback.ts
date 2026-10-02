@@ -2,7 +2,8 @@ import type { Note } from "./note";
 
 /**
  * Today's quiet gap: no valid note in the last 24 hours. `noteTime` is when the worker writes the
- * next one, or null when no schedule runs (switched off, or no Claude token): then none is promised.
+ * next one, or null when no schedule runs (switched off, or no Claude token): then none is
+ * promised.
  */
 export function gapLine(noteTime: string | null): string {
   return noteTime === null

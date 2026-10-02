@@ -5,9 +5,9 @@ always-on machine at home, is reachable only over your Tailscale network, and op
 with a passkey.
 
 The secure shell, design system, Second Brain viewer, agents, the daily visibility check, the
-Actions board and the weekly AI analyst are built. The check measures how findable each product is in classic search (SEO), in AI assistants
-(GEO) and as direct answers (AEO), scored 0–100 with explainable breakdowns. The roadmap
-continues with:
+Actions board and the weekly AI analyst are built. The check measures how findable each product is
+in classic search (SEO), in AI assistants (GEO) and as direct answers (AEO), scored 0–100 with
+explainable breakdowns. The roadmap continues with:
 
 - **Paid sources** — AI engine mentions and citations, keyword rankings and featured snippets
   (they need API keys, so they show as "not connected" for now).
@@ -38,15 +38,15 @@ continues with:
   the pages Harbour checked, and Google Search Console totals. The numbers, scoring keys, raw
   evidence, page and search tables sit under **Technical details**.
 - **Actions board** — every issue the check finds becomes a tracked action, grouped as Big wins,
-  Worth doing and Small wins. Each card is a headline, one line on why it matters, a chip for
-  how big a win it is (Big win, Worth doing, Small win) and a chip for who's on it (a new idea
-  not decided yet, Claude is on it, a pull request waiting for your OK, or waiting for you), with
-  the area, how big a job it is (a quick job, an afternoon or a project) and the product in one
-  small line, and a link to its pull request. The full reason, evidence, where it came from, the
-  exact fix and check, and **Hand to Claude** (a ready prompt) sit under **Technical details**.
-  Filter by product, area and status (a plain, bookmarkable form); move an action through New
-  ideas → To do → In progress → Done, snooze it until a date or dismiss it. The sidebar shows
-  how many are open. Claude can triage the board for you with `pnpm actions`, every change recorded with its reason.
+  Worth doing and Small wins. Each card is a headline, one line on why it matters, a chip for how
+  big a win it is (Big win, Worth doing, Small win) and a chip for who's on it (a new idea not
+  decided yet, Claude is on it, a pull request waiting for your OK, or waiting for you), with the
+  area, how big a job it is (a quick job, an afternoon or a project) and the product in one small
+  line, and a link to its pull request. The full reason, evidence, where it came from, the exact fix
+  and check, and **Hand to Claude** (a ready prompt) sit under **Technical details**. Filter by
+  product, area and status (a plain, bookmarkable form); move an action through New ideas → To do →
+  In progress → Done, snooze it until a date or dismiss it. The sidebar shows how many are open.
+  Claude can triage the board for you with `pnpm actions`, every change recorded with its reason.
 - **Sources** — whether the daily check is on, which data sources are connected (never their
   secrets), and each source's last run, status and reason per product.
 - **Products from config** — list your products in `harbour.config.json`; each gets a
@@ -67,10 +67,10 @@ continues with:
   says "No paid data connected" (see [Costs and budget](#costs-and-budget)).
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
   a living reference at `/design` showing every component in its main states.
-- **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14
-  kept, with retries and a catch-up after downtime (see [Backups and restore](#backups-and-restore)).
-  Today warns when the last backup failed with no retry left, when there has been none for
-  2 days, or when Harbour can't read the backup folder.
+- **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14 kept,
+  with retries and a catch-up after downtime (see [Backups and restore](#backups-and-restore)).
+  Today warns when the last backup failed with no retry left, when there has been none for 2 days,
+  or when Harbour can't read the backup folder.
 - **Settings** — one read-only page showing what Harbour is set up to do: products, schedules
   and their next runs, whether each API key is set (never its value), the budget and this
   month's spend, backup health with **Back up now**, and links to the other settings pages.
@@ -158,28 +158,31 @@ your Second Brain:
 - **Find ideas** — one run per product; it reads your `products/<id>/notes.md` and writes
   `products/<id>/discovery.md` and `products/<id>/proposals.json`.
 
-Agents run Claude Code on the Harbour PC with your Claude subscription. Run
-`claude setup-token` there, add `HARBOUR_CLAUDE_OAUTH_TOKEN=…` to `.env`, then restart both
-services (`systemctl --user restart harbour-web harbour-worker`) — also after changing the token.
-The worker reads the token to run agents; the web only checks whether it is set, and keeps the
-run buttons disabled until it is. Agents only have web research (search and
-fetch) and file tools limited to the brain directory: no shell, no hooks, no MCP servers. The daily note agent is narrower still: it has only the `Write` tool, no web at all.
+Agents run Claude Code on the Harbour PC with your Claude subscription. Run `claude setup-token`
+there, add `HARBOUR_CLAUDE_OAUTH_TOKEN=…` to `.env`, then restart both services
+(`systemctl --user restart harbour-web harbour-worker`) — also after changing the token. The worker
+reads the token to run agents; the web only checks whether it is set, and keeps the run buttons
+disabled until it is. Agents only have web research (search and fetch) and file tools limited to the
+brain directory: no shell, no hooks, no MCP servers. The daily note agent is narrower still: it has
+only the `Write` tool, no web at all.
 
 The **git gate** checks every run: a run may change only its own target files (Markdown, plus
-`proposals.json` for discovery and the weekly analyst). Any other change fails the run, and everything the agent changed
-is moved to quarantine and restored from git. An attempt to write outside the brain fails the run
-too, even though Claude Code denies the write; the error names the path it tried. The gate knows
-which files the agent wrote (every write it makes is listed in its output), so you can keep
-editing the brain while a run is going: your edits are never committed with the agent's work or
-discarded with it — they stay in place and are saved automatically as usual. A file both of you
-edited counts as the agent's. Only one agent runs at a time; queued runs wait their turn. Each run
-has a live page with a **Stop this run** button (the step-by-step log is under **Technical details**), and lists the files it changed. Without a
-Claude token the server refuses new agent runs.
+`proposals.json` for discovery and the weekly analyst). Any other change fails the run, and
+everything the agent changed is moved to quarantine and restored from git. An attempt to write
+outside the brain fails the run too, even though Claude Code denies the write; the error names the
+path it tried. The gate knows which files the agent wrote (every write it makes is listed in its
+output), so you can keep editing the brain while a run is going: your edits are never committed with
+the agent's work or discarded with it — they stay in place and are saved automatically as usual. A
+file both of you edited counts as the agent's. Only one agent runs at a time; queued runs wait their
+turn. Each run has a live page with a **Stop this run** button (the step-by-step log is under
+**Technical details**), and lists the files it changed. Without a Claude token the server refuses
+new agent runs.
 
 Discovery results are proposals, not commitments. Open a product in the sidebar and choose
 **Research targets** (`/settings/products/<id>`) to see its proposed keywords, AI questions and
-competitors, each with the agent's reason. **Approve**, **Reject** or **Edit** each one, or **Approve all proposed** per
-list. Re-running discovery never overwrites items you've already decided on.
+competitors, each with the agent's reason. **Approve**, **Reject** or **Edit** each one, or
+**Approve all proposed** per list. Re-running discovery never overwrites items you've already
+decided on.
 
 Saving and syncing need no action. The Agents page and the Second Brain show unsaved notes
 ("saved automatically in about 2 minutes") and commits waiting to sync to GitHub ("retrying
@@ -209,12 +212,13 @@ git gate and Claude subscription as the other agents (no paid API calls).
 - **Where suggestions appear** — on the **Actions** board as **New ideas** (`/actions`), labelled
   as coming from the weekly analyst; accept or dismiss each one. An action the product already
   has (a new idea, to do, in progress, snoozed or dismissed) is not suggested again.
-- **When it runs** — every Sunday at 20:00 in `HARBOUR_TIMEZONE`, for that week (see
-  [When things run](#when-things-run)). The **Weekly report** panel on **Agents** shows the next
-  scheduled run (or that a run is queued or running, that a catch-up is due, or that scheduled
-  runs are off or need a Claude token) and links the latest report; **Write this week's report now** (or `pnpm analyst:now`)
-  queues a run for the current week straight away. A run whose suggestions could not be imported
-  after 3 attempts says "Suggestions not imported — run the agent again" in **Recent runs**.
+- **When it runs** — every Sunday at 20:00 in `HARBOUR_TIMEZONE`, for that week (see [When things
+  run](#when-things-run)). The **Weekly report** panel on **Agents** shows the next scheduled run
+  (or that a run is queued or running, that a catch-up is due, or that scheduled runs are off or
+  need a Claude token) and links the latest report; **Write this week's report now** (or
+  `pnpm analyst:now`) queues a run for the current week straight away. A run whose suggestions could
+  not be imported after 3 attempts says "Suggestions not imported — run the agent again" in **Recent
+  runs**.
 
 ### Research refresh
 
@@ -439,7 +443,8 @@ verified backup then queues a retention job that prunes old check observations (
 
 ### Daily checks
 
-A visibility check is called a *check* on screen; the commands, API routes and settings keep the older word *scan* (`pnpm scan:now`, `HARBOUR_SCHEDULED_SCANS`).
+A visibility check is called a *check* on screen; the commands, API routes and settings keep the
+older word *scan* (`pnpm scan:now`, `HARBOUR_SCHEDULED_SCANS`).
 
 The worker queues a visibility check of every product each day at 06:00 in `HARBOUR_TIMEZONE`.
 If the worker is down at 06:00, it queues the day's checks at its first check after it starts.
@@ -451,13 +456,13 @@ day at 06:00, or the catch-up when the worker next starts. A catch-up that runs 
 is still followed by that day's 06:00 check. Set `HARBOUR_SCHEDULED_SCANS=off` to queue checks
 only by hand.
 
-Checks are ordinary jobs: they run one at a time, in queue order, between agent runs. Unlike
-agent runs they never wait for the brain to be quiet, because they don't touch it. To check
-now, choose **Check now** on the product's page, or run `pnpm scan:now` (every product) or
-`pnpm scan:now <productId>`; an unknown id is rejected with the configured ones. Both services
-read `harbour.config.json` once, so after changing it restart them
-(`systemctl --user restart harbour-worker harbour-web`) before checking. The **Sources** page shows whether the daily check is on and when each
-product was last checked and will be next.
+Checks are ordinary jobs: they run one at a time, in queue order, between agent runs. Unlike agent
+runs they never wait for the brain to be quiet, because they don't touch it. To check now, choose
+**Check now** on the product's page, or run `pnpm scan:now` (every product) or
+`pnpm scan:now <productId>`; an unknown id is rejected with the configured ones. Both services read
+`harbour.config.json` once, so after changing it restart them
+(`systemctl --user restart harbour-worker harbour-web`) before checking. The **Sources** page shows
+whether the daily check is on and when each product was last checked and will be next.
 
 ### Weekly analyst
 
@@ -520,14 +525,15 @@ on the same runner, git gate and Claude subscription as the other agents.
   "Written 14:00" on the card is true. A note you asked for after that time counts.
   A failed run is not retried automatically. Without `HARBOUR_CLAUDE_OAUTH_TOKEN` the worker
   skips it and says so in its log. `HARBOUR_SCHEDULED_NOTE=off` stops the schedule.
-- **Write me a fresh one** — the button on Today queues a note now (one at a time, at most 5 a
-  day; the scheduled note does not count). It says "Starting…", then "Writing a fresh one now"
-  while it waits (it re-checks every 5 seconds, for ten minutes at most), and it stops waiting
-  when its run ends: a succeeded run, or a failed one (the checker rejected the note twice, or
-  the run broke), which it says calmly: "That note didn't pass Harbour's checks, so nothing was
-  shown. You can try again." Every state is on `/design`. Today shows the newest valid note from the last 24
-  hours; older than that, or with none, it shows "No note yet today. The next one is written at
-  06:30." (or just "No note yet today." when the schedule is off or there is no token). The sample Today shows a fixed, labelled sample note.
+- **Write me a fresh one** — the button on Today queues a note now (one at a time, at most 5 a day;
+  the scheduled note does not count). It says "Starting…", then "Writing a fresh one now" while it
+  waits (it re-checks every 5 seconds, for ten minutes at most), and it stops waiting when its run
+  ends: a succeeded run, or a failed one (the checker rejected the note twice, or the run broke),
+  which it says calmly: "That note didn't pass Harbour's checks, so nothing was shown. You can try
+  again." Every state is on `/design`. Today shows the newest valid note from the last 24 hours;
+  older than that, or with none, it shows "No note yet today. The next one is written at 06:30." (or
+  just "No note yet today." when the schedule is off or there is no token). The sample Today shows a
+  fixed, labelled sample note.
 - **Changing the personality** — edit `lib/note/persona/warm-friend.md` (the voice, the honesty
   rules, the format) and bump `NOTE_PROMPT_VERSION` in `lib/note/prompt.ts`. The rules the
   checker enforces are in `lib/explain/voice/`.
@@ -566,9 +572,9 @@ online backup: the web stays usable throughout). Before it is kept, the copy is 
 single self-contained file and checked with SQLite's `integrity_check`; a copy that fails is
 thrown away and the job fails with the reason (see **Agents**). Details:
 
-- **Where:** `HARBOUR_BACKUP_DIR` (a folder used only for backups), by default a `backups`
-  folder next to the database (`data/backups`, inside the gitignored data folder). Files are named by local day,
-  `harbour-YYYY-MM-DD.db`; a second backup on the same day replaces the first.
+- **Where:** `HARBOUR_BACKUP_DIR` (a folder used only for backups), by default a `backups` folder
+  next to the database (`data/backups`, inside the gitignored data folder). Files are named by local
+  day, `harbour-YYYY-MM-DD.db`; a second backup on the same day replaces the first.
 - **How many:** the newest 14 are kept. Pruning only ever deletes regular files named exactly
   like a backup (never through a symlink, never the backup just written), plus unfinished
   `.partial` copies of a failed run; anything else in the folder is left alone.
@@ -588,8 +594,8 @@ thrown away and the job fails with the reason (see **Agents**). Details:
   the worker is not running), and when Harbour can't read the backup folder (check its
   permissions; the count is then unknown, not zero). Paths are never shown: an error names "the
   backup folder" instead.
-- **Bounded:** a backup gives up after 10 minutes. **Stop this run** on **Agents** stops one in progress
-  and removes the unfinished copy.
+- **Bounded:** a backup gives up after 10 minutes. **Stop this run** on **Agents** stops one in
+  progress and removes the unfinished copy.
 
 To restore one:
 
@@ -682,35 +688,33 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   Pull request waiting for your OK, or Waiting for you), and the briefing's second line counts
   every one of them; the rest are a link away on the Actions board. Before the first check is
   scored, Today shows clearly flagged sample data instead.
-- **Product page** (`/products/<id>`) opens with the three area cards and a one-line summary
-  (for example "Acme Docs is in fair shape. Weakest: Answer-ready (needs work)."), plus a note
-  on where checking stands (never checked, queued, running, or how the last check ended, in one
-  sentence; a failed check never hides the last good results, and the raw error sits under
-  **Technical details**). Each area's tab explains every sub-score as a plain sentence, weakest
-  first, with "What's this?"; one with no data reads "Not counted yet" with the reason and is
-  left out of the score rather than counted as zero. **What to fix** lists the check's issues
-  with plain titles (the rule titles in `lib/scan/issue-rules.ts`, such as "No guide to your
-  site for AI assistants"); the exact fix and check text and the affected URLs sit under
-  **Technical details**. Issues come from the check's raw observations: pages
-  without a title or meta description, broken internal links, pages hidden by noindex, AI
-  crawlers blocked in robots.txt, no llms.txt, no FAQ structured data and no Google Preferred
-  Sources button. An issue is raised only from collectors that ran ok in that check: when the
-  crawler or readiness check failed, its issues are unknown rather than fixed. The same goes for
-  a page check that found nothing on a partial crawl (stopped at its page or byte limit, or some
-  pages could not be fetched or read). **Hand to Claude** copies a prompt with the product, the affected URLs, the
-  problem, a suggested fix and an acceptance check, to paste into Claude Code in the site's
-  repository; it contains only the product's name and URL and the check's findings. Each issue
-  also shows its action's status (to do, in progress, snoozed until a date, dismissed, or done
-  but still found in the last check) with a link to it on the Actions board; an issue with no
-  action yet says tracking starts with the next check. **Pages Harbour checked** is a one-line
-  verdict; the table of the 50 crawled pages with the most problems sits under **Technical
+- **Product page** (`/products/<id>`) opens with the three area cards and a one-line summary (for
+  example "Acme Docs is in fair shape. Weakest: Answer-ready (needs work)."), plus a note on where
+  checking stands (never checked, queued, running, or how the last check ended, in one sentence; a
+  failed check never hides the last good results, and the raw error sits under **Technical
+  details**). Each area's tab explains every sub-score as a plain sentence, weakest first, with
+  "What's this?"; one with no data reads "Not counted yet" with the reason and is left out of the
+  score rather than counted as zero. **What to fix** lists the check's issues with plain titles (the
+  rule titles in `lib/scan/issue-rules.ts`, such as "No guide to your site for AI assistants"); the
+  exact fix and check text and the affected URLs sit under **Technical details**. Issues come from
+  the check's raw observations: pages without a title or meta description, broken internal links,
+  pages hidden by noindex, AI crawlers blocked in robots.txt, no llms.txt, no FAQ structured data
+  and no Google Preferred Sources button. An issue is raised only from collectors that ran ok in
+  that check: when the crawler or readiness check failed, its issues are unknown rather than fixed.
+  The same goes for a page check that found nothing on a partial crawl (stopped at its page or byte
+  limit, or some pages could not be fetched or read). **Hand to Claude** copies a prompt with the
+  product, the affected URLs, the problem, a suggested fix and an acceptance check, to paste into
+  Claude Code in the site's repository; it contains only the product's name and URL and the check's
+  findings. Each issue also shows its action's status (to do, in progress, snoozed until a date,
+  dismissed, or done but still found in the last check) with a link to it on the Actions board; an
+  issue with no action yet says tracking starts with the next check. **Pages Harbour checked** is a
+  one-line verdict; the table of the 50 crawled pages with the most problems sits under **Technical
   details**. The Google Search Console and paid-data panels say in plain words whether they are
-  connected and what they show. Search Console also says how to connect it; the paid-data
-  panels say Harbour doesn't collect that data yet. Setting names appear only under
-  **Technical details** (Search Console's raw reason), as do its top searches. Actions created
-  before a title was reworded keep the old title until the next check finds the issue again; open,
-  in-progress, snoozed and dismissed actions then take the new title, and an action already
-  resolved keeps its old one.
+  connected and what they show. Search Console also says how to connect it; the paid-data panels say
+  Harbour doesn't collect that data yet. Setting names appear only under **Technical details**
+  (Search Console's raw reason), as do its top searches. Actions created before a title was reworded
+  keep the old title until the next check finds the issue again; open, in-progress, snoozed and
+  dismissed actions then take the new title, and an action already resolved keeps its old one.
 - **Actions** (`/actions`) follow every check that is not failed: each issue becomes one tracked
   action per product and rule. The next check that no
   longer finds the issue marks its action done, with a dated note; if the issue comes back, or
@@ -799,10 +803,10 @@ Google gives requests without an API key no quota, so it needs a free key:
 
 ### Connect Search Console
 
-Search Console adds what Google actually shows: each day's clicks, impressions, click-through
-rate and average position for the last 28 days (ending 3 days ago, because Google's data lags),
-plus the top 250 queries and top 100 pages, and daily totals for the 28 days before that so the
-score can show whether impressions are rising or falling. The worker asks for read-only access and talks only
+Search Console adds what Google actually shows: each day's clicks, impressions, click-through rate
+and average position for the last 28 days (ending 3 days ago, because Google's data lags), plus the
+top 250 queries and top 100 pages, and daily totals for the 28 days before that so the score can
+show whether impressions are rising or falling. The worker asks for read-only access and talks only
 to Google.
 
 Harbour reads one credentials file, of either kind: an OAuth **authorized-user** file made
@@ -939,26 +943,31 @@ the agent worker. The worker runs a fake Claude CLI (`tests/fixtures/fake-claude
 runs, commits, pushes and discovery approvals are tested end to end without a real token.
 
 It also serves the fictional Acme Docs fixture site (`tests/fixtures/sites/acme-docs`) on
-`http://127.0.0.1:3402` (keep ports 3401, 3402 and 3403 free; 3403 is a second web server with `HARBOUR_PERSONALITY=quiet` for the note specs), and the E2E product config
-(`tests/fixtures/harbour.config.e2e.json`) points Acme Docs at it. Scheduled checks are off;
-the scan specs choose **Check now** and check the product page, Sources and Today on the real
-results. Only this environment may check a loopback address (`HARBOUR_TEST_MODE` and
+`http://127.0.0.1:3402` (keep ports 3401, 3402 and 3403 free; 3403 is a second web server with
+`HARBOUR_PERSONALITY=quiet` for the note specs), and the E2E product config
+(`tests/fixtures/harbour.config.e2e.json`) points Acme Docs at it. Scheduled checks are off; the
+scan specs choose **Check now** and check the product page, Sources and Today on the real results.
+Only this environment may check a loopback address (`HARBOUR_TEST_MODE` and
 `HARBOUR_SCAN_ALLOW_LOOPBACK`, both refused outside tests).
 
 The shell and scans specs also check that Today speaks plainly: no SEO, GEO or AEO heading, and
 no `HARBOUR_*` setting name or sub-score key outside **Technical details**
 (`tests/e2e/plain-language.ts`).
 
-The note specs choose **Write me a fresh one** against the fake CLI, which reads the fenced facts out of its prompt and writes an honest note, and the wave specs check that the wave is hidden from assistive technology, passes clicks through and stops under emulated reduced motion. `design/wave-contrast.test.ts` computes text contrast over the stacked wave from `design/tokens.css`.
+The note specs choose **Write me a fresh one** against the fake CLI, which reads the fenced facts
+out of its prompt and writes an honest note, and the wave specs check that the wave is hidden from
+assistive technology, passes clicks through and stops under emulated reduced motion.
+`design/wave-contrast.test.ts` computes text contrast over the stacked wave from
+`design/tokens.css`.
 
-The Playwright projects run in order — the shell and brain specs, then agents, scans, actions,
-the weekly analyst, the note and finally operations (Settings) — because each later one changes what the
-earlier ones check. The actions specs seed a scored check of the fictional Lighthouse Café and
-two analyst suggestions through Harbour's own code (`tests/e2e/seed-actions.ts`), then work the
-Actions board: filters, status changes, snooze, **Hand to Claude** (read back from the
-clipboard), Today's top three, keyboard paths and both themes. The analyst specs choose **Write this week's report now** twice (the scheduled
-analyst is off, `HARBOUR_SCHEDULED_ANALYST=off`): the first run commits the report and imports a
-suggestion, the second finds it already known.
+The Playwright projects run in order — the shell and brain specs, then agents, scans, actions, the
+weekly analyst, the note and finally operations (Settings) — because each later one changes what the
+earlier ones check. The actions specs seed a scored check of the fictional Lighthouse Café and two
+analyst suggestions through Harbour's own code (`tests/e2e/seed-actions.ts`), then work the Actions
+board: filters, status changes, snooze, **Hand to Claude** (read back from the clipboard), Today's
+top three, keyboard paths and both themes. The analyst specs choose **Write this week's report now**
+twice (the scheduled analyst is off, `HARBOUR_SCHEDULED_ANALYST=off`): the first run commits the
+report and imports a suggestion, the second finds it already known.
 
 The operations specs (`tests/e2e/settings.spec.ts`) check the Settings page — products, every
 schedule shown as off, key status without values, the A$0.00 budget — then choose **Back up

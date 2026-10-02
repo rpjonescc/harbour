@@ -23,7 +23,10 @@ type ScoreRow = {
   breakdown: ScoreBreakdownEntry[];
 };
 
-/** Scores of the product's ok and partial scans up to `now`, oldest first (failed scans never count). */
+/**
+ * Scores of the product's ok and partial scans up to `now`, oldest first (failed scans never
+ * count).
+ */
 function scoreRows(db: Db, productId: string, now: Date): ScoreRow[] {
   return db
     .select({

@@ -48,7 +48,9 @@ function ConnectedBody({ summary, locale }: { summary: SearchSummary; locale: st
   );
 }
 
-/** What Google showed and how many clicked over the check's 28 days, or why there is nothing yet. */
+/**
+ * What Google showed and how many clicked over the check's 28 days, or why there is nothing yet.
+ */
 export function SearchConsolePanel({ search, locale }: { search: SearchState; locale: string }) {
   if (search.state === "ok" && search.summary) {
     return (

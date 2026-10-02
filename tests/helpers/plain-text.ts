@@ -1,4 +1,6 @@
-/** The text of `root` with every <details> (Technical details) left out, as a person sees it closed. */
+/**
+ * The text of `root` with every <details> (Technical details) left out, as a person sees it closed.
+ */
 export function textOutsideDetails(root: HTMLElement): string {
   const copy = root.cloneNode(true);
   if (!(copy instanceof HTMLElement)) return "";

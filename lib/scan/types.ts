@@ -84,7 +84,10 @@ export type CollectContext = {
    * throwing. An allowed call never recorded stays counted if the collector throws.
    */
   cost: { record(entry: { provider: string; units: number; amountMicroAud: number }): void };
-  /** Whether a paid call estimated at `estimateMicroAud` fits this month's budget. Ask before every paid call. */
+  /**
+   * Whether a paid call estimated at `estimateMicroAud` fits this month's budget. Ask before every
+   * paid call.
+   */
   budget: { allow(estimateMicroAud: number): boolean };
 };
 
@@ -119,7 +122,9 @@ export type ScanScores = {
 export type ScoreContext = {
   /** When the scan is scored: a carried-over result is judged by its age at this time. */
   now: Date;
-  /** "news" sites keep Preferred Sources in AEO (formula v1); "product" sites score freshness only. */
+  /**
+   * "news" sites keep Preferred Sources in AEO (formula v1); "product" sites score freshness only.
+   */
   productKind: ProductKind;
   /**
    * PageSpeed's latest ok run for the product when this scan skipped it (weekly cadence);

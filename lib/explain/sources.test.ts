@@ -14,6 +14,10 @@ const SETTING = /HARBOUR_[A-Z_]+/;
 const SETTINGS = /HARBOUR_[A-Z_]+/g;
 
 describe("SOURCES", () => {
+  it("has an entry for every collector Harbour runs, so the generic fallback is for retired ones only", () => {
+    for (const id of COLLECTOR_IDS) expect(() => sourceExplanation(id)).not.toThrow();
+  });
+
   it("has an entry for every data source, free and paid, in order", () => {
     expect(SOURCES.map((s) => s.id)).toEqual([...COLLECTOR_IDS, ...PAID_SOURCES.map((p) => p.id)]);
     expect(SOURCES.filter((s) => s.paid).map((s) => s.id)).toEqual(PAID_SOURCES.map((p) => p.id));

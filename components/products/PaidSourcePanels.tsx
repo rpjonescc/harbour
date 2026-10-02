@@ -1,9 +1,15 @@
 import { DocsLink } from "@/components/ui/DocsLink";
+import type { PaidSource } from "@/lib/costs/paid-sources";
 import { DOCS_LINKS } from "@/lib/docs-links";
 import { NOT_COLLECTED_YET, sourceStatusPhrase } from "@/lib/explain/sources";
 import { SourcePanel } from "./SourcePanel";
 
-const PANELS = [
+const PANELS: readonly {
+  id: string;
+  sourceId: PaidSource["id"];
+  title: string;
+  body: string;
+}[] = [
   {
     id: "ai-engines",
     sourceId: "openai",
@@ -16,7 +22,7 @@ const PANELS = [
     title: "Where you rank on Google",
     body: "Where your pages appear on Google for the searches you care about, and who gets the answer box at the top.",
   },
-] as const;
+];
 
 /** Paid data that Harbour doesn't collect yet: said plainly, with no setting names. */
 export function PaidSourcePanels() {

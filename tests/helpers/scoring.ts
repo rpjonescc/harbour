@@ -202,7 +202,9 @@ function dayAfter(start: string, offset: number): string {
 const rows = (kind: string, start: string, days: (number | null)[]) =>
   days.flatMap((n, i) => (n === null ? [] : [gscDay(kind, dayAfter(start, i), n)]));
 
-/** Daily impressions this window and the 28 days before (from their first days), and the summary. */
+/**
+ * Daily impressions this window and the 28 days before (from their first days), and the summary.
+ */
 export function searchConsole(
   current: (number | null)[],
   prior: (number | null)[],

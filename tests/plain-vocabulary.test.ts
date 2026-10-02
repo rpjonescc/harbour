@@ -21,7 +21,8 @@ const ROOTS = [
 const WORD = /\b(?:re)?scan(?:s|ned|ning|ner|ners)?\b/i;
 const LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
 // Text between a tag or an expression and the next one: <p>a {x} b</p> reads "a" and "b".
-// Between `}` and `{` the pattern also reads plain TypeScript; assignments, calls and logic are code.
+// Between `}` and `{` the pattern also reads plain TypeScript; assignments, calls and logic are
+// code.
 const CODE_LIKE = /[=;()]|&&|\|\|/;
 const JSX_TEXT = /(?<=[>}])([^<>{}]*)(?=[<{])/g;
 // Module paths ("@/lib/scan/views") are not prose, and neither are comments.
@@ -59,7 +60,9 @@ function prose(source: string): string {
 
 type Piece = { index: number; text: string; before: string };
 
-/** The string literals in `code` (offset by `base`), including those inside `${…}` of a template. */
+/**
+ * The string literals in `code` (offset by `base`), including those inside `${…}` of a template.
+ */
 function literalsIn(code: string, base: number, whole: string): Piece[] {
   return [...code.matchAll(LITERAL)].flatMap((m) => {
     const at = base + m.index;

@@ -35,7 +35,9 @@ export type ProductView = {
   search: SearchState;
 };
 
-/** What a scan found: its observations, how each collector ended, and those endings by collector. */
+/**
+ * What a scan found: its observations, how each collector ended, and those endings by collector.
+ */
 export function scanFindings(
   db: Db,
   scanId: number | undefined,

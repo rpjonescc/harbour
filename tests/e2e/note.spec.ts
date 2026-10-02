@@ -140,7 +140,8 @@ test("the button stops at the daily limit and says so", async ({ page }) => {
 test("the note API needs a same-origin request and never takes the time from the client", async ({
   page,
 }) => {
-  // The cap (5 a day) and the stamp are unit-tested; here the HTTP contract through the real server.
+  // The cap (5 a day) and the stamp are unit-tested; here the HTTP contract through the real
+  // server.
   const crossSite = await page.request.post("/api/agents/run", {
     headers: { origin: "https://elsewhere.example" },
     data: { kind: "daily-note" },

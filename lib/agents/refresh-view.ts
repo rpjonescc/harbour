@@ -18,7 +18,10 @@ export type RefreshPanelView = {
   schedule: string;
   /** How many research documents there are in all. */
   total: number;
-  /** Documents due for a refresh, oldest first: "researched 10 Jan", "date unknown" or "date in the future". */
+  /**
+   * Documents due for a refresh, oldest first: "researched 10 Jan", "date unknown" or "date in the
+   * future".
+   */
   due: { title: string; age: string }[];
   /** Research documents not written yet (the research sprint writes them, not a refresh). */
   missing: number;

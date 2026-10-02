@@ -13,7 +13,9 @@ import { sessionStorageState } from "./session-state";
 const SAMPLE_BRIEFING =
   "Your sites need some work. Biggest opportunity: Recommended by AI assistants for Acme Docs (needs work).";
 
-/** Collects CSP violations reported to the console; assert the list is empty after the page settles. */
+/**
+ * Collects CSP violations reported to the console; assert the list is empty after the page settles.
+ */
 function watchCspErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on("console", (message) => {

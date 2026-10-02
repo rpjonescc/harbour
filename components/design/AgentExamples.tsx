@@ -23,7 +23,10 @@ const GIVEN_UP: Job = {
   result: null,
 };
 
-/** Fictional Agents page states: the weekly report and research refresh panels, and a run whose import gave up. */
+/**
+ * Fictional Agents page states: the weekly report and research refresh panels, and a run whose
+ * import gave up.
+ */
 export function AgentExamples() {
   return (
     <div className="flex flex-col gap-6">
