@@ -1,6 +1,10 @@
 import type { ActionStatus } from "./types";
 
-export type OwnerChange = { to: Exclude<ActionStatus, "suggested">; until?: string; note?: string };
+export type StatusChange = {
+  to: Exclude<ActionStatus, "suggested">;
+  until?: string;
+  note?: string;
+};
 
 /** The statuses the owner may move an action to, by its current status. */
 const ALLOWED: Record<ActionStatus, readonly ActionStatus[]> = {
@@ -37,7 +41,7 @@ function checkUntil(until: string, today: string): string | null {
 /** Null when allowed, else a reason code: "not_allowed" | "until_required" | "until_invalid". */
 export function checkTransition(
   from: ActionStatus,
-  change: OwnerChange,
+  change: StatusChange,
   today: string,
 ): string | null {
   if (!ALLOWED[from].includes(change.to)) return "not_allowed";

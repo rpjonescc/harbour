@@ -3,7 +3,7 @@ import { audit } from "@/lib/audit";
 import type { Db } from "@/lib/db/client";
 import { actions } from "@/lib/db/schema";
 import { setStatus } from "./store";
-import { checkTransition, type OwnerChange } from "./transitions";
+import { checkTransition, type StatusChange } from "./transitions";
 import type { ActionStatus } from "./types";
 
 /** Who may move an action by hand: the owner on the board, or Claude through `pnpm actions`. */
@@ -13,7 +13,7 @@ export type StatusChangeRequest = {
   id: number;
   /** The status the caller last saw; a different stored status means the change is stale. */
   from: ActionStatus;
-  change: OwnerChange;
+  change: StatusChange;
   actor: StatusChanger;
   /** The audit log's login: the owner's, or "claude". */
   login: string;

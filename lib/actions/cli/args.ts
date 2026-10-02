@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import { parseActionId } from "../action-id";
-import type { OwnerChange } from "../transitions";
+import type { StatusChange } from "../transitions";
 import { ACTION_STATUSES, type ActionStatus } from "../types";
 
 /** A mistake in how the command was typed: shown with the usage, never as a stack trace. */
@@ -13,7 +13,7 @@ export type CliCommand =
   | { name: "help" }
   | { name: "list"; productId: string | null; statuses: ActionStatus[] | null; json: boolean }
   | { name: "show"; id: number }
-  | { name: "set"; id: number; from: ActionStatus; change: OwnerChange & { note: string } }
+  | { name: "set"; id: number; from: ActionStatus; change: StatusChange & { note: string } }
   | { name: "link"; id: number; url: string | null };
 
 export const USAGE = `Usage:
@@ -96,7 +96,7 @@ function parseNote(raw: string | undefined): string {
   return note;
 }
 
-function parseUntil(to: OwnerChange["to"], until: string | undefined): { until?: string } {
+function parseUntil(to: StatusChange["to"], until: string | undefined): { until?: string } {
   if (until === undefined) return {};
   if (to !== "snoozed") throw new CliUsageError("--until is only for snoozed");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(until)) throw new CliUsageError("--until must be YYYY-MM-DD");
