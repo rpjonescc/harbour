@@ -8,6 +8,7 @@ import { type AgentSpec, specForJob } from "@/lib/agents/specs";
 import type { StreamResult } from "@/lib/agents/stream";
 import { buildWeeklyExport } from "@/lib/analyst/export";
 import { capExport } from "@/lib/analyst/export-cap";
+import type { ContentRunContext } from "@/lib/content/worker/run-context";
 import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import type { Facts } from "@/lib/explain/voice/facts";
@@ -43,6 +44,8 @@ export type RunDeps = {
   stopping: () => boolean;
   /** The daily note's facts snapshot (worker only; absent in tests that do not run a note). */
   noteFacts?: (now: Date) => Facts;
+  /** Content machine inputs (worker only). */
+  content?: ContentRunContext;
 };
 
 // How long the brain must be unchanged before an agent run starts.
@@ -64,6 +67,8 @@ function specOrFail(deps: RunDeps, job: Job): AgentSpec {
       today: deps.today,
       weeklyExport,
       noteFacts: gather && (() => gather(deps.now())),
+      jobId: job.id,
+      content: deps.content,
     });
   } catch (error) {
     throw new JobFailure((error as Error).message);
@@ -113,7 +118,7 @@ function checkOutcome(
   if (outcome.timedOut) throw new JobFailure(`Timed out after ${describeDuration(timeoutMs)}`);
   if (outcome.exitCode !== 0 || result?.isError) {
     // A quiet run's agent text can hold the note and the owner's name: it never reaches the record.
-    if (spec.quiet) throw new JobFailure(QUIET_FAILURE);
+    if (spec.quiet) throw new JobFailure(spec.quietFailure ?? QUIET_FAILURE);
     const detail = result?.text || outcome.stderrTail.slice(-300) || `exit ${outcome.exitCode}`;
     throw new JobFailure(`Agent failed: ${detail}`);
   }
@@ -165,7 +170,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     touched = log;
     // A reviewed run is published by the worker, not written by the agent: if it is discarded
     // after publishing, the published file must count as the run's own.
-    if (spec.review) for (const path of spec.requiredOutputs) log.record(path);
+    if (spec.review) for (const path of spec.allowed.exact) log.record(path);
 
     db.insert(agentRuns).values({ jobId: job.id, promptVersion: spec.promptVersion }).run();
     event("status", `Started ${spec.label}`);
@@ -203,7 +208,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     }
     checkOutcome(spec, totalMs, outcome, result);
 
-    const digest = publishReviewed(spec, root);
+    const digest = publishReviewed(spec, root, log, (text) => event("status", text));
     const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
     checkRequiredOutputs(spec, paths); // a half-done run is discarded, never committed
     const { pushed } = commitAndPush(

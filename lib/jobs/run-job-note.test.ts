@@ -156,8 +156,8 @@ describe("runAgentJob for the daily note", () => {
       const job = await runOne(deps, "daily-note", PARAMS);
       expect(job.status).toBe("ok");
       const run = db.select().from(agentRuns).get();
-      expect(run?.stdoutTail).toBe("(not recorded for the daily note)");
-      expect(run?.stderrTail).toBe("(not recorded for the daily note)");
+      expect(run?.stdoutTail).toBe("(not recorded)");
+      expect(run?.stderrTail).toBe("(not recorded)");
       const events = eventsSince(db, job.id, 0);
       expect(events.some((e) => e.kind === "text")).toBe(false);
       expect(JSON.stringify([run, events])).not.toContain("Sam");

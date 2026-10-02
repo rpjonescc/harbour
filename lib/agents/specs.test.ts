@@ -12,6 +12,7 @@ const products = [
   },
 ];
 const context = {
+  jobId: 1,
   products,
   today: "2026-10-01",
   weeklyExport: (week: string) => `{"week":"${week}"}`,
@@ -134,7 +135,11 @@ describe("specForJob", () => {
     }
     expect(() => specForJob("weekly-analyst", {}, context)).toThrow(/invalid week/i);
     expect(() =>
-      specForJob("weekly-analyst", { week: "2026-W40" }, { products, today: "2026-10-01" }),
+      specForJob(
+        "weekly-analyst",
+        { week: "2026-W40" },
+        { jobId: 1, products, today: "2026-10-01" },
+      ),
     ).toThrow(/export/i);
   });
 });

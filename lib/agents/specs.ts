@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ANALYST_PROMPT_VERSION, weeklyAnalystPrompt, weeklyPaths } from "@/lib/analyst/prompt";
+import type { ContentRunContext } from "@/lib/content/worker/run-context";
 import type { Facts } from "@/lib/explain/voice/facts";
 import { dailyNoteSpec } from "@/lib/note/spec";
 import type { Product } from "@/lib/products/catalog";
@@ -13,7 +14,16 @@ import {
 } from "./prompts";
 import { RESEARCH_TOPICS } from "./topics";
 
-export type AgentKind = "research" | "discovery" | "weekly-analyst" | "daily-note";
+export type AgentKind =
+  | "research"
+  | "discovery"
+  | "weekly-analyst"
+  | "daily-note"
+  | "content-digest"
+  | "content-ideas"
+  | "content-draft"
+  | "content-atomise"
+  | "content-gate";
 /** The structured file a run writes for Harbour to import, if any. */
 export type AgentOutput = { kind: "discovery" | "weekly"; path: string } | null;
 
@@ -26,7 +36,7 @@ export type SpecReview = {
    * Moves the accepted output to where it is committed and shown, just before the commit.
    * Returns the short result recorded on the job: what binds the shown output to what was checked.
    */
-  publish: (root: string) => string;
+  publish: (root: string, note: (text: string) => void) => string;
 };
 
 export type AgentSpec = {
@@ -50,6 +60,10 @@ export type AgentSpec = {
   review?: SpecReview;
   /** Keep the agent's own words (stream text, output tails) out of the run record. */
   quiet?: boolean;
+  /** The prompt travels on stdin (long prompts, and prompts that hold screen text). */
+  stdin?: boolean;
+  /** What a quiet run says when the agent did not finish (default: the daily note's line). */
+  quietFailure?: string;
 };
 
 export type SpecContext = {
@@ -59,6 +73,10 @@ export type SpecContext = {
   weeklyExport?: (week: string) => string;
   /** The daily note's facts snapshot, built when the job starts (worker only). */
   noteFacts?: () => Facts;
+  /** The job being run: content runs name their work file after it. */
+  jobId: number;
+  /** The content machine's worker-side inputs (set only when content is on). */
+  content?: ContentRunContext;
 };
 
 /** Where a job's structured output lives, from its params alone (also used to re-import it). */

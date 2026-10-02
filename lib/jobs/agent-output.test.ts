@@ -16,7 +16,7 @@ const products = [
     kind: "product" as const,
   },
 ];
-const context = { products, today: "2026-10-04", weeklyExport: () => "{}" };
+const context = { jobId: 1, products, today: "2026-10-04", weeklyExport: () => "{}" };
 const NOW = new Date("2026-10-04T19:05:00Z");
 const WEEKLY = "reports/weekly/2026-W40.proposals.json";
 const DISCOVERY = "products/acme-docs/proposals.json";

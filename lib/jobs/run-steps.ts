@@ -17,7 +17,7 @@ import type { TouchedLog } from "./touched-log";
 /** What a quiet run says when the agent did not finish: no agent text, ever. */
 export const QUIET_FAILURE = "The note agent didn't finish.";
 /** Stands in for the output tails of a run whose words must not be kept (see `AgentSpec.quiet`). */
-export const QUIET_TAIL = "(not recorded for the daily note)";
+export const QUIET_TAIL = "(not recorded)";
 
 export type AttemptInput = {
   deps: RunDeps;
@@ -44,7 +44,8 @@ export function cliAttempt({ deps, job, spec, token, log, event }: AttemptInput)
     let result: StreamResult | undefined; // each attempt reports its own result
     const outcome = await deps.run({
       bin: deps.bin,
-      args: claudeArgs(prompt, deps.model, spec.tools),
+      args: claudeArgs(prompt, deps.model, spec.tools, spec.stdin),
+      stdin: spec.stdin ? prompt : undefined,
       cwd: root,
       env: agentEnv(token, deps.home, deps.path),
       timeoutMs,
@@ -65,12 +66,24 @@ export function cliAttempt({ deps, job, spec, token, log, event }: AttemptInput)
  * The final word on a reviewed run: output still rejected means nothing is committed; accepted
  * output is moved to its final place immediately before the commit.
  */
-export function publishReviewed(spec: AgentSpec, root: string): string | null {
+export function publishReviewed(
+  spec: AgentSpec,
+  root: string,
+  log: TouchedLog,
+  note: (text: string) => void,
+): string | null {
   const review = spec.review;
   if (!review) return null;
   const rejected = review.check(root);
   if (rejected !== null) throw new JobFailure(`The agent's output was rejected: ${rejected}`);
-  return review.publish(root);
+  try {
+    return review.publish(root, note);
+  } finally {
+    // The worker wrote these files, so they are the run's own: the git gate and a discard must
+    // treat them as such. In memory only: recording after the seal leaves the on-disk list
+    // "unknown", which recovery reads as "discard everything", the safe side.
+    for (const path of spec.allowed.exact) log.record(path);
+  }
 }
 
 type CommitInput = {

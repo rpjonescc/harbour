@@ -48,6 +48,20 @@ describe("jobLabel", () => {
       "Weekly report: 2026-W40",
     );
   });
+
+  it("labels the content jobs in plain words", () => {
+    const label = (kind: string, params: Record<string, string>) =>
+      jobLabel({ kind, params } as never, [{ id: "acme-docs", name: "Acme Docs" } as never]);
+    expect(label("content-digest", { day: "2026-10-01" })).toBe("Activity digest: 2026-10-01");
+    expect(label("content-ideas", { productId: "acme-docs" })).toBe("Ideas: Acme Docs");
+    const ideaId = "acme-docs-20261002-five-minutes-to-a-first-deploy";
+    expect(label("content-draft", { ideaId })).toBe("Writing: five minutes to a first deploy");
+    expect(label("content-atomise", { ideaId })).toBe("Atomising: five minutes to a first deploy");
+    expect(label("content-gate", { ideaId, gate: "facts", attempt: "1" })).toBe(
+      "Check (facts and platform): five minutes to a first deploy",
+    );
+    expect(label("content-decision", {})).toBe("Saving your decision");
+  });
 });
 
 describe("formatDuration", () => {

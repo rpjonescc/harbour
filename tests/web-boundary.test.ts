@@ -11,6 +11,7 @@ const FORBIDDEN_FILES = [
   /^lib\/analyst\/(export|export-product)\.ts$/,
   /^lib\/jobs\/(agent-output|import-retry)\.ts$/,
   /^lib\/ops\/(backup|backup-job|retention)\.ts$/,
+  /^lib\/content\/(worker|prompts)\//,
   /^lib\/note\/(gather|prompt|spec)\.ts$/,
   /^lib\/scan\/(registry|run-scan|collect-context|skip-reason|scan-bounds|worker-deps|fetch|http-request|robots-gate)\.ts$/,
 ];
@@ -76,5 +77,9 @@ describe("web import boundary", () => {
 
   it("catches a forbidden import through a chain", () => {
     expect(violations(["worker/index.ts"]).length).toBeGreaterThan(0);
+  });
+
+  it("the web-safe content modules reach nothing from the content worker", () => {
+    expect(violations(["lib/content/limits.ts", "lib/agents/view.ts"])).toEqual([]);
   });
 });

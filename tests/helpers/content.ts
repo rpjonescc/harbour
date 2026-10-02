@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { ContentProduct } from "@/lib/products/content";
+import { setup } from "./run-job";
 
 /** Acme Docs with content on, as `harbour.config.json` would list it. */
 export const ACME: ContentProduct = {
@@ -80,4 +81,38 @@ export function makeSkillsDir(overrides: Record<string, string | null> = {}) {
     writeFileSync(join(dir, path), text);
   }
   return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+}
+
+/**
+ * `setup` for a content step: the fake CLI replays `works` (STEP line to work-file JSON), the
+ * run context holds Acme Docs and a fixture skills folder, and every prompt (read from stdin) and
+ * tool list is recorded in `calls`.
+ */
+export function contentSetup(
+  works: Record<string, unknown>,
+  files: Record<string, string> = {},
+  options: { strays?: Record<string, string>; skills?: Record<string, string | null> } = {},
+) {
+  const skills = makeSkillsDir(options.skills);
+  const s = setup("content-work", files);
+  s.deps.content = { root: s.brain.root, skillsDir: skills.dir, products: [ACME], excludeApps: [] };
+  const calls: { prompt: string; tools: string }[] = [];
+  const run = s.deps.run;
+  s.deps.run = (o) => {
+    calls.push({ prompt: o.stdin ?? "", tools: o.args[o.args.indexOf("--tools") + 1] ?? "" });
+    const env = {
+      ...o.env,
+      FAKE_CLAUDE_WORKS: JSON.stringify(works),
+      FAKE_CLAUDE_STRAYS: JSON.stringify(options.strays ?? {}),
+    };
+    return run({ ...o, env });
+  };
+  return {
+    ...s,
+    calls,
+    cleanup: () => {
+      s.brain.cleanup();
+      skills.cleanup();
+    },
+  };
 }

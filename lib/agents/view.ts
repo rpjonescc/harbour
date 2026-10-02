@@ -3,6 +3,32 @@ import { describeStamp, isNoteStamp } from "@/lib/note/stamp";
 import type { Product } from "@/lib/products/catalog";
 import { RESEARCH_TOPICS } from "./topics";
 
+const GATE_LABEL: Record<string, string> = {
+  "no-ai-slop": "no-ai-slop",
+  humanizer: "humanizer",
+  facts: "facts and platform",
+};
+
+/** "acme-docs-20261002-five-minutes" becomes "five minutes". */
+function ideaWords(ideaId: string | undefined): string {
+  return (ideaId ?? "").replace(/^[a-z0-9-]+?-\d{8}-/, "").replaceAll("-", " ");
+}
+
+function contentJobLabel(job: Pick<Job, "kind" | "params">, products: readonly Product[]): string {
+  const { params } = job;
+  const words = ideaWords(params.ideaId);
+  if (job.kind === "content-digest") return `Activity digest: ${params.day ?? ""}`;
+  if (job.kind === "content-ideas") {
+    return `Ideas: ${products.find((p) => p.id === params.productId)?.name ?? params.productId ?? ""}`;
+  }
+  if (job.kind === "content-draft") return `Writing: ${words}`;
+  if (job.kind === "content-atomise") return `Atomising: ${words}`;
+  if (job.kind === "content-gate") {
+    return `Check (${GATE_LABEL[params.gate ?? ""] ?? "unknown"}): ${words}`;
+  }
+  return "Saving your decision";
+}
+
 /** Human label for a job, e.g. "Research: Glossary" or "Update: Glossary". */
 export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly Product[]): string {
   if (job.kind === "research") {
@@ -20,6 +46,7 @@ export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly P
     const stamp = job.params.stamp ?? "";
     return `Daily note: ${isNoteStamp(stamp) ? describeStamp(stamp) : stamp}`;
   }
+  if (job.kind.startsWith("content-")) return contentJobLabel(job, products);
   if (job.kind === "backup") return `Nightly backup: ${job.params.day ?? ""}`;
   if (job.kind === "retention") return `Tidy old data: ${job.params.day ?? ""}`;
   if (job.kind === "notes-sync") return "Save notes to GitHub";

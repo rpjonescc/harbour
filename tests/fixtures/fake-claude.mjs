@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 // Fake `claude -p` for tests and E2E. Behaviour chosen by FAKE_CLAUDE_SCENARIO.
 import { spawn } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const scenario = process.env.FAKE_CLAUDE_SCENARIO ?? "success";
-const prompt = process.argv[process.argv.indexOf("-p") + 1] ?? "";
+const promptArg = process.argv[process.argv.indexOf("-p") + 1];
+// Content runs send the prompt on stdin: `-p` is then followed by another flag, or by nothing.
+const prompt =
+  promptArg === undefined || promptArg.startsWith("--") ? readFileSync(0, "utf8") : promptArg;
 const targets = (/^TARGET_FILES:\s*(.+)$/m.exec(prompt)?.[1] ?? "")
   .split(",")
   .map((s) => s.trim())
@@ -124,6 +127,21 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
     is_error: true,
     result: "Sam, your score jumped to 93",
   });
+} else if (scenario === "content-work") {
+  // A content step: writes the fixture for this prompt's STEP line to its TARGET_FILES (the work
+  // file), plus any strays (paths the agent must not write). No fixture for the step is a failed run.
+  const step = /^STEP:\s*(.+)$/m.exec(prompt)?.[1]?.trim() ?? "";
+  const works = JSON.parse(process.env.FAKE_CLAUDE_WORKS ?? "{}");
+  const strays = JSON.parse(process.env.FAKE_CLAUDE_STRAYS ?? "{}");
+  out({ type: "assistant", message: { content: [{ type: "text", text: `Working on ${step}` }] } });
+  if (!(step in works)) {
+    out({ type: "result", subtype: "success", is_error: true, result: `no fixture for ${step}` });
+    process.exit(1);
+  }
+  const work = works[step];
+  for (const rel of targets) write(rel, typeof work === "string" ? work : JSON.stringify(work));
+  for (const [rel, text] of Object.entries(strays)) write(rel, text);
+  out({ type: "result", subtype: "success", is_error: false, result: "done" });
 } else if (scenario === "fail") {
   out({ type: "result", subtype: "success", is_error: true, result: "Not logged in" });
 } else {

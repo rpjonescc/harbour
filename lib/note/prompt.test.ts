@@ -1,7 +1,8 @@
+import { retryPrompt } from "@/lib/agents/retry-prompt";
 import { BANNED_WORDS, NEXT_STEP_PHRASES } from "@/lib/explain/voice/check";
 import { buildFacts } from "@/lib/explain/voice/facts";
 import { FACTS, factsInput } from "@/tests/helpers/note";
-import { dailyNotePrompt, NOTE_PROMPT_VERSION, retryPrompt } from "./prompt";
+import { dailyNotePrompt, NOTE_PROMPT_VERSION } from "./prompt";
 
 const STAMP = "2026-10-02-0630";
 const prompt = (facts = FACTS) => dailyNotePrompt({ stamp: STAMP, facts });
@@ -82,6 +83,7 @@ describe("retryPrompt", () => {
     const second = retryPrompt(first, "The note uses the figure 93, which is not in the facts.");
     expect(second.startsWith(first)).toBe(true);
     expect(second).toContain("was rejected by Harbour's checker: The note uses the figure 93");
+    expect(second).toContain("Your previous output was rejected");
     expect(second).toMatch(/Write the same file again/);
   });
 });
