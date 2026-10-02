@@ -1,5 +1,6 @@
 import type { Db } from "@/lib/db/client";
 import { buildBriefing } from "@/lib/explain/briefing";
+import type { BackupHealth } from "@/lib/ops/backup-status";
 import type { Product } from "@/lib/products/catalog";
 import { productScoreTrend, scanState } from "@/lib/scan/views";
 import { attentionFromActions } from "./from-actions";
@@ -39,16 +40,23 @@ function productToday(db: Db, productId: string, now: Date): ProductToday {
 /**
  * Today from real scans, or the clearly flagged sample until some product has scores (still
  * saying whether a scan is under way, or that the last one failed and which sources failed).
+ * `backup` is the real backup health, so the briefing can say when it needs a look.
  */
-export function todaySummary(db: Db, products: readonly Product[], now: Date): TodaySummary {
+export function todaySummary(
+  db: Db,
+  products: readonly Product[],
+  now: Date,
+  backup: BackupHealth,
+): TodaySummary {
   const perProduct = products.map((p) => productToday(db, p.id, now));
   const scanning = perProduct.some((p) => p.scanning);
   const scanned = perProduct.flatMap((p) => (p.scannedAt ? [p.scannedAt] : []));
   const failures = perProduct.flatMap((p) => p.failures);
+  const failedChecks = perProduct.flatMap((p) => (p.row.lastCheckFailed ? [p.row.productId] : []));
   if (scanned.length === 0) {
     const failed = perProduct.flatMap((p) => (p.failedAt ? [p.failedAt.getTime()] : []));
     const lastFailedAt = failed.length > 0 ? new Date(Math.max(...failed)) : null;
-    return { ...sampleToday(products, failures), scanning, lastFailedAt };
+    return { ...sampleToday(products, { failures, failedChecks, backup }), scanning, lastFailedAt };
   }
   // Actions are current here because the scan job runs the rule sync in the same job as scoring.
   const attention = attentionFromActions(
@@ -61,7 +69,14 @@ export function todaySummary(db: Db, products: readonly Product[], now: Date): T
     scannedAt: new Date(Math.max(...scanned.map((d) => d.getTime()))),
     scanning,
     lastFailedAt: null,
-    briefing: buildBriefing({ products, scores, work: attention.work, failures }),
+    briefing: buildBriefing({
+      products,
+      scores,
+      work: attention.work,
+      failures,
+      failedChecks,
+      backup,
+    }),
     scores,
     actions: attention.actions,
     moreActions: attention.more,

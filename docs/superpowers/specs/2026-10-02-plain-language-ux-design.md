@@ -141,8 +141,12 @@ and appears on `/design`.
    the earlier product, then Found on Google → Recommended by AI assistants → Answer-ready —
    written "Biggest opportunity: Answer-ready for Acme Docs (needs work)." and left out when
    none qualifies. Under it, a sub-line: "N things worth doing · Claude is handling M · nothing
-   is broken" (M only when Claude is on something; otherwise the failing data source, or "2
-   data sources had a problem in the last check").
+   is broken" (M only when Claude is on something). "Nothing is broken" appears only when
+   nothing is; otherwise the sub-line names each problem in its place, in this order: a check
+   that failed outright with no failing source listed ("the last check for Acme Docs didn't
+   finish"), the failing data source (or "2 data sources had a problem in the last check"), and
+   a backup that needs a look ("the last backup didn't finish", "no backup in the last 2 days",
+   "Harbour can't open the backup folder", the same words as the backup notice).
 3. **Product table:** one row per product, one column per area, showing `<VerdictLine>` in
    compact form.
 4. **Worth doing next:** the top 3 actions as plain cards. Each card has a title, a one-line

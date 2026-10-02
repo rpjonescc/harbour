@@ -1,4 +1,5 @@
 import { buildBriefing } from "@/lib/explain/briefing";
+import type { BackupHealth } from "@/lib/ops/backup-status";
 import type { Product, ProductId } from "@/lib/products/catalog";
 import type { ActionPreview, ProductScores, SourceFailure, TodaySummary } from "./types";
 
@@ -31,13 +32,20 @@ function sampleScores(productId: ProductId): ProductScores {
   };
 }
 
+/** What is really broken while Today shows the sample; anything left out is fine. */
+export type RealTrouble = {
+  failures?: readonly SourceFailure[];
+  failedChecks?: readonly ProductId[];
+  backup?: BackupHealth;
+};
+
 /**
  * Placeholder data for the configured products until a first scan is scored. Always flagged
- * `isSample`; real source failures still show, and the briefing reads the sample's own data.
+ * `isSample`; the briefing reads the sample's own scores and actions, but names real trouble.
  */
 export function sampleToday(
   products: readonly Product[],
-  failures: readonly SourceFailure[] = [],
+  { failures = [], failedChecks = [], backup = "ok" }: RealTrouble = {},
 ): TodaySummary {
   const first = products[0];
   if (!first) throw new Error("sampleToday needs at least one product");
@@ -75,7 +83,7 @@ export function sampleToday(
     lastFailedAt: null,
     failures: [...failures],
     moreActions: 0,
-    briefing: buildBriefing({ products, scores, work, failures }),
+    briefing: buildBriefing({ products, scores, work, failures, failedChecks, backup }),
     scores,
     actions,
   };

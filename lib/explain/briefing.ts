@@ -1,3 +1,4 @@
+import type { BackupHealth } from "@/lib/ops/backup-status";
 import type { IssueArea } from "@/lib/scan/issues";
 import { plural } from "@/lib/scan/scoring/sub-score";
 import type { AreaKey, AreaValues } from "@/lib/scan/views";
@@ -17,6 +18,9 @@ export type BriefingInput = {
   work: readonly BriefingWork[];
   /** Data sources that failed in each product's last check. */
   failures: readonly { productId: string; collector: string }[];
+  /** Products whose newest check failed outright. */
+  failedChecks: readonly string[];
+  backup: BackupHealth;
 };
 
 export type Briefing = { sentence: string; subLine: string };
@@ -60,20 +64,47 @@ function opportunity(input: BriefingInput): string | null {
   return `Biggest opportunity: ${AREAS[best.area].name} for ${best.productName} (${verdict}).`;
 }
 
+/** The backup states that need a look, worded like Today's backup notice. */
+const BACKUP_TROUBLE: Partial<Record<BackupHealth, string>> = {
+  failed: "the last backup didn't finish",
+  stale: "no backup in the last 2 days",
+  unreadable: "Harbour can't open the backup folder",
+};
+
+/** Checks that failed outright; a product whose failing sources are listed is said there. */
+function checkTrouble(input: BriefingInput): string | null {
+  const named = new Set(input.failures.map((f) => f.productId));
+  const failed = input.products.filter(
+    (p) => input.failedChecks.includes(p.id) && !named.has(p.id),
+  );
+  const [only] = failed;
+  if (only === undefined) return null;
+  if (input.products.length === 1) return "the last check didn't finish";
+  if (failed.length === 1) return `the last check for ${only.name} didn't finish`;
+  return `the last check for ${failed.length} sites didn't finish`;
+}
+
 function subLine(input: BriefingInput): string {
   const n = input.work.length;
   const parts = [n === 0 ? "Nothing on the to-do list" : `${n} ${plural(n, "thing")} worth doing`];
   const claude = input.work.filter((w) => w.who === "claude").length;
   if (claude > 0) parts.push(`Claude is handling ${claude}`);
-  parts.push(sourceTrouble(input.failures) ?? "nothing is broken");
+  const trouble = [
+    checkTrouble(input),
+    sourceTrouble(input.failures),
+    BACKUP_TROUBLE[input.backup],
+  ];
+  const broken = trouble.filter((t): t is string => typeof t === "string");
+  parts.push(...(broken.length > 0 ? broken : ["nothing is broken"]));
   return parts.join(" · ");
 }
 
 /**
  * Today's briefing, by fixed rules (spec §5.1): overall health is the band of the rounded mean
  * of every area score there is; the biggest opportunity is the lowest-scoring area of any
- * product that has an active action. The sub-line counts active actions, Claude's share and
- * any data source that failed.
+ * product that has an active action. The sub-line counts active actions and Claude's share, then
+ * names anything broken (a check that didn't finish, a failing data source, a backup that needs a
+ * look), and says "nothing is broken" only when nothing is.
  */
 export function buildBriefing(input: BriefingInput): Briefing {
   const found = opportunity(input);

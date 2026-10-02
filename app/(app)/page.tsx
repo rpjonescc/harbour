@@ -13,11 +13,12 @@ export default async function TodayPage() {
   const config = getConfig();
   const now = new Date();
   const db = getDb();
+  const backup = backupStatus(db, config, now);
   return (
     <TodayView
-      today={todaySummary(db, getProducts(), now)}
+      today={todaySummary(db, getProducts(), now, backup.health)}
       costMeter={costMeterView(db, config, now)}
-      backup={backupStatus(db, config, now)}
+      backup={backup}
       now={now}
       timeZone={config.HARBOUR_TIMEZONE}
       locale={config.HARBOUR_LOCALE}

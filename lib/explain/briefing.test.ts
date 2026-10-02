@@ -10,6 +10,8 @@ const input = (over: Partial<BriefingInput>): BriefingInput => ({
   scores: [],
   work: [],
   failures: [],
+  failedChecks: [],
+  backup: "ok",
   ...over,
 });
 
@@ -111,6 +113,55 @@ describe("buildBriefing", () => {
     );
   });
 
+  it.each([
+    ["failed", "the last backup didn't finish"],
+    ["stale", "no backup in the last 2 days"],
+    ["unreadable", "Harbour can't open the backup folder"],
+  ] as const)("broken: names a %s backup in the sub-line", (backup, trouble) => {
+    expect(buildBriefing(input({ backup })).subLine).toBe(`Nothing on the to-do list · ${trouble}`);
+  });
+
+  it.each(["ok", "none-yet", "off"] as const)("a %s backup is not broken", (backup) => {
+    expect(buildBriefing(input({ backup })).subLine).toBe(
+      "Nothing on the to-do list · nothing is broken",
+    );
+  });
+
+  it("broken: names a check that failed outright, unless its failing sources already say so", () => {
+    expect(buildBriefing(input({ failedChecks: ["fern-and-field"] })).subLine).toBe(
+      "Nothing on the to-do list · the last check for Fern & Field didn't finish",
+    );
+    expect(buildBriefing(input({ failedChecks: ["acme-docs", "fern-and-field"] })).subLine).toBe(
+      "Nothing on the to-do list · the last check for 2 sites didn't finish",
+    );
+    const covered = input({
+      failedChecks: ["acme-docs"],
+      failures: [{ productId: "acme-docs", collector: "crawler" }],
+    });
+    expect(buildBriefing(covered).subLine).toBe(
+      "Nothing on the to-do list · Page check had a problem in the last check",
+    );
+    const oneSite = { ...input({ failedChecks: ["acme-docs"] }), products: PRODUCTS.slice(0, 1) };
+    expect(buildBriefing(oneSite).subLine).toBe(
+      "Nothing on the to-do list · the last check didn't finish",
+    );
+  });
+
+  it("broken: names every kind of trouble, checks first and the backup last", () => {
+    const briefing = buildBriefing(
+      input({
+        work: [{ productId: "acme-docs", area: "SEO", who: "claude" }],
+        failedChecks: ["fern-and-field"],
+        failures: [{ productId: "acme-docs", collector: "pagespeed" }],
+        backup: "failed",
+      }),
+    );
+    expect(briefing.subLine).toBe(
+      "1 thing worth doing · Claude is handling 1 · the last check for Fern & Field didn't finish · " +
+        "Google speed test (PageSpeed) had a problem in the last check · the last backup didn't finish",
+    );
+  });
+
   // Review Focus 2: a product scanned with every area missing.
   it("no data: says there is no verdict rather than a bad one", () => {
     const briefing = buildBriefing(
@@ -131,6 +182,8 @@ describe("buildBriefing", () => {
       scores: [{ productId: "acme-docs", totals: totals(30, 40, 20) }],
       work: [],
       failures: [],
+      failedChecks: [],
+      backup: "ok",
     });
     expect(briefing.sentence).toBe("Your site needs some work.");
   });

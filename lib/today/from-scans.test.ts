@@ -26,15 +26,15 @@ const obs = ({
 describe("todaySummary", () => {
   it("is the sample until some product has scores, saying when the first scan is running", () => {
     const db = openTestDb();
-    expect(todaySummary(db, products, T0)).toMatchObject({ isSample: true, scanning: false });
+    expect(todaySummary(db, products, T0, "ok")).toMatchObject({ isSample: true, scanning: false });
     enqueueJob(db, "scan", { productId: "acme-docs" }, null, T0);
-    expect(todaySummary(db, products, T0)).toMatchObject({ isSample: true, scanning: true });
+    expect(todaySummary(db, products, T0, "ok")).toMatchObject({ isSample: true, scanning: true });
   });
 
   it("keeps the sample's actions until some product has scores, whatever actions exist", () => {
     const db = openTestDb();
     insertAction(db, ruleAction({ impact: "high" }), "scan", null, T0);
-    const today = todaySummary(db, products, T0);
+    const today = todaySummary(db, products, T0, "ok");
     const sample = sampleToday(products);
     expect(today.briefing).toEqual(sample.briefing);
     expect(today.actions).toEqual(sample.actions);
@@ -50,13 +50,13 @@ describe("todaySummary", () => {
       scored: false,
       runs: [{ collector: "crawler", status: "failed", error: "Could not crawl" }],
     });
-    expect(todaySummary(db, products, T0)).toMatchObject({
+    expect(todaySummary(db, products, T0, "ok")).toMatchObject({
       isSample: true,
       scannedAt: null,
       lastFailedAt: daysAfter(-1),
       failures: [{ productId: "acme-docs", collector: "crawler", error: "Could not crawl" }],
     });
-    expect(todaySummary(db, products, T0).briefing.subLine).toBe(
+    expect(todaySummary(db, products, T0, "ok").briefing.subLine).toBe(
       "2 things worth doing · Page check had a problem in the last check",
     );
   });
@@ -84,7 +84,7 @@ describe("todaySummary", () => {
       ],
     });
     enqueueJob(db, "scan", { productId: "fern-and-field" }, null, T0);
-    const today = todaySummary(db, products, T0);
+    const today = todaySummary(db, products, T0, "ok");
     expect(today).toMatchObject({
       isSample: false,
       scannedAt: T0,
@@ -137,11 +137,26 @@ describe("todaySummary", () => {
       scored: false,
       runs: [],
     });
-    const rows = todaySummary(db, products, T0).scores;
-    expect(rows.map((r) => [r.productId, r.scanned, r.lastCheckFailed])).toEqual([
+    const today = todaySummary(db, products, T0, "ok");
+    expect(today.scores.map((r) => [r.productId, r.scanned, r.lastCheckFailed])).toEqual([
       ["acme-docs", true, false],
       ["fern-and-field", false, true],
     ]);
+    // No source is listed as failing, so the briefing names the check itself.
+    expect(today.briefing.subLine).toBe(
+      "Nothing on the to-do list · the last check for Fern & Field didn't finish",
+    );
+  });
+
+  it("names a backup that needs a look in the briefing, sample or not", () => {
+    const db = openTestDb();
+    expect(todaySummary(db, products, T0, "stale").briefing.subLine).toBe(
+      "2 things worth doing · no backup in the last 2 days",
+    );
+    seedScan(db, { productId: "acme-docs", at: T0, totals: { seo: 90, geo: 90, aeo: 90 } });
+    expect(todaySummary(db, products, T0, "failed").briefing.subLine).toBe(
+      "Nothing on the to-do list · the last backup didn't finish",
+    );
   });
 
   it("briefs on the active actions and shows the top three", () => {
@@ -154,7 +169,7 @@ describe("todaySummary", () => {
     add("Allow AI crawlers", { impact: "low", area: "GEO" });
     add("Publish llms.txt", { impact: "low", area: "GEO", productId: "fern-and-field" });
     add("Snoozed", { impact: "high", status: "snoozed", snoozedUntil: "2026-10-12" });
-    const today = todaySummary(db, products, T0);
+    const today = todaySummary(db, products, T0, "ok");
     expect(today.briefing).toEqual({
       sentence:
         "Your sites need some work. Biggest opportunity: Recommended by AI assistants for Acme Docs (needs work).",
@@ -173,7 +188,7 @@ describe("todaySummary", () => {
     const db = openTestDb();
     seedScan(db, { productId: "acme-docs", at: T0, totals: { seo: 52, geo: 40, aeo: 30 } });
     insertAction(db, ruleAction({ area: "SEO" }), "scan", null, T0);
-    const before = todaySummary(db, products, T0).briefing;
+    const before = todaySummary(db, products, T0, "ok").briefing;
     // A strong, busy product that is no longer configured would lift health to "good".
     seedScan(db, {
       productId: "retired-product",
@@ -181,7 +196,7 @@ describe("todaySummary", () => {
       totals: { seo: 100, geo: 100, aeo: 100 },
     });
     insertAction(db, ruleAction({ productId: "retired-product", area: "GEO" }), "scan", null, T0);
-    expect(todaySummary(db, products, T0).briefing).toEqual(before);
+    expect(todaySummary(db, products, T0, "ok").briefing).toEqual(before);
     expect(before).toEqual({
       sentence:
         "Your sites need some work. Biggest opportunity: Found on Google for Acme Docs (fair).",

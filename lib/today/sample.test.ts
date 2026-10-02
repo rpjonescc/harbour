@@ -48,12 +48,16 @@ describe("sampleToday", () => {
         "Your sites need some work. Biggest opportunity: Recommended by AI assistants for Acme Docs (needs work).",
       subLine: "2 things worth doing · nothing is broken",
     });
-    const failing = sampleToday(products, [
-      { productId: "acme-docs", collector: "crawler", error: "Could not crawl" },
-    ]);
+    const failing = sampleToday(products, {
+      failures: [{ productId: "acme-docs", collector: "crawler", error: "Could not crawl" }],
+    });
     expect(failing.failures).toHaveLength(1);
     expect(failing.briefing.subLine).toBe(
       "2 things worth doing · Page check had a problem in the last check",
+    );
+    const stuck = sampleToday(products, { failedChecks: ["acme-docs"], backup: "unreadable" });
+    expect(stuck.briefing.subLine).toBe(
+      "2 things worth doing · the last check for Acme Docs didn't finish · Harbour can't open the backup folder",
     );
   });
 

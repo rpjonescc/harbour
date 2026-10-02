@@ -58,6 +58,13 @@ export function exampleToday(product: Pick<Product, "id" | "name">): ExampleToda
     },
   ];
   const work = actions.map((a) => ({ productId: a.productId, area: a.area, who: a.who }));
-  const briefing = buildBriefing({ products: [product], scores, work, failures: [] });
+  const briefing = buildBriefing({
+    products: [product],
+    scores,
+    work,
+    failures: [],
+    failedChecks: [],
+    backup: "ok",
+  });
   return { briefing, scores, actions };
 }

@@ -21,8 +21,9 @@ continues with:
 
 - **Today** — date, when your sites were last checked, a one-sentence briefing (overall health
   and the biggest opportunity, then how many things are worth doing, how many Claude is
-  handling and whether anything is broken), a plain verdict per product and area (Found on
-  Google, Recommended by AI assistants, Answer-ready: Strong 85+, Good 70–84, Fair 50–69 or
+  handling and anything broken: a check that didn't finish, a failing data source or a backup
+  that needs a look), a plain verdict per product and area (Found on Google, Recommended by
+  AI assistants, Answer-ready: Strong 85+, Good 70–84, Fair 50–69 or
   Needs work under 50, with the score and its change beside it; "What's this?" explains each
   area, and the numbers with a 30-day SEO trend sit under Technical details), **Worth doing
   next** (the top three actions as plain cards: why each matters, its area, how big a job it
