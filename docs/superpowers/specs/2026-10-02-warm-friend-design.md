@@ -67,7 +67,7 @@ A short note written by the agent each morning, shown at the top of Today:
 - The note is written once per day plus on demand. Today shows the newest valid note from the
   last 24 hours; older than that it shows the quiet gap ("No note yet today").
 - It reuses the existing agent runner and job queue, the same way the weekly analyst runs: one
-  job kind, bounded by the same time, size and cost caps, and counted in the cost ledger like
+  job kind, bounded by the same time, size and cost caps, and bounded by its own caps (the cost ledger records paid API calls only; no agent run is metered there)
   any other agent run.
 
 ### 3.3 What the agent is given
