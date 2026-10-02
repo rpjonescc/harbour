@@ -1,6 +1,6 @@
 import { FetchError } from "../fetch-error";
 import type { CollectContext, Collector, CollectorResult, Observation } from "../types";
-import { type GoogleError, readGoogleError, shorten } from "./google-api";
+import { type GoogleError, isApiDisabled, readGoogleError, shorten } from "./google-api";
 import { type GscCredentials, readGscCredentials } from "./gsc-credentials";
 import {
   GSC_REPORTS,
@@ -36,12 +36,9 @@ function account(credentials: GscCredentials): string {
     : "the Google account that authorised the OAuth client";
 }
 
-/** The Cloud project behind the credential has the API switched off (not a sharing problem). */
-const DISABLED_REASONS = new Set(["accessNotConfigured", "SERVICE_DISABLED"]);
-
 function accessFailure(status: number, google: GoogleError | null, property: string, who: string) {
   const said = google ? ` Google said: ${shorten(google.message)}` : "";
-  if (google?.reasons.some((r) => DISABLED_REASONS.has(r))) {
+  if (isApiDisabled(google)) {
     return new Error(
       `Search Console API is not enabled (HTTP ${status}): enable the Google Search Console API ` +
         `in the credential's Google Cloud project.${said}`,

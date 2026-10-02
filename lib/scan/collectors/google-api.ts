@@ -29,6 +29,14 @@ export function readGoogleError(body: string): GoogleError | null {
   return { message, quota: reasons.some((r) => QUOTA_REASONS.has(r)), reasons };
 }
 
+/** The Cloud project behind the credential has the API switched off (not a sharing problem). */
+const DISABLED_REASONS = new Set(["accessNotConfigured", "SERVICE_DISABLED"]);
+
+/** Whether Google's error says the API is not enabled in the credential's Cloud project. */
+export function isApiDisabled(google: GoogleError | null): boolean {
+  return google?.reasons.some((r) => DISABLED_REASONS.has(r)) ?? false;
+}
+
 const MAX_MESSAGE = 300;
 
 /** A message cut to 300 characters, so a verbose error can't flood job events. */
