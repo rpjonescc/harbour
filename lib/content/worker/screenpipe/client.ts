@@ -11,7 +11,7 @@ import {
 } from "./schema";
 
 export const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
-const TIMEOUT_MS = 15_000;
+export const REQUEST_TIMEOUT_MS = 15_000;
 /** At most this many of a product's content terms are searched (one request each). */
 export const MAX_TERMS = 10;
 
@@ -35,6 +35,8 @@ export type ScreenpipeSettings = {
   baseUrl: string;
   apiKey: string;
   timeoutMs?: number;
+  /** All of one product's requests together must finish within this (default 60 s). */
+  productBudgetMs?: number;
   fetchFn?: typeof fetch;
 };
 
@@ -84,7 +86,7 @@ async function get(
     const response = await (settings.fetchFn ?? fetch)(url, {
       headers,
       redirect: "manual",
-      signal: AbortSignal.timeout(settings.timeoutMs ?? TIMEOUT_MS),
+      signal: AbortSignal.timeout(settings.timeoutMs ?? REQUEST_TIMEOUT_MS),
     });
     if (response.status >= 300 && response.status < 400) {
       await response.body?.cancel();

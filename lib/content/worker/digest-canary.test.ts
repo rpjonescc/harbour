@@ -179,4 +179,75 @@ describe("the canary", () => {
       await r.cleanup();
     }
   });
+
+  describe("in text search hits", () => {
+    const NEAR = { text: `Acme Docs notes ${CANARY} about the pricing page` };
+    const base = { snippets: [], hits: [NEAR] };
+
+    it("is nowhere after a successful job, though the model saw the excerpt", async () => {
+      const r = await digest(base);
+      try {
+        expect(r.job.status).toBe("ok");
+        expect(r.calls[0]?.prompt).toContain(CANARY);
+        expect(leaks(r)).toEqual([]);
+      } finally {
+        await r.cleanup();
+      }
+    });
+
+    it("never reaches the model, or anywhere, from far outside the excerpt or from a cue frame", async () => {
+      const far = {
+        text: `${CANARY} ${"lorem ".repeat(90)}Acme Docs sidebar fixed ${"lorem ".repeat(90)}`,
+      };
+      const cue = { text: `Inbox unread Acme Docs ${CANARY} compose` };
+      const r = await digest({ snippets: [], hits: [far, cue] });
+      try {
+        expect(r.job.status).toBe("ok");
+        expect(r.calls[0]?.prompt).toContain("sidebar fixed");
+        expect(r.calls[0]?.prompt).not.toContain(CANARY);
+        expect(leaks(r)).toEqual([]);
+      } finally {
+        await r.cleanup();
+      }
+    });
+
+    it("is nowhere when the agent echoes it, or fails, or the work file is bad", async () => {
+      for (const options of [
+        { echo: { text: CANARY } },
+        { echo: { text: CANARY, hostile: true } },
+        { works: "{ nope" },
+        { fixtures: {} },
+      ]) {
+        const r = await digest({ ...base, ...options });
+        try {
+          expect(leaks(r)).toEqual([]);
+        } finally {
+          await r.cleanup();
+        }
+      }
+    });
+
+    it("is nowhere when Screenpipe fails after the text was read", async () => {
+      const failures = [
+        { searchMode: "bad-json" as const, searchOnly: 3 }, // bad JSON mid-way through term 3
+        { searchMode: "hang" as const, searchOnly: 2, timeoutMs: 300 }, // hung on term 2
+        { searchMode: "huge" as const, searchOnly: 2 }, // a body over the cap
+        { searchMode: "forbidden" as const, searchOnly: 2 },
+      ];
+      for (const failure of failures) {
+        const r = await digest({
+          ...base,
+          terms: ["acme docs", "pricing", "guide", "publish"],
+          ...failure,
+        });
+        try {
+          expect(r.job.status).toBe("failed");
+          expect(r.calls).toHaveLength(0);
+          expect(leaks(r)).toEqual([]);
+        } finally {
+          await r.cleanup();
+        }
+      }
+    });
+  });
 });

@@ -14,11 +14,16 @@ import { runDigestJob } from "./digest-job";
 const FILE = `content/digests/${DAY}.md`;
 
 describe("runDigestJob", () => {
-  it("writes a digest of validated themes, from one health call and one activity call per product", async () => {
+  it("writes a digest of validated themes, from one health call, one activity call and one search per term", async () => {
     const r = await digest();
     try {
       expect(r.job).toMatchObject({ status: "ok", error: null });
-      expect(r.fake.requests.map((q) => q.path)).toEqual(["/health", "/activity-summary"]);
+      expect(r.fake.requests.map((q) => q.path)).toEqual([
+        "/health",
+        "/activity-summary",
+        "/search",
+        "/search",
+      ]);
       const parsed = parseFile(readFileSync(join(r.brain.root, FILE), "utf8"), digestFrontmatter);
       expect(parsed.ok && parsed.value).toMatchObject({ status: "ok", date: DAY });
       expect(parsed.ok && parsed.value.themes.map((t) => t.id)).toEqual(["t1", "t2"]);
@@ -150,13 +155,15 @@ describe("runDigestJob", () => {
     }
   });
 
-  it("drops on-topic snippets that have no window title (it cannot be checked, so it is private)", async () => {
+  it("reads text hits with no window title, because the real OCR rows carry none", async () => {
     const r = await digest({
-      snippets: [{ text: "Acme Docs guide rewrite", app_name: "Editor", window_name: null }],
+      snippets: [],
+      hits: [{ text: "Acme Docs guide rewrite shipped today" }],
     });
     try {
       expect(r.job.status).toBe("ok");
-      expect(r.calls).toHaveLength(0);
+      expect(r.calls).toHaveLength(1);
+      expect(r.calls[0]?.prompt).toContain("guide rewrite shipped");
     } finally {
       await r.cleanup();
     }

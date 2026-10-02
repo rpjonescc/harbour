@@ -43,36 +43,43 @@ describe("runDigestJob: what came back from Screenpipe", () => {
     }
   });
 
-  it("says how many snippets Screenpipe returned and how many were kept, counts only", async () => {
+  it("says how many hits and windows Screenpipe returned and how many were kept, counts only", async () => {
     const r = await digest({
-      snippets: [
-        { text: "Acme Docs: fixed the sidebar", app_name: "Editor", window_name: "guide.md" },
-        { text: "Something else entirely", app_name: "Editor", window_name: "other.md" },
+      snippets: [],
+      hits: [
+        { text: "Acme Docs: fixed the sidebar" },
+        { text: "Something else entirely" },
+        { text: `Acme Docs: ${"x".repeat(20_001)}` },
+      ],
+      windows: [
+        { app_name: "Editor", window_name: "Acme Docs guide.md", minutes: 12 },
+        { app_name: "Editor", window_name: "notes.md", minutes: 5 },
+        { app_name: "Chrome", window_name: "Inbox - Acme Docs", minutes: 2 },
       ],
     });
     try {
       const events = eventsSince(r.deps.db, r.job.id, 0).map((e) => e.text);
+      // Two terms, so each hit comes back twice (the fake does not match `q`); the oversize row is skipped.
       expect(events).toContain(
-        "Screenpipe returned 2 snippet(s) for acme-docs; 1 kept after filtering",
+        "Screenpipe returned 4 text hit(s) and 3 window(s) for acme-docs; 2 kept after filtering",
       );
+      expect(events).toContain(
+        "2 item(s) for acme-docs were too long or unreadable and were skipped",
+      );
+      expect(events.join("\n")).not.toMatch(/sidebar|guide\.md|x{50}/);
     } finally {
       await r.cleanup();
     }
   });
 
-  it("fails plainly, rather than reading as a quiet day, when the text comes with no app or window names", async () => {
-    // What a renamed field looks like: the text is there, the names default to nothing.
-    const r = await digest({ snippets: [{ text: "Acme Docs: fixed the sidebar", app_name: "" }] });
+  it("reads a window row as its title and minutes, with the app that held it", async () => {
+    const r = await digest({
+      snippets: [],
+      windows: [{ app_name: "Editor", window_name: "Acme Docs - guide.md", minutes: 12.4 }],
+    });
     try {
-      expect(r.job.status).toBe("failed");
-      expect(r.job.error).toMatch(/^Screenpipe's answer didn't look as expected/);
-      expect(r.job.error).not.toContain("sidebar");
-      expect(existsSync(join(r.brain.root, FILE))).toBe(false);
-      expect(r.calls).toHaveLength(0);
-      const events = eventsSince(r.deps.db, r.job.id, 0).map((e) => e.text);
-      expect(events).toContain(
-        "Screenpipe returned 1 snippet(s) for acme-docs; 0 kept after filtering",
-      );
+      expect(r.job.status).toBe("ok");
+      expect(r.calls[0]?.prompt).toContain("Acme Docs - guide.md (12 min)");
     } finally {
       await r.cleanup();
     }
