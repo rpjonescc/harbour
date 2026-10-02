@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { EXAMPLE_BACKUPS } from "@/components/design/ops-example-data";
 import type { BackupStatus } from "@/lib/ops/backup-status";
 import { getProducts } from "@/lib/products/catalog";
@@ -47,8 +47,10 @@ const real: TodaySummary = {
       productId: "acme-docs",
       area: "SEO",
       impact: "high",
+      effort: "small",
       title: "2 pages have no title",
-      detail: "Give each page a unique, descriptive <title>.",
+      reason: "Google uses the title as the headline of each result.",
+      who: "claude",
       href: "/actions#action-7",
     },
   ],
@@ -118,9 +120,17 @@ describe("TodayView", () => {
 
   it("says so when no action is open", () => {
     renderToday({ ...real, actions: [], failures: [] });
-    expect(
-      screen.getByText("Nothing open — new actions arrive with each scan."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Nothing to do right now.")).toBeInTheDocument();
+  });
+
+  it("lists what's worth doing next with why, the size of the job and who's on it", () => {
+    renderToday(real);
+    const section = screen.getByRole("region", { name: "Worth doing next" });
+    const card = within(section).getByRole("article", { name: "2 pages have no title" });
+    expect(card).toHaveTextContent("Big win");
+    expect(card).toHaveTextContent("Found on Google · quick job");
+    expect(card).toHaveTextContent("Google uses the title as the headline of each result.");
+    expect(card).toHaveTextContent("Acme Docs · Claude is on it");
   });
 
   it("shows the cost meter on the sample and on real Today", () => {

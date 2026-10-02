@@ -137,7 +137,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       const products = page.getByRole("region", { name: "Products" });
       await expect(products.getByRole("link", { name: "Acme Docs" })).toBeVisible();
       await expect(
-        page.getByRole("heading", { name: "Worth your attention", exact: true }),
+        page.getByRole("heading", { name: "Worth doing next", exact: true }),
       ).toBeVisible();
       await page.waitForLoadState("networkidle");
       expect(cspErrors).toEqual([]);

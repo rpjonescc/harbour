@@ -34,8 +34,10 @@ describe("attentionFromActions", () => {
       productId: "acme-docs",
       area: "SEO",
       impact: "high",
+      effort: "small",
       title: "high started",
-      detail: "Write a one-sentence description for each page.",
+      reason: "Pages without a description get a generated snippet.",
+      who: "you",
       href: `/actions#action-${started}`,
     });
     expect(result.more).toBe(1);
@@ -91,6 +93,10 @@ describe("attentionFromActions", () => {
     expect(attentionFromActions(db, PRODUCTS).work).toEqual([
       { productId: "acme-docs", area: "GEO", who: "claude" },
       { productId: "acme-docs", area: "AEO", who: "pr_waiting" },
+    ]);
+    expect(attentionFromActions(db, PRODUCTS).actions.map((a) => [a.title, a.who])).toEqual([
+      ["claude", "claude"],
+      ["pr", "pr_waiting"],
     ]);
   });
 });

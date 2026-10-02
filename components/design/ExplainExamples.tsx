@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/explain/EmptyState";
 import { Explainer } from "@/components/explain/Explainer";
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { VerdictLine } from "@/components/explain/VerdictLine";
+import { NOTHING_TO_DO } from "@/components/today/WorthDoingNext";
 import { AREAS } from "@/lib/explain/areas";
 import { subScoreExplanation, subScoreLine } from "@/lib/explain/subscores";
 import { GAP_REASONS } from "@/lib/explain/verdict";
@@ -64,11 +65,7 @@ export function ExplainExamples() {
         </TechnicalDetails>
       </Example>
       <Example label="Empty state">
-        <EmptyState
-          what="Nothing to do right now."
-          when="New ideas appear here after each daily check and each weekly report."
-          why="Harbour only suggests a change when a check finds something worth fixing."
-        />
+        <EmptyState {...NOTHING_TO_DO} />
       </Example>
     </div>
   );

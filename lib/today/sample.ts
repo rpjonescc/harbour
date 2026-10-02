@@ -47,8 +47,10 @@ export function sampleToday(
       productId: first.id,
       area: "GEO",
       impact: "high",
+      effort: "medium",
       title: "An AI assistant cites a competitor for one of your target questions",
-      detail: "~1 hr",
+      reason: "When people ask that question, they're pointed somewhere else.",
+      who: "you",
       href: null,
     },
     {
@@ -56,13 +58,14 @@ export function sampleToday(
       productId: second.id,
       area: "AEO",
       impact: "medium",
+      effort: "small",
       title: "Add FAQ structured data to your most-visited page",
-      detail: "~30 min",
+      reason: "Marked-up answers are the easiest for Google and AI assistants to quote.",
+      who: "you",
       href: null,
     },
   ];
-  // Nothing real has started on the sample's actions: they wait for the owner.
-  const work = actions.map((a) => ({ productId: a.productId, area: a.area, who: "you" as const }));
+  const work = actions.map((a) => ({ productId: a.productId, area: a.area, who: a.who }));
   return {
     isSample: true,
     scannedAt: null,

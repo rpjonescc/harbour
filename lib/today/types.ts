@@ -1,6 +1,7 @@
+import type { WhoOnIt } from "@/lib/explain/actions";
 import type { Briefing } from "@/lib/explain/briefing";
 import type { ProductId } from "@/lib/products/catalog";
-import type { Impact, IssueArea } from "@/lib/scan/issues";
+import type { Effort, Impact, IssueArea } from "@/lib/scan/issues";
 import type { AreaValues } from "@/lib/scan/views";
 
 /** One row of Today's score table. Null scores and deltas are gaps, never zeros. */
@@ -19,9 +20,12 @@ export type ActionPreview = {
   productId: ProductId;
   area: IssueArea;
   impact: Impact;
+  effort: Effort;
   title: string;
-  /** What to do, or an effort estimate. */
-  detail: string;
+  /** Why it matters, in one sentence; empty when there is none (the card leaves it out). */
+  reason: string;
+  /** Who's on it; null when unknown. */
+  who: WhoOnIt | null;
   /** Where the action lives on the Actions board; null for the sample. */
   href: string | null;
 };

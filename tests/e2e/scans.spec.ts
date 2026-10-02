@@ -148,7 +148,7 @@ test("Today shows the real scores instead of the sample", async ({ page }) => {
       .getByRole("cell")
       .first(),
   ).toHaveText(/no score/);
-  // Worth your attention lists the actions the scan opened, each linked to its board card.
+  // Worth doing next lists the actions the scan opened, each linked to its board card.
   await expect(page.getByRole("link", { name: "1 page has no title" })).toHaveAttribute(
     "href",
     /^\/actions#action-\d+$/,
