@@ -9,7 +9,6 @@ import {
   editParams as edit,
   IDEA,
   PIECE_PATH,
-  READY,
   readPieceAt,
 } from "@/tests/helpers/decision";
 import { claim } from "@/tests/helpers/run-job";

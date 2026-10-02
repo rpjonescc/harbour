@@ -1,8 +1,8 @@
 import { enqueueContent } from "@/lib/content/limits";
 import { claimNextJob, listJobs } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
-import { CHAIN_WORKS, seedPieces } from "@/tests/helpers/chain";
-import { contentSetup, ideaFile, VOICE_ACME } from "@/tests/helpers/content";
+import { seedPieces } from "@/tests/helpers/chain";
+import { CHAIN_WORKS, contentSetup, ideaFile, VOICE_ACME } from "@/tests/helpers/content";
 import { afterContentJob } from "./chain-controller";
 
 const IDEA = "acme-docs-20261001-five-minutes";

@@ -2,8 +2,8 @@ import { PLATFORMS } from "@/lib/content/ids";
 import { enqueueContent } from "@/lib/content/limits";
 import { readPieces } from "@/lib/content/read/pieces";
 import { listJobs } from "@/lib/jobs/queue";
-import { CHAIN_WORKS, runChain } from "@/tests/helpers/chain";
-import { contentSetup, ideaFile, PIECES, VOICE_ACME } from "@/tests/helpers/content";
+import { runChain } from "@/tests/helpers/chain";
+import { CHAIN_WORKS, contentSetup, ideaFile, PIECES, VOICE_ACME } from "@/tests/helpers/content";
 
 const IDEA = "acme-docs-20261001-five-minutes";
 const FILES = {

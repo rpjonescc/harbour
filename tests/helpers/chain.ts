@@ -5,7 +5,7 @@ import { renderGates } from "@/lib/content/read/pieces";
 import { chainHook } from "@/lib/content/worker/chain-controller";
 import { claimNextJob } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
-import { type contentSetup, ideaFile, PIECES, pieceFile } from "./content";
+import { type contentSetup, ideaFile, pieceFile } from "./content";
 
 /** The files of a drafted idea: the idea, a source piece and six `drafting` pieces with empty sidecars. */
 export function seedPieces(
@@ -62,50 +62,6 @@ export function seedAfterAB(ideaId = "acme-docs-20261001-five-minutes"): Record<
   }
   return files;
 }
-
-const para = (i: number) => ({
-  id: `p${i + 1}`,
-  text: Array.from({ length: 100 }, (_, n) => (n % 9 === 8 ? "guide." : "docs")).join(" "),
-  facts: ["brain:products/acme-docs/notes.md"],
-});
-const cleanGate = {
-  pieces: PLATFORMS.map((platform) => ({
-    platform,
-    content: PIECES[platform],
-    findings: [],
-    questions: [],
-  })),
-};
-
-/** One fake-CLI fixture per step of a whole chain, each of which passes every check. */
-export const CHAIN_WORKS = {
-  draft: {
-    title: "Five minutes to a first deploy",
-    paragraphs: Array.from({ length: 5 }, (_, i) => para(i)),
-    questions: [],
-  },
-  atomise: {
-    pieces: PLATFORMS.map((platform) => ({
-      platform,
-      content: PIECES[platform],
-      claims: [{ text: "Docs publish quickly.", trace: "source:p1" }],
-      questions: [],
-    })),
-  },
-  "gate:no-ai-slop:1": cleanGate,
-  "gate:humanizer:1": cleanGate,
-  // The facts agent lists each piece's claims, here all traced to the source's first paragraph.
-  "gate:facts:1": {
-    pieces: PLATFORMS.map((platform) => ({
-      platform,
-      claims: [{ text: "Docs publish quickly.", trace: "source:p1" }],
-      questions: [],
-    })),
-  },
-  // A revision covers only the pieces that failed; these fixtures are for the `x` piece.
-  "gate:no-ai-slop:2": { pieces: cleanGate.pieces.filter((p) => p.platform === "x") },
-  "gate:humanizer:2": { pieces: cleanGate.pieces.filter((p) => p.platform === "x") },
-};
 
 /**
  * Runs queued jobs through the real runner with the production chain hook (the next step is

@@ -4,9 +4,9 @@ import { enqueueContent } from "@/lib/content/limits";
 import { readPieces } from "@/lib/content/read/pieces";
 import { eventsSince, listJobs } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
-import { CHAIN_WORKS, runChain, seedPieces } from "@/tests/helpers/chain";
-import { contentSetup, ideaFile, VOICE_ACME } from "@/tests/helpers/content";
-import { claim, reload, runOne } from "@/tests/helpers/run-job";
+import { runChain, seedPieces } from "@/tests/helpers/chain";
+import { CHAIN_WORKS, contentSetup, ideaFile, VOICE_ACME } from "@/tests/helpers/content";
+import { claim, runOne } from "@/tests/helpers/run-job";
 import { afterContentJob, chainHook, resumeChains } from "./chain-controller";
 
 const IDEA = "acme-docs-20261001-five-minutes";
