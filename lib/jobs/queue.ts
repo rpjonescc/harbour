@@ -25,6 +25,7 @@ export type JobKind =
   | "notes-sync"
   | "scan"
   | "weekly-analyst"
+  | "daily-note"
   | "backup"
   | "retention";
 export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";

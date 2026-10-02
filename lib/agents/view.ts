@@ -1,4 +1,5 @@
 import type { Job } from "@/lib/jobs/queue";
+import { describeStamp, isNoteStamp } from "@/lib/note/stamp";
 import type { Product } from "@/lib/products/catalog";
 import { RESEARCH_TOPICS } from "./topics";
 
@@ -15,6 +16,10 @@ export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly P
     return `${job.kind === "scan" ? "Scan" : "Discovery"}: ${name}`;
   }
   if (job.kind === "weekly-analyst") return `Weekly report: ${job.params.week ?? ""}`;
+  if (job.kind === "daily-note") {
+    const stamp = job.params.stamp ?? "";
+    return `Daily note: ${isNoteStamp(stamp) ? describeStamp(stamp) : stamp}`;
+  }
   if (job.kind === "backup") return `Nightly backup: ${job.params.day ?? ""}`;
   if (job.kind === "retention") return `Retention: ${job.params.day ?? ""}`;
   if (job.kind === "notes-sync") return "Save notes to GitHub";

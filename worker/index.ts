@@ -18,9 +18,11 @@ import { runAgentJob } from "@/lib/jobs/run-job";
 import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
 import { makeScheduler } from "@/lib/jobs/scheduler";
 import { failUnknownJob } from "@/lib/jobs/unknown-job";
+import { gatherFacts } from "@/lib/note/gather";
 import { type OpsJobDeps, runBackupJob, runRetentionJob } from "@/lib/ops/backup-job";
 import { describeNextBackup, makeBackupSchedule } from "@/lib/ops/backup-schedule";
-import { getProducts } from "@/lib/products/catalog";
+import { backupStatus } from "@/lib/ops/backup-status";
+import { getOwnerFirstName, getProducts } from "@/lib/products/catalog";
 import { runScan } from "@/lib/scan/run-scan";
 import { failInterruptedScans } from "@/lib/scan/store";
 import { workerScanDeps } from "@/lib/scan/worker-deps";
@@ -150,6 +152,16 @@ async function main() {
           run: runProcess,
           now,
           stopping: () => stopping,
+          noteFacts: (at) =>
+            gatherFacts({
+              db,
+              products: getProducts(),
+              ownerFirstName: getOwnerFirstName(),
+              timeZone: config.HARBOUR_TIMEZONE,
+              root,
+              backup: backupStatus(db, config, at).health,
+              now: at,
+            }),
         },
         job,
       );

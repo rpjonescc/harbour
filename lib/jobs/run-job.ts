@@ -11,6 +11,7 @@ import { buildWeeklyExport } from "@/lib/analyst/export";
 import { capExport } from "@/lib/analyst/export-cap";
 import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
+import type { Facts } from "@/lib/explain/voice/facts";
 import type { Product } from "@/lib/products/catalog";
 import { gatedPaths, JobFailure, recordTouched } from "./agent-gate";
 import { checkRequiredOutputs, importAfterCommit, readAgentOutput } from "./agent-output";
@@ -39,6 +40,8 @@ export type RunDeps = {
   now: () => Date;
   /** True once the worker is shutting down: the run is cancelled and discarded. */
   stopping: () => boolean;
+  /** The daily note's facts snapshot (worker only; absent in tests that do not run a note). */
+  noteFacts?: (now: Date) => Facts;
 };
 
 // How long the brain must be unchanged before an agent run starts.
@@ -53,8 +56,14 @@ function specOrFail(deps: RunDeps, job: Job): AgentSpec {
   const { db, products, timeZone } = deps;
   const weeklyExport = (week: string) =>
     capExport(buildWeeklyExport(db, { products, week, now: deps.now(), timeZone }));
+  const gather = deps.noteFacts;
   try {
-    return specForJob(job.kind, job.params, { products, today: deps.today, weeklyExport });
+    return specForJob(job.kind, job.params, {
+      products,
+      today: deps.today,
+      weeklyExport,
+      noteFacts: gather && (() => gather(deps.now())),
+    });
   } catch (error) {
     throw new JobFailure((error as Error).message);
   }
@@ -94,8 +103,8 @@ function deferWhileEditing(deps: RunDeps, job: Job): boolean {
 }
 
 /** Throws unless the CLI finished successfully. */
-function checkOutcome(deps: RunDeps, outcome: RunOutcome, result: StreamResult | undefined) {
-  if (outcome.timedOut) throw new JobFailure(`Timed out after ${describeDuration(deps.timeoutMs)}`);
+function checkOutcome(timeoutMs: number, outcome: RunOutcome, result: StreamResult | undefined) {
+  if (outcome.timedOut) throw new JobFailure(`Timed out after ${describeDuration(timeoutMs)}`);
   if (outcome.exitCode !== 0 || result?.isError) {
     const detail = result?.text || outcome.stderrTail.slice(-300) || `exit ${outcome.exitCode}`;
     throw new JobFailure(`Agent failed: ${detail}`);
@@ -105,7 +114,7 @@ function checkOutcome(deps: RunDeps, outcome: RunOutcome, result: StreamResult |
 const STOPPED = "Cancelled — the worker was stopped";
 
 /**
- * Runs one agent job (research, discovery, weekly analyst) end to end; always finishes the job row. `pushed` is whether
+ * Runs one agent job (research, discovery, weekly analyst, daily note) end to end; always finishes the job row. `pushed` is whether
  * the agent's commit reached the remote (null when nothing was committed), for the push backoff.
  */
 export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: boolean | null }> {
@@ -150,21 +159,38 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     db.insert(agentRuns).values({ jobId: job.id, promptVersion: spec.promptVersion }).run();
     event("status", `Started ${spec.label}`);
     let result: StreamResult | undefined;
-    const outcome = await deps.run({
-      bin: deps.bin,
-      args: claudeArgs(spec.prompt, deps.model),
-      cwd: root,
-      env: agentEnv(token, deps.home, deps.path),
-      timeoutMs: deps.timeoutMs,
-      onLine: (line) => {
-        const summary = summariseLine(line, root);
-        for (const raw of summary.touched)
-          recordTouched(root, log, raw, (text) => event("error", text));
-        for (const e of summary.events) event(e.kind, e.text);
-        if (summary.result) result = summary.result;
-      },
-      shouldCancel: () => deps.stopping() || isCancelRequested(db, job.id),
-    });
+    const timeoutMs = Math.min(deps.timeoutMs, spec.timeoutMs ?? deps.timeoutMs);
+    const runCli = (prompt: string) => {
+      result = undefined; // each attempt reports its own result
+      return deps.run({
+        bin: deps.bin,
+        args: claudeArgs(prompt, deps.model, spec.tools),
+        cwd: root,
+        env: agentEnv(token, deps.home, deps.path),
+        timeoutMs,
+        onLine: (line) => {
+          const summary = summariseLine(line, root);
+          for (const raw of summary.touched)
+            recordTouched(root, log, raw, (text) => event("error", text));
+          for (const e of summary.events) event(e.kind, e.text);
+          if (summary.result) result = summary.result;
+        },
+        shouldCancel: () => deps.stopping() || isCancelRequested(db, job.id),
+      });
+    };
+    let outcome = await runCli(spec.prompt);
+    // A run that exited cleanly but wrote something the checker rejects gets exactly one more try,
+    // with the reason fed back. A CLI failure, timeout or cancel is not a rejection: no retry.
+    const review = spec.review;
+    const clean = () =>
+      outcome.exitCode === 0 && !outcome.timedOut && !outcome.cancelled && !result?.isError;
+    if (review && clean() && !deps.stopping()) {
+      const reason = review.check(root);
+      if (reason !== null) {
+        event("status", `The checker rejected the output (${reason}); asking the agent once more`);
+        outcome = await runCli(review.retryPrompt(reason));
+      }
+    }
     log.seal(); // every output line has been read: the touched list is complete
     setRun({
       exitCode: outcome.exitCode,
@@ -185,10 +211,13 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
       finish(db, job.id, "cancelled", stopped ? STOPPED : null, deps.now());
       return { pushed: null };
     }
-    checkOutcome(deps, outcome, result);
+    checkOutcome(timeoutMs, outcome, result);
 
     const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
     checkRequiredOutputs(spec, paths); // a half-done run is discarded, never committed
+    // The final word: still rejected after the retry means nothing is committed.
+    const rejected = spec.review?.check(root) ?? null;
+    if (rejected !== null) throw new JobFailure(`The agent's output was rejected: ${rejected}`);
     // Validated before the commit: invalid output is discarded with the run, never imported.
     const output = readAgentOutput(root, spec, deps.products);
     const message = `agent(${spec.kind}): ${spec.label.replace(/^[^:]+:\s*/, "")}`;

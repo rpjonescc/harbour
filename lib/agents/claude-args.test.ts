@@ -35,6 +35,14 @@ describe("claudeArgs", () => {
     expect(JSON.parse(value("--mcp-config") ?? "")).toEqual({ mcpServers: {} });
     expect(args).toContain("--no-session-persistence");
   });
+
+  it("lets a run narrow its tools, and drops the web pre-approvals it was not given", () => {
+    const narrow = claudeArgs("p", "m", ["Write"]);
+    expect(narrow[narrow.indexOf("--tools") + 1]).toBe("Write");
+    expect(narrow).not.toContain("--allowed-tools");
+    const web = claudeArgs("p", "m", ["Write", "WebFetch"]);
+    expect(web[web.indexOf("--allowed-tools") + 1]).toBe("WebFetch");
+  });
 });
 
 describe("agentEnv", () => {

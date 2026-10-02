@@ -50,6 +50,32 @@ const weeklyProposals = (productId) => ({
   ],
 });
 
+// The daily note: the fake reads the fenced facts JSON from the prompt, as the real agent would,
+// and writes a note that is honest about them. note-bad invents a figure; note-retry does so only
+// until the checker's reason is fed back (the retry prompt carries it).
+const noteFacts = () => {
+  const match = /^(`{3,})json\n([\s\S]*?)\n\1$/m.exec(prompt);
+  return match ? JSON.parse(match[2]) : {};
+};
+const noteText = (facts, bad) => {
+  const name = facts.ownerFirstName ? `, ${facts.ownerFirstName}` : "";
+  const trouble = (facts.trouble ?? []).length > 0;
+  const body = bad
+    ? "Your score jumped to 93 overnight and everything is wonderful."
+    : trouble
+      ? "Nothing here is shouting for you. A good place to start is the first item on your list."
+      : "Nothing here is shouting for you. Pick whichever job on your list looks friendliest.";
+  const lines = [
+    "---",
+    `greeting: "Morning${name}."`,
+    'headline: "A quiet one, in a good way."',
+    'mood: "steady"',
+    "picks: []",
+  ];
+  if (facts.rest) lines.push('rest: "Everything here can wait until the next working day."');
+  return [...lines, "---", body, ""].join("\n");
+};
+
 function write(rel, content) {
   const abs = join(process.cwd(), rel);
   mkdirSync(dirname(abs), { recursive: true });
@@ -78,7 +104,11 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
   tool("WebSearch", { query: "fake research query" });
   if (scenario !== "noop") {
     for (const rel of targets) {
-      if (/^reports\/weekly\/.+\.proposals\.json$/.test(rel)) {
+      if (/^notes\/daily\/.+\.md$/.test(rel)) {
+        const retried = prompt.includes("was rejected by Harbour's checker");
+        const bad = scenario === "note-bad" || (scenario === "note-retry" && !retried);
+        write(rel, noteText(noteFacts(), bad));
+      } else if (/^reports\/weekly\/.+\.proposals\.json$/.test(rel)) {
         const productId = scenario === "bad-weekly" ? "ghost-product" : "acme-docs";
         write(rel, JSON.stringify(weeklyProposals(productId), null, 2));
       } else if (rel.endsWith(".md") && scenario === "no-report") {

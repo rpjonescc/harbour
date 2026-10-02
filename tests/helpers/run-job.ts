@@ -59,7 +59,7 @@ export function reload(deps: Pick<RunDeps, "db">, id: number): Job {
 
 export async function runOne(
   deps: RunDeps,
-  kind: "research" | "discovery" | "weekly-analyst",
+  kind: "research" | "discovery" | "weekly-analyst" | "daily-note",
   params: Record<string, string>,
 ) {
   enqueueJob(deps.db, kind, params, null);
