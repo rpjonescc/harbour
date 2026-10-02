@@ -335,6 +335,51 @@ describe("runDigestJob", () => {
     }
   });
 
+  it("says how many snippets Screenpipe returned and how many were kept, counts only", async () => {
+    const r = await digest({
+      snippets: [
+        { text: "Acme Docs: fixed the sidebar", app_name: "Editor", window_name: "guide.md" },
+        { text: "Something else entirely", app_name: "Editor", window_name: "other.md" },
+      ],
+    });
+    try {
+      const events = eventsSince(r.deps.db, r.job.id, 0).map((e) => e.text);
+      expect(events).toContain(
+        "Screenpipe returned 2 snippet(s) for acme-docs; 1 kept after filtering",
+      );
+    } finally {
+      await r.cleanup();
+    }
+  });
+
+  it("fails plainly, rather than reading as a quiet day, when the text comes with no app or window names", async () => {
+    // What a renamed field looks like: the text is there, the names default to nothing.
+    const r = await digest({ snippets: [{ text: "Acme Docs: fixed the sidebar", app_name: "" }] });
+    try {
+      expect(r.job.status).toBe("failed");
+      expect(r.job.error).toMatch(/^Screenpipe's answer didn't look as expected/);
+      expect(r.job.error).not.toContain("sidebar");
+      expect(existsSync(join(r.brain.root, FILE))).toBe(false);
+      expect(r.calls).toHaveLength(0);
+      const events = eventsSince(r.deps.db, r.job.id, 0).map((e) => e.text);
+      expect(events).toContain(
+        "Screenpipe returned 1 snippet(s) for acme-docs; 0 kept after filtering",
+      );
+    } finally {
+      await r.cleanup();
+    }
+  });
+
+  it("still finishes quietly when Screenpipe returns nothing at all", async () => {
+    const r = await digest({ snippets: [] });
+    try {
+      expect(r.job.status).toBe("ok");
+      expect(r.job.error).toBeNull();
+    } finally {
+      await r.cleanup();
+    }
+  });
+
   it("waits for the owner before reading the screen, and reads once when it runs", async () => {
     const fake = await startFakeScreenpipe({
       snippets: [{ text: "Acme Docs guide", app_name: "Editor", window_name: "guide.md" }],

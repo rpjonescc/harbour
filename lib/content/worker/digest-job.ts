@@ -15,6 +15,9 @@ import { filterSnippets } from "./screenpipe/redact";
 
 export type DigestJobDeps = RunDeps & { screenpipe: ScreenpipeSettings | null };
 
+const UNEXPECTED_ANSWER =
+  "Screenpipe's answer didn't look as expected: its text came with no app or window names, so Harbour can't check it is safe to use. Check that Harbour and Screenpipe are on compatible versions, then try again.";
+
 /** "1 October", for a day the owner reads about. */
 function dayLabel(day: string): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -24,11 +27,15 @@ function dayLabel(day: string): string {
   }).format(new Date(`${day}T12:00:00Z`));
 }
 
+/** What one product's request returned and what survived the filters: counts only. */
+type Report = { productId: string; received: number; kept: number };
+type Gathered = { inputs: DigestInputs; reports: Report[]; unlabelled: boolean };
+
 async function gather(
   deps: DigestJobDeps,
   settings: ScreenpipeSettings,
   day: string,
-): Promise<DigestInputs> {
+): Promise<Gathered> {
   const content = requireContent(deps);
   const window = {
     start: zonedInstant(day, 0, deps.timeZone),
@@ -37,6 +44,9 @@ async function gather(
   const neverMention = readNeverMention(content.root);
   await checkHealth(settings);
   const products: DigestInputs["products"] = [];
+  const reports: Report[] = [];
+  let received = 0;
+  let named = 0;
   for (const product of content.products) {
     const activity = await fetchActivity(settings, window, product.terms);
     const rules = {
@@ -46,9 +56,13 @@ async function gather(
       neverMention,
     };
     const { kept, truncated } = filterSnippets(activity.snippets, rules);
+    received += activity.snippets.length;
+    named += activity.snippets.filter((s) => s.app !== "" || (s.window ?? "") !== "").length;
+    reports.push({ productId: product.id, received: activity.snippets.length, kept: kept.length });
     if (kept.length > 0) products.push({ productId: product.id, snippets: kept, truncated });
   }
-  return { day, window, products };
+  // Text with no app and no window name at all is how a renamed field would look: not a quiet day.
+  return { inputs: { day, window, products }, reports, unlabelled: received > 0 && named === 0 };
 }
 
 /**
@@ -98,12 +112,18 @@ export async function runDigestJob(
   }
   // Before reading the screen: a deferred job is claimed again and must not read it twice.
   if (waitsForOwner(deps, job)) return { pushed: null };
-  let inputs: DigestInputs;
+  let gathered: Gathered;
   try {
-    inputs = await gather(deps, deps.screenpipe, day);
+    gathered = await gather(deps, deps.screenpipe, day);
   } catch (error) {
     return fail(gatherFailure(error, day));
   }
+  const { inputs, reports } = gathered;
+  for (const r of reports) {
+    const text = `Screenpipe returned ${r.received} snippet(s) for ${r.productId}; ${r.kept} kept after filtering`;
+    addEvent(db, job.id, "status", text, deps.now());
+  }
+  if (gathered.unlabelled) return fail(UNEXPECTED_ANSWER);
   if (inputs.products.length === 0) {
     addEvent(
       db,
