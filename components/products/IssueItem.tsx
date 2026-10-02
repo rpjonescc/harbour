@@ -63,7 +63,7 @@ export function IssueItem({
         </p>
       )}
       <TechnicalDetails
-        id="issue-card"
+        id={`issue-${issue.id}`}
         topic={`${issue.title}: where it was found, the fix and the hand-off to Claude`}
       >
         <div className="flex flex-col gap-2">

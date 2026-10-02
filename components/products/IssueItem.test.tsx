@@ -53,6 +53,17 @@ describe("IssueItem", () => {
     expect(document.querySelectorAll("details details")).toHaveLength(0);
   });
 
+  it("remembers Technical details per issue, not once for every card", () => {
+    localStorage.setItem("harbour:technical-details:issue-other-rule", "open");
+    const { unmount } = renderIssue();
+    expect(screen.getByText(/Technical details/).closest("details")).not.toHaveAttribute("open");
+    unmount();
+    localStorage.setItem(`harbour:technical-details:issue-${issue.id}`, "open");
+    renderIssue();
+    expect(screen.getByText(/Technical details/).closest("details")).toHaveAttribute("open");
+    localStorage.clear();
+  });
+
   it("keeps a per-card link to the Actions board outside the fold", () => {
     renderIssue();
     const link = screen.getByRole("link", {

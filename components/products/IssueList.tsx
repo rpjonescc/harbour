@@ -43,10 +43,11 @@ export function IssueList({
       <h2 id="issues-heading" className="font-serif text-xl">
         What to fix
       </h2>
-      <p className="text-sm text-ink-muted">
-        Each problem says why it matters. The same list is on the Actions board, where you can track
-        it.
-      </p>
+      {issues.length > 0 && (
+        <p className="text-sm text-ink-muted">
+          Each problem says why it matters, and the same list is tracked on the Actions board.
+        </p>
+      )}
       {issues.length === 0 ? (
         <EmptyState {...(scanned ? NONE_FOUND : NOT_SCANNED)} />
       ) : (
