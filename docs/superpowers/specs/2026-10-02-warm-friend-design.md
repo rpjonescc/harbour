@@ -67,7 +67,7 @@ A short note written by the agent each morning, shown at the top of Today:
 - The note is written once per day plus on demand. Today shows the newest valid note from the
   last 24 hours; older than that it shows the quiet gap ("No note yet today").
 - It reuses the existing agent runner and job queue, the same way the weekly analyst runs: one
-  job kind, bounded by the same time, size and cost caps, and bounded by its own caps (the cost ledger records paid API calls only; no agent run is metered there)
+  job kind, bounded by its own time, size and rate caps (the cost ledger records paid API calls only; no agent run is metered there)
   any other agent run.
 
 ### 3.3 What the agent is given
@@ -170,7 +170,7 @@ half of the viewport, behind all content, in the signed-in shell.
 - Facts snapshot: built from fixtures; contains no secrets or paths; caps respected.
 - Job: with a recorded fixture of the agent's output (no real agent calls in tests): valid note
   is written to the brain path; invalid note is retried once then recorded as a failure with the
-  fallback shown; rate limit and schedule behaviour; cost ledger entry.
+  fallback shown; rate limit and schedule behaviour; no cost-ledger row is written.
 - Components: the note card renders each field as plain text; hidden under `quiet`; the gap state;
   the wave is `aria-hidden`, has no pointer events, and renders nothing under `quiet`.
 - E2E: Today shows the note card (from a seeded valid note) and the briefing is still the `h1`;
