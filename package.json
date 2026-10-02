@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "fix": "biome check --write .",
+    "skills:install": "tsx --env-file=.env scripts/install-skills.ts",
     "test": "vitest run",
     "test:e2e": "tsx tests/e2e/prepare.ts && playwright test",
     "check:files": "tsx scripts/check.ts",

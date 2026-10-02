@@ -332,6 +332,8 @@ pnpm actions list   # lists and triages actions from a terminal (see "Let Claude
 A deployed install runs the worker as the `harbour-worker` systemd user service (see
 `deploy/README.md`).
 
+The content machine pastes three skills into its runs: `no-ai-slop` and `humanizer` (install them from their own repositories into `~/.claude/skills`) and `atomizer`, whose source is `skills/atomizer/` in this repository. `pnpm skills:install` copies `atomizer` into `HARBOUR_SKILLS_DIR` (default `~/.claude/skills`); run it again after pulling a newer Harbour.
+
 The worker is the only process that runs agents or touches the brain's git history. Between
 jobs it saves your own brain edits (commit + push) once they have been quiet for 2 minutes,
 and retries unpushed commits from 10 minutes apart, backing off up to 6 hours while pushes
