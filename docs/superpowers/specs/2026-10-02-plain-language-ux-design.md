@@ -120,7 +120,7 @@ Each component works in light and dark, uses semantic tokens only, is fully keyb
 and appears on `/design`.
 
 - `<VerdictLine>`: area name, verdict word (tone colour plus text), small number, and trend
-  phrase ("up 2 this month", "steady").
+  phrase ("up 2 since the last check", "steady"; the stored change is against the previous check).
 - `<Explainer>`: the visible one-liner, plus a "What's this?" disclosure button
   (`aria-expanded`, one owner per label) revealing the four parts and an optional "Next step"
   link to the matching action.
