@@ -8,6 +8,7 @@ import { ScanExamples } from "@/components/design/ScanExamples";
 import { SourcesExamples } from "@/components/design/SourcesExamples";
 import { TodayExamples } from "@/components/design/TodayExamples";
 import { TokenSwatches } from "@/components/design/TokenSwatches";
+import { WaveExample } from "@/components/design/WaveExample";
 import { Button } from "@/components/ui/Button";
 import { Delta } from "@/components/ui/Delta";
 import { Panel } from "@/components/ui/Panel";
@@ -88,6 +89,9 @@ export default async function DesignPage() {
       </Section>
       <Section title="Today examples">
         {firstProduct && <TodayExamples product={firstProduct} />}
+      </Section>
+      <Section title="The wave">
+        <WaveExample />
       </Section>
       <Section title="Second Brain examples">
         <BrainExamples />
