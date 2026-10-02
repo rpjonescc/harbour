@@ -91,7 +91,8 @@ The agent's output is parsed with zod and rejected unless:
 - it matches the schema, with every string within its length cap;
 - it is plain text only: no markdown, HTML, links, code or control characters;
 - every number in the text appears in the facts snapshot (so no invented figures), and every
-  area or product it names is in the snapshot;
+  area or product it names is in the snapshot (known limit: a single invented name used only as a
+  sentence's first word cannot be told from an ordinary capitalised word);
 - every pick exactly matches a current active action title;
 - it contains no exclamation-mark runs, no ALL CAPS shouting, and none of a banned list
   (hurry, urgent, behind, overdue, falling behind, failing, must, should have);

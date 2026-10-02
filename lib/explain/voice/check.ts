@@ -55,17 +55,22 @@ const NUMBER_WORDS = new Map<string, number>([
   ["thousand", 1000],
   ["dozen", 12],
 ]);
-// Quantities with no set value can never be checked against the facts.
-const VAGUE_QUANTITIES = new Set(["half", "halved", "double", "doubled", "triple", "tripled"]);
-// "nothing is broken" and "no problems" are honest; only a claim of trouble is rejected. The
-// window stops at a clause boundary, so "Not today, but the backup failed" is still caught.
-const TROUBLE_WORDS =
-  "broken|broke|not working|went wrong|problems?|trouble|didn't finish|did not finish|failed|outage|crashed|down|offline|errors?|unreachable|missing";
-const NEGATED = new RegExp(
-  `\\b(?:no|nothing|not|never|without|isn't|aren't|hasn't)\\b[^.,;:]{0,25}?\\b(?:${TROUBLE_WORDS})\\b`,
+// Quantities with no set value can never be checked against the facts: any of them is rejected
+// unless the facts' own text uses the same word.
+const VAGUE_QUANTITY =
+  /^(?:half|halved|doubl(?:e|ed)|tripl(?:e|ed)|(?:hundred|thousand|million|billion|dozen)s|millions?|billions?|twice|thrice|quarter|\w+fold)$/;
+const RANKING = /\bnumber (?:one|1)\b/i;
+// Only these exact reassurances are honest about trouble; they are removed before the check, so
+// "no doubt the backup failed" and "no surprise the site is down" are still caught.
+const REASSURANCE =
+  /\b(?:nothing (?:is broken|broke|failed|is down|is missing)|no (?:trouble|errors|problems))\b|\bmissing (?:data|scores?)\b/gi;
+// "down" is trouble only in these phrases: "down 2" or "down a little" is just a score moving.
+const DOWN =
+  "(?:is|are|went|gone|goes|stays|was) down(?!\\s+(?:\\d|a\\s|by\\b|slightly|just|from|to\\b))|site down";
+const TROUBLE = new RegExp(
+  `\\b(?:broken|broke|not working|went wrong|problems?|trouble|didn't finish|did not finish|failed|failing|outage|crashed|offline|errors?|unreachable|missing|${DOWN})\\b`,
   "gi",
 );
-const TROUBLE = new RegExp(`\\b(?:${TROUBLE_WORDS})\\b`, "i");
 const PRAISE = /\b(?:strong|excellent|thriving|brilliant|flying|crushing|nailed)\b/i;
 // Stems, so "hurried", "urgently" and "mustn't" are caught like their root.
 const BANNED_PATTERNS: Record<(typeof BANNED_WORDS)[number], string> = {
@@ -132,19 +137,22 @@ const figures: Rule = ({ text, facts }) => {
   if (stray !== undefined) {
     return `The note uses the figure ${stray}, which is not in the facts. Use only figures from the facts, or say it in words.`;
   }
-  const inFacts = new Set(
+  const own = new Set(
     factsText(facts)
       .toLowerCase()
       .match(/[a-z]+/g),
   );
-  for (const word of text.toLowerCase().match(/[a-z]+/g) ?? []) {
+  const invented = (word: string) => {
     const value = NUMBER_WORDS.get(word);
-    const invented = value !== undefined ? !known.has(value) : VAGUE_QUANTITIES.has(word);
-    if (invented && !inFacts.has(word)) {
-      return `The note says "${word}", a figure that is not in the facts. Use only figures from the facts.`;
-    }
+    return value !== undefined ? !known.has(value) : VAGUE_QUANTITY.test(word);
+  };
+  const word = (text.toLowerCase().match(/[a-z]+/g) ?? []).find((w) => invented(w) && !own.has(w));
+  if (word !== undefined) {
+    return `The note says "${word}", a figure that is not in the facts. Use only figures from the facts.`;
   }
-  return null;
+  return RANKING.test(text)
+    ? "The note says it is number one, which is not in the facts. Leave out rankings."
+    : null;
 };
 
 const names: Rule = ({ parts, facts }) => {
@@ -181,9 +189,16 @@ const rest: Rule = ({ note, facts }) => {
   return null;
 };
 
+/** A trouble word in `text` that the facts' own words do not use, after honest reassurance. */
+function inventedTrouble(text: string, facts: Facts): boolean {
+  const own = factsText(facts).toLowerCase();
+  const claims = text.replace(REASSURANCE, " ").match(TROUBLE) ?? [];
+  return claims.some((claim) => !own.includes(claim.toLowerCase()));
+}
+
 const trouble: Rule = ({ note, facts, text }) => {
   if (facts.trouble.length === 0) {
-    return TROUBLE.test(text.replace(NEGATED, " "))
+    return inventedTrouble(text, facts)
       ? "The note talks about trouble, but the facts list none. Do not claim anything is broken."
       : null;
   }

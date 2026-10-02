@@ -63,8 +63,10 @@ describe("checkNote rejects", () => {
   });
 
   it.each([
-    ["a sentence-opening stranger", "Zenith is your new rival."],
-    ["a stranger before a comma", "Zenith, hello."],
+    ["a two-word sentence-opening name", "Zenith Labs is your new rival."],
+    ["a possessive sentence-opening name", "Zenith's site is ahead."],
+    ["a name after an opening word", "Lately, Zenith is ahead."],
+    ["a quoted opening name", "\u201cZenith\u201d is ahead."],
     ["a quoted stranger", "\u00abZenith\u00bb is lovely."],
     ["a mix of two known products", "Lighthouse Docs is doing well."],
   ])("%s", (_name, body) => {
@@ -88,7 +90,7 @@ describe("checkNote rejects", () => {
     ["a crash", "The site crashed overnight."],
     ["offline", "The checker is offline."],
     ["an error", "There was an error in the check."],
-    ["something missing", "The guide is missing."],
+    ["something unreachable", "The guide is unreachable."],
   ])("invented trouble: %s", (_name, body) => {
     expect(check({ body })).toMatch(/trouble/);
   });
@@ -148,7 +150,14 @@ describe("what the board's own words allow", () => {
   });
 
   it("honest negations of trouble stay accepted", () => {
-    expect(check({ body: "No errors to report, and nothing is offline." })).toBeNull();
+    expect(check({ body: "No errors to report, and nothing is broken." })).toBeNull();
+  });
+});
+
+describe("a known limit", () => {
+  it("lets a single invented name through when it is only a sentence's first word", () => {
+    // Every sentence starts with a capital, so this cannot be told from an ordinary word.
+    expect(check({ body: "Zenith is your new rival.", picks: [] })).toBeNull();
   });
 });
 

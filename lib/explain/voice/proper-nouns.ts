@@ -34,12 +34,14 @@ const ALLOWED = [
   "December",
 ];
 
-// Words that may start a sentence without being in the facts.
+// Everyday words that start a sentence; one of these next to a name does not hide the name.
 const OPENERS = new Set([
   "Good",
   "Morning",
   "Afternoon",
   "Evening",
+  "Hi",
+  "Hello",
   "Nothing",
   "Everything",
   "One",
@@ -58,26 +60,19 @@ const OPENERS = new Set([
   "Here",
   "Let",
   "All",
-  "Rest",
-  "Lately",
-  "Also",
   "No",
   "Not",
-  "Next",
-  "Once",
-  "When",
-  "If",
-  "Still",
-  "Then",
-  "There",
-  "Take",
-  "Quiet",
-  "Calm",
+  "Yesterday",
+  "Overnight",
+  "Tonight",
 ]);
+const QUOTED = /[«‹„“「『"]([^«»‹›„“”「」『』"]{1,60})[»›“”」』"]/gu;
 
-const strip = (raw: string) => raw.replace(/^\p{P}+|\p{P}+$/gu, "").replace(/['’]s$/u, "");
-const wordsOf = (text: string) => text.split(/\s+/).map(strip).filter(Boolean);
+const strip = (raw: string) => raw.replace(/^\p{P}+|\p{P}+$/gu, "");
+const wordOf = (raw: string) => strip(raw).replace(/['’]s$/u, "");
+const wordsOf = (text: string) => text.split(/\s+/).map(wordOf).filter(Boolean);
 const capitalised = (word: string) => /^\p{Lu}/u.test(word);
+const possessive = (raw: string) => /['’]s\p{P}*$/u.test(raw);
 
 type Known = { phrases: string[][]; words: Set<string> };
 
@@ -104,8 +99,33 @@ function knownOf(facts: Facts): Known {
 const startsWith = (tokens: string[], at: number, phrase: string[]) =>
   phrase.length > 0 && phrase.every((word, i) => tokens[at + i] === word);
 
+/** True when the capitalised word at `at` is a known word or the start of a known name. */
+function isKnown(tokens: string[], at: number, known: Known): boolean {
+  const word = tokens[at] ?? "";
+  return known.words.has(word) || known.phrases.some((p) => startsWith(tokens, at, p));
+}
+
+/**
+ * Known limit: a single invented name used only as the first word of a sentence can pass, since
+ * every sentence starts with a capital. It is flagged when it is possessive ("Zenith's"), runs on
+ * into another unknown capitalised word ("Zenith Labs"), or sits in quotes.
+ */
+function openerProblem(raw: string[], tokens: string[], known: Known): string | null {
+  const first = tokens[0] ?? "";
+  if (!capitalised(first) || isKnown(tokens, 0, known)) return null;
+  if (possessive(raw[0] ?? "") && !OPENERS.has(first)) return first;
+  // A comma or stop after the first word ends it: "Lately, Zenith..." is not one name.
+  if (/\p{P}$/u.test(raw[0] ?? "")) return null;
+  const next = tokens[1] ?? "";
+  const stranger = capitalised(next) && !isKnown(tokens, 1, known) && !OPENERS.has(next);
+  return stranger ? first : null;
+}
+
 function unknownIn(sentence: string, known: Known): string | null {
-  const tokens = wordsOf(sentence);
+  const raw = sentence.split(/\s+/).filter(Boolean);
+  const tokens = raw.map(wordOf);
+  const opener = openerProblem(raw, tokens, known);
+  if (opener !== null) return opener;
   for (let i = 0; i < tokens.length; i++) {
     const phrase = known.phrases.find((p) => startsWith(tokens, i, p));
     if (phrase) {
@@ -113,21 +133,30 @@ function unknownIn(sentence: string, known: Known): string | null {
       continue;
     }
     const word = tokens[i] ?? "";
-    if (!capitalised(word) || known.words.has(word) || (i === 0 && OPENERS.has(word))) continue;
-    return word;
+    if (i > 0 && capitalised(word) && !known.words.has(word)) return word;
+  }
+  return null;
+}
+
+/** A capitalised word inside quotation marks that is not in the facts: a quoted made-up name. */
+function quotedStranger(sentence: string, known: Known): string | null {
+  for (const match of sentence.matchAll(QUOTED)) {
+    const tokens = wordsOf(match[1] ?? "");
+    const at = tokens.findIndex((w, i) => capitalised(w) && !isKnown(tokens, i, known));
+    if (at >= 0) return tokens[at] ?? null;
   }
   return null;
 }
 
 /**
- * The first capitalised word (a sentence's first word included) that is not in the facts, nor an
- * everyday opener: a product, person or place the agent made up; else null.
+ * The first capitalised word that is not in the facts (a product, person or place the agent made
+ * up), checked mid-sentence and inside quotes; else null.
  */
 export function unknownProperNoun(parts: readonly string[], facts: Facts): string | null {
   const known = knownOf(facts);
   for (const part of parts) {
     for (const sentence of part.split(/(?<=[.!?])\s+/)) {
-      const stranger = unknownIn(sentence, known);
+      const stranger = quotedStranger(sentence, known) ?? unknownIn(sentence, known);
       if (stranger !== null) return stranger;
     }
   }

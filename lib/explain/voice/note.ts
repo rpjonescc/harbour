@@ -14,7 +14,7 @@ export const ASKED_BODY_CHARS = 330;
 export const MOODS = ["celebrate", "steady", "attention"] as const;
 
 const MARKUP =
-  /[<>`*_#[\]{}\\|]|https?:|www\.|:\/\/|javascript\s*:|\S+@\S+\.\S+|\b[a-z0-9-]+\.(?:com|net|org|io|co|uk|app|dev)\b/i;
+  /[<>`*_#[\]{}\\|]|https?:|www\.|:\/\/|javascript\s*:|\S+@\S+\.\S+|\b[a-z0-9-]+\.(?:ai|xyz|me|tv|io|co|uk|app|dev|com|net|org|au|nz|us|ca|de|fr|info|biz|site|online|store|tech|page|link)\b/i;
 const EMOJI = /\p{Extended_Pictographic}/u;
 // Control, format (zero-width, bidi, soft hyphen, tags), separator, private-use and surrogate
 // characters, variation selectors and blank-looking letters: they can hide or reorder text.
