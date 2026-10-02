@@ -10,7 +10,7 @@ describe("hidden characters", () => {
     ["a Hangul filler", "\u3164"],
     ["a half-width Hangul filler", "\uffa0"],
     ["an interlinear annotation mark", "\ufff9"],
-    ["a Mongolian variation selector", "᠋"],
+    ["a Mongolian variation selector", "a\u180b"],
     ["a soft hyphen", "\u00ad"],
     ["a line separator", "\u2028"],
   ])("sees %s and strips it", (_label, char) => {

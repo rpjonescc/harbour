@@ -1232,6 +1232,10 @@ Each is a call made while building, one bullet each.
   markdown file by hand is not what an approval exports.
 
 ### 17.3 Known limits and residuals
+- Number check, found in the final review: a year inside an ISO date in a source note (`2026-03-14`) is not counted as known, so "in March 2026" can fail and go to Needs you (it errs the safe way); a number followed by `m` reads as millions, so "5m" never matches "5 minutes"; "3rd" does not match "third".
+- A file too large to quarantine is reported by count only, for every run, because the error is thrown before the quarantine manifest is written; run `git status` in the brain to find it.
+- `lib/agents/pillars.ts` and `lib/actions/store.ts` keep their own narrower hidden-character checks; neither is in the content data path.
+- If Screenpipe ever returns snippets with no app name (for example audio), a day with only those fails with "Screenpipe's answer didn't look as expected" instead of reading as quiet. Check on the first real digest.
 
 These are accepted for the MVP. Each is a limit of a check, not a hole in a promise.
 
