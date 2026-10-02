@@ -1,4 +1,4 @@
-import { hasPersonalData, hasPrivateCue } from "./frame-checks";
+import { hasPrivateCue } from "./frame-checks";
 import { PRIVATE_CUES } from "./private-cues";
 
 describe("hasPrivateCue", () => {
@@ -113,22 +113,5 @@ describe("hasPrivateCue: the plain words and other forms", () => {
     ]) {
       expect(hasPrivateCue(text), text).toBe(false);
     }
-  });
-});
-
-describe("hasPersonalData", () => {
-  it.each([
-    ["an email", "Acme Docs mail sam@example.com"],
-    ["a phone number", "Acme Docs call +61 491 570 156"],
-    ["a card-like number", "Acme Docs 4111 1111 1111 1111"],
-    ["a link with a password", "Acme Docs https://sam:hunter2@example.com/x"],
-    ["an email with a lookalike letter", "Acme Docs s\u0430m@example.com"],
-    ["a full-width at sign", "Acme Docs sam\uff20example.com"],
-  ])("is true for %s", (_label, text) => {
-    expect(hasPersonalData(text)).toBe(true);
-  });
-
-  it("is false for ordinary text and a bare version number", () => {
-    expect(hasPersonalData("Acme Docs v1.2.3 shipped the sidebar fix")).toBe(false);
   });
 });

@@ -1,7 +1,8 @@
 import { canonicalise, matchKey, termPattern } from "./canonical";
 import { containsAny, isDeniedByNames } from "./deny-lists";
 import { cutExcerpts, EXCERPT_CHARS } from "./excerpt";
-import { hasPersonalData, hasPrivateCue } from "./frame-checks";
+import { hasPrivateCue } from "./frame-checks";
+import { hasPersonalData } from "./personal-data";
 import { type Compiled, compileRules, type RedactRules, redactFull } from "./redact";
 import { type Hit, MAX_HIT_CHARS } from "./schema";
 

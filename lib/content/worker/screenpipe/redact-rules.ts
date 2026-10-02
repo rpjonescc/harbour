@@ -3,14 +3,11 @@ import { matchKey, skeleton } from "./canonical";
 
 // The redaction rules for screen text (spec §5.3 step 3): links, emails, numbers, secrets, paths.
 
-// Also read on their own by the frame check, which drops a whole screen that shows one.
 // The lookbehind on EMAIL starts a match only at the start of a run: the same matches, but a long
 // run with no "@" is read once instead of once per character.
-export const EMAIL = /(?<![^\s@<>"'()])[^\s@<>"'()]+@[^\s@<>"'()]+(?:\s\.[a-z]{2,})*/gi;
-export const CARD = /(?<!\d)\d(?:[\s.,\-_/]?\d){12,}(?!\d)/g;
-export const PHONE = /(?<!\d)\+?\d[\d\s().,-]{6,}\d(?!\d)/g;
-/** A link that carries a user name and password ("https://user:secret@host"). */
-export const CREDENTIAL_URL = /[a-z][a-z0-9+.-]{1,15}:\/\/[^\s/@]+:[^\s/@]*@/i;
+const EMAIL = /(?<![^\s@<>"'()])[^\s@<>"'()]+@[^\s@<>"'()]+(?:\s\.[a-z]{2,})*/gi;
+const CARD = /(?<!\d)\d(?:[\s.,\-_/]?\d){12,}(?!\d)/g;
+const PHONE = /(?<!\d)\+?\d[\d\s().,-]{6,}\d(?!\d)/g;
 
 const SLUG = "[\\w.~@%+=-]+";
 

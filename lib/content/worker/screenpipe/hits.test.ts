@@ -95,6 +95,14 @@ describe("filterHits: private-context cues drop the whole frame", () => {
     expect(keep([hit(text)])).toEqual([]);
   });
 
+  it("keeps a frame that shows dates, clocks, versions and counts", () => {
+    expect(
+      keep([
+        hit("Acme Docs fixed 2026-10-01 at 08:47:12 in v2.1.205, 1,237 frames, #56 line 1024"),
+      ]),
+    ).toHaveLength(1);
+  });
+
   it("does not read a cue inside an ordinary word", () => {
     for (const text of [
       "Acme Docs syntax highlighting",

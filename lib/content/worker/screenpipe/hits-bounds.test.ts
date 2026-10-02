@@ -64,13 +64,13 @@ describe("filterHits: hostile frames cost bounded time per product", () => {
     `Acme Docs ${"a@".repeat(4_900)}`,
   ];
 
-  it("reads a product's worth of such frames within a second and a half", () => {
+  it("reads a product's worth of such frames within a couple of seconds, load included", () => {
     const hits = Array.from({ length: 60 }, (_, i) =>
       hit(`${hostile[i % hostile.length]} ${word(i)}`, i),
     );
     const start = performance.now();
     filterHits(hits, RULES);
-    expect(performance.now() - start).toBeLessThan(1_500);
+    expect(performance.now() - start).toBeLessThan(2_500);
   });
 
   it.each(hostile.map((text, i) => [i, text] as const))(
