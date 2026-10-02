@@ -1,6 +1,7 @@
 # Content machine — design
 
-Status: draft spec, 2026-10-02, waiting for the owner's review.
+Status: MVP built (steps 1 to 8 of §14); Postiz and the post-MVP items are not. §17 records every
+difference between this spec and the code, and the limits the build knows about.
 Replaces: the idea note `docs/superpowers/ideas/2026-10-02-content-machine.md` (its open questions
 are answered in §15, Decisions).
 Builds on: `2026-10-01-harbour-design.md` (worker, agents, brain, audit, costs),
@@ -799,7 +800,7 @@ version during planning.
 | What | When | Catch-up |
 |---|---|---|
 | Activity digest | Daily at `HARBOUR_DIGEST_TIME` (default 05:45), for yesterday | None (§5.6) |
-| Ideas | Mondays 07:00, every content-enabled product, after the digest | This week's Monday, once (never an earlier week; §18) |
+| Ideas | Mondays 07:00, every content-enabled product, after the digest | This week's Monday, once (never an earlier week; §17.2) |
 | Pillars | Manual only | — |
 | Draft, atomise, gates | Only when the owner picks an idea | — |
 | Digest and discarded pruning | With the nightly housekeeping | — |
@@ -828,8 +829,8 @@ caps above and the existing per-run timeout. Screenpipe and Postiz are local and
 model API is ever used for content, each call goes through the existing reserve → record path and
 budget guard, and is named in `PAID_SOURCES`.
 
-(The warm-friend spec says its note is "counted in the cost ledger like any other agent run". No
-agent run writes a ledger row today; that sentence should read "counted in the run caps".)
+(The warm-friend spec's §3.2 and its "As built" (a) already say its note is not counted in the cost
+ledger, which is the same call: no agent run writes a ledger row today.)
 
 ### 12.4 The Agents page
 
@@ -1039,102 +1040,243 @@ Each step is its own reviewed change, with tests and README updates in the same 
 - **Retention is Screenpipe's.** Frames are pruned on Screenpipe's schedule, so a digest for an
   old day may be thin. Harbour only ever asks about yesterday.
 
-## 17. As built: the activity digest (Task 7)
+## 17. As built
 
-- **Schedule.** The digest is queued once per local day after `HARBOUR_DIGEST_TIME`, for the day
-  before, and only when the worker is running after that slot the same local day (a worker that
-  starts before the slot, or after an outage that spans a whole day, queues nothing for an earlier
-  day: §12.1 "Catch-up: None"). Any digest job for that day, scheduled, manual or failed, settles
-  it, so "Make today's digest now" followed by the slot does not queue it twice and a failed run
-  is not retried. Only a first, real request is audited (`content_run_requested`); a second click
-  that returns the waiting job is not.
-- **Reading the screen.** The job checks that the owner is not editing the brain before it reads
-  Screenpipe, so a deferred job never reads twice.
-- **Never-mention list.** An unreadable or oversize list, a term over 60 characters or more than
-  200 terms fail the digest with a fixed sentence (no term in it): a term is never silently dropped.
-- **Quiet runs carry counts, not names.** The agent chooses file names, and a name can hold screen
-  text. For a quiet run (`AgentSpec.quiet`) the git gate and the touched-path recorder report
-  counts only ("1 file(s) outside its area"), in job errors, events and logs.
-- **`AgentSpec.noQuarantine`.** A failed digest run deletes the files the agent itself wrote (and
-  the quarantine manifest) instead of keeping them in quarantine, because they may echo screen
-  text. Anything not known to be the agent's is still quarantined. After a worker crash, startup
-  recovery has no spec and quarantines (keeps) those files outside the brain; the owner can delete
-  the quarantine folder.
-- **Residual: a plain word in a valid theme.** A theme is the model's own sentence; if it repeats
-  a plain word from the screen with no digit, link or name, the validator cannot tell it from its
-  own vocabulary. Mitigation: a theme sharing a verbatim run of 20 or more characters with the
-  filtered snippets (product terms excepted) is dropped and counted.
-- **Not built:** digest pruning and `HARBOUR_DIGEST_KEEP_DAYS` (Decision 8).
+Where the text above and the code differ, the code is right, and this section says how and why.
+Where this section says a thing was "not built", the earlier text is a design, not a promise.
 
-## 18. As built: idea generation (Task 9)
+### 17.1 Differences from the spec
 
-- **Inputs.** The ideas job reads only validated digest themes (the last 7 days, this product's),
-  approved pillars, the first 6 KiB of the product's `notes.md` and `discovery.md`, the owner's
-  voice-profile audience line and the titles of the 30 newest ideas. Raw screen text never reaches
-  it. Notes are read through one descriptor (no symlink, FIFO or directory), must be UTF-8, have
-  invisible characters stripped and fail the job on a control character; a digest in the window
-  that cannot be read fails the job rather than counting as a quiet week.
-- **Output rules.** 1 to 5 ideas; every source ref must be one the prompt offered; plain text only
-  (no markup, markdown, links, emoji, line breaks or hidden characters); the same title twice in
-  one answer is rejected. The worker makes the id and every frontmatter field, never overwrites a
-  file (a file the owner is editing, even an invalid one, owns its name) and skips a title the
-  owner already has. Only as many ideas as fit under 12 waiting are written. Nothing new to write
-  is a rejection, retried once.
-- **Quiet run.** The agent's own words stay out of the run record (`AgentSpec.quiet`), as for the
-  digest, because it can quote its inputs.
-- **Backlog at run time.** A queued run that finds 12 ideas waiting fails with "12 ideas are
-  waiting; skipped" (the request and the schedule check first, so this is only a race). The spec's
-  "records instead of failing" is not built: a failed job is the one existing way to say it.
-- **Monday schedule.** One run per ready product (valid voice profile, under 12 waiting) once the
-  Monday 07:00 slot has passed, derived from the jobs table so a restart never repeats it. A worker
-  that was down catches up once in the same local week (Monday 07:00 to Sunday); it never writes an
-  earlier week's run. A manual or failed run since the slot settles that product for the week.
+Each is a call made while building, one bullet each.
 
-## 19. As built: the facts and platform gates (Task 13)
+- **a. Pillars reuse discovery.** There is no separate pillars job and no Search Console input:
+  the existing discovery job proposes three to five pillars for content-enabled products, in a new
+  optional `pillars` array of `proposals.json`, and the owner approves them as a `pillar` proposal
+  type (at most six approved per product, enforced by the proposals route).
+- **b. Every content run is Write-only and gets its inputs in the prompt.** The spec gives drafting
+  and the gates Read, Glob and Grep inside the brain. No content run has a Read tool: the facts
+  pack (48 KiB), the notes excerpts and the digest themes are fenced data in the prompt. A run with
+  no Read cannot overwrite an existing file (Claude Code's Write refuses), which is what makes
+  "published = what the worker wrote" hold for `content/`, and a hostile theme or note cannot steer
+  a Read.
+- **c. Every content run takes its prompt on stdin**, not only the digest: the humanizer skill and
+  the facts pack together approach one command-line argument's limit. `AgentSpec.stdin` and
+  `claudeArgs(..., viaStdin)`.
+- **d. A failed step is derived, not written.** The spec moves pieces to `needs-you` with an
+  `error` gate result when a step fails, which needs a worker write after a failed job. Instead the
+  piece files stay `drafting`, and the page derives "Needs you" ("The humanizer check didn't
+  finish. Try again.") from the idea's newest failed or cancelled content job
+  (`lib/content/read/chain-status.ts`); "Try again" re-queues exactly that step. Nothing is shown
+  as passed; the job row is the record. A `drafting` piece may be discarded.
+- **e. The piece's shape lives in its frontmatter.** The validated `content:` is stored in the piece
+  frontmatter and the body is a rendered copy (`lib/content/render.ts`), so checking, copying,
+  exporting and editing need no prose parsing. Edit replaces the one primary text field (LinkedIn
+  `text`, X posts separated by a line `-- next post --`, Instagram `caption`, Facebook `text`, blog
+  and website `body`); hashtags, the visual brief and meta fields keep their stored values.
+- **f. Each gate entry carries the hash of its skill** (`instructions: { name, source, sha256 }`,
+  the hash of that skill's files in the order loaded); each file's own hash is in a job event.
+- **g. No migration.** Job kinds, audit events and the `pillar` type are TypeScript enums over plain
+  text columns, so `pnpm db:generate` reports no schema changes.
+- **h. No digest pruning and no `HARBOUR_DIGEST_KEEP_DAYS`.** Pruning needs a worker-made deletion
+  commit that no job makes today, and git history keeps digests anyway (§5.5).
+- **i. The skills directory is checked when a skill is loaded**, not at startup, so a missing folder
+  fails a content job with a plain reason instead of stopping the web process. Config only checks
+  it is outside the brain.
+- **j. One digest file per day** covers every content-enabled product (one agent run,
+  `themes[].productId`); nothing on topic means the job finishes `ok` with a status event and
+  writes no file (a gap, not an error).
+- **k. The digest request asks for window titles.** The deny-list needs them, so the request keeps
+  windows on and drops apps, memories, key texts, recording and guidance; the client test pins the
+  exact query.
+- **l. Number rules.** Numbers for the claims check are digits (with `,` `.` `$` `%`), four-digit
+  years and spelled-out two to twenty, thirty to ninety, "twenty-one" to "ninety-nine" (one
+  number), hundred, thousand, million, billion and "-fold" forms. "one" is not counted. Digits
+  glued to a letter ("Top10", "Q4") are read, except a short list of names (p3, v2, x86, h1 to h6,
+  b2b, b2c, 3d, 2fa, i18n, a11y). A number matches when its normalised digits match, and it is
+  checked against what the sources say, never their `[ref]` labels.
+- **m. An idea has `needsYou`** (a plain sentence or null), set when the source piece's number check
+  fails and the idea returns to `idea`.
+- **n. The buttons are on the Content page**, not the Agents page: "Make today's digest now", "Find
+  new ideas for <product>", "Write this" and "Try again". The Agents page only gains plain job
+  labels. There is no "Writing skills" panel and no "skill was updated" note; the hashes are in job
+  events and gate results.
+- **o. `content.postiz` in `harbour.config.json` is rejected** (strict schema): an unknown key is
+  loud, not ignored.
+- **p. Piece ids** are `<ideaId>.<platform>` (an idea id has no dot); the API accepts one and splits
+  it with zod.
+- **q. Atomise claims** are stored in the piece frontmatter (at most 20) and passed to the facts
+  gate as "the writer's claims"; the facts gate's own list is what the deterministic trace check
+  and the sidecar record. Writer claims are checked with the verifier's at attempt 1, so an untraced
+  claim cannot vanish when the verifier's list replaces it.
+- **r. The worker keeps a mutable allowed set.** The ideas job cannot know its file names before
+  the agent picks titles, so `workReview.publish` appends the exact files it wrote to
+  `spec.allowed.exact` before the git gate runs, and the touched log records them. Draft, atomise,
+  ideas and the gates all start with an empty set, so an agent can never write a piece, a sidecar
+  or an idea itself, and a failed run never touches a file the owner edited meanwhile.
+- **s. `reviewAlways` adds nothing.** A voice profile can only name the six flags the keyword list
+  and the agent already raise, so the field is parsed and shown but changes no behaviour.
+- **t. "Oldest dropped first" for the 24 KiB cap cannot be honoured:** the Screenpipe response has
+  no per-snippet time, so the first snippets are kept. At 30 snippets of 240 characters the cap
+  never binds.
+- **u. Search Console queries and approved keyword targets are not inputs to ideas** (the MVP list
+  names the digest, pillars, voice and the brain).
+- **v. The platform list is LinkedIn, X, Instagram, Facebook, a blog post and a website section**;
+  there is no newsletter shape.
+- **w. Request limits.** The second digest request of a day is the last (two a day), new ideas are
+  limited to three a day per product, and "Try again" shares the four-requests-a-day limit of every
+  manual request for one idea.
+- **x. Discard is terminal.** A discarded idea or piece stays in the brain, marked `discarded`, and
+  cannot be reopened; the owner finds new ideas. A stub piece's wording says to discard the piece,
+  and a failed step's to discard the idea and find new ones.
+- **y. A decision is not an agent job.** `content-decision` runs no model, so it needs
+  `HARBOUR_CONTENT=on` but not the Claude token, is not counted against the daily runs, and is
+  bounded by dedupe on its params (a double click is one job, audited once) and at most 20
+  waiting.
+- **z. The warm-friend spec needed no change.** §12.3 asked for one sentence to be fixed; §3.2 there
+  already says the note is not counted in the cost ledger, and bounds it by its own caps.
 
-- **Numbers are checked against what the sources say**, never their `[ref]` labels (a date in a
-  label must not make that year look known). Writer claims from atomise are checked with the
-  verifier's at attempt 1, so an untraced claim cannot vanish when the verifier's list replaces it.
-- **A revision that changes nothing does not pass:** the first attempt's findings stand.
-- **Known limits of the number check.** A hashtag that holds a digit (`#web3`, `#2024trends`,
-  `#100DaysOfCode`) fails the gate unless that number is in the sources. Numbers split by
-  formatting (`10 000`, a digit inside markup) and vague quantities ("a dozen", "half", "double")
-  are not caught; the owner's own read before approving covers them.
-- **No shouting policy field exists** in the voice profile, so capitals-only words of four letters
-  or more are always flagged (unless the facts pack writes them that way).
+### 17.2 Behaviour worth knowing, by area
 
-## 20. As built: decisions and the approved export (Task 15)
+**Digest.**
 
-- **Not an agent job.** `content-decision` runs no model, so a decision needs `HARBOUR_CONTENT=on`
-  but not the Claude token, and is not counted against the daily content runs. It is bounded by
-  dedupe on its params (a double click returns the same job and is audited once) and by at most
-  20 decisions waiting.
-- **Edit.** The owner's text is sanitised (a hidden character is stripped, HTML, an image, a code
+- Queued once per local day after `HARBOUR_DIGEST_TIME`, for the day before, and only when the
+  worker is running after that slot the same local day: a worker that starts before the slot, or
+  after an outage that spans a whole day, queues nothing for an earlier day (§12.1 "Catch-up:
+  None"). Any digest job for that day, scheduled, manual or failed, settles it, so a manual run
+  followed by the slot does not queue twice and a failed run is not retried. Only a first, real
+  request is audited.
+- The job checks the owner is not editing the brain before it reads Screenpipe, so a deferred job
+  never reads twice.
+- An unreadable or oversize never-mention list, a term over 60 characters or more than 200 terms
+  fail the digest with a fixed sentence (no term in it): a term is never silently dropped.
+- A quiet run (`AgentSpec.quiet`) carries counts, not names, everywhere: the agent chooses file
+  names and a name can hold screen text. The git gate, the touched-path recorder and a failed
+  discard report "N file(s)" only, in job errors, events and logs.
+- `AgentSpec.noQuarantine`: a failed digest run deletes the files the agent itself wrote (and the
+  quarantine manifest) instead of quarantining them, because they may echo screen text. Anything
+  not known to be the agent's is still quarantined.
+- A theme sharing a verbatim run of 20 or more characters with the filtered snippets (product terms
+  excepted) is dropped and counted.
+
+**Ideas.**
+
+- Inputs: validated digest themes of the last 7 days for this product, approved pillars, the first
+  6 KiB of the product's `notes.md` and `discovery.md`, the voice profile's audience line and the
+  titles of the 30 newest ideas. Raw screen text never reaches it. Notes are read through one
+  descriptor (no symlink, FIFO or directory), must be UTF-8, have invisible characters stripped and
+  fail the job on a control character; a digest in the window that cannot be read fails the job
+  rather than counting as a quiet week.
+- Output: 1 to 5 ideas; every source ref must be one the prompt offered; plain text only; the same
+  title twice in one answer is rejected. The worker makes the id and every frontmatter field, never
+  overwrites a file (a file the owner is editing owns its name), skips a title the owner already
+  has, and writes only as many as fit under 12 waiting. Nothing new to write is a rejection,
+  retried once.
+- A queued run that finds 12 ideas waiting fails with "12 ideas are waiting; skipped" (the request
+  and the schedule check first, so this is only a race). The spec's "records instead of failing" is
+  not built: a failed job is the one existing way to say it.
+- Monday schedule: one run per ready product (valid voice profile, under 12 waiting) once Monday
+  07:00 has passed, derived from the jobs table so a restart never repeats it. A worker that was
+  down catches up once in the same local week, never for an earlier week. A manual or failed run
+  since the slot settles that product for the week.
+
+**Drafting, atomising and the gates.**
+
+- A revision that changes nothing does not pass the facts gate: the first attempt's findings stand.
+  A gate's rewrite may not add a number, link, hashtag or @handle that the piece did not have; a
+  rewrite that does is an `error` entry for that piece alone, with the old text kept.
+- A piece whose revision or sidecar changed while a gate ran fails the run and nothing is saved
+  (a byte-level stale guard); a piece's unreadable sidecar leaves it out of the chain.
+- The chain never queues a gate step that already finished `ok`, and never repeats the step that
+  just ran, so a mended sidecar cannot queue a duplicate attempt. A step that finished but whose
+  next step did not start resumes when the worker restarts. A deferred draft waits for another
+  chain with a back-off and fails after 6 hours.
+- No shouting policy field exists in the voice profile, so capitals-only words of four letters or
+  more are always flagged (unless the facts pack writes them that way).
+- A link check rejects a link to another host in a draft or a piece; atomise copy limits include
+  hashtags.
+
+**Decisions and the export.**
+
+- Edit: the owner's text is sanitised (a hidden character is stripped; HTML, an image, a code
   fence, a line of three dashes, a control character or a link off the product's own host refuses
-  the edit and saves nothing) and must fit the platform's shape, because a piece that does not
-  fit its shape cannot be read back; those refusals are plain sentences that never echo the text.
-  Past that, only the numbers check and the platform check decide Ready or Needs you. Earlier
-  no-ai-slop and humanizer results are kept as they were and no longer hold the piece, an open
-  question still does, and flags the piece already had stay until ticked.
-- **Safe repeats.** A decision whose result is already in the file (one revision on, same state)
-  finishes `ok` with "Already saved", and anything else that moved is `stale`, so a newer edit is
-  never overwritten. A failed commit puts the files back and fails the job with a fixed sentence.
-- **Discard.** A discarded idea or piece stays in the brain, marked `discarded`. An approved
-  piece's export is removed in the same commit, and only a path that `contentPaths.approved` could
-  have built is ever removed. A discarded idea is not written again: the owner finds new ideas.
-- **Export names.** The file is created exclusively (written aside, then linked into place), so it
-  never replaces anything, including a file the owner has not committed.
-- **Failed decisions are shown.** The newest decision job per piece or idea, when it failed at the
-  revision the page shows, appears under the buttons with its own sentence.
-- **Review fixes.** An edit cannot exceed the platform's own hard cap (the spec's "plus 10%" was
-  dead room: anything past the cap cannot be stored), and an edit with the same words is refused,
-  so it can never clear Needs you. The worker also refuses when `HARBOUR_CONTENT` is off. A run
-  cut off before its commit is finished by the same job run again (the files it wrote are
-  committed). The piece is written before its export, so a cut-off run never leaves an export for a
-  piece that was not approved; a leftover export only makes the next export name `-2`. Discarding
-  an idea cancels its chain steps still waiting. There is no way to reopen a discarded idea: the
-  stub wording says to discard the piece, and a failed step to discard the idea and find new ones.
-- **Approve exports the validated content.** The export is made from the piece's validated
-  frontmatter `content`, not from a hand-edited body (Decision 5): text the owner changes in the
+  the edit and saves nothing) and must fit the platform's shape. Past that only the numbers check
+  and the platform check decide Ready or Needs you. Earlier no-ai-slop and humanizer results are
+  kept and no longer hold the piece; an open question still does, and flags the piece already had
+  stay until ticked. An edit cannot exceed the platform's hard cap and an edit with the same words
+  is refused, so it can never clear Needs you.
+- A decision whose result is already in the file finishes `ok` with "Already saved"; anything else
+  that moved is `stale`, so a newer edit is never overwritten. A failed commit puts the files back
+  and fails the job with a fixed sentence. The newest failed decision per piece or idea is shown
+  under the buttons.
+- Discard of an approved piece removes its export in the same commit, and only a path that
+  `contentPaths.approved` could have built is ever removed. Discarding an idea cancels its chain
+  steps still waiting.
+- The export file is created exclusively (written aside, then linked into place), so it never
+  replaces anything; the piece is written before its export, so a cut-off run never leaves an
+  export for a piece that was not approved (a leftover only makes the next name `-2`). A run cut
+  off before its commit is finished by the same job run again. The worker also refuses when
+  `HARBOUR_CONTENT` is off.
+- Approve exports the validated frontmatter `content`, not a hand-edited body: text changed in the
   markdown file by hand is not what an approval exports.
 
+### 17.3 Known limits and residuals
+
+These are accepted for the MVP. Each is a limit of a check, not a hole in a promise.
+
+- **Link check false positives.** A word like `Node.js/TypeScript`, or a sentence run together
+  across a full stop ("works.In the"), can read as a link to another host and refuse a piece or a
+  draft. The agent's one retry usually clears it; otherwise the piece is a Needs you stub.
+- **Digit hashtags.** A hashtag holding a digit (`#web3`, `#2024trends`, `#100DaysOfCode`) fails the
+  facts gate unless that number is in the sources.
+- **Split and vague numbers.** Numbers split by formatting (`10 000`, a digit inside markup) and
+  vague quantities ("a dozen", "half", "double") are not caught; the owner's read before approving
+  covers them.
+- **Verbatim-run theme drop.** A theme that shares 20 or more characters with the filtered screen
+  text is dropped even when the words are the product's plain vocabulary. The digest then has fewer
+  themes than it could.
+- **A plain word in a valid theme.** A theme is the model's own sentence; if it repeats a plain word
+  from the screen with no digit, link or name, the validator cannot tell it from its own vocabulary.
+- **Redaction residuals.** Spelled-out emails ("sam at example dot com"), leetspeak, passphrases,
+  short unlabelled secrets, tokens split by spaces, homoglyphs outside Cyrillic and Greek, and
+  prompt-injection wording are not caught by the filters; the last is the prompt fence's job. Window
+  titles that merely look private ("Meet the team" in a browser) are dropped: the safe failure.
+- **Null window titles drop the snippet.** A Screenpipe response without window titles yields an
+  empty digest, by design (fail closed): a snippet that cannot be checked is private.
+- **Crash recovery keeps files.** After a worker crash, startup recovery has no spec and so
+  quarantines, and keeps, the files a digest agent wrote, outside the brain; the owner can delete the
+  quarantine folder. A failed discard keeps the run's touched-file log in the quarantine's `active`
+  folder (also outside the brain) until recovery finishes it. Both hold file names the agent
+  chose.
+- **Quiet runs and failed discards.** If discarding a failed quiet run itself fails, the job's event
+  and the worker's log say so in a fixed sentence without the file names the error carried
+  (`run-job.ts`); the run's marker stays and recovery retries.
+- **An owner's edit during a run.** A draft or a check whose files the owner edited meanwhile fails
+  with a plain sentence and saves nothing, and the owner's version stays where it is (these runs
+  start with no allowed files, so a failed run has nothing of theirs to discard). Any other
+  uncommitted owner edit inside the brain while an agent runs is handled by the existing git gate:
+  it fails the run and moves the edit, with the run's output, to quarantine.
+
+### 17.4 To confirm on the first real run
+
+Two assumptions could not be tested without a real Screenpipe and a real model, and are not tests:
+
+- **Screenpipe's `/activity-summary` field names are unconfirmed.** `lib/content/worker/screenpipe/schema.ts`
+  reads snippets as `text`, `app_name` and `window_name` and the status as `data_status`
+  (`ok`, `empty_but_recording`, `no_capture_in_range`, `not_recording`), and is tolerant of what it
+  does not know. The installed Screenpipe's OpenAPI document needs its key and was not read. If a
+  name differs the first real digest comes out empty (the failure is a gap, not a leak); read the
+  first digest before leaving the schedule on, and adjust `schema.ts`, the one place that knows the
+  names.
+- **`claude -p` reading its prompt from stdin is unverified against the real CLI.** `claude --help`
+  says the prompt argument is optional and `-p` is "useful for pipes", and the fake CLI reads stdin
+  when no prompt follows `-p`, but a prompt-less call spends subscription tokens, so it was not
+  run. If the real CLI does not read stdin the first content run fails with a plain sentence; the
+  fix is in `claudeArgs`.
+
+### 17.5 Not built
+
+Postiz drafts (§11), the Search Console and approved-target inputs to ideas, a separate
+`content-pillars` job, digest pruning and `HARBOUR_DIGEST_KEEP_DAYS`, discarded-piece pruning after
+90 days, the Agents page skills panel and its "skill was updated" note, the "What Harbour noticed"
+panel with "Leave this out", any scheduling other than the daily digest and Monday ideas, images,
+analytics and the feedback loop.
