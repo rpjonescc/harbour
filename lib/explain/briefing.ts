@@ -71,8 +71,10 @@ const BACKUP_TROUBLE: Partial<Record<BackupHealth, string>> = {
   unreadable: "Harbour can't open the backup folder",
 };
 
+export type TroubleInput = Pick<BriefingInput, "products" | "failures" | "failedChecks" | "backup">;
+
 /** Checks that failed outright; a product whose failing sources are listed is said there. */
-function checkTrouble(input: BriefingInput): string | null {
+function checkTrouble(input: TroubleInput): string | null {
   const named = new Set(input.failures.map((f) => f.productId));
   const failed = input.products.filter(
     (p) => input.failedChecks.includes(p.id) && !named.has(p.id),
@@ -84,17 +86,23 @@ function checkTrouble(input: BriefingInput): string | null {
   return `the last check for ${failed.length} sites didn't finish`;
 }
 
+/**
+ * What is broken, in the sub-line's order: a check that failed outright, a failing data source,
+ * a backup that needs a look. Empty when nothing is. The daily note's facts reuse it, so the note
+ * and the briefing never disagree about what is wrong.
+ */
+export function troubleLines(input: TroubleInput): string[] {
+  return [checkTrouble(input), sourceTrouble(input.failures), BACKUP_TROUBLE[input.backup]].filter(
+    (t): t is string => typeof t === "string",
+  );
+}
+
 function subLine(input: BriefingInput): string {
   const n = input.work.length;
   const parts = [n === 0 ? "Nothing on the to-do list" : `${n} ${plural(n, "thing")} worth doing`];
   const claude = input.work.filter((w) => w.who === "claude").length;
   if (claude > 0) parts.push(`Claude is handling ${claude}`);
-  const trouble = [
-    checkTrouble(input),
-    sourceTrouble(input.failures),
-    BACKUP_TROUBLE[input.backup],
-  ];
-  const broken = trouble.filter((t): t is string => typeof t === "string");
+  const broken = troubleLines(input);
   parts.push(...(broken.length > 0 ? broken : ["nothing is broken"]));
   return parts.join(" · ");
 }
