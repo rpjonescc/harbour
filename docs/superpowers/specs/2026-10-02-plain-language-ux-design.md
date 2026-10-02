@@ -242,7 +242,9 @@ As built:
   `FORMULA_VERSION` is `"v2"`. `aeo.preferredSources` is shown as "Fresh pages" for product sites.
 - `no-preferred-sources` returns `clear` for product sites, so the rule sync resolves an old open
   action with its ordinary "Resolved" note rather than a special path.
-- Score changes are shown only between two scores of the same formula version. The Product page
+- A score change is hidden only for an area whose formula the version changed (v2: Answer-ready on
+  product sites), since that change measures the formula rather than the site; a version with no
+  entry in `lib/explain/scoring-notes.ts` hides every area. The Product page
   shows the history note (`formulaChange`, `lib/explain/scoring-notes.ts`) for product sites while
   the change is within the 30-day trend window.
 

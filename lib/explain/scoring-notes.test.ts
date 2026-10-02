@@ -29,6 +29,7 @@ describe("formulaChangedArea", () => {
   it("counts every area as changed for a version it has no entry for, even across a gap", () => {
     expect(formulaChangedArea("news", "seo", "v2", "v3")).toBe(true);
     expect(formulaChangedArea("news", "seo", "v1", "v3")).toBe(true);
+    expect(formulaChangedArea("product", "seo", "v2", "v2.1")).toBe(true);
     expect(formulaChangedArea("product", "seo", "v1", "weird")).toBe(true);
   });
 

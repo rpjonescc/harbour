@@ -16,7 +16,9 @@ const AREAS_CHANGED: Readonly<Record<string, Readonly<Record<ProductKind, readon
   v2: { product: ["aeo"], news: [] },
 };
 
-const versionNumber = (version: string) => Number.parseInt(version.replace(/^\D+/, ""), 10);
+/** "v2" → 2; anything else (such as "v2.1") is NaN, which counts as an unknown version. */
+const versionNumber = (version: string) =>
+  /^v\d+$/.test(version) ? Number(version.slice(1)) : Number.NaN;
 
 /**
  * Whether a score in `area` was computed on a different formula in `to` than in `from` (versions
