@@ -43,12 +43,39 @@ const kindOf = async (promise: Promise<unknown>) => {
 };
 
 describe("fetchActivity", () => {
+  it("returns the window list with app, title and minutes, and skips rows it cannot read", async () => {
+    const windows = [
+      { app_name: "Editor", window_name: "guide.md", minutes: 12.5 },
+      { app_name: "Browser", window_name: "Acme Docs - Home", minutes: 3 },
+    ];
+    await withServer({ windows }, async (url, fake) => {
+      const activity = await fetchActivity(settings(url), RANGE, ["acme"]);
+      expect(activity.windows).toEqual([
+        { app: "Editor", window: "guide.md", minutes: 12.5 },
+        { app: "Browser", window: "Acme Docs - Home", minutes: 3 },
+      ]);
+      expect(fake.requests.find((r) => r.path === "/activity-summary")?.query.include_windows).toBe(
+        "true",
+      );
+    });
+    await withServer(
+      { windows: [{ app_name: "Editor", window_name: "x", minutes: -4 }, ...windows] },
+      async (url) => {
+        const activity = await fetchActivity(settings(url), RANGE, ["acme"]);
+        expect(activity.windows).toHaveLength(2);
+        expect(activity.dropped).toBe(1);
+      },
+    );
+  });
+
   it("asks for the narrowest call, with the key and fixed client headers, and keeps only what it needs", async () => {
     await withServer({ snippets: [SNIPPET] }, async (url, fake) => {
       const activity = await fetchActivity(settings(url), RANGE, ["acme docs", "acme-docs"]);
       expect(activity).toEqual({
         dataStatus: "ok",
-        snippets: [{ app: "Editor", window: "guide.md", text: SNIPPET.text }],
+        snippets: [{ app: "Editor", window: "guide.md", text: SNIPPET.text, timestamp: null }],
+        windows: [],
+        dropped: 0,
       });
       const request = fake.requests.find((r) => r.path === "/activity-summary");
       expect(request?.query).toEqual({
@@ -60,6 +87,7 @@ describe("fetchActivity", () => {
         include_recording: "false",
         include_guidance: "false",
         include_apps: "false",
+        include_windows: "true",
         max_snippets: "30",
         max_snippet_chars: "240",
       });
@@ -76,6 +104,8 @@ describe("fetchActivity", () => {
       expect(await fetchActivity(settings(url), RANGE, ["acme"])).toEqual({
         dataStatus: "empty_but_recording",
         snippets: [],
+        windows: [],
+        dropped: 0,
       });
     });
   });
@@ -83,7 +113,7 @@ describe("fetchActivity", () => {
   it("treats a snippet with no app or window as an unnamed one, and drops every unknown field", async () => {
     await withServer({ snippets: [{ text: "Acme Docs note" } as never] }, async (url) => {
       const { snippets } = await fetchActivity(settings(url), RANGE, ["acme"]);
-      expect(snippets).toEqual([{ app: "", window: null, text: "Acme Docs note" }]);
+      expect(snippets).toEqual([{ app: "", window: "", text: "Acme Docs note", timestamp: null }]);
     });
   });
 

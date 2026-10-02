@@ -42,7 +42,9 @@ export function linkRules(host: string): Rule[] {
     [/\b(?:mailto|data|javascript|file|tel):\S+/gi, "[link]"],
     [/\bwww\.\S+/gi, "[link]"],
     // No TLD needed ("sam@localhost"); a domain split off by a line break is taken with it.
-    [/[^\s@<>"'()]+@[^\s@<>"'()]+(?:\s\.[a-z]{2,})*/gi, "[email]"],
+    // The lookbehind starts a match only at the start of a run: the same matches, but a long run with
+    // no "@" is read once instead of once per character.
+    [/(?<![^\s@<>"'()])[^\s@<>"'()]+@[^\s@<>"'()]+(?:\s\.[a-z]{2,})*/gi, "[email]"],
     [
       // A listed TLD makes a bare host a link; any TLD does once a path, query or port follows.
       new RegExp(

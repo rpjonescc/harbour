@@ -1,4 +1,4 @@
-import { scrub } from "@/lib/analyst/scrub";
+import { redactSensitive } from "@/lib/analyst/scrub";
 import { canonicalise, matchKey, termPattern } from "./canonical";
 import { BUILT_IN_EXCLUDED_APPS, isDeniedByNames } from "./deny-lists";
 import {
@@ -63,7 +63,7 @@ export function redactFull(canonical: string, compiled: Compiled): string {
   let text = canonical.replace(/<\/?[a-z!][^>]*>/gi, "").replace(/[`<>]/g, "");
   for (const pattern of compiled.never) text = replaceOn(text, pattern, "[removed]");
   for (const [pattern, to] of compiled.rules) text = replaceOn(text, pattern, to);
-  return canonicalise(scrub(text));
+  return canonicalise(redactSensitive(text));
 }
 
 /** Step 4 for one snippet: redact, then cap at 240 characters. */
