@@ -61,6 +61,7 @@ describe("importing and deciding", () => {
     expect(importProposals(db, "acme-docs", parseProposals(JSON.stringify(again)), null)).toEqual({
       added: 0,
       skipped: 3,
+      droppedPillars: 0,
     });
     const after = listProposals(db, "acme-docs").keyword.find((p) => p.id === keyword.id);
     if (!after) throw new Error("expected keyword after");
