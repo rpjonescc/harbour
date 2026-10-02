@@ -1,7 +1,8 @@
 # Idea: Content machine
 
-Status: **idea, not designed.** Noted 2026-10-02 as the natural next step after the
-plain-language UX work. It gets its own brainstorm and spec before anything is built.
+Status: **spec drafted, awaiting review; not built.** Noted 2026-10-02 as the natural next step after the
+plain-language UX work; the design is in
+[`docs/superpowers/specs/2026-10-02-content-machine-design.md`](../specs/2026-10-02-content-machine-design.md).
 
 ## Why
 

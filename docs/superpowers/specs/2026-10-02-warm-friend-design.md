@@ -67,8 +67,8 @@ A short note written by the agent each morning, shown at the top of Today:
 - The note is written once per day plus on demand. Today shows the newest valid note from the
   last 24 hours; older than that it shows the quiet gap ("No note yet today").
 - It reuses the existing agent runner and job queue, the same way the weekly analyst runs: one
-  job kind, bounded by its own time, size and rate caps (the cost ledger records paid API calls only; no agent run is metered there)
-  any other agent run.
+  job kind, bounded by its own time, size and rate caps. It is not counted in the cost ledger
+  (see §10(a)); each run is in the Agents run history like any other agent run.
 
 ### 3.3 What the agent is given
 
@@ -101,9 +101,8 @@ The agent's output is parsed with zod and rejected unless:
   claim trouble.
 
 A rejected note is retried once with the reason fed back; a second failure is recorded as a
-failed run with the reason, and Today shows the quiet gap plus a plain, fixed fallback line built
-from the facts by the plain-language library (the briefing already on the page). Nothing
-rejected is ever shown.
+failed run with the reason, and Today shows the quiet gap (the fallback is the briefing already on
+the page: see §10(c)). Nothing rejected is ever shown.
 
 ### 3.5 Storage
 
@@ -197,3 +196,49 @@ half of the viewport, behind all content, in the signed-in shell.
 4. The Today note card and its data reading.
 5. The wave and its `/design` example.
 6. README, spec notes and full verification.
+
+## 10. As built
+
+Where the build differs from this spec or fills a gap, and why.
+
+- **(a) The cost ledger is not used.** It records paid API calls only, and the note runs on the
+  owner's Claude subscription like every other agent, so nothing is metered there. The note is
+  bounded by its own caps (one run at a time, five minutes an attempt, one retry, at most 5
+  on-demand requests a local day, a facts snapshot and a note file of bounded size) and shows in
+  the Agents run history with its prompt version.
+- **(b) Pruning old notes is not built.** Notes stay in the brain (about 400 small files a year);
+  readers look at only the newest 30.
+- **(c) The fallback line is the briefing already on the page.** Today never shows a made-up
+  substitute. `lib/explain/voice/fallback.ts` holds the quiet gap line, the card's state
+  messages and the fixed sample note for the sample Today.
+- **(d) `HARBOUR_SCHEDULED_NOTE` was added.** Every schedule has an off switch of this form, and
+  the end-to-end suite needs one so a scheduled run does not queue ahead of the runs under test.
+- **(e) "Out of hours" is 20:00 to 04:59 local time, and a weekend is all day Saturday and
+  Sunday** (the weekend wins). The default 06:30 note is therefore a working-morning slot.
+- **(f) The body cap is 360 characters hard, 330 asked of the agent,** so a few over never costs
+  a retry.
+- **(g) The checker has extra rules beyond the spec:** the area codes (SEO, GEO, AEO) are
+  rejected, a note may celebrate only when the facts list wins, scores that are not strong are
+  not praised, number words and vague quantities ("doubled", "dozens") are treated like figures,
+  hidden or look-alike characters are refused, and a pick must not repeat. Unknown names are found
+  by capitalised words that are not in the facts (product names and the first name count as whole
+  phrases; a short allowlist covers everyday proper nouns). Known limits: a single invented name
+  used only as the first word of a sentence can pass, a figure is checked against the whole set of
+  figures so it can sit in the wrong place when it exists elsewhere in the facts, and an invented
+  name in lowercase can pass.
+- **(h) The one retry runs inside the same job,** with the checker's reason fed back and only the
+  time the first attempt left. A rejected draft is deleted before the retry, because Claude
+  Code's `Write` will not overwrite a file it has not read.
+- **(i) The wave is filled with `--accent-soft`,** not `--accent`: that token is a pale tint in
+  light and a deep one in dark, so three faint layers stacked on one pixel keep every text colour
+  at WCAG AA, which `design/wave-contrast.test.ts` proves in light, dark and system dark. The
+  layers (opacity, speed, shape) are defined once in `design/wave.ts`.
+- **(j) The ripple is one CSS rule keyed on `data-mood="celebrate"`** on the note card, which
+  moves the front layer once; reduced motion switches it off with the drift.
+- **(k) The hidden-tab pause is the browser's:** no script watches visibility; browsers do not
+  animate a hidden tab.
+- **(l) The note agent has the `Write` tool only.** No Read and no web: the facts hold titles from
+  crawled pages, so a web tool would be a way out. It writes a draft that Harbour checks, then
+  moves into `notes/daily/`. Today shows a note only when a succeeded `daily-note` job vouches for
+  its stamp and the file's content hash equals the one the checker accepted, so a file added,
+  edited or overwritten afterwards (by any agent) is never shown.
