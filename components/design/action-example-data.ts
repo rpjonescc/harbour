@@ -32,6 +32,7 @@ export function exampleActionView(over: Partial<ActionView> = {}): ActionView {
     status: "open",
     snoozedUntil: null,
     issuePresent: true,
+    prUrl: null,
     createdAt: AT,
     updatedAt: AT,
     statusChangedAt: AT,

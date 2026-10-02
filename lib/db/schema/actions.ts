@@ -33,6 +33,8 @@ export const actions = sqliteTable(
     snoozedUntil: text("snoozed_until"),
     // Rule actions: whether the last judged scan found the issue.
     issuePresent: integer("issue_present", { mode: "boolean" }),
+    // The fix's pull request (https://github.com/<owner>/<repo>/pull/<n>), linked by Claude.
+    prUrl: text("pr_url"),
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),
     statusChangedAt: timestamp("status_changed_at").notNull(),
@@ -58,7 +60,7 @@ export const actionEvents = sqliteTable(
       .notNull()
       .references(() => actions.id),
     at: timestamp("at").notNull(),
-    actor: text("actor", { enum: ["owner", "scan", "agent", "system"] }).notNull(),
+    actor: text("actor", { enum: ["owner", "claude", "scan", "agent", "system"] }).notNull(),
     // Null on creation.
     from: text("from_status"),
     to: text("to_status").notNull(),

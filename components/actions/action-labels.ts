@@ -29,6 +29,7 @@ export const SOURCE_LABEL = {
 /** Who made a change, in the card's history. */
 export const ACTOR_LABEL: Record<ActionActor, string> = {
   owner: "You",
+  claude: "Claude",
   scan: "Scan",
   agent: "Weekly analyst",
   system: "Harbour",
