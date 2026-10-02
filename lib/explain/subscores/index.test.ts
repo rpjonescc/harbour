@@ -1,5 +1,7 @@
+import { SUB_SCORES } from "@/lib/scan/score";
 import { ACME_SCAN, entryOf, scoreOf } from "@/tests/helpers/scoring";
-import { subScoreExplanation, subScoreLine } from ".";
+import { isComplete } from "../four-parts";
+import { SUB_SCORE_EXPLANATIONS, subScoreExplanation, subScoreLine } from ".";
 
 describe("subScoreLine", () => {
   it("reads a measured entry's evidence", () => {
@@ -25,5 +27,23 @@ describe("subScoreLine", () => {
       "Doing really well. Keep it up.",
     );
     expect(subScoreExplanation("seo.retired")).toBeNull();
+  });
+});
+
+describe("SUB_SCORE_EXPLANATIONS", () => {
+  it("explains every sub-score key in the current formula, in order, and nothing else", () => {
+    const formula = Object.values(SUB_SCORES)
+      .flat()
+      .map((spec) => spec.key);
+    expect(SUB_SCORE_EXPLANATIONS.map((e) => e.key)).toEqual(formula);
+    for (const e of SUB_SCORE_EXPLANATIONS) expect(isComplete(e.parts)).toBe(true);
+  });
+
+  it("gives every entry of a real scan a plain line with no codes", () => {
+    for (const entry of scoreOf(ACME_SCAN)?.breakdown ?? []) {
+      const line = subScoreLine(entry);
+      expect(line.length).toBeGreaterThan(10);
+      expect(line).not.toMatch(/\b(?:seo|geo|aeo)\.|HARBOUR_|\b(?:SEO|GEO|AEO)\b/);
+    }
   });
 });

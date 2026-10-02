@@ -1,5 +1,6 @@
 import type { ScoreBreakdownEntry } from "@/lib/db/schema";
 import { verdictFor } from "../verdict";
+import { AEO_EXPLANATIONS } from "./aeo";
 import type { SubScoreExplanation } from "./entry";
 import { GEO_EXPLANATIONS } from "./geo";
 import { missingLine } from "./missing";
@@ -11,6 +12,7 @@ export type { SubScoreExplanation } from "./entry";
 export const SUB_SCORE_EXPLANATIONS: readonly SubScoreExplanation[] = [
   ...SEO_EXPLANATIONS,
   ...GEO_EXPLANATIONS,
+  ...AEO_EXPLANATIONS,
 ];
 
 const BY_KEY = new Map(SUB_SCORE_EXPLANATIONS.map((e) => [e.key, e]));
