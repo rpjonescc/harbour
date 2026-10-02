@@ -19,17 +19,17 @@ explainable breakdowns. The roadmap continues with:
 
 ## Features
 
-- **Today** — date, when your sites were last checked, a one-sentence briefing (overall health
-  and the biggest opportunity, then how many things are worth doing, how many Claude is
-  handling and anything broken: a check that didn't finish, a failing data source or a backup
-  that needs a look), a plain verdict per product and area (Found on Google, Recommended by
-  AI assistants, Answer-ready: Strong 85+, Good 70–84, Fair 50–69 or
-  Needs work under 50, with the score and its change beside it; "What's this?" explains each
-  area, and the numbers with a 30-day SEO trend sit under Technical details), **Next up** (the top three actions as plain cards: why each matters, its area, how big a job it
-  is and who's on it), and **Behind the scenes**: paid spend, backup warnings and any data
-  source that failed in the last check, each saying what happened, whether it matters and what
-  to do (raw errors under Technical details). Until the first check finishes it shows clearly
-  labelled sample data.
+- **Today** — date, when your sites were last checked, a one-sentence briefing (overall health and
+  the biggest opportunity, then how many things are worth doing, how many Claude is handling and
+  anything broken: a check that didn't finish, a failing data source or a backup that needs a look),
+  a plain verdict per product and area (Found on Google, Recommended by AI assistants, Answer-ready:
+  Strong 85+, Good 70–84, Fair 50–69 or Needs work under 50, with the score and its change beside
+  it; "What's this?" explains each area, and the numbers with a 30-day SEO trend sit under Technical
+  details), **Next up** (the top three actions as plain cards: why each matters, its area, how big a
+  job it is and who's on it), and **Behind the scenes**: paid spend, backup warnings and any data
+  source that failed in the last check, each saying what happened, whether it matters and what to do
+  (raw errors under Technical details). Until the first check finishes it shows clearly labelled
+  sample data.
 - **Product pages** — per product: three area cards (Found on Google, Recommended by AI
   assistants, Answer-ready) each with a verdict, the small number and "What's this?", a
   one-line summary, **Check now**, a tab per area listing its sub-scores as plain sentences
@@ -44,8 +44,9 @@ explainable breakdowns. The roadmap continues with:
   line, and a link to its pull request. The full reason, evidence, where it came from, the exact fix
   and check, and **Hand to Claude** (a ready prompt) sit under **Technical details**. Filter by
   product, area and status (a plain, bookmarkable form); move an action through New ideas → To do →
-  In progress → Done, snooze it until a date or dismiss it. The sidebar badge reads "N things worth doing".
-  Claude can triage the board for you with `pnpm actions`, every change recorded with its reason.
+  In progress → Done, snooze it until a date or dismiss it. The sidebar badge reads "N things worth
+  doing". Claude can triage the board for you with `pnpm actions`, every change recorded with its
+  reason.
 - **Sources** — where each score's data comes from and whether it is working: whether the daily
   check is on and when the next one is, which data sources are connected (never their secrets;
   the ones still to connect say how, under **Technical details**), and each source's last
@@ -162,8 +163,9 @@ your Second Brain:
   rationale), or **Run all research** to queue them all (a topic that already has a
   research run or refresh queued or running keeps that run). Each writes one document under
   `research/` (or `00-start-here.md`).
-- **Find ideas** — one run per product (**Find ideas for Acme Docs**); it reads your `products/<id>/notes.md` and writes
-  `products/<id>/discovery.md` and `products/<id>/proposals.json`.
+- **Find ideas** — one run per product (**Find ideas for Acme Docs**); it reads your
+  `products/<id>/notes.md` and writes `products/<id>/discovery.md` and
+  `products/<id>/proposals.json`.
 
 Agents run Claude Code on the Harbour PC with your Claude subscription. Run `claude setup-token`
 there, add `HARBOUR_CLAUDE_OAUTH_TOKEN=…` to `.env`, then restart both services
@@ -476,13 +478,13 @@ whether the daily check is on and when each product was last checked and will be
 The worker queues one weekly analyst run (see [Weekly analyst](#weekly-analyst)) each Sunday at
 20:00 in `HARBOUR_TIMEZONE`, for that Sunday's ISO week. Like the daily check it is worked out from
 the job history, so a restart never queues it twice, and a worker that was down on Sunday evening
-queues exactly one run, for that Sunday's week, when it starts. A run you start by hand counts
-only if you start it after Sunday's 20:00: one earlier in the week does not stop the full-week
-report. The worker skips the week, and says so in its log, when `HARBOUR_CLAUDE_OAUTH_TOKEN` is
-not set ("weekly analyst skipped: no Claude token") or when no product has a scored check in the
-last 7 days ("no scan data this week"). A failed run is not retried automatically: choose **Write
-this week's report now** on **Agents** or run `pnpm analyst:now`. Set `HARBOUR_SCHEDULED_ANALYST=off` to
-run it only by hand. Like every agent run it waits for the brain to be quiet first.
+queues exactly one run, for that Sunday's week, when it starts. A run you start by hand counts only
+if you start it after Sunday's 20:00: one earlier in the week does not stop the full-week report.
+The worker skips the week, and says so in its log, when `HARBOUR_CLAUDE_OAUTH_TOKEN` is not set
+("weekly analyst skipped: no Claude token") or when no product has a scored check in the last 7 days
+("no scan data this week"). A failed run is not retried automatically: choose **Write this week's
+report now** on **Agents** or run `pnpm analyst:now`. Set `HARBOUR_SCHEDULED_ANALYST=off` to run it
+only by hand. Like every agent run it waits for the brain to be quiet first.
 
 ### Daily note
 
@@ -912,12 +914,12 @@ evidence behind its number, so the product page can explain it.
   a formula change gets a new version rather than rewriting history. A change in a score is
   only shown between two scores of the same version, so the first check after a formula change
   has no change beside it, and the 30-day SEO trend line keeps its older points as they were.
-- **Preferred Sources only counts for news sites.** It is a Top Stories feature, so the
-  "No favourite-source link for Google readers" action is raised only for `kind: "news"`
-  products; one still open on any other product moves to Done at its next check, with the
-  ordinary note "Resolved — not found in the check of <date>". For about 30 days after formula v2 first scores a
-  product site, its page says "Scoring updated: Preferred Sources now only counts for news
-  sites." so a move in the score is not mistaken for a change in the site.
+- **Preferred Sources only counts for news sites.** It is a Top Stories feature, so the "No
+  favourite-source link for Google readers" action is raised only for `kind: "news"` products; one
+  still open on any other product moves to Done at its next check, with the ordinary note "Resolved
+  — not found in the check of <date>". For about 30 days after formula v2 first scores a product
+  site, its page says "Scoring updated: Preferred Sources now only counts for news sites." so a move
+  in the score is not mistaken for a change in the site.
 
 The exact formulas, thresholds and rounding are in the Phase 3 plan's "As built — scoring" notes
 ([docs/superpowers/plans](docs/superpowers/plans/2026-10-02-phase-3-visibility.md)), which
