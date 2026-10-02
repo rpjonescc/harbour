@@ -4,18 +4,10 @@ import { actionEvents, actions, brainDocs } from "@/lib/db/schema";
 import type { Impact } from "@/lib/scan/issues";
 import { readDocs, readEvidence } from "./evidence";
 import { historyTruncated } from "./store";
-import { ACTIVE, type ActionRow, type ActionStatus } from "./types";
+import { ACTION_STATUSES, ACTIVE, type ActionRow, type ActionStatus } from "./types";
 
 const AREAS = ["SEO", "GEO", "AEO"] as const;
 const STATUS_FILTERS = ["active", "suggested", "snoozed", "done", "dismissed", "all"] as const;
-const STATUSES: readonly ActionStatus[] = [
-  "suggested",
-  "open",
-  "in_progress",
-  "done",
-  "snoozed",
-  "dismissed",
-];
 const IMPACTS: readonly Impact[] = ["high", "medium", "low"];
 
 export type ActionFilter = {
@@ -45,7 +37,7 @@ export type ActionGroup = { impact: Impact; actions: ActionView[] };
 
 function statusesFor(filter: ActionFilter["status"]): readonly ActionStatus[] {
   if (filter === "active") return ACTIVE;
-  if (filter === "all") return STATUSES;
+  if (filter === "all") return ACTION_STATUSES;
   return [filter];
 }
 
@@ -183,7 +175,10 @@ export function boardActions(
 
 /** How many actions each status holds, for configured products. */
 export function actionCounts(db: Db, productIds: readonly string[]): Record<ActionStatus, number> {
-  const counts = Object.fromEntries(STATUSES.map((s) => [s, 0])) as Record<ActionStatus, number>;
+  const counts = Object.fromEntries(ACTION_STATUSES.map((s) => [s, 0])) as Record<
+    ActionStatus,
+    number
+  >;
   if (productIds.length === 0) return counts;
   const rows = db
     .select({ status: actions.status, n: count() })

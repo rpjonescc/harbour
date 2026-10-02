@@ -16,5 +16,14 @@ export type ActionFields = Pick<
   NewAction,
   "area" | "title" | "why" | "fix" | "check" | "impact" | "effort" | "evidence" | "docs"
 >;
+/** Every status, in the order an action usually moves through them. */
+export const ACTION_STATUSES: readonly ActionStatus[] = [
+  "suggested",
+  "open",
+  "in_progress",
+  "done",
+  "snoozed",
+  "dismissed",
+];
 /** Statuses the owner is actively working on. */
 export const ACTIVE: readonly ActionStatus[] = ["open", "in_progress"];
