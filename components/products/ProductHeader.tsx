@@ -7,7 +7,10 @@ import { AreaCards } from "./AreaCards";
 import { ScanNowButton } from "./ScanNowButton";
 import { ScanStatusNote } from "./ScanStatusNote";
 
-/** Product name and links, Scan now, where scanning stands, a one-line summary and the three area cards. */
+/**
+ * Product name and links, Scan now, where scanning stands, a one-line summary and the three area
+ * cards.
+ */
 export function ProductHeader({
   product,
   scores,

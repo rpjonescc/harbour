@@ -6,8 +6,9 @@ import { expectPlainLanguage } from "./plain-language";
 import { CAFE, GEO_EVIDENCE, SUGGESTED, seedActions } from "./seed-actions";
 
 // Runs after scans.spec.ts: Acme Docs has the rule actions its scan opened. The seed adds a
-// scored scan of Lighthouse Café (rule actions "No guide to your site for AI assistants", "Your site opts out of AI training" and
-// "Your questions and answers aren't labelled for Google and AI") and two suggestions from the weekly analyst.
+// scored scan of Lighthouse Café (rule actions "No guide to your site for AI assistants", "Your
+// site opts out of AI training" and "Your questions and answers aren't labelled for Google and
+// AI") and two suggestions from the weekly analyst.
 
 test.describe.configure({ mode: "serial" });
 test.beforeAll(() => seedActions());

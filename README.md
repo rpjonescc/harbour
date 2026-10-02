@@ -38,15 +38,15 @@ continues with:
   the pages Harbour checked, and Google Search Console totals. The numbers, scoring keys, raw
   evidence, page and search tables sit under **Technical details**.
 - **Actions board** — every issue the scan finds becomes a tracked action, grouped as Big wins,
-  Worth doing and Small wins. Each card is a headline, one line on why it matters, a chip for how big a win it is
-  (Big win, Worth doing, Small win) and a chip for who's on it (a new idea not decided yet,
-  Claude is on it, a pull request waiting for your OK, or waiting for you), with the area, how big
-  a job it is (a quick job, an afternoon or a project) and the product in one small line, and
-  a link to its pull request. The full reason, evidence, where it came from, the exact fix and
-  check, and **Hand to Claude** (a ready prompt) sit under **Technical details**. Filter by product, area and status (a plain,
-  bookmarkable form); move an action through New ideas → To do → In progress → Done, snooze it
-  until a date or dismiss it. The sidebar shows how many are open. Claude can triage the board
-  for you with `pnpm actions`, every change recorded with its reason.
+  Worth doing and Small wins. Each card is a headline, one line on why it matters, a chip for
+  how big a win it is (Big win, Worth doing, Small win) and a chip for who's on it (a new idea
+  not decided yet, Claude is on it, a pull request waiting for your OK, or waiting for you), with
+  the area, how big a job it is (a quick job, an afternoon or a project) and the product in one
+  small line, and a link to its pull request. The full reason, evidence, where it came from, the
+  exact fix and check, and **Hand to Claude** (a ready prompt) sit under **Technical details**.
+  Filter by product, area and status (a plain, bookmarkable form); move an action through New
+  ideas → To do → In progress → Done, snooze it until a date or dismiss it. The sidebar shows
+  how many are open. Claude can triage the board for you with `pnpm actions`, every change recorded with its reason.
 - **Sources** — whether the daily scan is on, which data sources are connected (never their
   secrets), and each source's last run, status and reason per product.
 - **Products from config** — list your products in `harbour.config.json`; each gets a
@@ -613,11 +613,12 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   action yet says tracking starts with the next scan. **Pages Harbour checked** is a one-line
   verdict; the table of the 50 crawled pages with the most problems sits under **Technical
   details**. The Google Search Console and paid-data panels say in plain words whether they are
-  connected, what they show and how to connect them (setting names only inside the steps), and
-  Search Console's top searches sit under **Technical details**. Actions created before a title
-  was reworded keep the old title until the next scan finds the issue again; open, in-progress,
-  snoozed and dismissed actions then take the new title, and an action already resolved keeps its
-  old one.
+  connected and what they show. Search Console also says how to connect it; the paid-data
+  panels say Harbour doesn't collect that data yet. Setting names appear only under
+  **Technical details** (Search Console's raw reason), as do its top searches. Actions created
+  before a title was reworded keep the old title until the next scan finds the issue again; open,
+  in-progress, snoozed and dismissed actions then take the new title, and an action already
+  resolved keeps its old one.
 - **Actions** (`/actions`) follow every scan that is not failed: each issue becomes one tracked
   action per product and rule. The next scan that no
   longer finds the issue marks its action done, with a dated note; if the issue comes back, or

@@ -33,8 +33,9 @@ function DocLinks({ action }: { action: ActionView }) {
 }
 
 /**
- * What the owner rarely needs but Claude and the curious do: the full reason, the exact fix and check, where the
- * action came from, its rule, the evidence, related docs and the "Hand to Claude" prompt.
+ * What the owner rarely needs but Claude and the curious do: the full reason, the exact fix and
+ * check, where the action came from, its rule, the evidence, related docs and the "Hand to
+ * Claude" prompt.
  */
 export function ActionTechnical({ action, product }: { action: ActionView; product: Product }) {
   return (
