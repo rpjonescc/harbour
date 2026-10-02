@@ -36,6 +36,8 @@ export async function digest(
     /** Content on for a second product, so the job makes two activity requests. */
     twoProducts?: boolean;
     echo?: { text: string; hostile?: boolean };
+    /** Runs right after the agent process ends, before the job's own checks (to stage a failure). */
+    afterAgent?: (root: string) => void;
   } = {},
 ) {
   const fake = await startFakeScreenpipe({
@@ -58,6 +60,15 @@ export async function digest(
       ACME,
       { ...ACME, id: "acme-blog", name: "Acme Blog", terms: ["acme blog"] },
     ];
+  }
+  const { afterAgent } = options;
+  if (afterAgent) {
+    const run = s.deps.run;
+    s.deps.run = async (o) => {
+      const outcome = await run(o);
+      afterAgent(s.brain.root);
+      return outcome;
+    };
   }
   const deps = {
     ...s.deps,

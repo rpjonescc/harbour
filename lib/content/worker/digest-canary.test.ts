@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { truncateSync } from "node:fs";
 import { join } from "node:path";
 import { eventsSince } from "@/lib/jobs/queue";
 import { CANARY } from "@/tests/fixtures/content/hostile-snippets";
@@ -103,6 +104,24 @@ describe("the canary", () => {
       expect(r.job.status).toBe("failed");
       expect(r.job.error).toMatch(/outside its area: 2 file\(s\)$/);
       expect(leaks(r)).toEqual([]);
+    } finally {
+      await r.cleanup();
+    }
+  });
+
+  it("is nowhere when the discard itself fails on a file the agent named after it", async () => {
+    // The agent's stray file is made too large to move to quarantine (a sparse file, so it is cheap).
+    const r = await digest({
+      strays: STRAY_NAME,
+      afterAgent: (root) => truncateSync(join(root, `research/${CANARY}.md`), 51 * 1024 * 1024),
+    });
+    try {
+      expect(r.job.status).toBe("failed");
+      const events = eventsSince(r.deps.db, r.job.id, 0);
+      expect(events.some((e) => /Could not discard/.test(e.text))).toBe(true);
+      // Residual, by design: the run's touched-file log stays in the quarantine's active folder
+      // (outside the brain) until recovery discards the run, because recovery needs it.
+      expect(leaks(r).filter((hit) => !/\/active\/job-\d+\.touched$/.test(hit))).toEqual([]);
     } finally {
       await r.cleanup();
     }

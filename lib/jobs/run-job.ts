@@ -150,6 +150,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
   let snapshot: RunSnapshot | undefined;
   let touched: TouchedLog | undefined;
   let noQuarantine = false;
+  let quiet = false;
   const discard = (reason: string) => {
     if (!snapshot) return;
     const dir = freshQuarantineDir(deps.quarantineRoot, job.id);
@@ -169,10 +170,18 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     }
   };
   const discardFailed = (discardError: unknown) => {
+    const retry = "they will be moved to quarantine automatically";
+    // The error names the files that could not be moved, and a quiet run's file names can hold
+    // screen text: neither the event nor the log carries it.
+    if (quiet) {
+      console.error(`job ${job.id}: could not discard the agent's changes`);
+      event("error", `Could not discard the agent's changes — ${retry}`);
+      return;
+    }
     console.error(`job ${job.id}: could not discard the agent's changes`, discardError);
     event(
       "error",
-      `Could not discard the agent's changes — they will be moved to quarantine automatically: ${(discardError as Error).message}`,
+      `Could not discard the agent's changes — ${retry}: ${(discardError as Error).message}`,
     );
   };
   try {
@@ -182,6 +191,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     // After the deferral: a waiting job never builds the weekly export, which is dated now.
     const spec = specOrFail(deps, job);
     noQuarantine = spec.noQuarantine === true;
+    quiet = spec.quiet === true;
     const token = checkPreconditions(deps, spec);
     const saved = saveOwnerNotes(root);
     if (saved > 0) event("status", `Saved ${saved} note file(s) before starting`);
@@ -237,7 +247,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
       spec,
       log.touched(),
       (text) => event("status", text),
-      spec.quiet === true,
+      quiet,
     );
     checkRequiredOutputs(spec, paths); // a half-done run is discarded, never committed
     const { pushed } = commitAndPush(
