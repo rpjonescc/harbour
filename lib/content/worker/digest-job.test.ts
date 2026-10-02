@@ -299,6 +299,42 @@ describe("runDigestJob", () => {
     }
   });
 
+  it("compares a theme with every product's screen text, so it cannot be filed under another product", async () => {
+    const sidebar = "the sidebar collapses whenever a title is longer than the column";
+    const moved = {
+      productId: "acme-blog",
+      text: `Noticed that ${sidebar}`,
+      kind: "learned",
+    };
+    const own = {
+      productId: "acme-blog",
+      text: "Drafted a new post about publishing from a repository",
+      kind: "built",
+    };
+    const unknown = {
+      ...own,
+      productId: "acme-other",
+      text: "Wrote an unrelated plain sentence here",
+    };
+    const r = await digest({
+      twoProducts: true,
+      works: { themes: [...GOOD, moved, own, unknown] },
+      snippets: [
+        { text: `Acme Docs: ${sidebar}`, app_name: "Editor", window_name: "guide.md" },
+        { text: "Acme Blog: writing a post", app_name: "Editor", window_name: "post.md" },
+      ],
+    });
+    try {
+      const text = readFileSync(join(r.brain.root, FILE), "utf8");
+      expect(text).toContain("status: partial");
+      expect(text).not.toContain("collapses");
+      expect(text).toContain("Drafted a new post");
+      expect(text).not.toContain("unrelated plain sentence");
+    } finally {
+      await r.cleanup();
+    }
+  });
+
   it("waits for the owner before reading the screen, and reads once when it runs", async () => {
     const fake = await startFakeScreenpipe({
       snippets: [{ text: "Acme Docs guide", app_name: "Editor", window_name: "guide.md" }],

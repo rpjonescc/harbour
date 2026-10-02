@@ -39,9 +39,11 @@ export function digestSpec(params: Record<string, string>, context: SpecContext)
     products: content.products.map((p) => ({ id: p.id, name: p.name })),
     neverMention: readNeverMention(content.root),
   };
-  const snippetsOf = (id: string) =>
-    inputs.products.find((p) => p.productId === id)?.snippets ?? [];
-  const termsOf = (id: string) => content.products.find((p) => p.id === id)?.terms ?? [];
+  // Every product's text and every product's terms: an injected snippet could otherwise have the
+  // agent file the same words under another product, where they would not be compared.
+  const allSnippets = inputs.products.flatMap((p) => p.snippets);
+  const allTerms = content.products.flatMap((p) => p.terms);
+  const hadText = new Set(inputs.products.map((p) => p.productId));
   const prompt = digestPrompt({ jobId: context.jobId, digest: inputs, products: rules.products });
   return {
     kind: "content-digest",
@@ -67,8 +69,11 @@ export function digestSpec(params: Record<string, string>, context: SpecContext)
         files: (value, note) => {
           const valid = validateThemes(value.themes, rules);
           // A theme that repeats the screen text word for word is the snippet, not a summary.
+          // A product with no on-topic text has nothing to summarise: its themes are invented.
           const themes = valid.themes
-            .filter((t) => !quotesSnippets(t.text, snippetsOf(t.productId), termsOf(t.productId)))
+            .filter(
+              (t) => hadText.has(t.productId) && !quotesSnippets(t.text, allSnippets, allTerms),
+            )
             .map((t, i) => ({ ...t, id: `t${i + 1}` }));
           const dropped = value.themes.length - themes.length;
           for (const product of rules.products) {
