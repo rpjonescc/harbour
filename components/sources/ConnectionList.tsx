@@ -1,67 +1,81 @@
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { DocsLink } from "@/components/ui/DocsLink";
 import { Panel } from "@/components/ui/Panel";
 import { Tag } from "@/components/ui/Tag";
 import { DOCS_LINKS } from "@/lib/docs-links";
+import { sourceExplanation, sourceName, sourceStatusPhrase } from "@/lib/explain/sources";
 import type { SourcesView } from "@/lib/scan/sources-view";
 
 type Row = {
-  name: string;
+  id: "crawler" | "readiness" | "pagespeed" | "search-console";
   connected: boolean;
   note: string;
-  docs?: { href: string; label: string };
 };
 
-function rows(view: SourcesView): Row[] {
+const DOCS: Partial<Record<Row["id"], { href: string; label: string }>> = {
+  pagespeed: { href: DOCS_LINKS.pagespeed, label: "Connect PageSpeed" },
+  "search-console": { href: DOCS_LINKS.searchConsole, label: "Connect Search Console" },
+};
+
+function searchConsoleRow(view: SourcesView): Row {
   const { connections } = view;
-  const missing = view.products.filter((p) => !connections.searchConsoleProducts[p.productId]);
-  const gscNote = !connections.searchConsoleCredentials
-    ? "No credentials file set (HARBOUR_GSC_CREDENTIALS)."
-    : missing.length > 0
-      ? `Credentials set. No property for ${missing.map((p) => p.name).join(", ")}.`
-      : "Credentials set; every product names its property.";
+  const unlinked = view.products.filter((p) => !connections.searchConsoleProducts[p.productId]);
+  const connected = connections.searchConsoleCredentials && unlinked.length < view.products.length;
+  const names = unlinked.map((p) => p.name).join(" and ");
+  const note = !connections.searchConsoleCredentials
+    ? sourceExplanation("search-console").gives
+    : unlinked.length > 0
+      ? `${names} ${unlinked.length === 1 ? "isn't" : "aren't"} linked to a Search Console site yet.`
+      : "Every site is linked.";
+  return { id: "search-console", connected, note };
+}
+
+function rows(view: SourcesView): Row[] {
+  const gives = (id: Row["id"]) => sourceExplanation(id).gives;
   return [
-    { name: "Crawler", connected: true, note: "Built in: reads each product's own site." },
-    {
-      name: "Readiness",
-      connected: true,
-      note: "Built in: robots.txt, llms.txt, sitemaps, schema.",
-    },
-    {
-      name: "PageSpeed",
-      connected: connections.pagespeed,
-      note: connections.pagespeed
-        ? "API key set. Runs weekly."
-        : "No API key set (HARBOUR_PAGESPEED_API_KEY).",
-      docs: { href: DOCS_LINKS.pagespeed, label: "Connect PageSpeed" },
-    },
-    {
-      name: "Search Console",
-      connected: connections.searchConsoleCredentials && missing.length < view.products.length,
-      note: gscNote,
-      docs: { href: DOCS_LINKS.searchConsole, label: "Connect Search Console" },
-    },
+    { id: "crawler", connected: true, note: gives("crawler") },
+    { id: "readiness", connected: true, note: gives("readiness") },
+    { id: "pagespeed", connected: view.connections.pagespeed, note: gives("pagespeed") },
+    searchConsoleRow(view),
   ];
 }
 
-/** Which sources are connected, as set up on the Harbour machine. Never shows a secret. */
+/** Which data sources are connected, as set up on the Harbour machine. Never shows a secret. */
 export function ConnectionList({ view }: { view: SourcesView }) {
   return (
     <Panel className="px-4">
       <ul aria-label="Connections" className="divide-y divide-line">
-        {rows(view).map((row) => (
-          <li key={row.name} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-3">
-            <span className="w-32 text-sm font-medium">{row.name}</span>
-            <Tag tone={row.connected ? "accent" : "neutral"}>
-              {row.connected ? "Connected" : "Not connected"}
-            </Tag>
-            <span className="text-xs text-ink-muted">{row.note}</span>
-            {row.docs && !row.connected && (
-              <span className="text-xs">
-                <DocsLink href={row.docs.href}>{row.docs.label}</DocsLink>
-              </span>
-            )}
-          </li>
-        ))}
+        {rows(view).map((row) => {
+          const docs = DOCS[row.id];
+          return (
+            <li key={row.id} className="flex flex-col gap-1 py-3">
+              <p className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium">{sourceName(row.id)}</span>
+                <Tag tone={row.connected ? "accent" : "neutral"}>
+                  {sourceStatusPhrase(row.id, row.connected ? "ok" : "not_configured")}
+                </Tag>
+              </p>
+              <p className="text-xs text-ink-muted">{row.note}</p>
+              {!row.connected && docs && (
+                <p className="text-xs">
+                  <DocsLink href={docs.href}>{docs.label}</DocsLink>
+                </p>
+              )}
+              {!row.connected && (
+                <TechnicalDetails
+                  id={`connect-${row.id}`}
+                  topic={`how to connect ${sourceName(row.id)}`}
+                >
+                  <ol className="list-decimal pl-4">
+                    {sourceExplanation(row.id).connect.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </TechnicalDetails>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </Panel>
   );

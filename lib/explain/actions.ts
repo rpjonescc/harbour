@@ -68,3 +68,8 @@ export function boardSummary(counts: {
   const ideas = counts.suggested === 1 ? "idea" : "ideas";
   return `${counts.open} to do · ${counts.in_progress} in progress · ${counts.suggested} new ${ideas}`;
 }
+
+/** "3 things worth doing": Today's sub-line and the sidebar badge say it the same way. */
+export function thingsWorthDoing(n: number): string {
+  return `${n} ${n === 1 ? "thing" : "things"} worth doing`;
+}

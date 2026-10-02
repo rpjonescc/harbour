@@ -14,14 +14,14 @@ describe("Sidebar badges", () => {
     render(<Sidebar theme="system" />);
     const link = screen.getByRole("link", { name: /Actions/ });
     expect(link).toHaveAttribute("href", "/actions");
-    expect(screen.getByText("3 open actions")).toHaveClass("sr-only");
+    expect(screen.getByText("3 things worth doing")).toHaveClass("sr-only");
   });
 
   it("uses the singular for one", () => {
     counts.open = 1;
     counts.brain = 1;
     render(<Sidebar theme="system" />);
-    expect(screen.getByText("1 open action")).toBeInTheDocument();
+    expect(screen.getByText("1 thing worth doing")).toBeInTheDocument();
     expect(screen.getByText("1 new document")).toBeInTheDocument();
   });
 });

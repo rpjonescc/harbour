@@ -4,6 +4,7 @@ import {
   IMPACT_GROUP,
   IMPACT_PHRASE,
   STATUS_COLUMN,
+  thingsWorthDoing,
   WHO_PHRASE,
   whoIsOnIt,
 } from "./actions";
@@ -71,5 +72,10 @@ describe("board phrases", () => {
     expect(boardSummary({ open: 0, in_progress: 0, suggested: 1 })).toBe(
       "0 to do · 0 in progress · 1 new idea",
     );
+  });
+
+  it("counts things worth doing the same way on Today and in the sidebar", () => {
+    expect(thingsWorthDoing(1)).toBe("1 thing worth doing");
+    expect(thingsWorthDoing(3)).toBe("3 things worth doing");
   });
 });

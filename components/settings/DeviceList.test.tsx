@@ -54,13 +54,13 @@ describe("DeviceList", () => {
     );
     expect(screen.getByText("This device")).toBeInTheDocument();
     expect(screen.getByText(/1 Oct 2026, 10:30/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Remove Laptop" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Remove Laptop/ }));
     expect(confirm).toHaveBeenCalledWith(
-      expect.stringContaining("This will sign you out on this device"),
+      expect.stringContaining("You will be signed out on this device"),
     );
     confirm.mockReturnValue(true);
     postJson.mockResolvedValueOnce({ ok: true, data: {} });
-    fireEvent.click(screen.getByRole("button", { name: "Remove Laptop" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Remove Laptop/ }));
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
   });
 
@@ -68,7 +68,7 @@ describe("DeviceList", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     postJson.mockResolvedValueOnce({ ok: false, error: "network_error" });
     render(<DeviceList devices={[device]} timeZone="UTC" locale="en-GB" />);
-    const button = screen.getByRole("button", { name: "Remove Laptop" });
+    const button = screen.getByRole("button", { name: /^Remove Laptop/ });
     fireEvent.click(button);
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't remove that device.");
 
@@ -78,5 +78,33 @@ describe("DeviceList", () => {
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
     finish({ ok: true, data: {} });
     await waitFor(() => expect(refresh).toHaveBeenCalled());
+  });
+
+  it("gives two devices with the same name different remove buttons", () => {
+    const same = [
+      {
+        ...device,
+        id: "1",
+        deviceLabel: "Chrome on Linux",
+        createdAt: new Date("2026-09-01T10:00:00Z"),
+      },
+      {
+        ...device,
+        id: "2",
+        deviceLabel: "Chrome on Linux",
+        createdAt: new Date("2026-09-15T10:00:00Z"),
+      },
+    ];
+    render(<DeviceList devices={same} timeZone="Europe/London" locale="en-GB" />);
+    const names = screen
+      .getAllByRole("button", { name: /^Remove Chrome on Linux/ })
+      .map((b) => b.getAttribute("aria-label"));
+    expect(new Set(names).size).toBe(2);
+  });
+
+  it("says 'not used yet' instead of 'never'", () => {
+    render(<DeviceList devices={[device]} timeZone="Europe/London" locale="en-GB" />);
+    expect(screen.getByText(/not used yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/never/)).toBeNull();
   });
 });

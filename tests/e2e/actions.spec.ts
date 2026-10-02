@@ -61,7 +61,7 @@ test("the sidebar counts open actions and the board groups them, biggest wins fi
   expect(active).toBeGreaterThanOrEqual(5);
   await expect(
     page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: /^Actions/ }),
-  ).toHaveAccessibleName(new RegExp(`^Actions\\s*${active} open actions$`));
+  ).toHaveAccessibleName(new RegExp(`^Actions\\s*${active} things worth doing$`));
 
   await expect(card(page, "1 page is missing a title", "Acme Docs")).toBeVisible();
   await expect(card(page, "1 page you link to can't be found", "Acme Docs")).toBeVisible();

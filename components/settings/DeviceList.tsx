@@ -10,8 +10,8 @@ import { formatDateTime } from "@/lib/format/date";
 
 // Zone and locale come from the server so server and client render the same date
 // (no hydration mismatch).
-const fmt = (d: Date | null, timeZone: string, locale: string) =>
-  d ? formatDateTime(new Date(d), timeZone, locale) : "never";
+const fmt = (d: Date, timeZone: string, locale: string) =>
+  formatDateTime(new Date(d), timeZone, locale);
 
 /** Registered passkeys with a remove control for lost devices. */
 export function DeviceList({
@@ -28,10 +28,11 @@ export function DeviceList({
 
   async function remove(device: DeviceSummary) {
     setError(null);
-    const warning = device.current ? " This will sign you out on this device." : "";
-    if (!window.confirm(`Remove the passkey for “${device.deviceLabel}”?${warning}`)) return;
+    const warning = device.current ? " You will be signed out on this device." : "";
+    const question = `Remove “${device.deviceLabel}” from Harbour? That device won't be able to sign in any more.`;
+    if (!window.confirm(question + warning)) return;
     const result = await postJson("/api/devices/remove", { id: device.id });
-    if (!result.ok) return setError("Couldn't remove that device.");
+    if (!result.ok) return setError("Couldn't remove that device. Try again.");
     if (device.current) return router.replace("/login");
     router.refresh();
   }
@@ -47,14 +48,16 @@ export function DeviceList({
                 {device.current && <Tag tone="neutral">This device</Tag>}
               </p>
               <p className="text-xs text-ink-muted">
-                Added {fmt(device.createdAt, timeZone, locale)} · last used{" "}
-                {fmt(device.lastUsedAt, timeZone, locale)}
+                Added {fmt(device.createdAt, timeZone, locale)} ·{" "}
+                {device.lastUsedAt
+                  ? `last used ${fmt(device.lastUsedAt, timeZone, locale)}`
+                  : "not used yet"}
               </p>
             </div>
             <Button
               variant="ghost"
               onClick={() => remove(device)}
-              aria-label={`Remove ${device.deviceLabel}`}
+              aria-label={`Remove ${device.deviceLabel}, added ${fmt(device.createdAt, timeZone, locale)}`}
             >
               Remove
             </Button>

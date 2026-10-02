@@ -148,25 +148,25 @@ test("Sources lists each source's last run and how to connect the missing ones",
   page,
 }) => {
   await page.goto("/settings/sources");
-  await expect(page.getByText(/HARBOUR_SCHEDULED_SCANS=off/)).toBeVisible();
+  await expect(page.getByText(/Daily checks are off/)).toBeVisible();
 
   const connections = page.getByRole("list", { name: "Connections" });
   for (const [name, link] of [
-    ["PageSpeed", "Connect PageSpeed"],
-    ["Search Console", "Connect Search Console"],
+    ["Google speed test (PageSpeed)", "Connect PageSpeed"],
+    ["Google Search Console", "Connect Search Console"],
   ] as const) {
     const row = connections.getByRole("listitem").filter({ hasText: name });
-    await expect(row).toContainText("Not connected");
+    await expect(row).toContainText("Not connected yet");
     await expect(row.getByRole("link", { name: new RegExp(link) })).toBeVisible();
   }
 
   const acme = page.getByRole("region", { name: "Acme Docs" });
-  await expect(acme).toContainText(/Last check .+ \(ok\)/);
+  await expect(acme).toContainText(/Last check .+ \(all good\)/);
   const run = (name: string) => acme.getByRole("row", { name: new RegExp(`^${name}`) });
-  await expect(run("Crawler")).toContainText("ok");
-  await expect(run("Readiness")).toContainText("ok");
-  await expect(run("PageSpeed")).toContainText("not connected");
-  await expect(run("Search Console")).toContainText("not connected");
+  await expect(run("Page check")).toContainText("Working");
+  await expect(run("Site setup check")).toContainText("Working");
+  await expect(run("Google speed test")).toContainText("Not connected yet");
+  await expect(run("Google Search Console")).toContainText("Not connected yet");
   await expect(page.getByRole("region", { name: "Fern & Field" })).toContainText("Never checked");
 });
 
