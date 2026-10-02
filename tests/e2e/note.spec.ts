@@ -38,7 +38,9 @@ test("with no note yet, the card shows the quiet gap and the briefing is still t
 }) => {
   await page.goto("/");
   await expect(page.getByText("Sample data")).toHaveCount(0);
-  await expect(card(page)).toContainText("No note yet today. The next one is written at 06:30.");
+  // The e2e worker has the schedule off, so no next note is promised.
+  await expect(card(page)).toContainText("No note yet today.");
+  await expect(card(page)).not.toContainText("is written at");
   await expect(card(page).getByRole("button", { name: "Write me a fresh one" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   await expect(page.getByRole("heading", { level: 1 })).not.toContainText("No note");
