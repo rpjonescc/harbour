@@ -10,9 +10,12 @@ const SITE = `http://127.0.0.1:${E2E_SITE_PORT}`;
 
 test.describe.configure({ mode: "serial" });
 
-/** A score tile in the product header, e.g. "SEO" (headline name "Search engines"). */
-const scoreTile = (page: Page, name: string) =>
-  page.getByRole("term").filter({ hasText: name }).locator("..");
+/** An area card in the product header, found by its plain name. */
+const areaCard = (page: Page, name: string) =>
+  page
+    .getByRole("list", { name: "Your three scores" })
+    .getByRole("listitem")
+    .filter({ hasText: name });
 
 test("Scan now runs a scan and the product page shows its results", async ({ page }) => {
   test.setTimeout(120_000);
@@ -28,12 +31,13 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
   await expect(page.getByText(/^Last scan .+\.$/)).toBeVisible({ timeout: 90_000 });
   await expect(scanNow).toBeEnabled();
 
-  for (const [area, name] of [
-    ["SEO", "Search engines"],
-    ["GEO", "AI assistants"],
-    ["AEO", "Direct answers"],
-  ] as const) {
-    await expect(scoreTile(page, name)).toContainText(new RegExp(`${area}.*${name}\\s*\\d+`));
+  await expect(
+    page.getByText(/^Acme Docs (is in (strong|good|fair) shape|needs some work)\./),
+  ).toBeVisible();
+  for (const name of ["Found on Google", "Recommended by AI assistants", "Answer-ready"]) {
+    await expect(areaCard(page, name)).toContainText(
+      /(Strong|Good|Fair|Needs work) \d+ out of 100/,
+    );
   }
 
   const breakdown = page.getByRole("tabpanel", { name: "SEO" });

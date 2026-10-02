@@ -22,10 +22,12 @@ type Props = {
   missingReason?: string;
   /** Table-cell form: no area name (the column header gives it). */
   compact?: boolean;
+  /** Card form: the area name above a large verdict word, the number and notes below it. */
+  stacked?: boolean;
 };
 
-/** A small muted note: on its own line in a table cell, inline otherwise. */
-const note = (compact: boolean) => `${compact ? "block " : ""}text-2xs text-ink-muted`;
+/** A small muted note: on its own line in a table cell or a card, inline otherwise. */
+const note = (block: boolean) => `${block ? "block " : ""}text-2xs text-ink-muted`;
 
 /** An area's verdict in words first, with the number small beside it and the trend. */
 export function VerdictLine({
@@ -35,27 +37,34 @@ export function VerdictLine({
   complete = true,
   missingReason,
   compact = false,
+  stacked = false,
 }: Props) {
   const verdict = verdictFor(score, missingReason);
   const name = compact ? null : (
     <>
-      <span className="font-medium text-ink">{AREAS[area].name}</span>{" "}
+      <span className={stacked ? "block text-sm text-ink-muted" : "font-medium text-ink"}>
+        {AREAS[area].name}
+      </span>{" "}
     </>
   );
+  const word = stacked ? "font-serif text-2xl" : "font-medium";
+  const wrap = stacked ? "block" : "text-sm";
   if (score === null || verdict.tone === "gap") {
     return (
-      <span className="text-sm">
+      <span className={wrap}>
         {name}
-        <span className={TONE.gap}>{verdict.label}</span>{" "}
-        <span className={note(compact)}>{verdict.sentence}</span>
+        <span className={`${stacked ? "text-2xl font-serif" : ""} ${TONE.gap}`}>
+          {verdict.label}
+        </span>{" "}
+        <span className={note(compact || stacked)}>{verdict.sentence}</span>
       </span>
     );
   }
   const trend = trendPhrase(delta);
   return (
-    <span className="text-sm">
+    <span className={wrap}>
       {name}
-      <span className={`font-medium ${TONE[verdict.tone]}`}>{verdict.label}</span>{" "}
+      <span className={`${word} ${TONE[verdict.tone]}`}>{verdict.label}</span>{" "}
       <span className="text-xs tabular-nums text-ink-muted">
         {score}
         <span className="sr-only"> out of 100</span>
@@ -71,13 +80,13 @@ export function VerdictLine({
       {trend && (
         <>
           {" "}
-          <span className={note(compact)}>{trend}</span>
+          <span className={note(compact || stacked)}>{trend}</span>
         </>
       )}
       {!compact && !complete && (
         <>
           {" "}
-          <span className={note(false)}>Some data was missing, so this may change.</span>
+          <span className={note(stacked)}>Some data was missing, so this may change.</span>
         </>
       )}
     </span>

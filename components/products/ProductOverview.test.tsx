@@ -107,7 +107,7 @@ describe("ProductOverview", () => {
     );
     expect(screen.getByText("Issues appear after the first scan.")).toBeInTheDocument();
     expect(screen.getByText("No crawled pages yet.")).toBeInTheDocument();
-    expect(screen.getAllByText("no score")).toHaveLength(3);
+    expect(screen.getAllByText("No score yet")).toHaveLength(3);
   });
 
   it("shows a running scan and disables Scan now", () => {
@@ -136,11 +136,12 @@ describe("ProductOverview", () => {
     ).toBeInTheDocument();
   });
 
-  it("explains scores: tiles, breakdown with missing reasons and not-connected notes", () => {
+  it("explains scores: area cards, breakdown with missing reasons and not-connected notes", () => {
     renderPage(scanned);
-    const tiles = screen.getByText("Search engines").closest("div");
-    expect(tiles).toHaveTextContent("64");
-    expect(screen.getAllByText("incomplete")).toHaveLength(1);
+    expect(screen.getByText(/^Acme Docs is in /)).toBeInTheDocument();
+    expect(screen.getByText("Found on Google").closest("li")).toHaveTextContent(
+      "Fair 64 out of 100",
+    );
     const panel = screen.getByRole("tabpanel");
     expect(within(panel).getByRole("heading", { name: "Technical health" })).toBeInTheDocument();
     expect(within(panel).getByText("35% of SEO")).toBeInTheDocument();

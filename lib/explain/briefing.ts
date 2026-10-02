@@ -5,7 +5,7 @@ import type { AreaKey, AreaValues } from "@/lib/scan/views";
 import type { WhoOnIt } from "./actions";
 import { AREA_ORDER, AREAS, areaKeyOf } from "./areas";
 import { sourceTrouble } from "./sources";
-import { verdictFor } from "./verdict";
+import { averageScore, verdictFor } from "./verdict";
 
 /** One active (open or in-progress) action, as the briefing counts it. */
 export type BriefingWork = { productId: string; area: IssueArea; who: WhoOnIt | null };
@@ -32,8 +32,8 @@ function health(input: BriefingInput): string {
       return value === null ? [] : [value];
     }),
   );
-  if (values.length === 0) return "Harbour has no scores yet, so there's no verdict.";
-  const mean = Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
+  const mean = averageScore(values);
+  if (mean === null) return "Harbour has no scores yet, so there's no verdict.";
   const one = input.products.length === 1;
   const { label } = verdictFor(mean);
   if (label === "Needs work")
