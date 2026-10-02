@@ -1,4 +1,5 @@
 import { Tag } from "@/components/ui/Tag";
+import { SETTINGS_PURPOSE } from "@/lib/explain/settings";
 import type { KeyRow, KeyStatus } from "@/lib/settings/key-status";
 import { type SectionPlacement, SettingsSection } from "./SettingsSection";
 
@@ -12,7 +13,7 @@ const CELL = "py-2 pr-3 align-top";
 /** Whether each key is set in .env: status only, never a value, a length or a file path. */
 export function KeyStatusCard({ keys, section }: { keys: KeyRow[]; section?: SectionPlacement }) {
   return (
-    <SettingsSection {...section} title="API keys">
+    <SettingsSection {...section} title="Connections" purpose={SETTINGS_PURPOSE.connections}>
       <p className="text-xs text-ink-muted">
         Keys live only in <code className="font-mono">.env</code> and are read by the worker. This
         page shows whether each one is set, never its value.

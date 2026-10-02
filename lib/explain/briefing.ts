@@ -4,6 +4,7 @@ import { plural } from "@/lib/scan/scoring/sub-score";
 import type { AreaKey, AreaValues } from "@/lib/scan/views";
 import type { WhoOnIt } from "./actions";
 import { AREA_ORDER, AREAS, areaKeyOf } from "./areas";
+import { CANT_OPEN_BACKUP_FOLDER } from "./backups";
 import { sourceTrouble } from "./sources";
 import { averageScore, verdictFor } from "./verdict";
 
@@ -68,7 +69,7 @@ function opportunity(input: BriefingInput): string | null {
 const BACKUP_TROUBLE: Partial<Record<BackupHealth, string>> = {
   failed: "the last backup didn't finish",
   stale: "no backup in the last 2 days",
-  unreadable: "Harbour can't open the backup folder",
+  unreadable: CANT_OPEN_BACKUP_FOLDER,
 };
 
 export type TroubleInput = Pick<BriefingInput, "products" | "failures" | "failedChecks" | "backup">;

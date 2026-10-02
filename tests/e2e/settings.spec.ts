@@ -43,11 +43,13 @@ test("Products lists the three products and their research approvals", async ({ 
   const products = settingsRegion(page, "Products");
   for (const name of ["Acme Docs", "Lighthouse Café", "Fern & Field"]) {
     const item = products.getByRole("listitem").filter({ hasText: name });
-    await expect(item).toContainText("No Search Console property");
+    await expect(item).toContainText("Search Console: not set up for this site yet");
   }
   // agents.spec.ts imported three discovery proposals for Acme Docs and approved one.
   const acme = products.getByRole("listitem").filter({ hasText: "Acme Docs" });
-  await acme.getByRole("link", { name: "2 research targets waiting for approval" }).click();
+  await acme
+    .getByRole("link", { name: "2 research targets waiting for your OK for Acme Docs" })
+    .click();
   await expect(
     page.getByRole("heading", { level: 1, name: "Acme Docs — research targets" }),
   ).toBeVisible();
@@ -102,7 +104,7 @@ test("API keys show status only, never a value", async ({ page }) => {
 test("no budget means no paid calls, on Settings and Today", async ({ page }) => {
   await page.goto("/settings");
   const budget = settingsRegion(page, "Budget");
-  await expect(budget.getByText("A$0.00 — no paid calls allowed")).toBeVisible();
+  await expect(budget.getByText("A$0.00 — paid data is switched off")).toBeVisible();
   await expect(budget.getByText(/^No paid data connected/)).toBeVisible();
   await page.goto("/");
   await expect(page.getByRole("main").getByText(/^No paid data connected/)).toBeVisible();
@@ -134,12 +136,12 @@ test("keyboard: Tab reaches the Settings links and Back up now with visible focu
     expect(focused.width).not.toBe("0px");
     stops.push(focused.name);
   }
-  expect(stops).toContain("2 research targets waiting for approval");
+  expect(stops).toContain("2 research targets waiting for your OK for Acme Docs");
   expect(stops).toContain("Back up now");
   await expect(backUp).toBeFocused();
   await page.keyboard.press("Tab");
-  // Past the button: the backup docs link, then the More settings links.
-  await expect(page.getByRole("link", { name: "Backups and restore" })).toBeFocused();
+  // Past the button: the backup setup steps (closed), then the More settings links.
+  await expect(page.locator("summary", { hasText: "where backups go" })).toBeFocused();
 });
 
 test("Settings renders in light and dark", async ({ page }) => {
@@ -191,7 +193,7 @@ test("Back up now writes a verified backup, then retention runs", async ({ page 
   await expect(page.getByText("Finished", { exact: true })).toBeVisible();
 
   await page.goto("/settings");
-  await expect(backups.getByText("1 of 14 kept")).toBeVisible();
+  await expect(backups.getByText("1 of 14")).toBeVisible();
   await expect(backups.getByText(/· \d+\.\d MB$/)).toBeVisible();
   await expect(backups.getByRole("link", { name: /No old checks to prune/ })).toBeVisible();
   await page.goto("/");

@@ -1,4 +1,5 @@
 import { Tag } from "@/components/ui/Tag";
+import { SETTINGS_PURPOSE } from "@/lib/explain/settings";
 import { formatWeekdayTime } from "@/lib/format/date";
 import type { ScheduleRow } from "@/lib/settings/view";
 import { type SectionPlacement, SettingsSection } from "./SettingsSection";
@@ -18,7 +19,7 @@ export function SchedulesCard({
   locale: string;
 }) {
   return (
-    <SettingsSection {...section} title="Schedules">
+    <SettingsSection {...section} title="Schedules" purpose={SETTINGS_PURPOSE.schedules}>
       <p className="text-xs text-ink-muted">All times are in {timeZone}.</p>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">

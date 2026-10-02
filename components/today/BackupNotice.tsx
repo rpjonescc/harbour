@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
+import { CANT_OPEN_BACKUP_FOLDER } from "@/lib/explain/backups";
 import { formatShortDateTime, formatWeekdayTime } from "@/lib/format/date";
 import type { BackupStatus } from "@/lib/ops/backup-status";
 
@@ -15,8 +16,7 @@ const STILL_SAFE = "Your live data is fine, but your newest spare copy is older 
 const NO_COPY_YET =
   "Your live data is fine, but you don't have a spare copy yet, so getting this working matters.";
 /** The folder can't be read, so whether a spare copy exists is unknown (a gap, not "none"). */
-const CANT_CHECK =
-  "Your live data is fine, but Harbour can't open the backup folder to check your spare copies.";
+const CANT_CHECK = `Your live data is fine, but ${CANT_OPEN_BACKUP_FOLDER} to check your spare copies.`;
 
 type Props = {
   backup: Pick<BackupStatus, "health" | "lastFailure" | "enabled" | "next" | "latest" | "count">;
@@ -60,8 +60,8 @@ function message(props: Props): ReactNode {
   if (props.backup.health === "unreadable") {
     return (
       <>
-        Harbour can't open the backup folder, so it can't check your spare copies. Check the
-        folder's permissions — {SETTINGS("details in Settings")}.
+        {CANT_OPEN_BACKUP_FOLDER}, so it can't check your spare copies. Check the folder's
+        permissions — {SETTINGS("details in Settings")}.
       </>
     );
   }

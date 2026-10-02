@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { approvalsPhrase } from "@/lib/explain/approvals";
 
 /**
  * Research targets the agents proposed are approved on each product's settings page; the
@@ -18,8 +19,7 @@ export function ApprovalsNote({
             href={`/settings/products/${productId}`}
             className="rounded-sm text-accent underline underline-offset-2"
           >
-            {productName}: {count} research {count === 1 ? "target" : "targets"} waiting for
-            approval
+            {productName}: {approvalsPhrase(count)}
           </Link>
         </li>
       ))}

@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { DocsLink } from "@/components/ui/DocsLink";
 import { DOCS_LINKS } from "@/lib/docs-links";
+import { SETTINGS_INTRO, SETTINGS_PURPOSE } from "@/lib/explain/settings";
 import type { SettingsView } from "@/lib/settings/view";
 import { BackupCard } from "./BackupCard";
 import { BudgetCard } from "./BudgetCard";
@@ -24,13 +26,15 @@ export function SettingsOverview({
   const { timeZone } = view;
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <header>
+      <header className="flex flex-col gap-2">
         <h1 className="font-serif text-3xl">Settings</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          What Harbour is set up to do. Values come from <code className="font-mono">.env</code> and{" "}
-          <code className="font-mono">harbour.config.json</code>: change them there and restart
-          Harbour. <DocsLink href={DOCS_LINKS.configuration}>Configuration</DocsLink>
-        </p>
+        <p className="text-sm text-ink-muted">{SETTINGS_INTRO.line}</p>
+        <TechnicalDetails id="settings-files" topic="where settings live">
+          <p>
+            {SETTINGS_INTRO.files}{" "}
+            <DocsLink href={DOCS_LINKS.configuration}>Configuration</DocsLink>
+          </p>
+        </TechnicalDetails>
       </header>
       <ProductsCard
         section={{ anchor: "products" }}
@@ -59,7 +63,7 @@ export function SettingsOverview({
         timeZone={timeZone}
         locale={locale}
       />
-      <SettingsSection anchor="more" title="More settings">
+      <SettingsSection anchor="more" title="More settings" purpose={SETTINGS_PURPOSE.more}>
         <ul className="flex flex-col gap-1 text-sm">
           <li>
             <Link href="/settings/sources" className={LINK}>
@@ -68,7 +72,7 @@ export function SettingsOverview({
           </li>
           <li>
             <Link href="/settings/devices" className={LINK}>
-              Devices (passkeys)
+              Devices
             </Link>
           </li>
           {view.products.map((product) => (

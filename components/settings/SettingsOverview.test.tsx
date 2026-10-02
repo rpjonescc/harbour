@@ -9,8 +9,10 @@ import {
   EXAMPLE_ZONE,
 } from "@/components/design/ops-example-data";
 import { parseConfig } from "@/lib/config";
+import { SETTINGS_INTRO, SETTINGS_PURPOSE } from "@/lib/explain/settings";
 import { settingsView } from "@/lib/settings/view";
 import { openTestDb } from "@/tests/helpers/db";
+import { textOutsideDetails } from "@/tests/helpers/plain-text";
 import { SettingsOverview } from "./SettingsOverview";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -26,7 +28,7 @@ describe("SettingsOverview", () => {
     for (const name of [
       "Products",
       "Schedules",
-      "API keys",
+      "Connections",
       "Budget",
       "Backups",
       "More settings",
@@ -36,31 +38,53 @@ describe("SettingsOverview", () => {
     expect(section("Backups")).toHaveAttribute("id", "backups");
   });
 
-  it("says where the values come from, with a link to the docs", () => {
-    renderView();
-    expect(screen.getByText(/Values come from/)).toHaveTextContent(
-      "Values come from .env and harbour.config.json",
-    );
+  it("opens with a headline and one plain line, files and settings under Technical details", () => {
+    const { container } = renderView();
+    expect(screen.getByText(SETTINGS_INTRO.line)).toBeInTheDocument();
+    // The header only: the Schedules and Connections tables are rewritten in the next task.
+    const header = container.querySelector("header") as HTMLElement;
+    expect(textOutsideDetails(header)).not.toMatch(/HARBOUR_[A-Z_]+|\.env|harbour\.config/);
+    const details = screen.getByText(/where settings live/).closest("details");
+    expect(details).toHaveTextContent(SETTINGS_INTRO.files);
     expect(screen.getByRole("link", { name: /Configuration/ })).toHaveAttribute(
       "href",
       expect.stringContaining("#configuration"),
     );
   });
 
+  it("gives every section its purpose line as its description", () => {
+    renderView();
+    const names = {
+      Products: "products",
+      Schedules: "schedules",
+      Connections: "connections",
+      Budget: "budget",
+      Backups: "backups",
+      "More settings": "more",
+    } as const;
+    for (const [name, key] of Object.entries(names)) {
+      expect(section(name)).toHaveAccessibleDescription(SETTINGS_PURPOSE[key]);
+    }
+  });
+
   it("lists products with their Search Console property and approvals link", () => {
     renderView();
     const products = within(section("Products"));
-    expect(products.getByText("sc-domain:example.com")).toBeInTheDocument();
-    expect(products.getByText("No Search Console property")).toBeInTheDocument();
+    expect(products.getByText(/^Search Console site:/)).toHaveTextContent(
+      "Search Console site: sc-domain:example.com",
+    );
+    expect(products.getByText("Search Console: not set up for this site yet")).toBeInTheDocument();
     expect(
-      products.getByRole("link", { name: "3 research targets waiting for approval" }),
+      products.getByRole("link", { name: "3 research targets waiting for your OK for Acme Docs" }),
     ).toHaveAttribute("href", "/settings/products/acme-docs");
-    expect(screen.queryByText(/Demo config/)).toBeNull();
+    expect(screen.queryByText(/example sites, not yours yet/)).toBeNull();
   });
 
   it("shows the demo-config notice when the example config is loaded", () => {
     renderView({ ...EXAMPLE_SETTINGS, isDemoConfig: true });
-    expect(within(section("Products")).getByText(/Demo config/)).toBeInTheDocument();
+    expect(
+      within(section("Products")).getByText(/example sites, not yours yet/),
+    ).toBeInTheDocument();
   });
 
   it("shows each schedule's next run, or how it was turned off", () => {
@@ -80,7 +104,7 @@ describe("SettingsOverview", () => {
 
   it("shows key status by name, with the setting and a not-used-yet tag", () => {
     renderView();
-    const keys = within(section("API keys"));
+    const keys = within(section("Connections"));
     expect(keys.getByRole("row", { name: /Claude token/ })).toHaveTextContent("Present");
     expect(keys.getByRole("row", { name: /Search Console/ })).toHaveTextContent("File not found");
     const openai = keys.getByRole("row", { name: /OpenAI/ });
@@ -92,7 +116,7 @@ describe("SettingsOverview", () => {
   it("shows the budget, spend and unconfirmed reservations read-only", () => {
     renderView();
     const budget = within(section("Budget"));
-    expect(budget.getByText("A$60.00")).toBeInTheDocument();
+    expect(budget.getByText("A$60.00 a month")).toBeInTheDocument();
     expect(budget.getByRole("row", { name: /rankings/ })).toHaveTextContent("A$0.50");
     expect(budget.getByRole("link", { name: "Job 38" })).toHaveAttribute("href", "/agents/38");
     expect(budget.queryByRole("button")).toBeNull();
@@ -104,16 +128,16 @@ describe("SettingsOverview", () => {
       budget: { state: "no-paid-sources", spentMicro: 0, unconfirmedMicro: 0, capMicro: 0 },
       reservations: [],
     });
-    expect(within(section("Budget")).getByText("A$0.00 — no paid calls allowed")).toBeVisible();
+    expect(within(section("Budget")).getByText("A$0.00 — paid data is switched off")).toBeVisible();
   });
 
   it("shows backup health, the last backup, retention and Back up now", () => {
     renderView();
     const backups = within(section("Backups"));
-    expect(backups.getByText("Healthy")).toBeInTheDocument();
+    expect(backups.getByText("Up to date")).toBeInTheDocument();
     expect(backups.getByText("2 Oct, 03:15 · 12.4 MB")).toBeInTheDocument();
-    expect(backups.getByText("9 of 14 kept")).toBeInTheDocument();
-    expect(backups.getByText(/next to the database/)).toBeInTheDocument();
+    expect(backups.getByText("9 of 14")).toBeInTheDocument();
+    expect(backups.getByText("A backups folder next to the database")).toBeInTheDocument();
     expect(backups.getByText(/Removed 18,240 observations from 11 checks/)).toBeInTheDocument();
     expect(backups.getByRole("button", { name: "Back up now" })).toBeEnabled();
   });
@@ -130,9 +154,9 @@ describe("SettingsOverview", () => {
     renderView({ ...EXAMPLE_SETTINGS, backups: EXAMPLE_BACKUPS.unreadable });
     const backups = within(section("Backups"));
     expect(
-      backups.getByText("Harbour can't read the backup folder — check its permissions"),
+      backups.getByText("Harbour can't open the backup folder — check its permissions"),
     ).toBeInTheDocument();
-    expect(backups.queryByText(/of 14 kept/)).toBeNull();
+    expect(backups.queryByText(/ of 14$/)).toBeNull();
     expect(backups.queryByText("No backup yet")).toBeNull();
   });
 
