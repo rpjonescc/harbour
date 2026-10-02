@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { type ChainPiece, chainNext, finalPiece, summaries } from "@/lib/content/chain";
 import { renderFile } from "@/lib/content/files";
@@ -10,6 +9,7 @@ import { renderPiece } from "@/lib/content/render";
 import type { GateEntry, PieceFront } from "@/lib/content/schema";
 import type { PieceContent } from "@/lib/content/shapes";
 import { transition } from "@/lib/content/state";
+import { readBoundedBytes } from "@/lib/note/bounded-read";
 import { DraftStartError } from "./draft";
 
 /** The hash of a piece's rendered text (what the owner would copy), recorded before and after a gate. */
@@ -48,11 +48,14 @@ export type PieceChange = {
 
 const CHANGED = "A piece changed while it was being checked, so Harbour saved nothing.";
 
+// A piece or sidecar is a few tens of KiB; anything bigger, or not a plain file, is not what the
+// worker wrote, and hashes as its own value so the stale guard still sees it change.
+const MAX_HASHED_BYTES = 2 * 1024 * 1024;
+
 const bytesHash = (root: string, path: string): string => {
   try {
-    return createHash("sha256")
-      .update(readFileSync(join(root, path)))
-      .digest("hex");
+    const bytes = readBoundedBytes(join(root, path), MAX_HASHED_BYTES);
+    return bytes === null ? "unreadable" : createHash("sha256").update(bytes).digest("hex");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return "absent";
     throw error;

@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { FIXTURE_SKILL_TEXT, makeSkillsDir } from "@/tests/helpers/content";
@@ -107,6 +108,16 @@ describe("loadSkill", () => {
       const skill = loadSkill(dir, "no-ai-slop");
       const canonical = skill.files.map((f) => `${f.name}\u0000${sha(f.text)}\n`).join("");
       expect(skill.sha256).toBe(sha(canonical));
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("refuses a FIFO in place of a skill file without waiting for a writer", () => {
+    const { dir, cleanup } = makeSkillsDir({ "humanizer/SKILL.md": null });
+    try {
+      execFileSync("mkfifo", [`${dir}/humanizer/SKILL.md`]);
+      expect(() => loadSkill(dir, "humanizer")).toThrow(/not a plain file/);
     } finally {
       cleanup();
     }

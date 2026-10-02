@@ -192,6 +192,28 @@ describe("hostile output", () => {
     },
   );
 
+  it("treats a piece swapped for a huge or non-regular file as changed, without reading it all", async () => {
+    const s = contentSetup({ "gate:humanizer:1": returned() }, FILES);
+    const path = join(s.brain.root, contentPaths.gates(IDEA_ID, "x"));
+    const original = s.deps.run;
+    s.deps.run = async (o) => {
+      const out = await original(o);
+      writeFileSync(path, Buffer.alloc(3 * 1024 * 1024, "a"));
+      return out;
+    };
+    try {
+      const job = await runOne(s.deps, "content-gate", {
+        ideaId: IDEA_ID,
+        gate: "humanizer",
+        attempt: "1",
+      });
+      expect(job.status).toBe("failed");
+      expect(job.error).toMatch(/changed while it was being checked/);
+    } finally {
+      s.cleanup();
+    }
+  });
+
   it.each([
     ["a third facts attempt", { gate: "facts", attempt: "3" }],
     ["an extra facts param", { gate: "facts", attempt: "1", also: "x" }],

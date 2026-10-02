@@ -24,7 +24,8 @@ const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 function readBounded(path: string, skill: SkillName, name: string): Buffer {
   let fd: number | undefined;
   try {
-    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    // O_NONBLOCK: a FIFO named like a skill file opens without waiting; the fstat below refuses it.
+    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
     const info = fstatSync(fd);
     if (!info.isFile())
       throw new SkillError(`The ${skill} skill file ${name} is not a plain file.`);
