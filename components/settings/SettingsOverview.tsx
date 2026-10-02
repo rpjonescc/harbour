@@ -6,6 +6,7 @@ import { SETTINGS_INTRO, SETTINGS_PURPOSE } from "@/lib/explain/settings";
 import type { SettingsView } from "@/lib/settings/view";
 import { BackupCard } from "./BackupCard";
 import { BudgetCard } from "./BudgetCard";
+import { ContentCard } from "./ContentCard";
 import { KeyStatusCard } from "./KeyStatusCard";
 import { ProductsCard } from "./ProductsCard";
 import { SchedulesCard } from "./SchedulesCard";
@@ -48,6 +49,7 @@ export function SettingsOverview({
         locale={locale}
       />
       <KeyStatusCard section={{ anchor: "keys" }} keys={view.keys} />
+      {view.content.on && <ContentCard section={{ anchor: "content" }} content={view.content} />}
       <BudgetCard
         section={{ anchor: "budget" }}
         budget={view.budget}

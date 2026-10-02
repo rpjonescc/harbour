@@ -14,8 +14,9 @@ explainable breakdowns. The roadmap continues with:
 - **Plain-language UX** (built for every screen) — every screen says what something is, why it
   matters and what to do, in plain words; technical detail stays one click away
   ([spec](docs/superpowers/specs/2026-10-02-plain-language-ux-design.md)).
-- **Content machine** (idea) — content pillars, drafts, atomising and quality passes before
-  anything is published ([idea note](docs/superpowers/ideas/2026-10-02-content-machine.md)).
+- **Content machine** (built, off by default) — ideas and drafts from your recent work, checked
+  before you copy them; see [Content machine](#content-machine). Sending approved pieces to a
+  scheduling tool, images and a feedback loop are planned, not built.
 
 ## Features
 
@@ -62,6 +63,10 @@ explainable breakdowns. The roadmap continues with:
   Each run has a plain page (Waiting for its turn, Running now, Done, Didn't finish or
   Stopped) with **Stop this run**, and its step-by-step log sits under **Technical details**.
   Saving and syncing are automatic (see [Research refresh](#research-refresh)).
+- **Content machine** — turns what you have been working on into ideas, then six checked drafts
+  per idea (LinkedIn, X, Instagram, Facebook, a blog post and a website section) that you read,
+  copy, approve or discard on the Content page. Off by default; it never posts anything (see
+  [Content machine](#content-machine)).
 - **A warm friend** — Today opens with a short note an agent writes fresh every morning, in
   the voice of a seasoned, warm, quick-witted friend: it celebrates real wins, is honest and
   kind about bad news and always gives a next step, and on a weekend or late at night says what
@@ -91,16 +96,17 @@ explainable breakdowns. The roadmap continues with:
 |---|---|
 | `/` | Today |
 | `/products/<id>` | A product's scores, issues, pages and sources |
+| `/content` | Content (only when `HARBOUR_CONTENT=on`, else 404): ideas and drafts in six tabs, with Copy, Approve, Edit and Discard; nothing is posted for you |
 | `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`; the status values are the stored ones, which the board shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed) |
 | `/settings` | Settings overview: products, schedules, connections, budget and backups |
-| `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors) |
+| `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors, content pillars) |
 | `/settings/sources` | Check schedule, connections and each source's last run |
 | `/brain` | Second Brain |
 | `/agents` | Agent runs |
 | `/settings/devices` | Passkeys and devices |
 | `/design` | Design system reference |
 
-Four JSON endpoints change things; like every mutating route they take same-origin JSON from a
+Five JSON endpoints change things; like every mutating route they take same-origin JSON from a
 signed-in session:
 
 - `POST /api/scans` with `{"productId": "<id>"}` queues a check for the worker (as **Check now**
@@ -117,6 +123,37 @@ signed-in session:
   a fresh one** on Today does), stamped with the server's local time: one at a time and at most
   5 requests a day. It answers `{"jobIds": [12]}`, or refuses with `409 token_missing`,
   `409 personality_quiet` or `429 rate_limited`.
+- `POST /api/content` with `{"action": "make-digest"}` queues the activity digest for yesterday (as
+  **Make today's digest now** will), when `HARBOUR_CONTENT=on` and both `HARBOUR_CLAUDE_OAUTH_TOKEN`
+  and `HARBOUR_SCREENPIPE_API_KEY` are set. It answers `{"jobIds": [12]}` (the same job on a second
+  click) and refuses with `409 content_off`, `409 token_missing`, `409 screenpipe_missing` or
+  `429 daily_cap` / `429 rate_limited`.
+- `POST /api/content` with `{"action": "find-ideas", "productId": "acme-docs"}` queues one ideas run
+  for a content-enabled product (as **Find new ideas** will). It needs `HARBOUR_CONTENT=on`, the
+  Claude token and a voice profile for that product, and refuses with `404 not_found`,
+  `409 voice_missing`, `409 backlog` ("12 ideas are waiting; skipped"), `409 brain_unreadable`,
+  `429 daily_cap` or `429 rate_limited`. The same Monday 07:00 run is queued by the worker for
+  every product with a voice profile (`HARBOUR_SCHEDULED_IDEAS`); it uses whatever digest exists at that moment, so a `HARBOUR_DIGEST_TIME` later than 07:00 means the Monday run may go before that day's digest; it reads only the last 7 days of
+  activity themes, your approved pillars, the product's notes and the titles you already have.
+- `POST /api/content` with `{"action": "write-this", "ideaId": "<id>"}` queues the draft for an idea
+  that is still an idea (as **Write this** does; a second click returns the same job), and
+  `{"action": "try-again", "ideaId": "<id>"}` re-queues the idea's newest step that failed or was
+  cancelled (as **Try again** does). Try again is limited to four requests per idea per local day
+  with every other manual request for it, and refuses with `404 not_found`, `409 nothing_to_retry`
+  or `429 rate_limited`. Both only queue work: the web process never writes the brain.
+- `POST /api/content` decisions (as **Approve**, **Edit** and **Discard** do) only queue a
+  `content-decision` job; the worker saves it, commits just those files and pushes. They need
+  `HARBOUR_CONTENT=on` but no Claude token, because no model runs.
+  `{"action": "approve", "pieceId": "<ideaId>.<platform>", "revision": 2, "checkedFlags": [], "confirmOpen": false}`
+  must list every flag the piece carries and, for a piece that still needs you, set `confirmOpen`.
+  `{"action": "edit", ..., "body": "..."}` replaces the piece's main text (up to the platform's own limit) and re-checks only the numbers and the platform's limits, never the writing.
+  `{"action": "discard", "pieceId": "...", "revision": 2}` or `{"action": "discard", "ideaId": "..."}`
+  keeps the file, marked discarded. `revision` is the one the page showed: an older one is refused
+  (`409 stale`). Other refusals: `400 flags_unchecked`, `400 confirm_needed`, `400 too_long`,
+  `404 not_found`, `409 not_approvable`, `409 not_editable`, `409 no_change` (an edit with the same words), `409 already_discarded`,
+  `409 brain_unreadable`, `413 too_large` and `429 busy`. Approving writes
+  `content/approved/<platform>/<date>-<slug>.md` in the brain (never over an existing file; a clash
+  gets `-2` to `-9`); discarding an approved piece removes that file. Nothing is ever posted.
 - `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
   moves an action to a new status. `from` is the status your page showed: if the action changed
   since, the request is refused (`409 stale`) instead of overwriting it. `to` is `open`,
@@ -193,6 +230,10 @@ competitors, each with the agent's reason. **Approve**, **Reject** or **Edit** e
 **Approve all proposed** per list. Re-running discovery never overwrites items you've already
 decided on.
 
+For a product with content turned on, discovery also proposes three to five **content
+pillars** (recurring themes to write about), approved the same way. Harbour keeps at most six
+approved pillars; to approve another, reject one first.
+
 Saving and syncing need no action. The Agents page and the Second Brain say "Saved · synced",
 or show note files that "will be saved automatically soon" and saved changes "waiting to reach
 GitHub — Harbour keeps retrying"; **Save now** and **Retry now** are optional shortcuts. While an
@@ -256,6 +297,97 @@ Harbour can be installed like an app, with its own window and icon. In Chrome or
 Harbour and choose **Install Harbour** from the address bar or menu; on Android choose
 **Add to Home screen**; on iPhone and iPad use **Share → Add to Home Screen**. Harbour needs
 a live connection to your PC, so it has no offline mode.
+
+## Content machine
+
+Harbour can suggest, draft and check posts for your products, from what you have actually been
+working on. It is **off by default** and **never publishes anything**: you read, edit, copy,
+approve or discard each piece on the **Content** page, and you post it yourself.
+
+**How it works.** Each morning Harbour asks your local [Screenpipe](https://screenpi.pe) (a
+recorder of your own screen) for a small sample of yesterday's on-screen text, **keeps only text
+that mentions a product you listed**, strips anything private, and has an agent turn what is left
+into a few general themes ("Rewrote the getting-started guide"). Only those themes are stored
+(the **digest**). On Mondays it suggests ideas for each product from the themes, your notes, your
+voice profile and the product's content pillars. When you press **Write this** on an idea, Harbour
+writes one source piece, turns it into six platform pieces (LinkedIn, X, Instagram, Facebook, a
+blog post and a website section), and runs each through four checks in order: `no-ai-slop`,
+`humanizer`, a facts and claims check, and a platform check. A piece that passes everything is
+**Ready for you**; one that is still wrong after one revision is **Needs you**, with one sentence
+saying what to do. Approving a piece copies it, as clean markdown, to `content/approved/` in your
+Second Brain; the Copy buttons give you the text without any of Harbour's notes.
+
+**Privacy.** Screenpipe sees everything on your screen, so Harbour asks for as little as it can:
+
+- One request per product, to Screenpipe on this machine only (the address must be `127.0.0.1`,
+  `[::1]` or `localhost`, so its key never leaves it).
+- Filtered in memory before any model sees it: password managers, email, chat, calls, banking and
+  private windows are dropped whole; links, email addresses, phone numbers, tokens, card-like
+  numbers, handles and anything on your never-mention list (`content/never-mention.md`, one term
+  per line) are removed. Text with no window title is dropped, because it cannot be checked.
+- The agent that reads it has one tool, to write one file. Raw screen text is never written to the
+  brain, the database, the logs or the backups, and the run record of the digest keeps no model
+  text and no file names.
+- Digests are committed to your private brain repository, so they stay in its history. Read the
+  first few before leaving the daily digest switched on.
+
+**Set it up.**
+
+1. Install the skills Harbour pastes into its runs. `no-ai-slop` and `humanizer` come from their
+   own repositories: put them in `~/.claude/skills`. The third, `atomizer`, ships here
+   (`skills/atomizer/`): run `pnpm skills:install` to copy it into `HARBOUR_SKILLS_DIR` (default
+   `~/.claude/skills`), and run it again after pulling a newer Harbour. Harbour reads the skills
+   folder when it needs a skill, refuses a missing, oversize, linked or hidden-character file with a
+   plain reason, and records a hash of what it used.
+2. In `harbour.config.json` add a `content` block that lists, for each product, the words that
+   appear on your screen when you work on it (`terms`, 1 to 10) and optionally which `platforms`
+   to write for (all six by default). Add `excludeApps` for any app Harbour must never read. See
+   `harbour.config.example.json`.
+3. For each product, write a **voice profile** at `content/voices/<product id>.md` in your Second
+   Brain. The format and a fictional example are in `skills/atomizer/voice-profile.md`; the
+   Content page shows the template too. Harbour refuses to write for a product without one.
+4. Set the settings below in `.env` (the full table is under [Configuration](#configuration)),
+   then restart the web service and the worker. Screenpipe must run on the same machine as
+   Harbour, and `HARBOUR_CLAUDE_OAUTH_TOKEN` must be set.
+5. Optional: have **Discovery** (Agents page) propose content pillars for a product, then approve
+   them on the product's research targets page. At most six pillars are kept per product.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `HARBOUR_CONTENT` | `off` | `on` turns the machine on: the Content page, the digest, ideas and drafting. |
+| `HARBOUR_SCREENPIPE_URL` | `http://127.0.0.1:3030` | Screenpipe's local API; loopback only. |
+| `HARBOUR_SCREENPIPE_API_KEY` | unset | Secret, from `screenpipe auth token`. Unset means no digest (a gap, not an error). |
+| `HARBOUR_SCHEDULED_DIGEST` | `on` | `off` stops the daily digest; **Make today's digest now** still works. |
+| `HARBOUR_DIGEST_TIME` | `05:45` | Local time the digest of yesterday is made. |
+| `HARBOUR_SCHEDULED_IDEAS` | `on` | `off` stops Monday 07:00 idea runs; **Find new ideas** still works. |
+| `HARBOUR_CONTENT_DAILY_RUNS` | `24` | Content agent runs per local day (1 to 100), scheduled and manual together. |
+| `HARBOUR_SKILLS_DIR` | `~/.claude/skills` | Where the three skills are installed; must be outside the brain. |
+
+**The Content page** (`/content`) has six tabs: Ready for you, Needs you, Ideas, Being written,
+Approved and Discarded. Each idea is a headline and one line; a piece opens to plain text with Copy
+buttons, and its checks, claims and skill hashes sit under **Technical details**. **Approve** asks
+you to tick every claim Harbour flagged (health, legal, curriculum, pricing, testimonial or
+comparison), and for a piece that still needs you it says what is open and asks "Approve anyway?".
+**Edit** re-checks the numbers and the platform's limits, never the writing. **Discard** keeps the
+file, marked discarded; an approved piece's export is removed with it. There is no way to reopen a
+discarded idea: find new ones instead. A step that did not finish shows **Try again**.
+
+**Limits.** At most `HARBOUR_CONTENT_DAILY_RUNS` content agent runs a day; one idea takes at most
+8. You can ask for the digest twice a day, new ideas three times a day per product, and any step of
+one idea four times a day; 12 ideas wait per product. A step of a chain already under way finishes
+even past the daily limit. A digest the worker was too late for is made the same day only, and a
+missed Monday run is made the same week only: nothing is caught up later.
+
+**Where things live.** Everything is a markdown file in your brain under `content/` (digests,
+ideas, pieces with a `.gates.json` record of each check, `approved/` exports), so you can read it in
+the Second Brain viewer or your editor. The Content page only reads; a worker job saves every
+approve, edit and discard and commits just those files. The web process never runs an agent.
+
+**What is not built.** Sending approved pieces to Postiz or any other tool (Harbour never posts),
+images (Instagram gets a written visual brief), analytics and the feedback loop, pruning old
+digests (git history keeps them anyway), a skills panel on the Agents page, and Search Console
+queries as an input to ideas. The design and its known limits are in the
+[content machine spec](docs/superpowers/specs/2026-10-02-content-machine-design.md).
 
 ## Security model
 
@@ -325,6 +457,7 @@ pnpm scan:now       # queues a visibility check of every product now (or: pnpm s
 pnpm analyst:now    # queues the weekly analyst report for the current week now
 pnpm backup:now     # queues a backup of the database now (see "Backups and restore")
 pnpm retention:check  # read-only: what the next retention run would delete (see "Data kept")
+pnpm skills:install # copies the atomizer skill into HARBOUR_SKILLS_DIR (see "Content machine")
 pnpm gsc:connect    # signs in with Google to connect Search Console (see "Connect Search Console")
 pnpm actions list   # lists and triages actions from a terminal (see "Let Claude triage the board")
 ```
@@ -380,6 +513,14 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_PERSONALITY` | no | `warm` | `warm` or `quiet`. `quiet` turns off the daily note (its job, its card on Today) and the wave behind the app. See [Daily note](#daily-note). Restart both services after changing it. |
 | `HARBOUR_NOTE_TIME` | no | `06:30` | The local time, `HH:MM` in `HARBOUR_TIMEZONE`, the worker writes the daily note each day (and catches up on start). Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_NOTE` | no | `on` | `off` stops the worker queueing the daily note by itself; **Write me a fresh one** on Today still queues it. Restart the worker after changing it. |
+| `HARBOUR_CONTENT` | no | `off` | `on` turns on the content machine: the Content page, the daily activity digest, ideas and drafting. Off hides the page and stops every content job. Restart both services after changing it. |
+| `HARBOUR_SCREENPIPE_URL` | no | `http://127.0.0.1:3030` | Screenpipe's local API. Must be an `http` origin on `127.0.0.1`, `[::1]` or `localhost`, so its key never leaves this machine. |
+| `HARBOUR_SCREENPIPE_API_KEY` | no | unset | Secret. From `screenpipe auth token`. Unset means no activity digest; Settings shows "Not connected yet". |
+| `HARBOUR_SCHEDULED_DIGEST` | no | `on` | `off` stops the worker queueing the daily digest; **Make today's digest now** on Content still works. |
+| `HARBOUR_DIGEST_TIME` | no | `05:45` | Local time, `HH:MM` in `HARBOUR_TIMEZONE`, the digest of the day before is made. |
+| `HARBOUR_SCHEDULED_IDEAS` | no | `on` | `off` stops Monday 07:00 idea runs; **Find new ideas** on Content still works. |
+| `HARBOUR_CONTENT_DAILY_RUNS` | no | `24` | Content agent runs allowed per local day (1 to 100), scheduled and manual together. |
+| `HARBOUR_SKILLS_DIR` | no | `~/.claude/skills` | Where the `no-ai-slop`, `humanizer` and `atomizer` skills are installed. Must be outside the brain. |
 | `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_RESEARCH` | no | `on` | `off` stops the worker queueing the monthly research refresh by itself (the first Sunday of each month at 21:00 and the catch-up on start); **Update old research** on **Agents** still queues it by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
@@ -429,6 +570,8 @@ product shows as not connected; see [Connect Search Console](#connect-search-con
 Optionally, `ownerName` (at most 40 characters: letters, spaces, apostrophes, dots and hyphens) is
 used only as a first name in the daily note's greeting; it stays in this gitignored file and is
 never logged.
+
+Optionally `content` (see [Content machine](#content-machine)) turns the content machine on per product with its `terms`.
 
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.
@@ -964,14 +1107,14 @@ the agent worker. The worker runs a fake Claude CLI (`tests/fixtures/fake-claude
 runs, commits, pushes and discovery approvals are tested end to end without a real token.
 
 It also serves the fictional Acme Docs fixture site (`tests/fixtures/sites/acme-docs`) on
-`http://127.0.0.1:3402` (keep ports 3401, 3402 and 3403 free; 3403 is a second web server with
-`HARBOUR_PERSONALITY=quiet` for the note specs), and the E2E product config
+`http://127.0.0.1:3402` (keep ports 3401 to 3404 free; 3403 is a second web server with
+`HARBOUR_PERSONALITY=quiet` for the note specs, and 3404 a fake Screenpipe for the content specs), and the E2E product config
 (`tests/fixtures/harbour.config.e2e.json`) points Acme Docs at it. Scheduled checks are off; the
 scan specs choose **Check now** and check the product page, Sources and Today on the real results.
 Only this environment may check a loopback address (`HARBOUR_TEST_MODE` and
 `HARBOUR_SCAN_ALLOW_LOOPBACK`, both refused outside tests).
 
-The shell, scans, actions, note, agents and settings specs also check that the pages they visit
+The shell, scans, actions, note, agents, content and settings specs also check that the pages they visit
 (Today, product pages, Actions, Settings, Agents and a run page, Sources) speak plainly: no SEO,
 GEO or AEO heading, no `HARBOUR_*` setting name or sub-score key, and not the word "scan" outside
 **Technical details** (`tests/e2e/plain-language.ts`).
@@ -983,7 +1126,7 @@ assistive technology, passes clicks through and stops under emulated reduced mot
 `design/tokens.css`.
 
 The Playwright projects run in order — the shell and brain specs, then agents, scans, actions, the
-weekly analyst, the note and finally operations (Settings) — because each later one changes what the
+weekly analyst, the note, content and finally operations (Settings) — because each later one changes what the
 earlier ones check. The actions specs seed a scored check of the fictional Lighthouse Café and two
 analyst suggestions through Harbour's own code (`tests/e2e/seed-actions.ts`), then work the Actions
 board: filters, status changes, snooze, **Hand to Claude** (read back from the clipboard), Today's
@@ -991,10 +1134,23 @@ top three, keyboard paths and both themes. The analyst specs choose **Write this
 twice (the scheduled analyst is off, `HARBOUR_SCHEDULED_ANALYST=off`): the first run commits the
 report and imports a suggestion, the second finds it already known.
 
+The content specs (`tests/e2e/content.spec.ts`) run the whole content machine with no real agent and no
+real Screenpipe: the fake CLI answers each step from `tests/fixtures/content/chain-works.json`
+(generated by `tests/e2e/prepare.ts`) and a fake Screenpipe serves invented snippets. They make a
+digest and an idea through the page, press **Write this**, check that five pieces end Ready and one
+Needs you, that Copy puts clean text on the clipboard, that Approve exports a markdown file and
+audits it (and asks "Approve anyway?" for the piece that needs you), and that Edit and Discard
+work, and that no job name, file path or setting name shows outside **Technical details**. The
+adversarial fixtures from the spec (hostile screen text, a canary string, hostile agent output,
+invented numbers on every platform, hostile or missing skills, an edit during a run, and approval
+that only the owner can give) run as unit tests in `lib/content/adversarial*.test.ts`.
+`lib/config-docs.test.ts` checks that every setting in `lib/config.ts` is in this README's table
+and in `.env.example`.
+
 The operations specs (`tests/e2e/settings.spec.ts`) check the Settings page — products, every
 schedule shown as off, key status without values, the A$0.00 budget — then choose **Back up
 now** and **Update old research**. Every schedule is off in this environment
-(`HARBOUR_SCHEDULED_SCANS`, `_ANALYST`, `_RESEARCH`, `_BACKUP` and `_NOTE` all `off`), so only these
+(`HARBOUR_SCHEDULED_SCANS`, `_ANALYST`, `_RESEARCH`, `_BACKUP`, `_NOTE`, `_DIGEST` and `_IDEAS` all `off`), so only these
 clicks queue work. `HARBOUR_BACKUP_DIR` is unset, so the backup lands in `data/e2e/backups`,
 which each run recreates; the specs check its file and folder modes and that the retention job
 follows.
@@ -1005,11 +1161,12 @@ follows.
 app/          routes (thin: parse input, call lib/, render)
 components/   UI components built on semantic tokens
 design/       tokens.css (primitives + semantic), the token list for /design, the wave and contrast maths
-lib/          auth, agents, brain, config, costs (ledger, budget), db, jobs, note (the daily note), ops (backups), products, security, formatting — logic + tests
+lib/          auth, agents, brain, config, content (the content machine: schemas, checks, worker steps, page reads), costs (ledger, budget), db, jobs, note (the daily note), ops (backups), products, security, formatting — logic + tests
+skills/       the atomizer skill the content machine pastes into its runs (`pnpm skills:install`)
 worker/       the job worker (`pnpm worker`): agent runs, checks, backups, autosave and push retries
 deploy/       systemd unit template, install script, deployment guide
 drizzle/      SQL migrations
-scripts/      repo checks and the setup-token, initial-run, scan-now, analyst-now, backup-now, retention-check, gsc-connect and actions CLIs
+scripts/      repo checks and the setup-token, initial-run, scan-now, analyst-now, backup-now, retention-check, gsc-connect, actions and skills-install CLIs
 tests/        e2e specs and test helpers
 docs/         design spec and implementation plans
 ```

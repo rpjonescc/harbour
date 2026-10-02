@@ -1,11 +1,24 @@
 #!/usr/bin/env node
 // Fake `claude -p` for tests and E2E. Behaviour chosen by FAKE_CLAUDE_SCENARIO.
 import { spawn } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const scenario = process.env.FAKE_CLAUDE_SCENARIO ?? "success";
-const prompt = process.argv[process.argv.indexOf("-p") + 1] ?? "";
+const promptArg = process.argv[process.argv.indexOf("-p") + 1];
+// Content runs send the prompt on stdin: `-p` is then followed by another flag, or by nothing.
+const prompt =
+  promptArg === undefined || promptArg.startsWith("--") ? readFileSync(0, "utf8") : promptArg;
+// A content step names itself on a STEP line. Tests pick "content-work" and pass their fixtures in
+// FAKE_CLAUDE_WORKS; the E2E worker picks no scenario, so a STEP line is enough and the fixtures
+// come from content/chain-works.json, which tests/e2e/prepare.ts writes next to this file.
+const stepLine = /^STEP:\s*(.+)$/m.exec(prompt)?.[1]?.trim();
+const worksFile = join(dirname(new URL(import.meta.url).pathname), "content", "chain-works.json");
+const loadWorks = () =>
+  JSON.parse(
+    process.env.FAKE_CLAUDE_WORKS ??
+      (existsSync(worksFile) ? readFileSync(worksFile, "utf8") : "{}"),
+  );
 const targets = (/^TARGET_FILES:\s*(.+)$/m.exec(prompt)?.[1] ?? "")
   .split(",")
   .map((s) => s.trim())
@@ -123,6 +136,42 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
     subtype: "success",
     is_error: true,
     result: "Sam, your score jumped to 93",
+  });
+} else if (scenario === "content-work" || (scenario === "success" && stepLine !== undefined)) {
+  // A content step: writes the fixture for this prompt's STEP line to its TARGET_FILES (the work
+  // file), plus any strays (paths the agent must not write). No fixture for the step is a failed run.
+  const step = stepLine ?? "";
+  const works = loadWorks();
+  const strays = JSON.parse(process.env.FAKE_CLAUDE_STRAYS ?? "{}");
+  out({ type: "assistant", message: { content: [{ type: "text", text: `Working on ${step}` }] } });
+  // FAKE_CLAUDE_ECHO: a run that repeats a string through every channel it has (the privacy test's
+  // canary): assistant text, a tool call's input, stderr, the result; the hostile variant adds a write outside the brain
+  // and a JSON key in the work file.
+  const echo = process.env.FAKE_CLAUDE_ECHO;
+  if (echo) {
+    out({ type: "assistant", message: { content: [{ type: "text", text: `I saw ${echo}` }] } });
+    tool("Grep", { pattern: echo, path: `${echo}/dir` });
+    // The hostile variant also tries a write outside the brain, named after the string.
+    if (process.env.FAKE_CLAUDE_ECHO_HOSTILE)
+      tool("Write", { file_path: `/tmp/${echo}.md`, content: echo });
+    process.stderr.write(`stderr ${echo}\n`);
+  }
+  if (!(step in works)) {
+    const why = echo ? `no fixture for ${step}: ${echo}` : `no fixture for ${step}`;
+    out({ type: "result", subtype: "success", is_error: true, result: why });
+    process.exit(1);
+  }
+  let work = works[step];
+  if (echo && process.env.FAKE_CLAUDE_ECHO_HOSTILE && typeof work === "object") {
+    work = { ...work, [echo]: echo }; // a JSON key in the work file: strict validation refuses it
+  }
+  for (const rel of targets) write(rel, typeof work === "string" ? work : JSON.stringify(work));
+  for (const [rel, text] of Object.entries(strays)) write(rel, text);
+  out({
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    result: echo ? `done ${echo}` : "done",
   });
 } else if (scenario === "fail") {
   out({ type: "result", subtype: "success", is_error: true, result: "Not logged in" });

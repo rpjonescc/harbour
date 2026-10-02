@@ -47,6 +47,13 @@ export function keyStatusRows(
       paid: false,
     },
     {
+      id: "screenpipe",
+      label: "Screenpipe",
+      status: presence(config, ["HARBOUR_SCREENPIPE_API_KEY"]),
+      inUse: true,
+      paid: false,
+    },
+    {
       id: "pagespeed",
       label: "PageSpeed Insights",
       status: presence(config, ["HARBOUR_PAGESPEED_API_KEY"]),

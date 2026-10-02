@@ -14,6 +14,7 @@ export const SETTINGS_PURPOSE = {
   connections: "The accounts and keys Harbour uses to learn more about your sites.",
   budget: "How much Harbour may spend each month on paid data.",
   backups: "Spare copies of Harbour's data, kept in case something goes wrong.",
+  content: "Ideas and drafts from your recent work, never posted for you.",
   more: "Where to change sources, devices and research for each site.",
 } as const;
 
@@ -21,6 +22,19 @@ export const SETTINGS_PURPOSE = {
 export const NOTE_OFF_REASON = {
   quiet: "Off while the personality is quiet",
   schedule: "Off: the morning note schedule is switched off",
+  token: "Off until Claude is connected",
+} as const;
+
+/** Why the activity digest row shows Off when its own switch is on. */
+export const DIGEST_OFF_REASON = {
+  schedule: "Off: the activity digest schedule is switched off",
+  token: "Off until Claude is connected",
+  screenpipe: "Off until Screenpipe is connected",
+} as const;
+
+/** Why the Monday content ideas row shows Off when its own switch is on. */
+export const IDEAS_OFF_REASON = {
+  schedule: "Off: the content ideas schedule is switched off",
   token: "Off until Claude is connected",
 } as const;
 

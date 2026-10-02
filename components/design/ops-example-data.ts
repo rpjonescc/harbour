@@ -142,6 +142,18 @@ export const EXAMPLE_SETTINGS: SettingsView = {
     },
   ],
   isDemoConfig: false,
+  content: {
+    on: true,
+    screenpipeUrl: "http://127.0.0.1:3030",
+    products: [
+      {
+        id: "acme-docs",
+        name: "Acme Docs",
+        terms: ["acme docs", "getting started"],
+        platforms: ["LinkedIn", "X", "Blog post"],
+      },
+    ],
+  },
   schedules: [
     {
       id: "scan",

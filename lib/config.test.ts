@@ -379,4 +379,9 @@ describe("the warm friend settings", () => {
   it.each(["6:30", "24:00", "06:60", "0630", "noon", ""])("rejects the note time %j", (time) => {
     expect(() => parseConfig({ ...base, HARBOUR_NOTE_TIME: time })).toThrow(/HARBOUR_NOTE_TIME/);
   });
+
+  it("refuses a literal ~ in HARBOUR_SKILLS_DIR and defaults to the home folder's skills", () => {
+    expect(() => parseConfig({ ...base, HARBOUR_SKILLS_DIR: "~/skills" })).toThrow(/full path/);
+    expect(parseConfig(base).HARBOUR_SKILLS_DIR).toBe(join(homedir(), ".claude", "skills"));
+  });
 });

@@ -11,7 +11,7 @@ import {
 } from "@/lib/analyst/proposals";
 import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
-import type { Product } from "@/lib/products/catalog";
+import { getContentProducts, type Product } from "@/lib/products/catalog";
 import { JobFailure } from "./agent-gate";
 import type { Job } from "./queue";
 
@@ -107,8 +107,20 @@ export function importAgentOutput(
       if (marked.length === 0) return null; // already imported (or no run row)
       if (output.kind === "discovery") {
         const productId = job.params.productId ?? "";
-        const { added, skipped } = importProposals(tx, productId, output.data, job.id, now);
-        return `Imported ${added} proposal(s); ${skipped} already known`;
+        // Pillars shape content ideas, so a product without content on never gets them.
+        const contentOn = getContentProducts().some((p) => p.id === productId);
+        const { added, skipped, droppedPillars } = importProposals(
+          tx,
+          productId,
+          output.data,
+          job.id,
+          now,
+          contentOn,
+        );
+        const dropped = droppedPillars
+          ? `; ${droppedPillars} pillar(s) dropped (content is off)`
+          : "";
+        return `Imported ${added} proposal(s); ${skipped} already known${dropped}`;
       }
       const { added, skipped } = importWeeklyActions(tx, output.data, job.id, now);
       return `Imported ${added} action(s); ${skipped} already known`;

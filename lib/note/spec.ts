@@ -1,12 +1,13 @@
 import { lstatSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { retryPrompt } from "@/lib/agents/retry-prompt";
 import type { AgentSpec, SpecContext } from "@/lib/agents/specs";
 import { checkNote } from "@/lib/explain/voice/check";
 import type { Facts } from "@/lib/explain/voice/facts";
 import { readNoteBytes } from "./bounded-read";
 import { noteDigest } from "./digest";
 import { parseNoteFile } from "./file";
-import { dailyNotePrompt, NOTE_PROMPT_VERSION, retryPrompt } from "./prompt";
+import { dailyNotePrompt, NOTE_PROMPT_VERSION } from "./prompt";
 import { describeStamp, draftPath, notePath } from "./stamp";
 
 /** A note is a few sentences: five minutes an attempt is generous (one retry at most). */

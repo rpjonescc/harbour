@@ -24,6 +24,25 @@ function run(scenario: string, extra: Partial<Parameters<typeof runProcess>[0]> 
 }
 
 describe("runProcess", () => {
+  it("delivers a stdin prompt to the child", async () => {
+    const r = run("content-work", {
+      args: ["-p", "--output-format", "stream-json"],
+      stdin: "TARGET_FILES: content/work/7.json\nSTEP: probe\n",
+      env: {
+        PATH: process.env.PATH ?? "",
+        FAKE_CLAUDE_SCENARIO: "content-work",
+        FAKE_CLAUDE_WORKS: JSON.stringify({ probe: { ok: true } }),
+      },
+    });
+    try {
+      const outcome = await r.promise;
+      expect(outcome.exitCode).toBe(0);
+      expect(readFileSync(join(r.cwd, "content/work/7.json"), "utf8")).toBe('{"ok":true}');
+    } finally {
+      r.cleanup();
+    }
+  });
+
   it("streams lines and reports a clean exit", async () => {
     const r = run("success");
     try {

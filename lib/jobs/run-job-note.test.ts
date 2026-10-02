@@ -156,8 +156,8 @@ describe("runAgentJob for the daily note", () => {
       const job = await runOne(deps, "daily-note", PARAMS);
       expect(job.status).toBe("ok");
       const run = db.select().from(agentRuns).get();
-      expect(run?.stdoutTail).toBe("(not recorded for the daily note)");
-      expect(run?.stderrTail).toBe("(not recorded for the daily note)");
+      expect(run?.stdoutTail).toBe("(not recorded)");
+      expect(run?.stderrTail).toBe("(not recorded)");
       const events = eventsSince(db, job.id, 0);
       expect(events.some((e) => e.kind === "text")).toBe(false);
       expect(JSON.stringify([run, events])).not.toContain("Sam");
@@ -182,6 +182,21 @@ describe("runAgentJob for the daily note", () => {
       ]);
       expect(record).not.toContain("Sam");
       expect(record).not.toContain("93");
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("reports a stray write, and a failed discard's cleanup, by count only (a quiet run's file names are the agent's)", async () => {
+    const { brain, deps } = noteSetup("escape");
+    try {
+      const job = await runOne(deps, "daily-note", PARAMS);
+      expect(job.status).toBe("failed");
+      expect(job.error).toMatch(/outside its area: 1 file\(s\)$/);
+      const record = [job.error ?? "", ...eventsSince(deps.db, job.id, 0).map((e) => e.text)].join(
+        "\n",
+      );
+      expect(record).not.toContain("outside.md");
     } finally {
       brain.cleanup();
     }

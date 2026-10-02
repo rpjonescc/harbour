@@ -92,5 +92,6 @@ export function discardRun(
     if (!pending.length && !newNestedGit(root, snapshot, [""]).length)
       return { quarantined: [...done] };
   }
-  throw new Error(`could not restore: ${pending.map((c) => c.path).join(", ")}`);
+  // Counts only, for the same reason: names stay in the quarantine's MANIFEST.txt.
+  throw new Error(`could not restore ${pending.length} file(s)`);
 }

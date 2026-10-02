@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import type { ProposalRow, ProposalType } from "@/lib/agents/proposals";
 import { postJson } from "@/lib/auth/client-api";
+import { approvalFailure } from "@/lib/explain/approvals";
 import { ProposalItem } from "./ProposalItem";
 
 /** All proposals of one type for a product, with a bulk approve button. */
@@ -37,7 +38,10 @@ export function ProposalList({
       { action: "approve-all", type },
     );
     setBusy(false);
-    if (!result.ok) return setError(result.message ?? "Couldn't approve them all. Try again.");
+    if (!result.ok)
+      return setError(
+        approvalFailure(result.error, result.message ?? "Couldn't approve them all. Try again."),
+      );
     const n = result.data.count ?? 0;
     setAnnouncement(`Approved ${n} ${n === 1 ? type : `${type}s`}`);
     router.refresh();

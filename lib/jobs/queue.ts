@@ -27,7 +27,13 @@ export type JobKind =
   | "weekly-analyst"
   | "daily-note"
   | "backup"
-  | "retention";
+  | "retention"
+  | "content-digest"
+  | "content-ideas"
+  | "content-draft"
+  | "content-atomise"
+  | "content-gate"
+  | "content-decision";
 export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";
 export type Job = typeof jobs.$inferSelect;
 export type EventKind = "status" | "tool" | "text" | "error";
@@ -45,40 +51,12 @@ const STALE_MS = 60_000;
 /** Import attempts per agent run, the run's own included; then the owner must run it again. */
 export const MAX_IMPORT_ATTEMPTS = 3;
 
-function dedupeKeyFor(kind: JobKind, params: Record<string, string>): string {
-  const sorted = Object.keys(params)
-    .sort()
-    .map((k) => [k, params[k]]);
-  return `${kind}:${JSON.stringify(sorted)}`;
-}
-
-/** Queues a job unless an identical one is already queued or running. */
-export function enqueueJob(
-  db: Db,
-  kind: JobKind,
-  params: Record<string, string>,
-  requestedBy: string | null,
-  now = new Date(),
-): { id: number; created: boolean } {
-  const dedupeKey = dedupeKeyFor(kind, params);
-  return db.transaction(
-    (tx) => {
-      const active = tx
-        .select({ id: jobs.id })
-        .from(jobs)
-        .where(and(eq(jobs.dedupeKey, dedupeKey), inArray(jobs.status, ["queued", "running"])))
-        .get();
-      if (active) return { id: active.id, created: false };
-      const row = tx
-        .insert(jobs)
-        .values({ kind, params, dedupeKey, status: "queued", requestedBy, createdAt: now })
-        .returning({ id: jobs.id })
-        .get();
-      return { id: row.id, created: true };
-    },
-    { behavior: "immediate" },
-  );
-}
+export {
+  enqueueJob,
+  enqueueJobIn,
+  findActiveJob,
+  type JobWriter,
+} from "./queue-enqueue";
 
 /** Atomically moves the oldest queued job that is due (see `deferJob`) to running. */
 export function claimNextJob(db: Db, now = new Date()): Job | null {
@@ -125,7 +103,7 @@ export function heartbeat(db: Db, id: number, now = new Date()): void {
 
 /** Moves a running job to a terminal state. Returns false if it was no longer running. */
 export function finishJob(
-  db: Db,
+  db: Pick<Db, "update">,
   id: number,
   status: "ok" | "failed" | "cancelled",
   error: string | null,

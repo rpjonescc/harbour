@@ -1,7 +1,8 @@
+import { execFileSync } from "node:child_process";
 import { symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { makeBrain } from "@/tests/helpers/brain";
-import { readNoteBytes } from "./bounded-read";
+import { readNoteBytes, readPrefixBytes } from "./bounded-read";
 import { MAX_NOTE_BYTES } from "./file";
 
 describe("readNoteBytes", () => {
@@ -33,5 +34,38 @@ describe("readNoteBytes", () => {
 
   it("propagates a missing file", () => {
     expect(() => read("missing.md", null)).toThrow(/ENOENT/);
+  });
+});
+
+describe("readPrefixBytes", () => {
+  const withFiles = <T>(run: (root: string) => T): T => {
+    const brain = makeBrain({ "a.md": "hello café", "big.md": "a".repeat(10_000) });
+    try {
+      symlinkSync(join(brain.root, "a.md"), join(brain.root, "link.md"));
+      execFileSync("mkfifo", [join(brain.root, "pipe.md")]);
+      return run(brain.root);
+    } finally {
+      brain.cleanup();
+    }
+  };
+
+  it("returns a small file whole and a long one cut at the cap, saying so", () => {
+    withFiles((root) => {
+      expect(readPrefixBytes(join(root, "a.md"), 100)).toMatchObject({ truncated: false });
+      expect(readPrefixBytes(join(root, "a.md"), 100).bytes.toString("utf8")).toBe("hello café");
+      const cut = readPrefixBytes(join(root, "big.md"), 6144);
+      expect(cut.bytes.length).toBe(6144);
+      expect(cut.truncated).toBe(true);
+      expect(readPrefixBytes(join(root, "big.md"), 10_000).truncated).toBe(false);
+    });
+  });
+
+  it("refuses a symlink, a FIFO (without waiting) and a directory, and propagates a missing file", () => {
+    withFiles((root) => {
+      expect(() => readPrefixBytes(join(root, "link.md"), 100)).toThrow(/ELOOP/);
+      expect(() => readPrefixBytes(join(root, "pipe.md"), 100)).toThrow(/regular file/);
+      expect(() => readPrefixBytes(root, 100)).toThrow();
+      expect(() => readPrefixBytes(join(root, "none.md"), 100)).toThrow(/ENOENT/);
+    });
   });
 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { INVISIBLE_CHARS } from "@/lib/text/hidden-chars";
 import { FACT_CAPS } from "./facts";
 
 /** Hard caps (spec §3.4). The prompt asks for ASKED_BODY_CHARS: a few over never costs a retry. */
@@ -16,10 +17,8 @@ export const MOODS = ["celebrate", "steady", "attention"] as const;
 const MARKUP =
   /[<>`*_#[\]{}\\|]|https?:|www\.|:\/\/|javascript\s*:|\S+@\S+\.\S+|\b[a-z0-9-]+\.(?:ai|xyz|me|tv|io|co|uk|app|dev|com|net|org|au|nz|us|ca|de|fr|info|biz|site|online|store|tech|page|link)\b/i;
 const EMOJI = /\p{Extended_Pictographic}/u;
-// Control, format (zero-width, bidi, soft hyphen, tags), separator, private-use and surrogate
-// characters, variation selectors and blank-looking letters: they can hide or reorder text.
-const INVISIBLE =
-  /\p{Cc}|\p{Cf}|\p{Zl}|\p{Zp}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[\u034f\u115f\u1160\u180e\u2800\u3164]/u;
+// Control characters and everything invisible (see lib/text/hidden-chars.ts): they can hide or reorder text.
+const INVISIBLE = new RegExp(`\\p{Cc}|${INVISIBLE_CHARS.source}`, "u");
 // Digits that are not 0-9 (full-width, Arabic-Indic...) and number-like symbols (superscripts,
 // fractions, Roman numerals) would slip past the "every figure is in the facts" check.
 const FOREIGN_NUMBER = /(?![0-9])\p{Nd}|[\p{No}\p{Nl}]/u;

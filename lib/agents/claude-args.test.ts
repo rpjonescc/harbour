@@ -43,6 +43,13 @@ describe("claudeArgs", () => {
     const web = claudeArgs("p", "m", ["Write", "WebFetch"]);
     expect(web[web.indexOf("--allowed-tools") + 1]).toBe("WebFetch");
   });
+
+  it("leaves the prompt off the command line when it goes on stdin", () => {
+    const viaStdin = claudeArgs("a very long prompt", "m", ["Write"], true);
+    expect(viaStdin[0]).toBe("-p");
+    expect(viaStdin[1]).toBe("--output-format");
+    expect(viaStdin).not.toContain("a very long prompt");
+  });
 });
 
 describe("agentEnv", () => {

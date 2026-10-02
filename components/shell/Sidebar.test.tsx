@@ -2,9 +2,23 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { Sidebar } from "./Sidebar";
 
-const counts = vi.hoisted(() => ({ open: 0, brain: 0 as number | null, path: "/" }));
+const counts = vi.hoisted(() => ({
+  open: 0,
+  brain: 0 as number | null,
+  path: "/",
+  content: "off" as "on" | "off",
+  ready: 0,
+}));
 vi.mock("next/navigation", () => ({ usePathname: () => counts.path, useRouter: () => ({}) }));
 vi.mock("@/lib/brain/runtime", () => ({ brainNewCount: () => counts.brain }));
+vi.mock("@/lib/config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/config")>();
+  return {
+    ...actual,
+    getConfig: () => ({ ...actual.getConfig(), HARBOUR_CONTENT: counts.content }),
+  };
+});
+vi.mock("@/lib/content/read/ready-count", () => ({ countReadyPieces: () => counts.ready }));
 vi.mock("@/lib/db/client", () => ({ getDb: () => ({}) }));
 vi.mock("@/lib/actions/views", () => ({ openActionCount: () => counts.open }));
 
@@ -23,6 +37,27 @@ describe("Sidebar badges", () => {
     render(<Sidebar theme="system" />);
     expect(screen.getByText("1 thing worth doing")).toBeInTheDocument();
     expect(screen.getByText("1 new document")).toBeInTheDocument();
+  });
+});
+
+describe("Sidebar content link", () => {
+  afterEach(() => {
+    cleanup();
+    counts.content = "off";
+    counts.ready = 0;
+  });
+
+  it("hides Content while content is off", () => {
+    render(<Sidebar theme="system" />);
+    expect(screen.queryByRole("link", { name: /Content/ })).toBeNull();
+  });
+
+  it("shows Content with the ready count when content is on", () => {
+    counts.content = "on";
+    counts.ready = 4;
+    render(<Sidebar theme="system" />);
+    expect(screen.getByRole("link", { name: /Content/ })).toHaveAttribute("href", "/content");
+    expect(screen.getByText("4 ready for you")).toHaveClass("sr-only");
   });
 });
 

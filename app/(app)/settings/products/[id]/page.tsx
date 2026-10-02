@@ -4,12 +4,13 @@ import { ProposalList } from "@/components/proposals/ProposalList";
 import { listProposals, type ProposalType } from "@/lib/agents/proposals";
 import { requireSession } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
-import { getProducts } from "@/lib/products/catalog";
+import { getContentProducts, getProducts } from "@/lib/products/catalog";
 
 const SECTIONS: { type: ProposalType; title: string }[] = [
   { type: "keyword", title: "Keywords" },
   { type: "question", title: "AI questions" },
   { type: "competitor", title: "Competitors" },
+  { type: "pillar", title: "Content pillars" },
 ];
 
 export default async function ProductProposalsPage({
@@ -22,6 +23,9 @@ export default async function ProductProposalsPage({
   const product = getProducts().find((p) => p.id === id);
   if (!product) notFound();
   const proposals = listProposals(getDb(), id);
+  // Pillars shape content ideas, so only products with content on have them.
+  const contentOn = getContentProducts().some((p) => p.id === id);
+  const sections = SECTIONS.filter(({ type }) => type !== "pillar" || contentOn);
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <header>
@@ -33,7 +37,7 @@ export default async function ProductProposalsPage({
           </Link>
         </p>
       </header>
-      {SECTIONS.map(({ type, title }) => (
+      {sections.map(({ type, title }) => (
         <section key={type} aria-labelledby={`${type}-heading`} className="flex flex-col gap-3">
           <h2 id={`${type}-heading`} className="font-serif text-xl">
             {title}

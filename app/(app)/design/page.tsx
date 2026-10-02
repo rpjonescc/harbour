@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ActionExamples } from "@/components/design/ActionExamples";
 import { AgentExamples } from "@/components/design/AgentExamples";
 import { BrainExamples } from "@/components/design/BrainExamples";
+import { ContentExamples } from "@/components/design/ContentExamples";
 import { ExplainExamples } from "@/components/design/ExplainExamples";
 import { OpsExamples } from "@/components/design/OpsExamples";
 import { ScanExamples } from "@/components/design/ScanExamples";
@@ -107,6 +108,9 @@ export default async function DesignPage() {
       </Section>
       <Section title="Sources examples">
         <SourcesExamples productId={getProducts()[0]?.id ?? "acme-docs"} />
+      </Section>
+      <Section title="Content examples">
+        <ContentExamples />
       </Section>
       <Section title="Operations examples">
         <OpsExamples />

@@ -28,6 +28,8 @@ import { readTouched } from "./touched-log";
  */
 
 const MARKER = /^job-(\d+)\.json$/;
+const QUIET_RECOVERY_FAILURE =
+  "Harbour could not move an interrupted run's files to quarantine yet. It will try again.";
 
 const markerSchema = z.object({
   jobId: z.number().int(),
@@ -37,15 +39,23 @@ const markerSchema = z.object({
   nestedGit: z.array(z.tuple([z.string(), z.number()])),
   gitMeta: z.array(z.tuple([z.string(), z.string()])),
   gitRestore: z.array(z.tuple([z.string(), z.string()])),
+  // A quiet run's file names can hold screen text: recovery then reports fixed sentences only.
+  quiet: z.boolean().default(false),
 });
 
 /** Durably records a run's snapshot (tmp file, fsync, rename) in a private folder. */
-export function writeRunMarker(quarantineRoot: string, jobId: number, snapshot: RunSnapshot): void {
+export function writeRunMarker(
+  quarantineRoot: string,
+  jobId: number,
+  snapshot: RunSnapshot,
+  quiet = false,
+): void {
   const dir = activeDir(quarantineRoot);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
   const body = JSON.stringify({
     jobId,
+    quiet,
     ignored: [...snapshot.ignored],
     nestedGit: [...snapshot.nestedGit],
     gitMeta: [...snapshot.gitMeta],
@@ -89,15 +99,23 @@ export function pendingRecovery(quarantineRoot: string): string[] {
     .sort((a, b) => Number(a) - Number(b));
 }
 
-function readRunMarker(quarantineRoot: string, jobId: string): RunSnapshot {
+function readRunMarker(
+  quarantineRoot: string,
+  jobId: string,
+): { snapshot: RunSnapshot; quiet: boolean } {
   const raw = markerSchema.parse(
     JSON.parse(readFileSync(markerPath(quarantineRoot, jobId), "utf8")),
   );
   return {
-    ignored: new Map(raw.ignored),
-    nestedGit: new Map(raw.nestedGit),
-    gitMeta: new Map(raw.gitMeta),
-    gitRestore: new Map(raw.gitRestore.map(([path, data]) => [path, Buffer.from(data, "base64")])),
+    quiet: raw.quiet,
+    snapshot: {
+      ignored: new Map(raw.ignored),
+      nestedGit: new Map(raw.nestedGit),
+      gitMeta: new Map(raw.gitMeta),
+      gitRestore: new Map(
+        raw.gitRestore.map(([path, data]) => [path, Buffer.from(data, "base64")]),
+      ),
+    },
   };
 }
 
@@ -168,8 +186,9 @@ function setAside(quarantineRoot: string, jobId: string): string {
 
 function recoverOne(root: string, quarantineRoot: string, jobId: string, result: RecoveryResult) {
   let snapshot: RunSnapshot;
+  let quiet: boolean;
   try {
-    snapshot = readRunMarker(quarantineRoot, jobId);
+    ({ snapshot, quiet } = readRunMarker(quarantineRoot, jobId));
   } catch (error) {
     const reason = `run marker unreadable: ${(error as Error).message.split("\n")[0]}`;
     // Without the snapshot nothing can be discarded safely: stay blocked while changes remain.
@@ -181,7 +200,14 @@ function recoverOne(root: string, quarantineRoot: string, jobId: string, result:
     return;
   }
   const dir = freshQuarantineDir(quarantineRoot, jobId);
-  const { quarantined } = discardRun(root, snapshot, dir, readTouched(quarantineRoot, jobId));
+  let quarantined: string[];
+  try {
+    ({ quarantined } = discardRun(root, snapshot, dir, readTouched(quarantineRoot, jobId)));
+  } catch (error) {
+    // The error can name files the agent chose, and a quiet run's names can hold screen text.
+    if (quiet) throw new Error(QUIET_RECOVERY_FAILURE);
+    throw error;
+  }
   removeRunMarker(quarantineRoot, jobId);
   result.recovered.push({ jobId, dir, quarantined });
 }

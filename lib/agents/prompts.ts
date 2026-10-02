@@ -100,8 +100,12 @@ export function refreshPrompt(
   return researchDocPrompt(topic, products, today, REFRESH);
 }
 
-/** Prompt for one product's discovery: keywords, AI questions and competitors. */
-export function discoveryPrompt(product: Product, today: string): string {
+const PILLARS_SHAPE = `,
+  "pillars": [{ "key": "lowercase-slug", "name": "short name", "description": "what this pillar covers", "why": "..." }]`;
+const PILLARS_ASK = ` Also propose 3 to 5 content pillars: the recurring themes this product can write about for years (for example "getting started", "troubleshooting"). A pillar is a theme, not a post idea.`;
+
+/** Prompt for one product's discovery: keywords, AI questions, competitors, and (`withPillars`, content on) content pillars. */
+export function discoveryPrompt(product: Product, today: string, withPillars = false): string {
   assertDate(today);
   const dir = `products/${product.id}`;
   return `TARGET_FILES: ${dir}/discovery.md, ${dir}/proposals.json
@@ -122,9 +126,9 @@ and which competitors rank or get cited. Then write two files:
 {
   "keywords": [{ "term": "...", "intent": "informational|commercial|transactional|navigational|local", "location": "optional, e.g. a suburb", "why": "..." }],
   "questions": [{ "text": "a natural question someone would ask an AI assistant", "why": "..." }],
-  "competitors": [{ "name": "...", "url": "https://...", "why": "..." }]
+  "competitors": [{ "name": "...", "url": "https://...", "why": "..." }]${withPillars ? PILLARS_SHAPE : ""}
 }
-Aim for about 30 keywords, about 12 questions and 3 to 5 competitors. Every "why" is one sentence.
+Aim for about 30 keywords, about 12 questions and 3 to 5 competitors.${withPillars ? PILLARS_ASK : ""} Every "why" is one sentence.
 
 ${RULES}`;
 }

@@ -15,15 +15,16 @@ const RULES: readonly [RegExp, string][] = [
   [/(^|[\s"'(=:,])(~|\/)(?!\/)[^\s"')]*\/[^\s"')]*/g, "$1[path]"],
 ];
 
+/** `scrub`'s rules without its length cap, for text that is long on purpose (a facts pack). */
+export function redactSensitive(text: string): string {
+  return RULES.reduce((out, [pattern, to]) => out.replace(pattern, to), redactCredentials(text));
+}
+
 /**
  * Text that goes into an agent prompt from Harbour's own records (collector errors, crawled
  * URLs) with secrets and identifiers removed: URL credentials, key and token parameters, Google
  * API keys and OAuth tokens, Bearer values, PEM blocks, emails and file paths. At most 300 chars.
  */
 export function scrub(text: string): string {
-  const clean = RULES.reduce(
-    (out, [pattern, to]) => out.replace(pattern, to),
-    redactCredentials(text),
-  );
-  return clean.slice(0, MAX_LENGTH);
+  return redactSensitive(text).slice(0, MAX_LENGTH);
 }

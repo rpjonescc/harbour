@@ -2,6 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/lib/db/client";
 import { proposals } from "@/lib/db/schema";
+import { pillarFields } from "./pillars";
 
 const why = z.string().trim().min(1).max(400);
 const keyword = z.object({
@@ -23,21 +24,24 @@ const competitor = z.object({
   url: competitorUrl,
   why,
 });
+const pillar = pillarFields.extend({ why });
 
 export const proposalsSchema = z.object({
   keywords: z.array(keyword).max(60),
   questions: z.array(question).max(30),
   competitors: z.array(competitor).max(10),
+  pillars: z.array(pillar).max(5).default([]),
 });
 
 export type Proposals = z.infer<typeof proposalsSchema>;
-export type ProposalType = "keyword" | "question" | "competitor";
+export type ProposalType = "keyword" | "question" | "competitor" | "pillar";
 export type ProposalRow = typeof proposals.$inferSelect;
 
 const VALUE_SCHEMAS = {
   keyword: keyword.omit({ why: true }),
   question: question.omit({ why: true }),
   competitor: competitor.omit({ why: true }),
+  pillar: pillar.omit({ why: true }),
 } as const;
 
 /** "✖ msg\n  → at field" blocks from z.prettifyError become "field: msg" lines. */
@@ -61,6 +65,7 @@ function keyFor(type: ProposalType, value: Record<string, string | undefined>): 
   if (type === "keyword")
     return JSON.stringify(["kw", norm(value.term ?? ""), norm(value.location ?? "")]);
   if (type === "question") return JSON.stringify(["q", norm(value.text ?? "")]);
+  if (type === "pillar") return JSON.stringify(["p", norm(value.key ?? "")]);
   if (URL.canParse(value.url ?? "")) {
     const u = new URL(value.url ?? "");
     return JSON.stringify([
@@ -86,13 +91,18 @@ export function parseProposals(text: string): Proposals {
   return result.data;
 }
 
-/** Inserts new items as proposed; existing items (any status) are left untouched. */
+/**
+ * Inserts new items as proposed; existing items (any status) are left untouched.
+ * `pillars: false` (content off for the product) drops the agent's pillars, so they can never
+ * be approved. Returns how many were dropped, never their text.
+ */
 export function importProposals(
   db: Db,
   productId: string,
   data: Proposals,
   jobId: number | null,
   now = new Date(),
+  pillars = true,
 ) {
   const rows: { type: ProposalType; value: Record<string, string>; why: string }[] = [
     ...data.keywords.map(({ why: w, ...value }) => ({
@@ -103,6 +113,11 @@ export function importProposals(
     ...data.questions.map(({ why: w, ...value }) => ({ type: "question" as const, value, why: w })),
     ...data.competitors.map(({ why: w, ...value }) => ({
       type: "competitor" as const,
+      value,
+      why: w,
+    })),
+    ...(pillars ? data.pillars : []).map(({ why: w, ...value }) => ({
+      type: "pillar" as const,
       value,
       why: w,
     })),
@@ -128,7 +143,11 @@ export function importProposals(
       added += inserted.length;
     }
   });
-  return { added, skipped: rows.length - added };
+  return {
+    added,
+    skipped: rows.length - added,
+    droppedPillars: pillars ? 0 : data.pillars.length,
+  };
 }
 
 export function listProposals(db: Db, productId: string): Record<ProposalType, ProposalRow[]> {
@@ -142,6 +161,7 @@ export function listProposals(db: Db, productId: string): Record<ProposalType, P
     keyword: all.filter((p) => p.type === "keyword"),
     question: all.filter((p) => p.type === "question"),
     competitor: all.filter((p) => p.type === "competitor"),
+    pillar: all.filter((p) => p.type === "pillar"),
   };
 }
 
@@ -171,6 +191,9 @@ export function editProposal(db: Db, productId: string, id: number, value: Recor
   if (!row) return { ok: false as const, error: "not_found" };
   if (row.status === "rejected")
     return { ok: false as const, error: "rejected items can't be edited" };
+  // Ideas cite an approved pillar by its key, so the key is fixed once approved.
+  if (row.type === "pillar" && row.status === "approved" && value.key !== row.value.key)
+    return { ok: false as const, error: "key: can't change once the pillar is approved" };
   const parsed = VALUE_SCHEMAS[row.type].safeParse(value);
   if (!parsed.success) return { ok: false as const, error: readableIssues(parsed.error) };
   const clean = parsed.data as Record<string, string>;

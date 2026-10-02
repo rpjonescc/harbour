@@ -122,4 +122,10 @@ describe("prompt hygiene", () => {
     );
     expect(() => discoveryPrompt(product, "2026-1-1")).toThrow(/invalid date/i);
   });
+  it("asks for pillars only when the product has content on", () => {
+    expect(discoveryPrompt(product, "2026-10-01")).not.toContain('"pillars"');
+    const withPillars = discoveryPrompt(product, "2026-10-01", true);
+    expect(withPillars).toContain('"pillars"');
+    expect(withPillars).toContain("3 to 5");
+  });
 });

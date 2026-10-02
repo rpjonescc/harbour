@@ -1,5 +1,6 @@
 import { BackupCard } from "@/components/settings/BackupCard";
 import { BudgetCard } from "@/components/settings/BudgetCard";
+import { ContentCard } from "@/components/settings/ContentCard";
 import { KeyStatusCard } from "@/components/settings/KeyStatusCard";
 import { ProductsCard } from "@/components/settings/ProductsCard";
 import { SchedulesCard } from "@/components/settings/SchedulesCard";
@@ -71,6 +72,7 @@ export function OpsExamples() {
         locale={locale}
       />
       <KeyStatusCard section={NESTED} keys={view.keys} />
+      <ContentCard section={NESTED} content={view.content} />
       <BudgetCard
         section={NESTED}
         which="spending example"

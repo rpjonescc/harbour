@@ -146,7 +146,8 @@ export function quarantine(
     } else if (st.isFile()) {
       if (done.has(rel)) return;
       if (st.size > MAX_QUARANTINE_FILE_BYTES) {
-        throw new Error(`file too large to quarantine (nothing was deleted): ${rel}`);
+        // Counts only: a file name can hold text the owner never chose (a quiet run's screen text).
+        throw new Error("a file is too large to quarantine (nothing was deleted)");
       }
       const to = resolve(dir, rel);
       mkdirSync(resolve(to, ".."), { recursive: true });

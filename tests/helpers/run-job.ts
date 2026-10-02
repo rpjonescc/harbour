@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { runProcess } from "@/lib/agents/process";
+import type { AgentJobKind } from "@/lib/jobs/job-kinds";
 import { claimNextJob, enqueueJob, getJob, type Job } from "@/lib/jobs/queue";
 import { type RunDeps, runAgentJob } from "@/lib/jobs/run-job";
 import { openTestDb } from "./db";
@@ -63,11 +64,7 @@ export function reload(deps: Pick<RunDeps, "db">, id: number): Job {
   return job;
 }
 
-export async function runOne(
-  deps: RunDeps,
-  kind: "research" | "discovery" | "weekly-analyst" | "daily-note",
-  params: Record<string, string>,
-) {
+export async function runOne(deps: RunDeps, kind: AgentJobKind, params: Record<string, string>) {
   enqueueJob(deps.db, kind, params, null);
   const job = claim(deps);
   await runAgentJob(deps, job);

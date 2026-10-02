@@ -8,7 +8,7 @@ import { dailyNoteSpec, NOTE_TIMEOUT_MS, reviewNote } from "./spec";
 const STAMP = "2026-10-02-0630";
 const PATH = `notes/daily/${STAMP}.md`;
 const DRAFT = `notes/daily/${STAMP}.draft.md`;
-const context = { products: [], today: "2026-10-02", noteFacts: () => FACTS };
+const context = { jobId: 1, products: [], today: "2026-10-02", noteFacts: () => FACTS };
 
 describe("dailyNoteSpec", () => {
   it("allows exactly one file, gives the agent only Write, and bounds the run", () => {
@@ -21,7 +21,7 @@ describe("dailyNoteSpec", () => {
       requiredOutputs: [PATH],
       requiredFiles: [],
       output: null,
-      promptVersion: "warm-v2",
+      promptVersion: "warm-v3",
       tools: ["Write"],
       timeoutMs: NOTE_TIMEOUT_MS,
     });
@@ -29,7 +29,7 @@ describe("dailyNoteSpec", () => {
   });
 
   it("fails clearly without facts or with a stamp that is not one", () => {
-    expect(() => dailyNoteSpec({ stamp: STAMP }, { products: [], today: "x" })).toThrow(
+    expect(() => dailyNoteSpec({ stamp: STAMP }, { jobId: 1, products: [], today: "x" })).toThrow(
       /facts are not available/,
     );
     expect(() => dailyNoteSpec({ stamp: "../../etc/passwd" }, context)).toThrow(
@@ -103,7 +103,7 @@ describe("the draft and the published note", () => {
     try {
       const review = spec();
       expect(review?.check(brain.root)).toBeNull();
-      const digest = review?.publish(brain.root);
+      const digest = review?.publish(brain.root, () => {});
       expect(digest).toBe(noteDigest(noteFileText(GOOD_NOTE)));
       expect(existsSync(join(brain.root, DRAFT))).toBe(false);
       expect(readFileSync(join(brain.root, PATH), "utf8")).toBe(noteFileText(GOOD_NOTE));
@@ -118,7 +118,7 @@ describe("the draft and the published note", () => {
       const review = spec();
       expect(review?.check(brain.root)).toBeNull();
       writeFileSync(join(brain.root, DRAFT), noteFileText({ ...GOOD_NOTE, headline: "Swapped." }));
-      expect(() => review?.publish(brain.root)).toThrow(/changed after/);
+      expect(() => review?.publish(brain.root, () => {})).toThrow(/changed after/);
       expect(existsSync(join(brain.root, PATH))).toBe(false); // nothing is left to be shown
     } finally {
       brain.cleanup();
@@ -128,11 +128,11 @@ describe("the draft and the published note", () => {
   it("refuses to publish a draft the checker never accepted", () => {
     const brain = makeBrain({ [DRAFT]: noteFileText(GOOD_NOTE) });
     try {
-      expect(() => spec()?.publish(brain.root)).toThrow(/not been checked/);
+      expect(() => spec()?.publish(brain.root, () => {})).toThrow(/not been checked/);
       const review = spec();
       writeFileSync(join(brain.root, DRAFT), "hello");
       expect(review?.check(brain.root)).toMatch(/frontmatter/);
-      expect(() => review?.publish(brain.root)).toThrow(/not been checked/);
+      expect(() => review?.publish(brain.root, () => {})).toThrow(/not been checked/);
     } finally {
       brain.cleanup();
     }

@@ -1,12 +1,14 @@
 import { type ChildProcessByStdio, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import type { Readable } from "node:stream";
+import type { Readable, Writable } from "node:stream";
 
 export const TAIL_CHARS = 16_384;
 
 export type RunOptions = {
   bin: string;
   args: string[];
+  /** The prompt, when it travels on stdin instead of the command line: it then never appears in the process list. */
+  stdin?: string;
   cwd: string;
   env: Record<string, string>;
   timeoutMs: number;
@@ -35,12 +37,19 @@ export function appendTail(tail: string, chunk: string, max: number): string {
 export function runProcess(options: RunOptions): Promise<RunOutcome> {
   const { pollMs = 2000, killGraceMs = 10_000 } = options;
   return new Promise((resolve, reject) => {
-    const child: ChildProcessByStdio<null, Readable, Readable> = spawn(options.bin, options.args, {
-      cwd: options.cwd,
-      env: options.env as NodeJS.ProcessEnv, // Next augments ProcessEnv with NODE_ENV; the child env is explicit
-      detached: true, // new process group, so we can signal every descendant
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    const child: ChildProcessByStdio<Writable, Readable, Readable> = spawn(
+      options.bin,
+      options.args,
+      {
+        cwd: options.cwd,
+        env: options.env as NodeJS.ProcessEnv, // Next augments ProcessEnv with NODE_ENV; the child env is explicit
+        detached: true, // new process group, so we can signal every descendant
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+    // A child that exits before reading everything closes the pipe; its exit code says why.
+    child.stdin.on("error", () => {});
+    child.stdin.end(options.stdin ?? "");
     let stdoutTail = "";
     let stderrTail = "";
     let timedOut = false;

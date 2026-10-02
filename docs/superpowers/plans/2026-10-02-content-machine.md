@@ -910,7 +910,7 @@ const HOSTS = { allowedHosts: ["docs.example.com"] };
 
 describe("sanitiseText", () => {
   it("normalises, strips zero-width and bidi characters and says so", () => {
-    const result = sanitiseText("Cáfe​ tips‮\r\nnext", "social");
+    const result = sanitiseText("Cáfe\u200b tips\u202e\r\nnext", "social");
     expect(result).toEqual({ ok: true, text: "Café tips\nnext", stripped: true });
   });
 
@@ -1120,7 +1120,7 @@ export function describeIssues(error: z.ZodError): string {
  * (expansion attacks). Never throws: an unreadable file is a reason.
  */
 export function parseFile<T>(text: string, schema: z.ZodType<T>): Parsed<T> {
-  const match = FRONTMATTER.exec(text.replace(/^﻿/, ""));
+  const match = FRONTMATTER.exec(text.replace(/^\ufeff/, ""));
   if (!match) return { ok: false, reason: "The file has no frontmatter between two --- lines." };
   let data: unknown;
   try {
@@ -1176,7 +1176,7 @@ export type SanitiseResult =
   | { ok: false; reason: string };
 
 // Zero-width, bidi-override, word-joiner and soft-hyphen characters hide or reorder text.
-const INVISIBLE = /[​-‏‪-‮⁠-⁤⁦-⁩﻿­]/g;
+const INVISIBLE = /[\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\u00ad]/g;
 // C0 controls and DEL; newline is the one allowed.
 const CONTROL = /[\u0000-\u0009\u000b-\u001f\u007f]/;
 const HTML = /<\/?[a-z][^>]*>|<!--/i;
@@ -2218,7 +2218,7 @@ describe("parseWorkJson", () => {
   });
 
   it("strips a byte-order mark and returns the value", () => {
-    expect(parseWorkJson('﻿{"title":"x"}', schema)).toEqual({ ok: true, value: { title: "x" } });
+    expect(parseWorkJson('\ufeff{"title":"x"}', schema)).toEqual({ ok: true, value: { title: "x" } });
   });
 });
 
@@ -2604,7 +2604,7 @@ export type WorkPlan<Out> = {
 export function parseWorkJson<T>(text: string, schema: z.ZodType<T>): Parse<T> {
   let raw: unknown;
   try {
-    raw = JSON.parse(text.replace(/^﻿/, ""));
+    raw = JSON.parse(text.replace(/^\ufeff/, ""));
   } catch {
     return { ok: false, reason: "The work file is not valid JSON." };
   }
@@ -3441,7 +3441,7 @@ describe("filterSnippets: redacting", () => {
 
 describe("filterSnippets: normalising and capping", () => {
   it("strips zero-width and bidi characters, collapses space and caps each snippet at 240", () => {
-    expect(one("Acme​  Docs‮\n\n  guide")).toBe("Acme Docs guide");
+    expect(one("Acme\u200b  Docs\u202e\n\n  guide")).toBe("Acme Docs guide");
     expect(one(`Acme Docs ${"word ".repeat(100)}`)?.length).toBeLessThanOrEqual(240);
   });
 
@@ -3564,7 +3564,7 @@ export type RedactRules = {
 
 const SNIPPET_CHARS = 240;
 const PRODUCT_BYTES = 24 * 1024;
-const INVISIBLE = /[​-‏‪-‮⁠-⁤⁦-⁩﻿­]/g;
+const INVISIBLE = /[\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\u00ad]/g;
 const CONTROL = /[\u0000-\u001f\u007f]/g;
 
 const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -6347,7 +6347,7 @@ describe("sanitiseContent", () => {
   const hosts = ["docs.example.com"];
   it("passes a clean piece unchanged and strips hidden characters from any field, reporting it", () => {
     expect(sanitiseContent("linkedin", PIECES.linkedin, hosts)).toMatchObject({ ok: true, stripped: false });
-    const dirty = sanitiseContent("linkedin", { ...PIECES.linkedin, text: "Hi​ there" }, hosts);
+    const dirty = sanitiseContent("linkedin", { ...PIECES.linkedin, text: "Hi\u200b there" }, hosts);
     expect(dirty).toMatchObject({ ok: true, stripped: true, content: { text: "Hi there" } });
   });
   it("lets only the blog body be markdown, and only with links to the product's own site", () => {
@@ -6549,7 +6549,7 @@ describe("the atomise job", () => {
   });
 
   it("writes a platform the agent left out as a stub, and strips hidden characters with a note", async () => {
-    const pieces = PLATFORMS.filter((p) => p !== "website").map((p) => piece(p, p === "linkedin" ? { content: { ...PIECES.linkedin, text: "Hi​ there." } } : {}));
+    const pieces = PLATFORMS.filter((p) => p !== "website").map((p) => piece(p, p === "linkedin" ? { content: { ...PIECES.linkedin, text: "Hi\u200b there." } } : {}));
     const r = go({ pieces });
     try {
       const job = await r.run();

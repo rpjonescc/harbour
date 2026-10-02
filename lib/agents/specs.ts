@@ -1,5 +1,11 @@
 import { z } from "zod";
 import { ANALYST_PROMPT_VERSION, weeklyAnalystPrompt, weeklyPaths } from "@/lib/analyst/prompt";
+import { atomiseSpec } from "@/lib/content/worker/atomise";
+import { digestSpec } from "@/lib/content/worker/digest";
+import { draftSpec } from "@/lib/content/worker/draft";
+import { gateSpec } from "@/lib/content/worker/gate";
+import { ideasSpec } from "@/lib/content/worker/ideas";
+import type { ContentRunContext } from "@/lib/content/worker/run-context";
 import type { Facts } from "@/lib/explain/voice/facts";
 import { dailyNoteSpec } from "@/lib/note/spec";
 import type { Product } from "@/lib/products/catalog";
@@ -13,7 +19,16 @@ import {
 } from "./prompts";
 import { RESEARCH_TOPICS } from "./topics";
 
-export type AgentKind = "research" | "discovery" | "weekly-analyst" | "daily-note";
+export type AgentKind =
+  | "research"
+  | "discovery"
+  | "weekly-analyst"
+  | "daily-note"
+  | "content-digest"
+  | "content-ideas"
+  | "content-draft"
+  | "content-atomise"
+  | "content-gate";
 /** The structured file a run writes for Harbour to import, if any. */
 export type AgentOutput = { kind: "discovery" | "weekly"; path: string } | null;
 
@@ -26,7 +41,7 @@ export type SpecReview = {
    * Moves the accepted output to where it is committed and shown, just before the commit.
    * Returns the short result recorded on the job: what binds the shown output to what was checked.
    */
-  publish: (root: string) => string;
+  publish: (root: string, note: (text: string) => void) => string;
 };
 
 export type AgentSpec = {
@@ -50,6 +65,15 @@ export type AgentSpec = {
   review?: SpecReview;
   /** Keep the agent's own words (stream text, output tails) out of the run record. */
   quiet?: boolean;
+  /**
+   * The agent's files may echo raw screen text. A discard deletes what the agent itself wrote
+   * instead of keeping it in quarantine (anything else a discard moves is kept, as ever).
+   */
+  noQuarantine?: boolean;
+  /** The prompt travels on stdin (long prompts, and prompts that hold screen text). */
+  stdin?: boolean;
+  /** What a quiet run says when the agent did not finish (default: the daily note's line). */
+  quietFailure?: string;
 };
 
 export type SpecContext = {
@@ -59,6 +83,12 @@ export type SpecContext = {
   weeklyExport?: (week: string) => string;
   /** The daily note's facts snapshot, built when the job starts (worker only). */
   noteFacts?: () => Facts;
+  /** The job being run: content runs name their work file after it. */
+  jobId: number;
+  /** The content machine's worker-side inputs (set only when content is on). */
+  content?: ContentRunContext;
+  /** The worker clock, for timestamps a step records. */
+  now?: () => Date;
 };
 
 /** Where a job's structured output lives, from its params alone (also used to re-import it). */
@@ -109,16 +139,18 @@ function discoverySpec(params: Record<string, string>, context: SpecContext): Ag
   const proposals = `${dir}/proposals.json`;
   const targets = [`${dir}/discovery.md`, proposals];
   const output = outputForJob("discovery", { productId: product.id });
+  // Pillars are proposed only for products with content on (they shape content ideas).
+  const withPillars = Boolean(context.content?.products.some((p) => p.id === product.id));
   return {
     kind: "discovery",
     label: `Discovery: ${product.name}`,
-    prompt: discoveryPrompt(product, context.today),
+    prompt: discoveryPrompt(product, context.today, withPillars),
     allowed: { prefixes: [], exact: [...targets] },
     targets,
     output,
     requiredFiles: [`${dir}/notes.md`],
     requiredOutputs: [proposals],
-    promptVersion: PROMPT_VERSION,
+    promptVersion: withPillars ? `${PROMPT_VERSION}-pillars` : PROMPT_VERSION,
   };
 }
 
@@ -155,5 +187,10 @@ export function specForJob(
   if (kind === "discovery") return discoverySpec(params, context);
   if (kind === "weekly-analyst") return weeklySpec(params, context);
   if (kind === "daily-note") return dailyNoteSpec(params, context);
+  if (kind === "content-digest") return digestSpec(params, context);
+  if (kind === "content-ideas") return ideasSpec(params, context);
+  if (kind === "content-draft") return draftSpec(params, context);
+  if (kind === "content-atomise") return atomiseSpec(params, context);
+  if (kind === "content-gate") return gateSpec(params, context);
   throw new Error(`Not an agent job: ${kind}`);
 }

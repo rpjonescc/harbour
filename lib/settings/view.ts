@@ -5,21 +5,24 @@ import { approvalsWaiting } from "@/lib/actions/board-notices";
 import { nextMonthlyRefresh } from "@/lib/agents/refresh-schedule";
 import { nextWeeklyRun } from "@/lib/analyst/schedule";
 import type { Config } from "@/lib/config";
+import { PLATFORM_NAMES } from "@/lib/content/ids";
+import { nextDigestRun, nextIdeasRun } from "@/lib/content/schedule";
 import { audToMicro } from "@/lib/costs/budget";
 import { type Reservation, reservationsBetween } from "@/lib/costs/ledger";
 import { type CostMeterView, costMeterView } from "@/lib/costs/meter-view";
 import type { Db } from "@/lib/db/client";
-import { NOTE_OFF_REASON } from "@/lib/explain/settings";
+import { DIGEST_OFF_REASON, IDEAS_OFF_REASON, NOTE_OFF_REASON } from "@/lib/explain/settings";
 import { monthWindow } from "@/lib/format/zoned-time";
 import { nextScheduledScans } from "@/lib/jobs/scan-schedule";
 import { nextNoteRun, noteEnabled } from "@/lib/note/schedule";
 import { nextBackupRun } from "@/lib/ops/backup-schedule";
 import { type BackupStatus, backupStatus } from "@/lib/ops/backup-status";
 import type { Hue, Product, ProductKind } from "@/lib/products/catalog";
+import type { ContentProduct } from "@/lib/products/content";
 import { type KeyRow, keyStatusRows } from "./key-status";
 
 export type ScheduleRow = {
-  id: "scan" | "analyst" | "refresh" | "backup" | "note";
+  id: "scan" | "analyst" | "refresh" | "backup" | "note" | "digest" | "ideas";
   label: string;
   when: string;
   setting: string;
@@ -49,6 +52,12 @@ export type SettingsView = {
   /** HARBOUR_BACKUP_DIR is set (else backups sit next to the database); never the path itself. */
   backupDirSet: boolean;
   timeZone: string;
+  /** The content machine's settings, read-only; the key's status stays in `keys`. */
+  content: {
+    on: boolean;
+    screenpipeUrl: string;
+    products: { id: string; name: string; terms: string[]; platforms: string[] }[];
+  };
 };
 
 /** Why the morning note is off: the personality, then its own schedule, else no Claude token. */
@@ -56,6 +65,12 @@ function noteOffReason(config: Config): string {
   if (config.HARBOUR_PERSONALITY === "quiet") return NOTE_OFF_REASON.quiet;
   if (config.HARBOUR_SCHEDULED_NOTE === "off") return NOTE_OFF_REASON.schedule;
   return NOTE_OFF_REASON.token;
+}
+
+/** Why the activity digest is off, switch first, then Claude, then Screenpipe. */
+function digestOffReason(switchOn: boolean, tokenSet: boolean): string {
+  if (!switchOn) return DIGEST_OFF_REASON.schedule;
+  return tokenSet ? DIGEST_OFF_REASON.screenpipe : DIGEST_OFF_REASON.token;
 }
 
 function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] {
@@ -67,6 +82,11 @@ function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] 
   const backup = on(config.HARBOUR_SCHEDULED_BACKUP);
   // Without Claude the worker never queues a note, so the row must not promise one.
   const note = noteEnabled(config) && tokenSet;
+  const digestSwitch = on(config.HARBOUR_SCHEDULED_DIGEST);
+  const keySet = Boolean(config.HARBOUR_SCREENPIPE_API_KEY);
+  const digest = digestSwitch && tokenSet && keySet;
+  const ideasSwitch = on(config.HARBOUR_SCHEDULED_IDEAS);
+  const ideas = ideasSwitch && tokenSet;
   return [
     {
       id: "scan",
@@ -113,6 +133,32 @@ function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] 
       enabled: note,
       next: nextNoteRun(now, zone, config.HARBOUR_NOTE_TIME, note),
     },
+    ...(config.HARBOUR_CONTENT === "on"
+      ? [
+          {
+            id: "digest" as const,
+            label: "Activity digest",
+            when: `Every day at ${config.HARBOUR_DIGEST_TIME}`,
+            setting: "HARBOUR_SCHEDULED_DIGEST",
+            offReason: digest ? null : digestOffReason(digestSwitch, tokenSet),
+            enabled: digest,
+            next: nextDigestRun(now, zone, config.HARBOUR_DIGEST_TIME, digest),
+          },
+          {
+            id: "ideas" as const,
+            label: "Content ideas",
+            when: "Mondays at 07:00",
+            setting: "HARBOUR_SCHEDULED_IDEAS",
+            offReason: ideas
+              ? null
+              : ideasSwitch
+                ? IDEAS_OFF_REASON.token
+                : IDEAS_OFF_REASON.schedule,
+            enabled: ideas,
+            next: nextIdeasRun(now, zone, ideas),
+          },
+        ]
+      : []),
   ];
 }
 
@@ -124,6 +170,7 @@ export function settingsView(
   now: Date,
   isDemoConfig: boolean,
   tokenSet: boolean,
+  contentProducts: readonly ContentProduct[] = [],
 ): SettingsView {
   const waiting = new Map(approvalsWaiting(db, products).map((w) => [w.productId, w.count]));
   const month = monthWindow(now, config.HARBOUR_TIMEZONE);
@@ -148,5 +195,15 @@ export function settingsView(
     backups: backupStatus(db, config, now),
     backupDirSet: config.HARBOUR_BACKUP_DIR !== undefined,
     timeZone: config.HARBOUR_TIMEZONE,
+    content: {
+      on: config.HARBOUR_CONTENT === "on",
+      screenpipeUrl: config.HARBOUR_SCREENPIPE_URL,
+      products: contentProducts.map(({ id, name, terms, platforms }) => ({
+        id,
+        name,
+        terms,
+        platforms: platforms.map((platform) => PLATFORM_NAMES[platform]),
+      })),
+    },
   };
 }

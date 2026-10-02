@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { discardRun } from "@/lib/agents/brain-discard";
@@ -8,6 +8,7 @@ import { type AgentSpec, specForJob } from "@/lib/agents/specs";
 import type { StreamResult } from "@/lib/agents/stream";
 import { buildWeeklyExport } from "@/lib/analyst/export";
 import { capExport } from "@/lib/analyst/export-cap";
+import type { ContentRunContext } from "@/lib/content/worker/run-context";
 import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import type { Facts } from "@/lib/explain/voice/facts";
@@ -21,6 +22,15 @@ import { freshQuarantineDir, removeRunMarker, writeRunMarker } from "./run-marke
 import { runReviewed } from "./run-reviewed";
 import { cliAttempt, commitAndPush, publishReviewed, QUIET_FAILURE, QUIET_TAIL } from "./run-steps";
 import { type TouchedLog, touchedLog } from "./touched-log";
+
+/** A transaction (or the database): what a step queued after a job finishes may read and write. */
+export type JobTx = Pick<Db, "select" | "insert" | "update">;
+/**
+ * What to queue after a job succeeds. Decided before the job is finished and carried out in the
+ * same transaction that finishes it, so no other job can be claimed between the two and a restart
+ * never finds a finished job whose next step was lost. Returns a note for the job's activity.
+ */
+export type AfterOk = (job: Job) => ((tx: JobTx) => string | null) | null;
 
 export type RunDeps = {
   db: Db;
@@ -43,6 +53,10 @@ export type RunDeps = {
   stopping: () => boolean;
   /** The daily note's facts snapshot (worker only; absent in tests that do not run a note). */
   noteFacts?: (now: Date) => Facts;
+  /** Content machine inputs (worker only). */
+  content?: ContentRunContext;
+  /** The content chain's next step (worker only; see `AfterOk`). */
+  afterOk?: AfterOk;
 };
 
 // How long the brain must be unchanged before an agent run starts.
@@ -64,6 +78,9 @@ function specOrFail(deps: RunDeps, job: Job): AgentSpec {
       today: deps.today,
       weeklyExport,
       noteFacts: gather && (() => gather(deps.now())),
+      jobId: job.id,
+      content: deps.content,
+      now: deps.now,
     });
   } catch (error) {
     throw new JobFailure((error as Error).message);
@@ -90,7 +107,7 @@ function checkPreconditions(deps: RunDeps, spec: AgentSpec): string {
  * Puts the job back in the queue while the brain changed in the last QUIET_MS (the owner is
  * still editing): an agent run would commit their half-written notes. Returns true if deferred.
  */
-function deferWhileEditing(deps: RunDeps, job: Job): boolean {
+export function deferWhileEditing(deps: RunDeps, job: Job): boolean {
   const now = deps.now();
   const newest = newestOwnerChange(deps.root, now);
   if (newest === null || now.getTime() - newest >= QUIET_MS) return false;
@@ -113,7 +130,7 @@ function checkOutcome(
   if (outcome.timedOut) throw new JobFailure(`Timed out after ${describeDuration(timeoutMs)}`);
   if (outcome.exitCode !== 0 || result?.isError) {
     // A quiet run's agent text can hold the note and the owner's name: it never reaches the record.
-    if (spec.quiet) throw new JobFailure(QUIET_FAILURE);
+    if (spec.quiet) throw new JobFailure(spec.quietFailure ?? QUIET_FAILURE);
     const detail = result?.text || outcome.stderrTail.slice(-300) || `exit ${outcome.exitCode}`;
     throw new JobFailure(`Agent failed: ${detail}`);
   }
@@ -132,21 +149,39 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     db.update(agentRuns).set(values).where(eq(agentRuns.jobId, job.id)).run();
   let snapshot: RunSnapshot | undefined;
   let touched: TouchedLog | undefined;
+  let noQuarantine = false;
+  let quiet = false;
   const discard = (reason: string) => {
     if (!snapshot) return;
     const dir = freshQuarantineDir(deps.quarantineRoot, job.id);
-    const { quarantined } = discardRun(root, snapshot, dir, touched?.touched() ?? "all");
+    const wrote = touched?.touched() ?? "all";
+    const { quarantined } = discardRun(root, snapshot, dir, wrote);
     snapshot = undefined;
     removeRunMarker(deps.quarantineRoot, job.id);
-    if (quarantined.length > 0) {
+    // Only for a run whose files may hold screen text, and only when every file moved was written
+    // by the agent (a path the worker publishes counts as the agent's). The manifest goes with
+    // them. A crash never reaches here: startup recovery quarantines, and keeps, those files.
+    if (noQuarantine && wrote !== "all" && quarantined.every((path) => wrote.has(path))) {
+      rmSync(dir, { recursive: true, force: true });
+      if (quarantined.length > 0)
+        event("status", `${reason}: ${quarantined.length} file(s) deleted`);
+    } else if (quarantined.length > 0) {
       event("status", `${reason}: ${quarantined.length} file(s) moved to quarantine (${dir})`);
     }
   };
   const discardFailed = (discardError: unknown) => {
+    const retry = "they will be moved to quarantine automatically";
+    // The error names the files that could not be moved, and a quiet run's file names can hold
+    // screen text: neither the event nor the log carries it.
+    if (quiet) {
+      console.error(`job ${job.id}: could not discard the agent's changes`);
+      event("error", `Could not discard the agent's changes — ${retry}`);
+      return;
+    }
     console.error(`job ${job.id}: could not discard the agent's changes`, discardError);
     event(
       "error",
-      `Could not discard the agent's changes — they will be moved to quarantine automatically: ${(discardError as Error).message}`,
+      `Could not discard the agent's changes — ${retry}: ${(discardError as Error).message}`,
     );
   };
   try {
@@ -155,17 +190,19 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     if (deferWhileEditing(deps, job)) return { pushed: null };
     // After the deferral: a waiting job never builds the weekly export, which is dated now.
     const spec = specOrFail(deps, job);
+    noQuarantine = spec.noQuarantine === true;
+    quiet = spec.quiet === true;
     const token = checkPreconditions(deps, spec);
     const saved = saveOwnerNotes(root);
     if (saved > 0) event("status", `Saved ${saved} note file(s) before starting`);
     snapshot = snapshotRun(root);
     // Durable before the agent starts: if the worker dies mid-run, startup recovery discards.
-    writeRunMarker(deps.quarantineRoot, job.id, snapshot);
+    writeRunMarker(deps.quarantineRoot, job.id, snapshot, quiet);
     const log = touchedLog(deps.quarantineRoot, job.id);
     touched = log;
     // A reviewed run is published by the worker, not written by the agent: if it is discarded
     // after publishing, the published file must count as the run's own.
-    if (spec.review) for (const path of spec.requiredOutputs) log.record(path);
+    if (spec.review) for (const path of spec.allowed.exact) log.record(path);
 
     db.insert(agentRuns).values({ jobId: job.id, promptVersion: spec.promptVersion }).run();
     event("status", `Started ${spec.label}`);
@@ -203,8 +240,15 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     }
     checkOutcome(spec, totalMs, outcome, result);
 
-    const digest = publishReviewed(spec, root);
-    const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
+    const digest = publishReviewed(spec, root, log, (text) => event("status", text));
+    const paths = gatedPaths(
+      root,
+      snapshot,
+      spec,
+      log.touched(),
+      (text) => event("status", text),
+      quiet,
+    );
     checkRequiredOutputs(spec, paths); // a half-done run is discarded, never committed
     const { pushed } = commitAndPush(
       { deps, job, spec, paths, event, setRun, result: digest },

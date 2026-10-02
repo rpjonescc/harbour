@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import type { ProposalRow } from "@/lib/agents/proposals";
 import { postJson } from "@/lib/auth/client-api";
+import { approvalFailure } from "@/lib/explain/approvals";
+import { ProposalValue } from "./ProposalValue";
 import { cleanValue, FIELDS, proposalLabel } from "./proposal-fields";
 
 const INPUT = "w-full rounded-sm border border-line bg-surface px-2 py-1 text-sm";
@@ -13,40 +15,6 @@ const INPUT = "w-full rounded-sm border border-line bg-surface px-2 py-1 text-sm
 function StatusTag({ status }: { status: string }) {
   const tone = status === "proposed" ? "warn" : status === "approved" ? "accent" : "neutral";
   return <Tag tone={tone}>{status}</Tag>;
-}
-
-function ValueView({ item }: { item: ProposalRow }) {
-  const v = item.value;
-  if (item.type === "keyword") {
-    return (
-      <p className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="font-medium">{v.term}</span>
-        {v.intent && <Tag tone="neutral">{v.intent}</Tag>}
-        {v.location && <span className="text-ink-muted">{v.location}</span>}
-      </p>
-    );
-  }
-  if (item.type === "question") return <p className="text-sm font-medium">{v.text}</p>;
-  const url = v.url ?? "";
-  const safe = /^https?:\/\//i.test(url);
-  return (
-    <p className="text-sm">
-      <span className="font-medium">{v.name}</span>{" "}
-      {safe ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-accent underline underline-offset-2"
-        >
-          {url}
-          <span className="sr-only"> (opens in a new tab)</span>
-        </a>
-      ) : (
-        <span className="text-ink-muted">{url}</span>
-      )}
-    </p>
-  );
 }
 
 /** One proposal row with approve / reject / edit controls. */
@@ -87,7 +55,11 @@ export function ProposalItem({
     const result = await postJson<{ ok: true }>(`/api/products/${productId}/proposals`, body);
     setBusy(false);
     if (!result.ok) {
-      return setError(result.error === "invalid_edit" && result.message ? result.message : failure);
+      return setError(
+        result.error === "invalid_edit" && result.message
+          ? result.message
+          : approvalFailure(result.error, failure),
+      );
     }
     setEditing(false);
     onResult?.(success);
@@ -108,7 +80,7 @@ export function ProposalItem({
     <li className="flex flex-col gap-2 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <ValueView item={item} />
+          <ProposalValue item={item} />
           <p className="mt-0.5 text-sm text-ink-muted">{item.why}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -153,6 +125,9 @@ export function ProposalItem({
                   id={`p${item.id}-${field.name}`}
                   className={INPUT}
                   value={draft[field.name] ?? ""}
+                  readOnly={
+                    item.type === "pillar" && item.status === "approved" && field.name === "key"
+                  }
                   onChange={(e) => setDraft({ ...draft, [field.name]: e.target.value })}
                 />
               )}

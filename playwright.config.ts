@@ -9,6 +9,10 @@ export const E2E_DB = "./data/e2e/harbour.db";
 const E2E_BRAIN = "./data/e2e-brain";
 /** The fictional Acme Docs site the scans read (tests/e2e/fixture-site.ts). */
 export const E2E_SITE_PORT = 3402;
+/** The fake Screenpipe the content specs' digest reads (tests/e2e/fake-screenpipe-server.ts). */
+export const E2E_SCREENPIPE_PORT = 3404;
+// Fictional: the fake server accepts exactly this bearer key.
+export const E2E_SCREENPIPE_KEY = "e2e-fake-screenpipe-key";
 /** A second web server, with the quiet personality, over the same database and brain. */
 export const E2E_QUIET_ORIGIN = "http://localhost:3403";
 
@@ -38,6 +42,15 @@ const env = {
   // No scheduled daily note: the note specs choose Write me a fresh one, and a scheduled run would
   // queue ahead of the runs under test (the personality stays warm, so the card and wave show).
   HARBOUR_SCHEDULED_NOTE: "off",
+  // The content machine is on for every spec (its Content page is part of the shell). A scheduled
+  // digest or ideas run would queue ahead of the runs under test, so only the buttons start them.
+  HARBOUR_CONTENT: "on",
+  HARBOUR_SKILLS_DIR: "./data/e2e-skills",
+  HARBOUR_SCHEDULED_DIGEST: "off",
+  HARBOUR_SCHEDULED_IDEAS: "off",
+  // The web process only checks that a key is set; the worker is the one that uses it.
+  HARBOUR_SCREENPIPE_URL: `http://127.0.0.1:${E2E_SCREENPIPE_PORT}`,
+  HARBOUR_SCREENPIPE_API_KEY: E2E_SCREENPIPE_KEY,
   // Fictional token: the agent CLI is the fake below, so nothing is ever sent anywhere.
   HARBOUR_CLAUDE_OAUTH_TOKEN: "e2e-fake-token",
 };
@@ -54,7 +67,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: /(agents|scans|actions|analyst|note|settings)\.spec\.ts/,
+      testIgnore: /(agents|scans|actions|analyst|note|content|settings)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     // Agent runs change the brain (new documents, sidebar counts), so they run after the rest.
@@ -98,18 +111,37 @@ export default defineConfig({
       dependencies: ["analyst"],
       use: { ...devices["Desktop Chrome"] },
     },
+    // The content chain adds a digest, an idea run and five agent runs to the worker's
+    // one-job-at-a-time queue and commits to the brain, so it runs alone after the note specs.
+    {
+      name: "content",
+      testMatch: /content\.spec\.ts/,
+      dependencies: ["note"],
+      use: {
+        ...devices["Desktop Chrome"],
+        // The Copy buttons write to the clipboard, which the spec reads back.
+        permissions: ["clipboard-read", "clipboard-write"],
+      },
+    },
     // Back up now and the research refresh queue work behind every earlier run, and the
     // refresh rewrites a research document, so operations run after everything else.
     {
       name: "operations",
       testMatch: /settings\.spec\.ts/,
-      dependencies: ["note"],
+      dependencies: ["content"],
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  // Started in order: the fixture site, then the web server (it migrates the database), then
-  // the worker.
+  // Started in order: the fake Screenpipe, the fixture site, then the web server (it migrates the
+  // database), then the worker.
   webServer: [
+    {
+      name: "fake-screenpipe",
+      command: "pnpm exec tsx tests/e2e/fake-screenpipe-server.ts",
+      url: `http://127.0.0.1:${E2E_SCREENPIPE_PORT}/health`,
+      reuseExistingServer: false,
+      timeout: 30_000,
+    },
     {
       name: "fixture-site",
       command: "pnpm exec tsx tests/e2e/fixture-site.ts",

@@ -2,7 +2,7 @@ import { SettingsOverview } from "@/components/settings/SettingsOverview";
 import { requireSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
-import { getProductConfig } from "@/lib/products/catalog";
+import { getContentProducts, getProductConfig } from "@/lib/products/catalog";
 import { settingsView } from "@/lib/settings/view";
 
 export default async function SettingsPage() {
@@ -20,6 +20,7 @@ export default async function SettingsPage() {
         now,
         demo,
         Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN),
+        getContentProducts(),
       )}
       now={now}
       locale={config.HARBOUR_LOCALE}

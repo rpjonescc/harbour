@@ -81,6 +81,81 @@ describe("settingsView", () => {
     ]);
   });
 
+  it("shows the activity digest only when the content machine is on, with its next run", () => {
+    const row = (env: Record<string, string>, tokenSet = true) =>
+      settingsView(db, PRODUCTS, config(env), NOW, false, tokenSet).schedules.find(
+        (s) => s.id === "digest",
+      );
+    expect(row({})).toBeUndefined();
+    const on = row({ HARBOUR_CONTENT: "on", HARBOUR_SCREENPIPE_API_KEY: "k" });
+    expect(on).toMatchObject({
+      label: "Activity digest",
+      when: "Every day at 05:45",
+      setting: "HARBOUR_SCHEDULED_DIGEST",
+      enabled: true,
+      offReason: null,
+    });
+    expect(on?.next?.toISOString()).toBe("2026-10-03T04:45:00.000Z");
+  });
+
+  it("says why the activity digest is off: its switch, Claude, then Screenpipe", () => {
+    const row = (env: Record<string, string>, tokenSet = true) =>
+      settingsView(
+        db,
+        PRODUCTS,
+        config({ HARBOUR_CONTENT: "on", ...env }),
+        NOW,
+        false,
+        tokenSet,
+      ).schedules.find((s) => s.id === "digest");
+    const key = { HARBOUR_SCREENPIPE_API_KEY: "k" };
+    expect(row({ ...key, HARBOUR_SCHEDULED_DIGEST: "off" })).toMatchObject({
+      enabled: false,
+      next: null,
+    });
+    expect(row({ ...key, HARBOUR_SCHEDULED_DIGEST: "off" })?.offReason).toMatch(/switched off/);
+    expect(row(key, false)?.offReason).toMatch(/Claude/);
+    expect(row({})?.offReason).toMatch(/Screenpipe/);
+    expect(row({})?.next).toBeNull();
+  });
+
+  it("shows the Monday ideas run only when content is on, and says why it is off", () => {
+    const row = (env: Record<string, string>, tokenSet = true) =>
+      settingsView(db, PRODUCTS, config(env), NOW, false, tokenSet).schedules.find(
+        (s) => s.id === "ideas",
+      );
+    expect(row({})).toBeUndefined();
+    const on = row({ HARBOUR_CONTENT: "on" });
+    expect(on).toMatchObject({
+      label: "Content ideas",
+      when: "Mondays at 07:00",
+      setting: "HARBOUR_SCHEDULED_IDEAS",
+      enabled: true,
+      offReason: null,
+    });
+    // Friday 2 October 2026 in London: the next Monday 07:00 BST is 5 October 06:00 UTC.
+    expect(on?.next?.toISOString()).toBe("2026-10-05T06:00:00.000Z");
+    const off = row({ HARBOUR_CONTENT: "on", HARBOUR_SCHEDULED_IDEAS: "off" });
+    expect(off).toMatchObject({ enabled: false, next: null });
+    expect(off?.offReason).toMatch(/switched off/);
+    expect(row({ HARBOUR_CONTENT: "on" }, false)?.offReason).toMatch(/Claude/);
+  });
+
+  it("shows the content settings read-only, with platform names and never a key", () => {
+    const acme = { ...PRODUCTS[0], terms: ["acme docs"], platforms: ["linkedin", "x"] } as never;
+    const env = { HARBOUR_CONTENT: "on", HARBOUR_SCREENPIPE_API_KEY: "sp-secret-value" };
+    const view = settingsView(db, PRODUCTS, config(env), NOW, false, true, [acme]);
+    expect(view.content).toEqual({
+      on: true,
+      screenpipeUrl: "http://127.0.0.1:3030",
+      products: [
+        { id: "acme-docs", name: "Acme Docs", terms: ["acme docs"], platforms: ["LinkedIn", "X"] },
+      ],
+    });
+    expect(JSON.stringify(view)).not.toContain("sp-secret-value");
+    expect(settingsView(db, PRODUCTS, config(), NOW, false, true).content.on).toBe(false);
+  });
+
   it("has no next run for a schedule that is off", () => {
     const off = config({
       HARBOUR_SCHEDULED_SCANS: "off",
@@ -185,7 +260,7 @@ describe("settingsView", () => {
     );
     expect(view.isDemoConfig).toBe(true);
     expect(view.backupDirSet).toBe(true);
-    expect(view.keys).toHaveLength(7);
+    expect(view.keys).toHaveLength(8);
     expect(view.budget).toMatchObject({ state: "no-paid-sources", capMicro: 60_000_000 });
   });
 

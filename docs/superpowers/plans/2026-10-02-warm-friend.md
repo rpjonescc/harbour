@@ -925,8 +925,8 @@ describe("isPlainText", () => {
     ["a newline", "two\nlines"],
     ["a tab", "a\tb"],
     ["an escape character", "a\u001b[31mred"],
-    ["a zero-width space", "a​b"],
-    ["a bidirectional override", "a‮b"],
+    ["a zero-width space", "a\u200bb"],
+    ["a bidirectional override", "a\u202eb"],
     ["an emoji", "lovely day 🌊"],
   ])("rejects %s", (_name, text) => {
     expect(isPlainText(text)).toBe(false);

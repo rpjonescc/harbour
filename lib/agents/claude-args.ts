@@ -19,11 +19,13 @@ export function claudeArgs(
   prompt: string,
   model: string,
   tools: readonly string[] = AGENT_TOOLS,
+  viaStdin = false,
 ): string[] {
   const approved = PRE_APPROVED.filter((tool) => tools.includes(tool));
   return [
     "-p",
-    prompt,
+    // A long prompt, or one holding screen-derived text, goes on stdin: argv is visible to every process.
+    ...(viaStdin ? [] : [prompt]),
     "--output-format",
     "stream-json",
     "--verbose",

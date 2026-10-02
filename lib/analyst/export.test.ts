@@ -321,6 +321,7 @@ describe("buildWeeklyExport", () => {
       {
         keywords: [],
         questions: [],
+        pillars: [],
         competitors: [
           { name: "Example Rival", url: "https://rival.example.com", why: "Ranks" },
           { name: "Other Rival", url: "https://other.example.com", why: "Cited" },
