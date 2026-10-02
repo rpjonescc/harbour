@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { formatDuration, isActive } from "@/lib/agents/view";
 import { postJson } from "@/lib/auth/client-api";
-import { NOTE_RUN_FAILED_LINE, RUN_FAILED_LINE, RUN_HEADLINE } from "@/lib/explain/agents";
+import { RUN_HEADLINE, runFailedLine } from "@/lib/explain/agents";
 import { RunLog } from "./RunLog";
 import type { RunEvent, RunJob } from "./run-types";
 import { useRunPolling } from "./useRunPolling";
@@ -81,7 +81,7 @@ export function RunActivity({
       </div>
       {job.status === "failed" && (
         <div role="alert" className="rounded-sm bg-warn-soft px-3 py-2 text-sm text-ink">
-          {job.kind === "daily-note" ? NOTE_RUN_FAILED_LINE : RUN_FAILED_LINE}
+          {runFailedLine(job.kind)}
         </div>
       )}
       {cancelState === "failed" && (

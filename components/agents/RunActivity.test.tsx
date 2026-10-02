@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, render, screen } from "@testing-library/react";
-import { NOTE_RUN_FAILED_LINE, RUN_FAILED_LINE } from "@/lib/explain/agents";
+import { NOTE_RUN_FAILED_LINE, RUN_FAILED_LINE, runFailedLine } from "@/lib/explain/agents";
 import { textOutsideDetails } from "@/tests/helpers/plain-text";
 import { RunActivity } from "./RunActivity";
 import type { RunJob } from "./run-types";
@@ -72,6 +72,12 @@ describe("RunActivity", () => {
       />,
     );
     expect(screen.getByText(NOTE_RUN_FAILED_LINE)).toBeInTheDocument();
+    expect(screen.queryByText(RUN_FAILED_LINE)).toBeNull();
+  });
+
+  it("sends a failed check's owner to the product's page, not the Agents page", () => {
+    render(<RunActivity job={{ ...running, kind: "scan", status: "failed" }} events={[]} />);
+    expect(screen.getByText(runFailedLine("scan"))).toBeInTheDocument();
     expect(screen.queryByText(RUN_FAILED_LINE)).toBeNull();
   });
 
