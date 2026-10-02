@@ -4,7 +4,7 @@ const DAY_MS = 24 * 60 * 60_000;
 
 export type LocalTime = { day: string; minute: number };
 
-export const WEEKDAYS = [
+const WEEKDAYS = [
   "Sunday",
   "Monday",
   "Tuesday",

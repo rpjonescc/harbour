@@ -160,7 +160,7 @@ describe("ownerName", () => {
 describe("ownerFirstName", () => {
   it("is the first word, or null when there is no name", () => {
     expect(ownerFirstName("Sam Example")).toBe("Sam");
-    expect(ownerFirstName("  Anne-Marie  O'Neil ")).toBe("Anne-Marie");
+    expect(ownerFirstName("Anne-Marie  O'Neil")).toBe("Anne-Marie");
     expect(ownerFirstName(undefined)).toBeNull();
   });
 });

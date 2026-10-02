@@ -71,7 +71,8 @@ export function parseProductConfig(raw: unknown): ProductConfig {
 
 /** The owner's first name, for the daily note's greeting; null when no name is configured. */
 export function ownerFirstName(ownerName: string | undefined): string | null {
-  return ownerName?.trim().split(/\s+/)[0] || null;
+  // The schema has already trimmed it.
+  return ownerName?.split(/\s+/)[0] || null;
 }
 
 function readConfigFile(path: string): ProductConfig {

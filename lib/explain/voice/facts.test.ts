@@ -1,6 +1,9 @@
 import { factsInput as input } from "@/tests/helpers/note";
 import { buildFacts, FACT_CAPS, figuresOf, numbersIn } from "./facts";
 
+/** The most characters the snapshot may take, whatever the board holds: bounds the prompt. */
+const FACTS_TOTAL_CAP = 12_000;
+
 describe("buildFacts", () => {
   it("describes the moment in the owner's words", () => {
     expect(buildFacts(input())).toMatchObject({
@@ -128,6 +131,52 @@ describe("buildFacts", () => {
     expect(JSON.stringify(facts).length).toBeLessThan(8_000);
   });
 
+  it("tidies and clips the owner's first name, and treats a blank one as none", () => {
+    expect(buildFacts(input({ ownerFirstName: "  Sam\n " })).ownerFirstName).toBe("Sam");
+    expect(buildFacts(input({ ownerFirstName: "   " })).ownerFirstName).toBeNull();
+    expect(buildFacts(input({ ownerFirstName: "x".repeat(100) })).ownerFirstName).toHaveLength(40);
+  });
+
+  it("clips by code point, so an emoji is never cut in half", () => {
+    const title = `${"x".repeat(FACT_CAPS.text - 1)}\u{1F600} and more`;
+    const [action] = buildFacts(
+      input({
+        actions: [{ id: 1, title, impact: "low", effort: "small", who: null }],
+      }),
+    ).actions;
+    expect(action?.title).not.toMatch(
+      /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/,
+    );
+    expect(Array.from(action?.title ?? "")).toHaveLength(FACT_CAPS.text);
+  });
+
+  it("stays small in the worst case: every list full, every string at its cap", () => {
+    const long = (label: string) => `${label} ${"w".repeat(400)}`;
+    const many = (n: number, label: string) => Array.from({ length: n }, () => long(label));
+    const facts = buildFacts(
+      input({
+        ownerFirstName: "x".repeat(100),
+        products: Array.from({ length: 30 }, () => ({
+          name: long("Product"),
+          scores: { seo: 100, geo: 100, aeo: 100 },
+          deltas: { seo: 100, geo: 100, aeo: 100 },
+          scoredLast24h: true,
+        })),
+        actions: Array.from({ length: 30 }, (_, id) => ({
+          id,
+          title: long("Action"),
+          impact: "high" as const,
+          effort: "large" as const,
+          who: "you" as const,
+        })),
+        finishedTitles: many(30, "Done"),
+        trouble: many(30, "Trouble"),
+        recentHeadlines: many(30, "Headline"),
+      }),
+    );
+    expect(JSON.stringify(facts).length).toBeLessThan(FACTS_TOTAL_CAP);
+  });
+
   it("holds no secrets, paths or settings", () => {
     expect(JSON.stringify(buildFacts(input()))).not.toMatch(/HARBOUR_|token|\/home\/|\.env/i);
   });
@@ -139,6 +188,22 @@ describe("numbersIn and figuresOf", () => {
       3, 6, 30, 1200, 2.5,
     ]);
     expect(numbersIn("no figures here")).toEqual([]);
+  });
+
+  it("allows the figures in a product's own name", () => {
+    const facts = buildFacts(
+      input({
+        products: [
+          {
+            name: "Studio 54",
+            scores: { seo: 62, geo: null, aeo: null },
+            deltas: { seo: null, geo: null, aeo: null },
+            scoredLast24h: false,
+          },
+        ],
+      }),
+    );
+    expect(figuresOf(facts).has(54)).toBe(true);
   });
 
   it("allows scores, changes, counts, the time and figures in the facts' own sentences", () => {

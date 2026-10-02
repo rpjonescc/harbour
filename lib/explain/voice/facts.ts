@@ -56,7 +56,12 @@ export const FACT_CAPS = {
   text: 140,
 } as const;
 
-const tidy = (text: string) => text.replace(/\s+/g, " ").trim().slice(0, FACT_CAPS.text);
+/** A name is short; the config allows 40 characters. */
+const NAME_CAP = 40;
+
+/** One line, at most `max` characters; counted in code points so an emoji is never cut in half. */
+const tidy = (text: string, max: number = FACT_CAPS.text) =>
+  Array.from(text.replace(/\s+/g, " ").trim()).slice(0, max).join("");
 const two = (n: number) => String(n).padStart(2, "0");
 
 function productFacts(p: FactsInput["products"][number]): Facts["products"][number] {
@@ -101,7 +106,8 @@ export function buildFacts(input: FactsInput): Facts {
     time: `${two(local.hour)}:${two(local.minute)}`,
     dayPart: dayPartOf(local.hour),
     rest: restOf(local),
-    ownerFirstName: input.ownerFirstName,
+    ownerFirstName:
+      input.ownerFirstName === null ? null : tidy(input.ownerFirstName, NAME_CAP) || null,
     products: input.products.slice(0, FACT_CAPS.products).map(productFacts),
     actions: input.actions.slice(0, FACT_CAPS.actions).map((a) => ({
       id: a.id,
@@ -111,8 +117,8 @@ export function buildFacts(input: FactsInput): Facts {
       whoOnIt: a.who === null ? null : WHO_PHRASE[a.who],
     })),
     wins: winsOf(input),
-    trouble: input.trouble.slice(0, FACT_CAPS.trouble).map(tidy),
-    recentHeadlines: input.recentHeadlines.slice(0, FACT_CAPS.headlines).map(tidy),
+    trouble: input.trouble.slice(0, FACT_CAPS.trouble).map((text) => tidy(text)),
+    recentHeadlines: input.recentHeadlines.slice(0, FACT_CAPS.headlines).map((text) => tidy(text)),
   };
 }
 
@@ -138,6 +144,7 @@ export function figuresOf(facts: Facts): Set<number> {
   const texts = [
     facts.date,
     facts.time,
+    ...facts.products.map((p) => p.name),
     ...facts.actions.map((a) => a.title),
     ...facts.wins,
     ...facts.trouble,
