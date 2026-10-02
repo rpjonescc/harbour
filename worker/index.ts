@@ -7,6 +7,8 @@ import { runProcess } from "@/lib/agents/process";
 import { makeRefreshSchedule, type QueuedRefresh } from "@/lib/agents/refresh-schedule";
 import { makeAnalystSchedule } from "@/lib/analyst/schedule";
 import { getConfig } from "@/lib/config";
+import { makeDigestSchedule } from "@/lib/content/schedule";
+import { runDigestJob } from "@/lib/content/worker/digest-job";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
 import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
@@ -14,7 +16,7 @@ import { keepAlive } from "@/lib/jobs/heartbeat";
 import { makeImportRetry } from "@/lib/jobs/import-retry";
 import { isAgentJobKind } from "@/lib/jobs/job-kinds";
 import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
-import { runAgentJob } from "@/lib/jobs/run-job";
+import { type RunDeps, runAgentJob } from "@/lib/jobs/run-job";
 import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
 import { makeScheduler } from "@/lib/jobs/scheduler";
 import { failUnknownJob } from "@/lib/jobs/unknown-job";
@@ -23,7 +25,12 @@ import { makeNoteSchedule, noteEnabled } from "@/lib/note/schedule";
 import { type OpsJobDeps, runBackupJob, runRetentionJob } from "@/lib/ops/backup-job";
 import { describeNextBackup, makeBackupSchedule } from "@/lib/ops/backup-schedule";
 import { backupStatus } from "@/lib/ops/backup-status";
-import { getOwnerFirstName, getProducts } from "@/lib/products/catalog";
+import {
+  getContentProducts,
+  getExcludeApps,
+  getOwnerFirstName,
+  getProducts,
+} from "@/lib/products/catalog";
 import { runScan } from "@/lib/scan/run-scan";
 import { failInterruptedScans } from "@/lib/scan/store";
 import { workerScanDeps } from "@/lib/scan/worker-deps";
@@ -76,6 +83,19 @@ async function main() {
   const logNote = (why: string, queued: { jobId: number; stamp: string } | null) => {
     if (queued) console.log(`${why}: queued daily note #${queued.jobId} for ${queued.stamp}`);
   };
+  const digests = makeDigestSchedule({
+    db,
+    timeZone: config.HARBOUR_TIMEZONE,
+    digestTime: config.HARBOUR_DIGEST_TIME,
+    enabled: config.HARBOUR_CONTENT === "on" && config.HARBOUR_SCHEDULED_DIGEST === "on",
+    tokenSet: Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN),
+    keySet: Boolean(config.HARBOUR_SCREENPIPE_API_KEY),
+    dailyRuns: config.HARBOUR_CONTENT_DAILY_RUNS,
+    clock: Date.now,
+  });
+  const logDigest = (why: string, queued: { jobId: number; day: string } | null) => {
+    if (queued) console.log(`${why}: queued content digest #${queued.jobId} for ${queued.day}`);
+  };
   const refreshes = makeRefreshSchedule({
     db,
     root,
@@ -113,6 +133,7 @@ async function main() {
   logQueued("catch-up", scans.catchUp());
   logAnalyst("catch-up", analyst.tick());
   logNote("catch-up", notes.tick());
+  logDigest("catch-up", digests.tick());
   logRefreshes("catch-up", refreshes.tick());
   logBackup("catch-up", backups.tick());
   console.log(
@@ -125,6 +146,43 @@ async function main() {
     productIds: () => getProducts().map((p) => p.id),
     now,
     stopping: () => stopping,
+  });
+
+  const agentDeps = (now: () => Date): RunDeps => ({
+    db,
+    root,
+    quarantineRoot,
+    bin: config.HARBOUR_CLAUDE_BIN,
+    token: config.HARBOUR_CLAUDE_OAUTH_TOKEN,
+    model: config.HARBOUR_AGENT_MODEL,
+    timeoutMs: config.HARBOUR_AGENT_TIMEOUT_MINUTES * 60_000,
+    products: getProducts(),
+    today: isoDateIn(config.HARBOUR_TIMEZONE, new Date()),
+    timeZone: config.HARBOUR_TIMEZONE,
+    home: process.env.HOME ?? "",
+    path: process.env.PATH ?? "",
+    run: runProcess,
+    now,
+    stopping: () => stopping,
+    noteFacts: (at) =>
+      gatherFacts({
+        db,
+        products: getProducts(),
+        ownerFirstName: getOwnerFirstName(),
+        timeZone: config.HARBOUR_TIMEZONE,
+        root,
+        backup: backupStatus(db, config, at).health,
+        now: at,
+      }),
+    content:
+      config.HARBOUR_CONTENT === "on"
+        ? {
+            root,
+            skillsDir: config.HARBOUR_SKILLS_DIR,
+            products: getContentProducts(),
+            excludeApps: getExcludeApps(),
+          }
+        : undefined,
   });
 
   const runJob = async (job: Job) => {
@@ -147,37 +205,18 @@ async function main() {
       await runBackupJob(opsDeps(now), job);
     } else if (job.kind === "retention") {
       await runRetentionJob(opsDeps(now), job);
-    } else if (isAgentJobKind(job.kind)) {
-      const { pushed } = await runAgentJob(
+    } else if (job.kind === "content-digest") {
+      const apiKey = config.HARBOUR_SCREENPIPE_API_KEY;
+      const { pushed } = await runDigestJob(
         {
-          db,
-          root,
-          quarantineRoot,
-          bin: config.HARBOUR_CLAUDE_BIN,
-          token: config.HARBOUR_CLAUDE_OAUTH_TOKEN,
-          model: config.HARBOUR_AGENT_MODEL,
-          timeoutMs: config.HARBOUR_AGENT_TIMEOUT_MINUTES * 60_000,
-          products: getProducts(),
-          today: isoDateIn(config.HARBOUR_TIMEZONE, new Date()),
-          timeZone: config.HARBOUR_TIMEZONE,
-          home: process.env.HOME ?? "",
-          path: process.env.PATH ?? "",
-          run: runProcess,
-          now,
-          stopping: () => stopping,
-          noteFacts: (at) =>
-            gatherFacts({
-              db,
-              products: getProducts(),
-              ownerFirstName: getOwnerFirstName(),
-              timeZone: config.HARBOUR_TIMEZONE,
-              root,
-              backup: backupStatus(db, config, at).health,
-              now: at,
-            }),
+          ...agentDeps(now),
+          screenpipe: apiKey ? { baseUrl: config.HARBOUR_SCREENPIPE_URL, apiKey } : null,
         },
         job,
       );
+      if (pushed !== null) scheduler.pushed(pushed);
+    } else if (isAgentJobKind(job.kind)) {
+      const { pushed } = await runAgentJob(agentDeps(now), job);
       // A failed agent push backs off like any other, instead of retrying at the next check.
       if (pushed !== null) scheduler.pushed(pushed);
     } else {
@@ -191,6 +230,7 @@ async function main() {
     logQueued("daily", scans.tick());
     logAnalyst("weekly", analyst.tick());
     logNote("daily", notes.tick());
+    logDigest("daily", digests.tick());
     logRefreshes("monthly", refreshes.tick());
     logBackup("nightly", backups.tick());
     const woken = snoozes.tick();

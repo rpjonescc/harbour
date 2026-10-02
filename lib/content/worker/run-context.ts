@@ -15,3 +15,11 @@ export type ContentRunContext = {
   excludeApps: readonly string[];
   digest?: DigestInputs;
 };
+
+/** The content inputs of a run, or a plain failure when the content machine is off. */
+export function requireContent(context: { content?: ContentRunContext }): ContentRunContext {
+  if (!context.content) {
+    throw new Error("The content machine is off. Turn it on with HARBOUR_CONTENT=on.");
+  }
+  return context.content;
+}

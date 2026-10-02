@@ -5,11 +5,12 @@ import { approvalsWaiting } from "@/lib/actions/board-notices";
 import { nextMonthlyRefresh } from "@/lib/agents/refresh-schedule";
 import { nextWeeklyRun } from "@/lib/analyst/schedule";
 import type { Config } from "@/lib/config";
+import { nextDigestRun } from "@/lib/content/schedule";
 import { audToMicro } from "@/lib/costs/budget";
 import { type Reservation, reservationsBetween } from "@/lib/costs/ledger";
 import { type CostMeterView, costMeterView } from "@/lib/costs/meter-view";
 import type { Db } from "@/lib/db/client";
-import { NOTE_OFF_REASON } from "@/lib/explain/settings";
+import { DIGEST_OFF_REASON, NOTE_OFF_REASON } from "@/lib/explain/settings";
 import { monthWindow } from "@/lib/format/zoned-time";
 import { nextScheduledScans } from "@/lib/jobs/scan-schedule";
 import { nextNoteRun, noteEnabled } from "@/lib/note/schedule";
@@ -19,7 +20,7 @@ import type { Hue, Product, ProductKind } from "@/lib/products/catalog";
 import { type KeyRow, keyStatusRows } from "./key-status";
 
 export type ScheduleRow = {
-  id: "scan" | "analyst" | "refresh" | "backup" | "note";
+  id: "scan" | "analyst" | "refresh" | "backup" | "note" | "digest";
   label: string;
   when: string;
   setting: string;
@@ -58,6 +59,12 @@ function noteOffReason(config: Config): string {
   return NOTE_OFF_REASON.token;
 }
 
+/** Why the activity digest is off, switch first, then Claude, then Screenpipe. */
+function digestOffReason(switchOn: boolean, tokenSet: boolean): string {
+  if (!switchOn) return DIGEST_OFF_REASON.schedule;
+  return tokenSet ? DIGEST_OFF_REASON.screenpipe : DIGEST_OFF_REASON.token;
+}
+
 function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] {
   const zone = config.HARBOUR_TIMEZONE;
   const on = (value: "on" | "off") => value === "on";
@@ -67,6 +74,9 @@ function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] 
   const backup = on(config.HARBOUR_SCHEDULED_BACKUP);
   // Without Claude the worker never queues a note, so the row must not promise one.
   const note = noteEnabled(config) && tokenSet;
+  const digestSwitch = on(config.HARBOUR_SCHEDULED_DIGEST);
+  const keySet = Boolean(config.HARBOUR_SCREENPIPE_API_KEY);
+  const digest = digestSwitch && tokenSet && keySet;
   return [
     {
       id: "scan",
@@ -113,6 +123,19 @@ function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] 
       enabled: note,
       next: nextNoteRun(now, zone, config.HARBOUR_NOTE_TIME, note),
     },
+    ...(config.HARBOUR_CONTENT === "on"
+      ? [
+          {
+            id: "digest" as const,
+            label: "Activity digest",
+            when: `Every day at ${config.HARBOUR_DIGEST_TIME}`,
+            setting: "HARBOUR_SCHEDULED_DIGEST",
+            offReason: digest ? null : digestOffReason(digestSwitch, tokenSet),
+            enabled: digest,
+            next: nextDigestRun(now, zone, config.HARBOUR_DIGEST_TIME, digest),
+          },
+        ]
+      : []),
   ];
 }
 

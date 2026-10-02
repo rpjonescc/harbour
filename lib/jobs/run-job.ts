@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { discardRun } from "@/lib/agents/brain-discard";
@@ -137,13 +137,21 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     db.update(agentRuns).set(values).where(eq(agentRuns.jobId, job.id)).run();
   let snapshot: RunSnapshot | undefined;
   let touched: TouchedLog | undefined;
+  let noQuarantine = false;
   const discard = (reason: string) => {
     if (!snapshot) return;
     const dir = freshQuarantineDir(deps.quarantineRoot, job.id);
-    const { quarantined } = discardRun(root, snapshot, dir, touched?.touched() ?? "all");
+    const wrote = touched?.touched() ?? "all";
+    const { quarantined } = discardRun(root, snapshot, dir, wrote);
     snapshot = undefined;
     removeRunMarker(deps.quarantineRoot, job.id);
-    if (quarantined.length > 0) {
+    // Only when every file in it is known to be the agent's own: a file the owner changed in the
+    // meantime is never deleted here.
+    if (noQuarantine && wrote !== "all" && quarantined.every((path) => wrote.has(path))) {
+      rmSync(dir, { recursive: true, force: true });
+      if (quarantined.length > 0)
+        event("status", `${reason}: ${quarantined.length} file(s) deleted`);
+    } else if (quarantined.length > 0) {
       event("status", `${reason}: ${quarantined.length} file(s) moved to quarantine (${dir})`);
     }
   };
@@ -160,6 +168,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     if (deferWhileEditing(deps, job)) return { pushed: null };
     // After the deferral: a waiting job never builds the weekly export, which is dated now.
     const spec = specOrFail(deps, job);
+    noQuarantine = spec.noQuarantine === true;
     const token = checkPreconditions(deps, spec);
     const saved = saveOwnerNotes(root);
     if (saved > 0) event("status", `Saved ${saved} note file(s) before starting`);

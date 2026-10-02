@@ -1,6 +1,15 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { connectionOf, type Db } from "@/lib/db/client";
 import type { ContentProduct } from "@/lib/products/content";
 import { setup } from "./run-job";
 
@@ -96,10 +105,14 @@ export function contentSetup(
   const skills = makeSkillsDir(options.skills);
   const s = setup("content-work", files);
   s.deps.content = { root: s.brain.root, skillsDir: skills.dir, products: [ACME], excludeApps: [] };
-  const calls: { prompt: string; tools: string }[] = [];
+  const calls: { prompt: string; tools: string; args: string[] }[] = [];
   const run = s.deps.run;
   s.deps.run = (o) => {
-    calls.push({ prompt: o.stdin ?? "", tools: o.args[o.args.indexOf("--tools") + 1] ?? "" });
+    calls.push({
+      prompt: o.stdin ?? "",
+      tools: o.args[o.args.indexOf("--tools") + 1] ?? "",
+      args: o.args,
+    });
     const env = {
       ...o.env,
       FAKE_CLAUDE_WORKS: JSON.stringify(works),
@@ -115,4 +128,34 @@ export function contentSetup(
       skills.cleanup();
     },
   };
+}
+
+/** Paths of files under `roots` (and `extra` texts, reported as "(text N)") that contain `needle`. */
+export function searchEverywhere(needle: string, roots: string[], extra: string[] = []): string[] {
+  const hits: string[] = [];
+  const walk = (path: string) => {
+    const stat = statSync(path);
+    if (stat.isDirectory()) {
+      for (const name of readdirSync(path)) walk(join(path, name));
+      return;
+    }
+    // A large file is read whole too: a leak is a leak at any size.
+    if (readFileSync(path).includes(needle)) hits.push(path);
+  };
+  for (const root of roots) walk(root);
+  extra.forEach((text, i) => {
+    if (text.includes(needle)) hits.push(`(text ${i})`);
+  });
+  return hits;
+}
+
+/** Every table of the database as JSON, for "this string is stored nowhere" assertions. */
+export function dumpDb(db: Db): string {
+  const client = connectionOf(db);
+  const tables = client.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as {
+    name: string;
+  }[];
+  return JSON.stringify(
+    tables.map(({ name }) => [name, client.prepare(`SELECT * FROM "${name}"`).all()]),
+  );
 }

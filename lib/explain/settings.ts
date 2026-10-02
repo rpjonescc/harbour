@@ -24,5 +24,12 @@ export const NOTE_OFF_REASON = {
   token: "Off until Claude is connected",
 } as const;
 
+/** Why the activity digest row shows Off when its own switch is on. */
+export const DIGEST_OFF_REASON = {
+  schedule: "Off: the activity digest schedule is switched off",
+  token: "Off until Claude is connected",
+  screenpipe: "Off until Screenpipe is connected",
+} as const;
+
 /** The morning note also stops when the personality is quiet; shown only in Technical details. */
 export const NOTE_ALSO_OFF = "(or HARBOUR_PERSONALITY=quiet)";

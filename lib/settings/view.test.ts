@@ -81,6 +81,44 @@ describe("settingsView", () => {
     ]);
   });
 
+  it("shows the activity digest only when the content machine is on, with its next run", () => {
+    const row = (env: Record<string, string>, tokenSet = true) =>
+      settingsView(db, PRODUCTS, config(env), NOW, false, tokenSet).schedules.find(
+        (s) => s.id === "digest",
+      );
+    expect(row({})).toBeUndefined();
+    const on = row({ HARBOUR_CONTENT: "on", HARBOUR_SCREENPIPE_API_KEY: "k" });
+    expect(on).toMatchObject({
+      label: "Activity digest",
+      when: "Every day at 05:45",
+      setting: "HARBOUR_SCHEDULED_DIGEST",
+      enabled: true,
+      offReason: null,
+    });
+    expect(on?.next?.toISOString()).toBe("2026-10-03T04:45:00.000Z");
+  });
+
+  it("says why the activity digest is off: its switch, Claude, then Screenpipe", () => {
+    const row = (env: Record<string, string>, tokenSet = true) =>
+      settingsView(
+        db,
+        PRODUCTS,
+        config({ HARBOUR_CONTENT: "on", ...env }),
+        NOW,
+        false,
+        tokenSet,
+      ).schedules.find((s) => s.id === "digest");
+    const key = { HARBOUR_SCREENPIPE_API_KEY: "k" };
+    expect(row({ ...key, HARBOUR_SCHEDULED_DIGEST: "off" })).toMatchObject({
+      enabled: false,
+      next: null,
+    });
+    expect(row({ ...key, HARBOUR_SCHEDULED_DIGEST: "off" })?.offReason).toMatch(/switched off/);
+    expect(row(key, false)?.offReason).toMatch(/Claude/);
+    expect(row({})?.offReason).toMatch(/Screenpipe/);
+    expect(row({})?.next).toBeNull();
+  });
+
   it("has no next run for a schedule that is off", () => {
     const off = config({
       HARBOUR_SCHEDULED_SCANS: "off",

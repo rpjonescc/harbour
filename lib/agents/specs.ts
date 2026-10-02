@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ANALYST_PROMPT_VERSION, weeklyAnalystPrompt, weeklyPaths } from "@/lib/analyst/prompt";
+import { digestSpec } from "@/lib/content/worker/digest";
 import type { ContentRunContext } from "@/lib/content/worker/run-context";
 import type { Facts } from "@/lib/explain/voice/facts";
 import { dailyNoteSpec } from "@/lib/note/spec";
@@ -60,6 +61,11 @@ export type AgentSpec = {
   review?: SpecReview;
   /** Keep the agent's own words (stream text, output tails) out of the run record. */
   quiet?: boolean;
+  /**
+   * The agent's files may echo raw screen text. A discard deletes what the agent itself wrote
+   * instead of keeping it in quarantine (anything else a discard moves is kept, as ever).
+   */
+  noQuarantine?: boolean;
   /** The prompt travels on stdin (long prompts, and prompts that hold screen text). */
   stdin?: boolean;
   /** What a quiet run says when the agent did not finish (default: the daily note's line). */
@@ -173,5 +179,6 @@ export function specForJob(
   if (kind === "discovery") return discoverySpec(params, context);
   if (kind === "weekly-analyst") return weeklySpec(params, context);
   if (kind === "daily-note") return dailyNoteSpec(params, context);
+  if (kind === "content-digest") return digestSpec(params, context);
   throw new Error(`Not an agent job: ${kind}`);
 }
