@@ -32,4 +32,15 @@ describe("installSkills", () => {
       rmSync(to, { recursive: true, force: true });
     }
   });
+
+  it("refuses when the skills folder is the source itself and keeps the source", () => {
+    expect(() =>
+      installSkills({
+        from: "skills/atomizer",
+        to: "skills",
+        source: sourceLine("x", "2026-10-02"),
+      }),
+    ).toThrow(/source itself/);
+    expect(existsSync("skills/atomizer/SKILL.md")).toBe(true);
+  });
 });

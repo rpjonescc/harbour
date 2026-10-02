@@ -156,6 +156,10 @@ const schema = z
     HARBOUR_SKILLS_DIR: z
       .string()
       .min(1)
+      .refine(
+        (v) => !v.startsWith("~"),
+        "HARBOUR_SKILLS_DIR needs a full path: the shell does not expand ~ in .env",
+      )
       .default(() => join(homedir(), ".claude", "skills")),
     // Where nightly backups go; default `<folder of HARBOUR_DB_PATH>/backups`. Never in the brain.
     HARBOUR_BACKUP_DIR: z.string().min(1).optional(),

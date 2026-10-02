@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
 import { join } from "node:path";
 
 /** The instruction files each skill contributes to a run. */
@@ -17,46 +17,65 @@ export type LoadedSkill = { name: SkillName; source: string; sha256: string; fil
 export class SkillError extends Error {}
 
 const MAX_BYTES = 64 * 1024;
-// C0 controls except tab, newline and carriage return.
+// C0 (except tab, newline, carriage return), DEL and C1 controls.
 // biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point.
-const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
+// Zero-width, bidi, word-joiner, BOM and Unicode tag characters hide text from the owner.
+const INVISIBLE = /[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]|[\u{e0000}-\u{e007f}]/u;
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 
-function readFile(dir: string, skill: SkillName, name: string): SkillFile {
-  let bytes: Buffer;
+/** Reads a regular file of at most MAX_BYTES, never following a link; size is checked before reading. */
+function readBounded(path: string, skill: SkillName, name: string): Buffer {
+  let fd: number | undefined;
   try {
-    bytes = readFileSync(join(dir, skill, name));
+    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const info = fstatSync(fd);
+    if (!info.isFile())
+      throw new SkillError(`The ${skill} skill file ${name} is not a plain file.`);
+    if (info.size > MAX_BYTES)
+      throw new SkillError(`The ${skill} skill file ${name} is too large.`);
+    const buffer = Buffer.alloc(info.size);
+    const read = readSync(fd, buffer, 0, info.size, 0);
+    return buffer.subarray(0, read);
   } catch (error) {
-    const missing = (error as NodeJS.ErrnoException).code === "ENOENT";
-    // A directory, a permission problem or a loop is still the owner's to fix, in plain words.
-    throw new SkillError(
-      missing
-        ? `The ${skill} skill isn't installed.`
-        : `The ${skill} skill file ${name} can't be read.`,
-    );
+    if (error instanceof SkillError) throw error;
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") throw new SkillError(`The ${skill} skill isn't installed.`);
+    if (code === "ELOOP") throw new SkillError(`The ${skill} skill file ${name} is a link.`);
+    throw new SkillError(`The ${skill} skill file ${name} can't be read.`);
+  } finally {
+    if (fd !== undefined) closeSync(fd);
   }
-  if (bytes.length > MAX_BYTES)
-    throw new SkillError(`The ${skill} skill file ${name} is too large.`);
+}
+
+function readFile(dir: string, skill: SkillName, name: string): SkillFile {
+  const bytes = readBounded(join(dir, skill, name), skill, name);
   let text: string;
   try {
-    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
   } catch {
     throw new SkillError(`The ${skill} skill file ${name} is not UTF-8 text.`);
   }
   if (CONTROL.test(text)) {
     throw new SkillError(`The ${skill} skill file ${name} contains a control character.`);
   }
+  if (INVISIBLE.test(text)) {
+    throw new SkillError(`The ${skill} skill file ${name} contains an invisible character.`);
+  }
   return { name, text, sha256: hash(text) };
 }
 
+/** The first SOURCE line when it is one short line of visible text; otherwise "unknown source". */
 function sourceOf(dir: string, skill: SkillName): string {
   try {
-    return (
-      readFileSync(join(dir, skill, "SOURCE"), "utf8")
-        .split("\n")[0]
-        ?.trim()
-        .slice(0, 300) || "unknown source"
-    );
+    const bytes = readBounded(join(dir, skill, "SOURCE"), skill, "SOURCE");
+    const line = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true })
+      .decode(bytes)
+      .split("\n")[0]
+      ?.trim();
+    if (!line || line.length > 300 || CONTROL.test(line) || INVISIBLE.test(line))
+      return "unknown source";
+    return line;
   } catch {
     return "unknown source"; // a hand-made skill has no SOURCE line; the hashes still identify it
   }
@@ -71,7 +90,7 @@ export function loadSkill(dir: string, name: SkillName): LoadedSkill {
   return {
     name,
     source: sourceOf(dir, name),
-    sha256: hash(files.map((f) => f.text).join("\n")),
+    sha256: hash(files.map((f) => `${f.name}\0${f.sha256}\n`).join("")),
     files,
   };
 }

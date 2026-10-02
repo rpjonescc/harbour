@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { FIXTURE_SKILL_TEXT, makeSkillsDir } from "@/tests/helpers/content";
 import { loadSkill, SKILL_FILES, SkillError, type SkillName, skillRecord } from "./skills";
 
@@ -77,11 +77,11 @@ describe("loadSkill", () => {
     }
   });
 
-  it("refuses a skill file that is a directory, in plain words", () => {
+  it("refuses a directory standing in for a skill file", () => {
     const { dir, cleanup } = makeSkillsDir({ "humanizer/SKILL.md": null });
     try {
       mkdirSync(`${dir}/humanizer/SKILL.md`);
-      expect(() => loadSkill(dir, "humanizer")).toThrow(/can't be read/);
+      expect(() => loadSkill(dir, "humanizer")).toThrow(/not a plain file/);
     } finally {
       cleanup();
     }
@@ -94,7 +94,65 @@ describe("loadSkill", () => {
     });
     try {
       expect(loadSkill(a.dir, "humanizer").source).toBe("unknown source");
-      expect(loadSkill(b.dir, "humanizer").source).toHaveLength(300);
+      expect(loadSkill(b.dir, "humanizer").source).toBe("unknown source");
+    } finally {
+      a.cleanup();
+      b.cleanup();
+    }
+  });
+
+  it("hashes a canonical form of names and file hashes", () => {
+    const { dir, cleanup } = makeSkillsDir();
+    try {
+      const skill = loadSkill(dir, "no-ai-slop");
+      const canonical = skill.files.map((f) => `${f.name}\u0000${sha(f.text)}\n`).join("");
+      expect(skill.sha256).toBe(sha(canonical));
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("refuses a symlink in place of a skill file", () => {
+    const { dir, cleanup } = makeSkillsDir({ "humanizer/SKILL.md": null });
+    try {
+      writeFileSync(`${dir}/elsewhere.md`, "# Elsewhere\n");
+      symlinkSync(`${dir}/elsewhere.md`, `${dir}/humanizer/SKILL.md`);
+      expect(() => loadSkill(dir, "humanizer")).toThrow(/is a link/);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it.each([
+    ["a BOM", "\ufeff# Title\n"],
+    ["a zero-width space", "ok\u200bbad"],
+    ["a bidi override", "ok\u202ebad"],
+    ["a tag character", "ok\u{e0041}bad"],
+    ["a C1 control", "ok\u0085bad"],
+  ])("refuses %s in a skill file", (_label, text) => {
+    const { dir, cleanup } = makeSkillsDir({ "humanizer/SKILL.md": text });
+    try {
+      expect(() => loadSkill(dir, "humanizer")).toThrow(/invisible character|control character/);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("does not read an oversize file before refusing it", () => {
+    const { dir, cleanup } = makeSkillsDir({ "humanizer/SKILL.md": "x".repeat(70 * 1024) });
+    try {
+      expect(() => loadSkill(dir, "humanizer")).toThrow(/too large/);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("treats a SOURCE line with invisible or control characters as unknown", () => {
+    const a = makeSkillsDir({ "humanizer/SOURCE": "Source: x\u200b y\n" });
+    const b = makeSkillsDir({ "humanizer/SOURCE": "Source: x\u0007 y\n" });
+    try {
+      expect(loadSkill(a.dir, "humanizer").source).toBe("unknown source");
+      expect(loadSkill(b.dir, "humanizer").source).toBe("unknown source");
     } finally {
       a.cleanup();
       b.cleanup();
