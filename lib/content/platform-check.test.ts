@@ -74,4 +74,15 @@ describe("checkPlatform", () => {
   it("flags a hashtag that uses a word the profile avoids", () => {
     expect(run("linkedin", { text: "Good.", hashtags: ["#solution"] })).toContain("Avoided word");
   });
+
+  it("does not call a trademark sign an emoji, and counts a full-width exclamation mark", () => {
+    expect(run("facebook", { text: "Acme Docs™ and Acme©.", hashtags: [] })).toEqual([]);
+    expect(run("facebook", { text: "Ship it！", hashtags: [] })).toContain("Exclamation mark");
+  });
+
+  it("finds an avoided word inside a camel-case hashtag", () => {
+    expect(run("linkedin", { text: "Good.", hashtags: ["#SolutionFinder"] })).toContain(
+      "Avoided word",
+    );
+  });
 });

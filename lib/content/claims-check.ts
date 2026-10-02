@@ -13,7 +13,6 @@ export type ClaimsInput = {
   allowedHosts: string[];
 };
 
-const FIRST_LINK = /https?:\/\/[^\s)>\]]+|\bwww\.[^\s)>\]]+/i;
 const MAX_FINDINGS = 20;
 const find = (pattern: string, quote: string, fix: string): Finding => ({
   pattern,
@@ -23,7 +22,8 @@ const find = (pattern: string, quote: string, fix: string): Finding => ({
 
 function linkFindings(text: string, hosts: readonly string[]): Finding[] {
   if (linkProblem(text, hosts) === null) return [];
-  const quote = FIRST_LINK.exec(text)?.[0] ?? "";
+  // The offending word is found with the same shared check, one word at a time.
+  const quote = text.split(/\s+/).find((word) => linkProblem(word, hosts) !== null) ?? "";
   return [
     find("Link to another host", quote, "Remove the link or point it at the product's own site"),
   ];

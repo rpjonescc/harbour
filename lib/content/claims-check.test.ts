@@ -74,4 +74,16 @@ describe("checkClaims", () => {
     }));
     expect(checkClaims({ ...base, claims }).findings).toHaveLength(20);
   });
+
+  it("quotes the offending link, not the first one", () => {
+    const text = "See https://docs.example.com/a and https://attacker.example/x today.";
+    const [finding] = checkClaims({ ...base, text }).findings;
+    expect(finding?.quote).toBe("https://attacker.example/x");
+  });
+
+  it("pins known limits: a number in a hashtag counts, a vague quantity does not", () => {
+    expect(find({ text: "Good. #web7" })).toContain("Number not in the source");
+    expect(find({ text: "Good. #100DaysOfCode" })).toContain("Number not in the source");
+    expect(find({ text: "A dozen teams, half of them, double the speed." })).toEqual([]);
+  });
 });

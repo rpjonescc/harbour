@@ -52,6 +52,22 @@ function entryFor(
 }
 
 /**
+ * A revision that changed nothing has not fixed anything: the first attempt's findings stand
+ * (the new check's own findings win when there are any).
+ */
+function carried(
+  piece: ReadPiece,
+  gate: "facts" | "platform",
+  run: FactsRun,
+  unchanged: boolean,
+  found: Finding[],
+): Finding[] {
+  if (run.attempt !== 2 || !unchanged || found.length > 0) return found;
+  const first = piece.gates.find((e) => e.gate === gate && e.attempt === 1);
+  return first?.findings ?? found;
+}
+
+/**
  * One piece's facts and platform results, decided here from the agent's claims and the worker's
  * own checks. At attempt 2 the returned piece is held to everything the original was (sanitiser,
  * shape, wording only); one that fails is an `error` for both results, with its old text kept.
@@ -90,22 +106,27 @@ export function factsChange(
     ...c,
     text: plain(c.text, NOT_SHOWN).slice(0, 300),
   }));
+  // At attempt 1 the writer's own claims are held to the same trace rule as the verifier's: a
+  // claim the writer left untraced must not vanish when the verifier's list replaces it.
+  const writerClaims = run.attempt === 1 ? piece.front.claims : [];
   const checked = checkClaims({
     text: allText(content),
     sourceText: run.sourceText,
     factsText: run.factsText,
-    claims,
+    claims: [...writerClaims, ...claims],
     paragraphIds: run.paragraphIds,
     factRefs: run.factRefs,
     allowedHosts: run.hosts,
   });
-  const facts = checked.findings.map(clipFinding);
+  const unchanged = hashes.before === hashes.after;
+  const facts = carried(piece, "facts", run, unchanged, checked.findings.map(clipFinding));
   const platform = checkPlatform({
     platform: piece.platform,
     content,
     voice: run.voice,
     factsText: run.factsText,
   }).map(clipFinding);
+  const platformFindings = carried(piece, "platform", run, unchanged, platform);
   const questions = returned.questions.map((q) =>
     plain(q, "The check asked something that could not be shown."),
   );
@@ -118,8 +139,8 @@ export function factsChange(
       questions,
     }),
     entryFor("platform", run, hashes, {
-      result: verdict(platform, run.attempt),
-      findings: platform,
+      result: verdict(platformFindings, run.attempt),
+      findings: platformFindings,
     }),
   ];
   const extra = { flags: checked.flags, claims };

@@ -112,7 +112,7 @@ describe("the whole chain", () => {
         pieces: [
           {
             platform: "x",
-            content: PIECES.x,
+            content: { ...PIECES.x, posts: ["Ship docs in a few minutes."] },
             claims: [{ text: "Quick.", trace: "source:p1" }],
             questions: [],
           },

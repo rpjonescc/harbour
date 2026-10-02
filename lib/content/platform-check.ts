@@ -38,12 +38,15 @@ function spelling(text: string, variant: VoiceProfile["spelling"]): Finding[] {
 
 function policy(text: string, voice: VoiceProfile): Finding[] {
   const out: Finding[] = [];
-  const emoji = text.match(/\p{Extended_Pictographic}/gu) ?? [];
+  // (c), (r) and (tm) are in the pictographic class but are not emoji a writer chose.
+  const emoji = (text.match(/\p{Extended_Pictographic}/gu) ?? []).filter(
+    (c) => !["\u00a9", "\u00ae", "\u2122"].includes(c),
+  );
   if (emoji.length > (voice.emoji === "sparing" ? 1 : 0)) {
     const fix = voice.emoji === "none" ? "Remove the emoji" : "Keep to one emoji";
     out.push(find("Emoji", emoji[0] ?? "", fix));
   }
-  const bangs = (text.match(/!/g) ?? []).length;
+  const bangs = (text.match(/[!\uff01]/g) ?? []).length;
   if (bangs > (voice.exclamations === "rare" ? 1 : 0)) {
     const fix =
       voice.exclamations === "none"
@@ -60,8 +63,12 @@ function words(text: string, voice: VoiceProfile, factsText: string): Finding[] 
     (w) => !new RegExp(`\\b${w}\\b`).test(factsText),
   );
   const out = caps.slice(0, 3).map((w) => find("Shouting", w, "Write it in lower case"));
+  // A camel-case hashtag is words run together: "#SolutionFinder" holds "Solution".
+  const spaced = text.replace(/#[\p{L}\p{N}_]+/gu, (tag) =>
+    tag.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/_/g, " "),
+  );
   for (const term of [...voice.wordsWeAvoid, ...voice.topicsToAvoid]) {
-    if (wordRe(term).test(text))
+    if (wordRe(term).test(spaced))
       out.push(find("Avoided word", term, "Use a plainer word, or leave it out"));
   }
   return out;

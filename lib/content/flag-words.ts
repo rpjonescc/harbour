@@ -4,7 +4,7 @@ import { FLAGS, type Flag } from "./schema";
 // owner to look (and tick it) before approving; it never fails a gate.
 const PATTERNS: Record<Flag, RegExp> = {
   pricing:
-    /[$€£¥]|\b(?:prices?|pricing|per (?:month|year|seat)|discounts?|refunds?|subscription|free plan)\b/i,
+    /[$€£¥]|\b(?:prices?|pricing|priced|costs?|dollars?|euros?|pounds?|quid|bucks|per (?:month|year|seat|user)|(?:a|each) (?:month|year|seat|user)|monthly|annual|discounts?|refunds?|subscriptions?|free (?:plan|trial|tier)|trial)\b/i,
   health:
     /\b(?:doctors?|symptoms?|diagnos\w*|medical|clinic|therapy|treatment|cure[sd]?|disease|medication)\b/i,
   legal: /\b(?:legal|lawsuit|gdpr|compliance|contracts?|liabilit\w*|copyright|trademark)\b/i,

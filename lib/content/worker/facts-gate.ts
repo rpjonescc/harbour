@@ -86,7 +86,8 @@ export function factsGateSpec(
     now: context.now ?? (() => new Date()),
     hosts,
     voice,
-    factsText,
+    // Numbers are checked against what the sources say, never against their `[ref]` labels.
+    factsText: pack.map((f) => f.text).join("\n"),
     sourceText: source.paragraphs.map((p) => p.text).join("\n"),
     paragraphIds: source.paragraphs.map((p) => p.id),
     factRefs: pack.map((f) => f.ref),

@@ -7,6 +7,7 @@ import { seedAfterAB } from "@/tests/helpers/chain";
 import {
   contentSetup,
   FIXTURE_SKILL_TEXT,
+  ideaFile,
   PIECES,
   pieceFile,
   VOICE_ACME,
@@ -121,6 +122,48 @@ describe("the facts and platform gate", () => {
       await r.run();
       expect(factsEntry(piece(r, "x"))?.findings.map((f) => f.pattern)).toContain(pattern);
       expect(factsEntry(piece(r, "linkedin"))?.result).toBe("pass");
+    } finally {
+      r.cleanup();
+    }
+  });
+
+  it("checks numbers against what the sources say, never against a source's label", async () => {
+    const files = {
+      ...FILES,
+      "research/2024-survey.md": "# Survey\n\nTeams like a short setup.\n",
+      [`content/ideas/acme-docs/${IDEA}.md`]: ideaFile({
+        state: "drafted",
+        sources: ["product:acme-docs", "brain:research/2024-survey.md"],
+      }),
+      ...withContent("linkedin", { ...PIECES.linkedin, text: "In 2024 teams cut setup." }),
+    };
+    const r = run("gate:facts:1", claimsFor(), files);
+    try {
+      await r.run();
+      expect(factsEntry(piece(r, "linkedin"))).toMatchObject({
+        result: "fail",
+        findings: [{ pattern: "Number not in the source", quote: "2024" }],
+      });
+    } finally {
+      r.cleanup();
+    }
+  });
+
+  it("holds the writer's own untraced claims to the trace rule, so the piece cannot reach Ready", async () => {
+    const writer = [{ text: "Used by 500 schools.", trace: "none" }];
+    const files = { ...FILES, ...withContent("linkedin", PIECES.linkedin) };
+    const front = pieceFile(IDEA, "linkedin", { state: "drafting", gates: AB, claims: writer });
+    const r = run("gate:facts:1", claimsFor(), {
+      ...files,
+      [contentPaths.piece(IDEA, "linkedin")]: front,
+    });
+    try {
+      await r.run();
+      const linkedin = piece(r, "linkedin");
+      expect(factsEntry(linkedin)?.findings.map((f) => f.pattern)).toContain(
+        "Claim with no source",
+      );
+      expect(linkedin.front.state).toBe("drafting");
     } finally {
       r.cleanup();
     }
@@ -351,6 +394,18 @@ describe("the revision (attempt 2)", () => {
         state: "needs-you",
         needsYou: "The facts check didn't finish. Try again.",
       });
+    } finally {
+      r.cleanup();
+    }
+  });
+
+  it("does not pass a revision that changed nothing: the first findings stand", async () => {
+    const r = await revise({ pieces: [{ ...fixed, content: LINKEDIN_40 }] });
+    try {
+      await r.run();
+      const second = factsEntry(piece(r, "linkedin"), 2);
+      expect(second).toMatchObject({ result: "fail" });
+      expect(second?.findings.map((f) => f.pattern)).toContain("Number not in the source");
     } finally {
       r.cleanup();
     }

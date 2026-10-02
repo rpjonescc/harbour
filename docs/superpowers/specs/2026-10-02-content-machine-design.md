@@ -1089,3 +1089,16 @@ Each step is its own reviewed change, with tests and README updates in the same 
   Monday 07:00 slot has passed, derived from the jobs table so a restart never repeats it. A worker
   that was down catches up once in the same local week (Monday 07:00 to Sunday); it never writes an
   earlier week's run. A manual or failed run since the slot settles that product for the week.
+
+## 19. As built: the facts and platform gates (Task 13)
+
+- **Numbers are checked against what the sources say**, never their `[ref]` labels (a date in a
+  label must not make that year look known). Writer claims from atomise are checked with the
+  verifier's at attempt 1, so an untraced claim cannot vanish when the verifier's list replaces it.
+- **A revision that changes nothing does not pass:** the first attempt's findings stand.
+- **Known limits of the number check.** A hashtag that holds a digit (`#web3`, `#2024trends`,
+  `#100DaysOfCode`) fails the gate unless that number is in the sources. Numbers split by
+  formatting (`10 000`, a digit inside markup) and vague quantities ("a dozen", "half", "double")
+  are not caught; the owner's own read before approving covers them.
+- **No shouting policy field exists** in the voice profile, so capitals-only words of four letters
+  or more are always flagged (unless the facts pack writes them that way).
