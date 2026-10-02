@@ -4,6 +4,7 @@ import {
   PLATFORMS,
   pieceId,
   pieceIdSchema,
+  productForIdea,
   slugify,
   splitPieceId,
 } from "./ids";
@@ -49,5 +50,15 @@ describe("ids from outside", () => {
     for (const bad of ["acme", "acme.tiktok", "../x.blog", "a.b.blog", ".blog"]) {
       expect(splitPieceId(bad)).toBeNull();
     }
+  });
+});
+
+describe("productForIdea", () => {
+  const products = [{ id: "acme" }, { id: "acme-docs" }];
+  it("matches the product by its whole id and the date, so a shorter id never claims a longer one's idea", () => {
+    expect(productForIdea(products, "acme-docs-20261002-five-minutes")?.id).toBe("acme-docs");
+    expect(productForIdea(products, "acme-20261002-five-minutes")?.id).toBe("acme");
+    expect(productForIdea(products, "acme-docs-extra-five-minutes")).toBeUndefined();
+    expect(productForIdea(products, "other-20261002-x")).toBeUndefined();
   });
 });

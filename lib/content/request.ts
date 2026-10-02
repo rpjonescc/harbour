@@ -6,15 +6,21 @@ import { voiceMissingMessage } from "@/lib/explain/content";
 import { isoDateIn } from "@/lib/format/date";
 import { addDays } from "@/lib/format/zoned-time";
 import type { ContentProduct } from "@/lib/products/content";
-import { productIdSchema } from "./ids";
+import { ideaIdSchema, productForIdea, productIdSchema } from "./ids";
 import { DAILY_CAP_MESSAGE, enqueueContent } from "./limits";
-import { countWaitingIdeas, MAX_WAITING_IDEAS, TooManyIdeaFilesError } from "./read/ideas";
+import {
+  countWaitingIdeas,
+  MAX_WAITING_IDEAS,
+  readAllIdeas,
+  TooManyIdeaFilesError,
+} from "./read/ideas";
 import { readVoice } from "./read/voice";
 
 /** Every action the Content page can request; later tasks add their own. */
 export const ContentBody = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("make-digest") }),
   z.strictObject({ action: z.literal("find-ideas"), productId: productIdSchema }),
+  z.strictObject({ action: z.literal("write-this"), ideaId: ideaIdSchema }),
 ]);
 export type ContentBody = z.infer<typeof ContentBody>;
 
@@ -51,7 +57,10 @@ function limitRefusal(reason: "daily_cap" | "rate_limited"): RequestResult {
     : refuse(429, "rate_limited");
 }
 
-type Kind = "content-digest" | "content-ideas";
+const BRAIN_UNREADABLE =
+  "Harbour couldn't read the ideas folder, so it started nothing. Check the brain folder and try again.";
+
+type Kind = "content-digest" | "content-ideas" | "content-draft";
 
 /** Queues one job and audits it; a second click while it waits returns the same job, audited once. */
 function enqueueAndAudit(
@@ -92,13 +101,26 @@ function findIdeas(ctx: RequestContext, productId: string): RequestResult {
     }
   } catch (error) {
     if (error instanceof TooManyIdeaFilesError) return refuse(409, "too_many_ideas", error.message);
-    return refuse(
-      409,
-      "brain_unreadable",
-      "Harbour couldn't read the ideas folder, so it started nothing. Check the brain folder and try again.",
-    );
+    return refuse(409, "brain_unreadable", BRAIN_UNREADABLE);
   }
   return enqueueAndAudit(ctx, "content-ideas", { productId }, { productId });
+}
+
+function writeThis(ctx: RequestContext, ideaId: string): RequestResult {
+  const product = productForIdea(ctx.products, ideaId);
+  if (!product) return refuse(404, "not_found");
+  try {
+    const idea = readAllIdeas(ctx.root, product.id).ideas.find((i) => i.id === ideaId);
+    if (!idea) return refuse(404, "not_found");
+    if (idea.front.state !== "idea") return refuse(409, "not_an_idea");
+    if (readVoice(ctx.root, product.id).state === "missing") {
+      return refuse(409, "voice_missing", voiceMissingMessage(product.name));
+    }
+  } catch (error) {
+    if (error instanceof TooManyIdeaFilesError) return refuse(409, "too_many_ideas", error.message);
+    return refuse(409, "brain_unreadable", BRAIN_UNREADABLE);
+  }
+  return enqueueAndAudit(ctx, "content-draft", { ideaId }, { productId: product.id, ideaId });
 }
 
 /** Applies one request from the Content page: enqueue a job (never write the brain) and audit it. */
@@ -111,5 +133,6 @@ export function requestContent(ctx: RequestContext, body: ContentBody): RequestR
     return enqueueAndAudit(ctx, "content-digest", { day }, {});
   }
   if (body.action === "find-ideas") return findIdeas(ctx, body.productId);
+  if (body.action === "write-this") return writeThis(ctx, body.ideaId);
   return refuse(400, "invalid_request");
 }

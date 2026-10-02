@@ -3,7 +3,7 @@ import { listJobs } from "@/lib/jobs/queue";
 import { makeBrain } from "@/tests/helpers/brain";
 import { ACME, ideaFile, VOICE_ACME } from "@/tests/helpers/content";
 import { openTestDb } from "@/tests/helpers/db";
-import { requestContent } from "./request";
+import { ContentBody, requestContent } from "./request";
 
 const config = {
   HARBOUR_CONTENT: "on",
@@ -172,5 +172,110 @@ describe("requestContent: find-ideas", () => {
       ask({ "content/voices/acme-docs.md": VOICE_ACME }, "acme-docs", { HARBOUR_CONTENT: "off" })
         .result,
     ).toMatchObject({ ok: false, error: "content_off" });
+  });
+});
+
+describe("requestContent: write-this", () => {
+  const IDEA_ID = "acme-docs-20261002-five-minutes";
+  const files = (state = "idea") => ({
+    "content/voices/acme-docs.md": VOICE_ACME,
+    [`content/ideas/acme-docs/${IDEA_ID}.md`]: ideaFile({ state }),
+  });
+  const run = (
+    brain: Record<string, string>,
+    ideaId: string,
+    over: Record<string, unknown> = {},
+  ) => {
+    const { root, cleanup } = makeBrain(brain);
+    try {
+      const c = { ...ctx(over), root, products: [ACME] };
+      return { c, result: requestContent(c, { action: "write-this", ideaId }) };
+    } finally {
+      cleanup();
+    }
+  };
+
+  it("queues a draft for an idea, once, and audits it with the idea id", () => {
+    const { root, cleanup } = makeBrain(files());
+    try {
+      const c = { ...ctx(), root, products: [ACME] };
+      const a = requestContent(c, { action: "write-this", ideaId: IDEA_ID });
+      const b = requestContent(c, { action: "write-this", ideaId: IDEA_ID });
+      expect(a).toMatchObject({ ok: true });
+      expect(b).toEqual(a);
+      expect(listJobs(c.db).map((j) => [j.kind, j.params])).toEqual([
+        ["content-draft", { ideaId: IDEA_ID }],
+      ]);
+      expect(c.db.select().from(auditLog).all()).toHaveLength(1);
+      expect(c.db.select().from(auditLog).all()[0]?.detail).toEqual({
+        kind: "content-draft",
+        productId: "acme-docs",
+        ideaId: IDEA_ID,
+      });
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("returns the queued job even when the daily cap is reached (a double click is not an error)", () => {
+    const { root, cleanup } = makeBrain(files());
+    try {
+      const c = { ...ctx({ HARBOUR_CONTENT_DAILY_RUNS: 1 }), root, products: [ACME] };
+      const a = requestContent(c, { action: "write-this", ideaId: IDEA_ID });
+      expect(requestContent(c, { action: "write-this", ideaId: IDEA_ID })).toEqual(a);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("refuses an id that is not an idea id before it reaches the handler", () => {
+    for (const ideaId of ["../x", "Acme-Docs", "a/b", "", "x".repeat(81)]) {
+      expect(ContentBody.safeParse({ action: "write-this", ideaId }).success).toBe(false);
+    }
+    expect(ContentBody.safeParse({ action: "write-this", ideaId: IDEA_ID, extra: 1 }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ["an idea that does not exist", "acme-docs-20261002-ghost", 404, "not_found"],
+    [
+      "an idea of a product with no content settings",
+      "other-20261002-five-minutes",
+      404,
+      "not_found",
+    ],
+    [
+      "an id that only starts with the product's name",
+      "acme-docs-extra-five-minutes",
+      404,
+      "not_found",
+    ],
+  ])("refuses %s", (_label, ideaId, status, error) => {
+    const { c, result } = run(files(), ideaId);
+    expect(result).toMatchObject({ ok: false, status, error });
+    expect(listJobs(c.db)).toEqual([]);
+  });
+
+  it("refuses an idea that is already being written, or without a voice profile", () => {
+    expect(run(files("drafting"), IDEA_ID).result).toMatchObject({
+      ok: false,
+      error: "not_an_idea",
+    });
+    const { "content/voices/acme-docs.md": _voice, ...noVoice } = files();
+    expect(run(noVoice, IDEA_ID).result).toMatchObject({ ok: false, error: "voice_missing" });
+  });
+
+  it("keeps the content switch, the token check and the daily cap", () => {
+    expect(run(files(), IDEA_ID, { HARBOUR_CONTENT: "off" }).result).toMatchObject({
+      error: "content_off",
+    });
+    expect(run(files(), IDEA_ID, { HARBOUR_CLAUDE_OAUTH_TOKEN: undefined }).result).toMatchObject({
+      error: "token_missing",
+    });
+    expect(run(files(), IDEA_ID, { HARBOUR_CONTENT_DAILY_RUNS: 0 }).result).toMatchObject({
+      ok: false,
+      error: "daily_cap",
+    });
   });
 });

@@ -55,3 +55,11 @@ export function splitPieceId(id: string): { ideaId: string; platform: Platform }
   // Safe: pieceIdSchema just matched the suffix against the six platform names.
   return { ideaId: id.slice(0, dot), platform: id.slice(dot + 1) as Platform };
 }
+
+/** The product an idea id belongs to: `<productId>-<YYYYMMDD>-`, so "acme" never claims an "acme-docs" idea. */
+export function productForIdea<T extends { id: string }>(
+  products: readonly T[],
+  ideaId: string,
+): T | undefined {
+  return products.find((p) => new RegExp(`^${p.id}-\\d{8}-`).test(ideaId));
+}

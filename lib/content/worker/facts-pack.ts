@@ -1,0 +1,149 @@
+import { lstatSync } from "node:fs";
+import { join } from "node:path";
+import type { Pillar } from "@/lib/agents/proposals";
+import { redactSensitive } from "@/lib/analyst/scrub";
+import { resolveBrainPath } from "@/lib/brain/paths";
+import { parseFile } from "@/lib/content/files";
+import { contentPaths } from "@/lib/content/paths";
+import { INVISIBLE_CHARS } from "@/lib/content/sanitise";
+import { digestFrontmatter, type IdeaFront } from "@/lib/content/schema";
+import { readBoundedBytes, readPrefixBytes } from "@/lib/note/bounded-read";
+import type { ContentProduct } from "@/lib/products/content";
+
+export const FACTS_PACK_BYTES = 48 * 1024;
+const DOC_BYTES = 6 * 1024;
+const DIGEST_BYTES = 64 * 1024;
+export type FactItem = { ref: string; text: string; truncated: boolean };
+
+/** A cited source exists but cannot be used; the message is fixed words, never the file's name or text. */
+export class FactsPackError extends Error {}
+const UNREADABLE =
+  "A note or activity theme this idea rests on can't be read as plain text, so nothing was written. Check the notes folder, then try again.";
+
+// C0 controls except tab, newline and carriage return; DEL and C1 controls.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point.
+const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
+const gap = (error: unknown) =>
+  ["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "");
+
+/** UTF-8 text of `bytes`; a prefix cut mid-character loses that character. Throws on anything else. */
+function decode(bytes: Buffer, truncated: boolean): string {
+  const strict = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false });
+  for (let cut = 0; cut <= (truncated ? 3 : 0); cut += 1) {
+    try {
+      return strict.decode(bytes.subarray(0, bytes.length - cut));
+    } catch {
+      // try again one byte shorter: a prefix can end inside a multi-byte character
+    }
+  }
+  throw new FactsPackError(UNREADABLE);
+}
+
+/** Hidden characters out first (they could split an email or a number), then a control character is a refusal. */
+function plain(text: string): string {
+  const visible = text.replace(INVISIBLE_CHARS, "").replace(/\r\n?/g, "\n");
+  if (CONTROL.test(visible)) throw new FactsPackError(UNREADABLE);
+  return visible.normalize("NFC");
+}
+
+function themeText(root: string, ref: string, productId: string): string | null {
+  const match = /^digest:(\d{4}-\d{2}-\d{2})#(t\d{1,2})$/.exec(ref);
+  if (!match?.[1]) return null;
+  let bytes: Buffer | null;
+  try {
+    bytes = readBoundedBytes(join(root, contentPaths.digest(match[1])), DIGEST_BYTES);
+  } catch (error) {
+    if (gap(error)) return null; // no digest that day is a gap, not a fact
+    throw new FactsPackError(UNREADABLE);
+  }
+  if (bytes === null) throw new FactsPackError(UNREADABLE);
+  const parsed = parseFile(decode(bytes, false), digestFrontmatter);
+  if (!parsed.ok) throw new FactsPackError(UNREADABLE);
+  const theme = parsed.value.themes.find((t) => t.id === match[2] && t.productId === productId);
+  return theme?.text ?? null;
+}
+
+/** Only this product's notes and the research folder: never the content folder, other products or hidden files. */
+function mayCite(rel: string, productId: string): boolean {
+  if (rel.split("/").some((s) => s === "" || s.startsWith("."))) return false;
+  return rel.startsWith(`products/${productId}/`) || rel.startsWith("research/");
+}
+
+function document(root: string, rel: string, productId: string): FactItem | null {
+  if (!mayCite(rel, productId)) return null;
+  try {
+    lstatSync(join(root, rel));
+  } catch (error) {
+    if (gap(error)) return null; // a note that is not there (yet) is a gap
+    throw new FactsPackError(UNREADABLE);
+  }
+  try {
+    const { bytes, truncated } = readPrefixBytes(resolveBrainPath(root, rel), DOC_BYTES);
+    return { ref: `brain:${rel}`, text: decode(bytes, truncated), truncated };
+  } catch (error) {
+    if (error instanceof FactsPackError) throw error;
+    throw new FactsPackError(UNREADABLE); // a link, a pipe or a folder where a note should be
+  }
+}
+
+/** `text` cut to at most `max` bytes, never in the middle of a character. */
+function cutBytes(text: string, max: number): string {
+  const all = Buffer.from(text);
+  if (all.length <= max) return text;
+  return new TextDecoder().decode(all.subarray(0, max)).replace(/�+$/u, "");
+}
+
+/**
+ * The list the draft and the gates check claims against (spec §7.2): the product, the idea's
+ * pillar, the themes and documents it cites, and the product's notes. Secrets and absolute paths
+ * are redacted, hidden characters removed, and the whole pack is capped at 48 KiB (later items are
+ * cut first). A source that is missing is a gap; one that is there but unusable throws FactsPackError.
+ */
+export function buildFactsPack(input: {
+  root: string;
+  product: ContentProduct;
+  idea: IdeaFront;
+  pillars: Pillar[];
+}): FactItem[] {
+  const { root, product, idea } = input;
+  const items: FactItem[] = [
+    { ref: `product:${product.id}`, text: `${product.name} at ${product.url}`, truncated: false },
+  ];
+  const pillar = input.pillars.find((p) => p.key === idea.pillar);
+  if (pillar) {
+    items.push({
+      ref: `pillar:${pillar.key}`,
+      text: `${pillar.name}: ${pillar.description}`,
+      truncated: false,
+    });
+  }
+  // De-duplicated before anything is read, so a repeated ref cannot spend the cap twice.
+  for (const ref of new Set(idea.sources.filter((s) => s.startsWith("digest:")))) {
+    const text = themeText(root, ref, product.id);
+    if (text) items.push({ ref, text, truncated: false });
+  }
+  const cited = idea.sources.filter((s) => s.startsWith("brain:")).map((s) => s.slice(6));
+  const docs = [`products/${product.id}/notes.md`, `products/${product.id}/discovery.md`, ...cited];
+  for (const rel of new Set(docs)) {
+    const doc = document(root, rel, product.id);
+    if (doc) items.push(doc);
+  }
+  return capPack(items);
+}
+
+function capPack(items: FactItem[]): FactItem[] {
+  let left = FACTS_PACK_BYTES;
+  const capped: FactItem[] = [];
+  for (const item of items) {
+    if (left <= 0) break;
+    const text = redactSensitive(plain(item.text));
+    const kept = cutBytes(text, left);
+    capped.push({ ...item, text: kept, truncated: item.truncated || kept.length < text.length });
+    left -= Buffer.byteLength(kept);
+  }
+  return capped;
+}
+
+/** The pack as one labelled text for a prompt. Number checks use each item's `text`, never these labels. */
+export const factsPackText = (pack: readonly FactItem[]): string =>
+  pack.map((f) => `[${f.ref}]\n${f.text}${f.truncated ? "\n(cut short)" : ""}`).join("\n\n");

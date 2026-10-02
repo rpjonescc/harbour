@@ -10,7 +10,11 @@ import { MAX_WAITING_IDEAS, TooManyIdeaFilesError } from "@/lib/content/read/ide
 import { readVoice } from "@/lib/content/read/voice";
 import { sanitiseText } from "@/lib/content/sanitise";
 import { refSchema } from "@/lib/content/schema";
-import { IDEA_FILE_IN_THE_WAY, voiceMissingMessage } from "@/lib/explain/content";
+import {
+  IDEA_FILE_IN_THE_WAY,
+  voiceInvalidMessage,
+  voiceMissingMessage,
+} from "@/lib/explain/content";
 import { gatherIdeasInputs, IdeasInputError, type IdeasInputs } from "./ideas-inputs";
 import { requireContent } from "./run-context";
 import { parseWorkJson, workReview } from "./work-review";
@@ -97,7 +101,7 @@ function startProblem(content: ReturnType<typeof requireContent>, productId: unk
     return { error: voiceMissingMessage(product.name) } as const;
   }
   if (voice.state === "invalid") {
-    return { error: `${product.name}'s voice profile can't be used: ${voice.reason}` } as const;
+    return { error: voiceInvalidMessage(product.name, voice.reason) } as const;
   }
   return { product, voice: voice.profile } as const;
 }

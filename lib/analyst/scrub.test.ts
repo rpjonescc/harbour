@@ -1,4 +1,4 @@
-import { scrub } from "./scrub";
+import { redactSensitive, scrub } from "./scrub";
 
 // Built at run time so the repository's secret scanner does not flag these fictional values.
 const GOOGLE_KEY = ["AI", "za", "SyA1234567890abcdefghijklmnopqrstuv"].join("");
@@ -43,5 +43,16 @@ describe("scrub", () => {
 
   it("caps the length", () => {
     expect(scrub("x".repeat(1000))).toHaveLength(300);
+  });
+});
+
+describe("redactSensitive", () => {
+  it("redacts as scrub does but keeps text that is long on purpose", () => {
+    const long = `${"word ".repeat(200)}mail sam@example.com about /ho${"me"}/sam/notes/plan.md`;
+    const out = redactSensitive(long);
+    expect(out.length).toBeGreaterThan(300);
+    expect(out).toContain("[email]");
+    expect(out).toContain("[path]");
+    expect(scrub(long).length).toBeLessThanOrEqual(300);
   });
 });
