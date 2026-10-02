@@ -57,6 +57,11 @@ continues with:
 - **Agents** — research and discovery agents that write into the Second Brain, one at a time,
   with live activity, cancel, and automatic save and sync; stale research is re-checked monthly
   (see [Research refresh](#research-refresh)).
+- **A warm friend** — Today opens with a short note an agent writes fresh every morning, in
+  the voice of a seasoned, warm, quick-witted friend: it celebrates real wins, is honest and
+  kind about bad news and always gives a next step, and on a weekend or late at night says what
+  can wait. A calm wave drifts behind the app. Both are off with `HARBOUR_PERSONALITY=quiet`
+  (see [Daily note](#daily-note)).
 - **Cost meter** — Today shows this month's paid API spend against your monthly budget, with a
   month-end projection, a warning at 80 % and a pause at 100 %. No paid source exists yet, so it
   says "No paid data connected" (see [Costs and budget](#costs-and-budget)).
@@ -100,6 +105,10 @@ signed-in session:
   `{"kind": "refresh"}` to refresh up to 3 stale research documents. It answers
   `{"jobIds": [...], "stale": 4}` (an empty list when nothing is stale) and refuses with
   `409 token_missing` while `HARBOUR_CLAUDE_OAUTH_TOKEN` is not set.
+- `POST /api/agents/run` with `{"kind": "daily-note"}` queues a fresh daily note (as **Write me
+  a fresh one** on Today does), stamped with the server's local time: one at a time and at most
+  5 requests a day. It answers `{"jobIds": [12]}`, or refuses with `409 token_missing`,
+  `409 personality_quiet` or `429 rate_limited`.
 - `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
   moves an action to a new status. `from` is the status your page showed: if the action changed
   since, the request is refused (`409 stale`) instead of overwriting it. `to` is `open`,
@@ -154,7 +163,7 @@ Agents run Claude Code on the Harbour PC with your Claude subscription. Run
 services (`systemctl --user restart harbour-web harbour-worker`) — also after changing the token.
 The worker reads the token to run agents; the web only checks whether it is set, and keeps the
 run buttons disabled until it is. Agents only have web research (search and
-fetch) and file tools limited to the brain directory: no shell, no hooks, no MCP servers.
+fetch) and file tools limited to the brain directory: no shell, no hooks, no MCP servers. The daily note agent is narrower still: it has only the `Write` tool, no web at all.
 
 The **git gate** checks every run: a run may change only its own target files (Markdown, plus
 `proposals.json` for discovery and the weekly analyst). Any other change fails the run, and everything the agent changed
@@ -355,6 +364,9 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility scan's crawler fetches per product per scan, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
 | `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing scans by itself (the daily 06:00 scan and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Run weekly report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
+| `HARBOUR_PERSONALITY` | no | `warm` | `warm` or `quiet`. `quiet` turns off the daily note (its job, its card on Today) and the wave behind the app. See [Daily note](#daily-note). Restart both services after changing it. |
+| `HARBOUR_NOTE_TIME` | no | `06:30` | The local time, `HH:MM` in `HARBOUR_TIMEZONE`, the worker writes the daily note each day (and catches up on start). Restart the worker after changing it. |
+| `HARBOUR_SCHEDULED_NOTE` | no | `on` | `off` stops the worker queueing the daily note by itself; **Write me a fresh one** on Today still queues it. Restart the worker after changing it. |
 | `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_RESEARCH` | no | `on` | `off` stops the worker queueing the monthly research refresh by itself (the first Sunday of each month at 21:00 and the catch-up on start); **Refresh stale research** on **Agents** still queues it by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
@@ -394,6 +406,10 @@ Optionally, `searchConsoleProperty` names the product's Google Search Console pr
 either form Search Console uses: a domain property (`"sc-domain:example.com"`) or a URL-prefix
 property (`"https://www.example.com/"`, ending in `/`). Without it, Search Console data for that
 product shows as not connected; see [Connect Search Console](#connect-search-console).
+
+Optionally, `ownerName` (at most 40 characters: letters, spaces, apostrophes, dots and hyphens) is
+used only as a first name in the daily note's greeting; it stays in this gitignored file and is
+never logged.
 
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.
@@ -447,6 +463,74 @@ not set ("weekly analyst skipped: no Claude token") or when no product has a sco
 last 7 days ("no scan data this week"). A failed run is not retried automatically: choose **Run
 weekly report now** on **Agents** or run `pnpm analyst:now`. Set `HARBOUR_SCHEDULED_ANALYST=off` to
 run it only by hand. Like every agent run it waits for the brain to be quiet first.
+
+### Daily note
+
+Each day at `HARBOUR_NOTE_TIME` (default 06:30) in `HARBOUR_TIMEZONE` the worker queues one
+`daily-note` job: an agent with a personality (a seasoned, warm, quick-witted friend with dry
+humour and the odd harbour turn of phrase) writes the short note at the top of Today. It runs
+on the same runner, git gate and Claude subscription as the other agents.
+
+- **What it is given** — a small snapshot Harbour builds: the day, time and whether it is the
+  weekend or out of hours (20:00 to 04:59); each product's scores, verdicts and changes; the
+  active actions; wins in the last 24 hours; trouble (a failed data source or check, a stale or
+  failed backup, worded as Today's briefing words it); the headlines of recent notes; and your
+  first name if you set `ownerName` in `harbour.config.json`. No secrets and no file contents.
+  The snapshot goes into the prompt as fenced, labelled data, because titles in it come from
+  crawled pages.
+- **What it writes** — one file, `notes/daily/YYYY-MM-DD-HHmm.md` (frontmatter: greeting,
+  headline, mood, picks and, on a weekend or out of hours, a rest sentence; then the body). The
+  agent has only the `Write` tool and writes a draft beside it; Harbour checks the draft and only
+  then moves it into place. It is committed and pushed like every agent output
+  (`agent(daily-note)` in the brain's git log), and it shows in the Second Brain.
+- **What is checked before anything is shown** — the file is parsed with zod and rejected unless
+  it is plain text within its length caps; every number and name is in the snapshot; every pick
+  is the exact title of an action on the board; it has no exclamation-mark runs, shouting or
+  pressuring words (hurry, urgent, behind, overdue, falling behind, failing, must, should have);
+  it names a next step when there is trouble and claims none when there is not; it has a rest
+  sentence exactly when it is rest time; and it only celebrates when there are wins. A rejected
+  note is retried once with the reason fed back, in the same run; a second rejection fails the
+  run (the reason is on its page on **Agents**) and Today shows the quiet gap. Nothing rejected
+  is ever shown: Today shows a note only when a succeeded `daily-note` job vouches for its stamp
+  and the file's content hash matches the one the checker accepted, so a file edited, added by
+  hand or written by another agent afterwards is ignored.
+- **What the checker cannot catch** — it is a net, not a proof. A single invented name used only
+  as the first word of a sentence can pass (every sentence starts with a capital). A number is
+  checked against all the numbers in the snapshot, so it can sit in the wrong place when it
+  exists elsewhere in the facts. An invented name written in lowercase can pass. The wording of
+  trouble, praise and quantities is matched by word lists, so unusual phrasing can slip through.
+  Statements made only of known words are not verified: "Google changed its ranking rules
+  overnight" passes, because every word is one the checker knows. The persona is told never to
+  say why something moved or to claim a cause or an outside event, but that is a rule for the
+  agent, not something Harbour can check.
+- **Limits** — one run at a time, five minutes an attempt, one retry, and only the `Write` tool.
+  It runs on your Claude subscription, so it is not in the cost ledger (which records paid API
+  calls only); each run is in the **Agents** history with its prompt version.
+- **When** — like the weekly analyst, the schedule is worked out from the job history: a
+  restart never queues it twice, and a worker that was down at the time queues one note when it
+  starts (a first start writes one straight away), stamped with the minute it is written, so
+  "Written 14:00" on the card is true. A note you asked for after that time counts.
+  A failed run is not retried automatically. Without `HARBOUR_CLAUDE_OAUTH_TOKEN` the worker
+  skips it and says so in its log. `HARBOUR_SCHEDULED_NOTE=off` stops the schedule.
+- **Write me a fresh one** — the button on Today queues a note now (one at a time, at most 5 a
+  day; the scheduled note does not count). It says "Starting…", then "Writing a fresh one now"
+  while it waits (it re-checks every 5 seconds, for ten minutes at most), and it stops waiting
+  when its run ends: a succeeded run, or a failed one (the checker rejected the note twice, or
+  the run broke), which it says calmly: "That note didn't pass Harbour's checks, so nothing was
+  shown. You can try again." Every state is on `/design`. Today shows the newest valid note from the last 24
+  hours; older than that, or with none, it shows "No note yet today. The next one is written at
+  06:30." (or just "No note yet today." when the schedule is off or there is no token). The sample Today shows a fixed, labelled sample note.
+- **Changing the personality** — edit `lib/note/persona/warm-friend.md` (the voice, the honesty
+  rules, the format) and bump `NOTE_PROMPT_VERSION` in `lib/note/prompt.ts`. The rules the
+  checker enforces are in `lib/explain/voice/`.
+- **Quiet** — `HARBOUR_PERSONALITY=quiet` removes the schedule, the card and the wave.
+- **Not pruned yet** — old notes stay in the brain (about 400 small files a year).
+
+The wave is inline SVG and CSS only (no script): three faint layers in the tide tint, drifting
+slowly at different speeds, behind the page content and never in the way of a click. It holds
+still under `prefers-reduced-motion: reduce`, browsers do not animate it in a hidden tab, and a
+celebrating note makes the front layer ripple once. A test checks that every text colour keeps
+WCAG AA contrast over all three layers stacked, in light, dark and system dark.
 
 ### Monthly research refresh
 
@@ -846,7 +930,7 @@ the agent worker. The worker runs a fake Claude CLI (`tests/fixtures/fake-claude
 runs, commits, pushes and discovery approvals are tested end to end without a real token.
 
 It also serves the fictional Acme Docs fixture site (`tests/fixtures/sites/acme-docs`) on
-`http://127.0.0.1:3402` (keep ports 3401 and 3402 free), and the E2E product config
+`http://127.0.0.1:3402` (keep ports 3401, 3402 and 3403 free; 3403 is a second web server with `HARBOUR_PERSONALITY=quiet` for the note specs), and the E2E product config
 (`tests/fixtures/harbour.config.e2e.json`) points Acme Docs at it. Scheduled scans are off;
 the scan specs choose **Scan now** and check the product page, Sources and Today on the real
 results. Only this environment may scan a loopback address (`HARBOUR_TEST_MODE` and
@@ -856,8 +940,10 @@ The shell and scans specs also check that Today speaks plainly: no SEO, GEO or A
 no `HARBOUR_*` setting name or sub-score key outside **Technical details**
 (`tests/e2e/plain-language.ts`).
 
+The note specs choose **Write me a fresh one** against the fake CLI, which reads the fenced facts out of its prompt and writes an honest note, and the wave specs check that the wave is hidden from assistive technology, passes clicks through and stops under emulated reduced motion. `design/wave-contrast.test.ts` computes text contrast over the stacked wave from `design/tokens.css`.
+
 The Playwright projects run in order — the shell and brain specs, then agents, scans, actions,
-the weekly analyst and finally operations (Settings) — because each later one changes what the
+the weekly analyst, the note and finally operations (Settings) — because each later one changes what the
 earlier ones check. The actions specs seed a scored scan of the fictional Lighthouse Café and
 two analyst suggestions through Harbour's own code (`tests/e2e/seed-actions.ts`), then work the
 Actions board: filters, status changes, snooze, **Hand to Claude** (read back from the
@@ -868,7 +954,7 @@ suggestion, the second finds it already known.
 The operations specs (`tests/e2e/settings.spec.ts`) check the Settings page — products, every
 schedule shown as off, key status without values, the A$0.00 budget — then choose **Back up
 now** and **Refresh stale research**. Every schedule is off in this environment
-(`HARBOUR_SCHEDULED_SCANS`, `_ANALYST`, `_RESEARCH` and `_BACKUP` all `off`), so only these
+(`HARBOUR_SCHEDULED_SCANS`, `_ANALYST`, `_RESEARCH`, `_BACKUP` and `_NOTE` all `off`), so only these
 clicks queue work. `HARBOUR_BACKUP_DIR` is unset, so the backup lands in `data/e2e/backups`,
 which each run recreates; the specs check its file and folder modes and that the retention job
 follows.
@@ -878,8 +964,8 @@ follows.
 ```
 app/          routes (thin: parse input, call lib/, render)
 components/   UI components built on semantic tokens
-design/       tokens.css (primitives + semantic) and the token list for /design
-lib/          auth, agents, brain, config, costs (ledger, budget), db, jobs, ops (backups), products, security, formatting — logic + tests
+design/       tokens.css (primitives + semantic), the token list for /design, the wave and contrast maths
+lib/          auth, agents, brain, config, costs (ledger, budget), db, jobs, note (the daily note), ops (backups), products, security, formatting — logic + tests
 worker/       the job worker (`pnpm worker`): agent runs, scans, backups, autosave and push retries
 deploy/       systemd unit template, install script, deployment guide
 drizzle/      SQL migrations

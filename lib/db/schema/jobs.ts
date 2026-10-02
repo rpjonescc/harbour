@@ -13,6 +13,7 @@ export const jobs = sqliteTable(
         "notes-sync",
         "scan",
         "weekly-analyst",
+        "daily-note",
         "backup",
         "retention",
       ],
@@ -30,6 +31,8 @@ export const jobs = sqliteTable(
     // A deferred job is not claimed before this time (e.g. while the owner edits the brain).
     notBefore: timestamp("not_before"),
     error: text("error"),
+    // A short, non-secret result a job leaves behind (a daily note: the sha256 of the note's bytes).
+    result: text("result"),
   },
   (t) => [index("jobs_status").on(t.status), index("jobs_dedupe_key").on(t.dedupeKey)],
 );

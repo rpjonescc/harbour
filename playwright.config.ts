@@ -9,6 +9,8 @@ export const E2E_DB = "./data/e2e/harbour.db";
 const E2E_BRAIN = "./data/e2e-brain";
 /** The fictional Acme Docs site the scans read (tests/e2e/fixture-site.ts). */
 export const E2E_SITE_PORT = 3402;
+/** A second web server, with the quiet personality, over the same database and brain. */
+export const E2E_QUIET_ORIGIN = "http://localhost:3403";
 
 // Web server and worker see the same settings, as in production.
 const env = {
@@ -33,6 +35,9 @@ const env = {
   HARBOUR_SCHEDULED_RESEARCH: "off",
   // No nightly backup: the runs under test own the queue.
   HARBOUR_SCHEDULED_BACKUP: "off",
+  // No scheduled daily note: the note specs choose Write me a fresh one, and a scheduled run would
+  // queue ahead of the runs under test (the personality stays warm, so the card and wave show).
+  HARBOUR_SCHEDULED_NOTE: "off",
   // Fictional token: the agent CLI is the fake below, so nothing is ever sent anywhere.
   HARBOUR_CLAUDE_OAUTH_TOKEN: "e2e-fake-token",
 };
@@ -49,7 +54,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: /(agents|scans|actions|analyst|settings)\.spec\.ts/,
+      testIgnore: /(agents|scans|actions|analyst|note|settings)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     // Agent runs change the brain (new documents, sidebar counts), so they run after the rest.
@@ -85,12 +90,20 @@ export default defineConfig({
       dependencies: ["actions"],
       use: { ...devices["Desktop Chrome"] },
     },
+    // The note specs need the real (scored) Today the scans leave behind, and share the worker's
+    // one-job-at-a-time queue, so they run alone rather than beside the analyst runs.
+    {
+      name: "note",
+      testMatch: /note\.spec\.ts/,
+      dependencies: ["analyst"],
+      use: { ...devices["Desktop Chrome"] },
+    },
     // Back up now and the research refresh queue work behind every earlier run, and the
     // refresh rewrites a research document, so operations run after everything else.
     {
       name: "operations",
       testMatch: /settings\.spec\.ts/,
-      dependencies: ["analyst"],
+      dependencies: ["note"],
       use: { ...devices["Desktop Chrome"] },
     },
   ],
@@ -112,6 +125,15 @@ export default defineConfig({
       timeout: 180_000,
       // The readiness probe sends no identity; Playwright counts a 403 as "up".
       env,
+    },
+    {
+      // Already built by the web server above; only the personality differs.
+      name: "web-quiet",
+      command: "pnpm next start -H 127.0.0.1 -p 3403",
+      url: "http://127.0.0.1:3403/login",
+      reuseExistingServer: false,
+      timeout: 60_000,
+      env: { ...env, HARBOUR_PERSONALITY: "quiet" },
     },
     {
       name: "worker",

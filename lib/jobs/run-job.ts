@@ -2,22 +2,24 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { discardRun } from "@/lib/agents/brain-discard";
-import { commitChanges, pushBrain, type RunSnapshot, snapshotRun } from "@/lib/agents/brain-git";
-import { agentEnv, claudeArgs } from "@/lib/agents/claude-args";
+import { type RunSnapshot, snapshotRun } from "@/lib/agents/brain-git";
 import type { RunOutcome, runProcess } from "@/lib/agents/process";
 import { type AgentSpec, specForJob } from "@/lib/agents/specs";
-import { type StreamResult, summariseLine } from "@/lib/agents/stream";
+import type { StreamResult } from "@/lib/agents/stream";
 import { buildWeeklyExport } from "@/lib/analyst/export";
 import { capExport } from "@/lib/analyst/export-cap";
 import type { Db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
+import type { Facts } from "@/lib/explain/voice/facts";
 import type { Product } from "@/lib/products/catalog";
-import { gatedPaths, JobFailure, recordTouched } from "./agent-gate";
-import { checkRequiredOutputs, importAfterCommit, readAgentOutput } from "./agent-output";
+import { gatedPaths, JobFailure } from "./agent-gate";
+import { checkRequiredOutputs } from "./agent-output";
 import { brainRootError, finish, recoveryBlock, saveOwnerNotes } from "./git-jobs";
 import { newestOwnerChange } from "./housekeeping";
-import { addEvent, deferJob, type EventKind, isCancelRequested, type Job } from "./queue";
+import { addEvent, deferJob, type EventKind, type Job } from "./queue";
 import { freshQuarantineDir, removeRunMarker, writeRunMarker } from "./run-marker";
+import { runReviewed } from "./run-reviewed";
+import { cliAttempt, commitAndPush, publishReviewed, QUIET_FAILURE, QUIET_TAIL } from "./run-steps";
 import { type TouchedLog, touchedLog } from "./touched-log";
 
 export type RunDeps = {
@@ -39,6 +41,8 @@ export type RunDeps = {
   now: () => Date;
   /** True once the worker is shutting down: the run is cancelled and discarded. */
   stopping: () => boolean;
+  /** The daily note's facts snapshot (worker only; absent in tests that do not run a note). */
+  noteFacts?: (now: Date) => Facts;
 };
 
 // How long the brain must be unchanged before an agent run starts.
@@ -53,8 +57,14 @@ function specOrFail(deps: RunDeps, job: Job): AgentSpec {
   const { db, products, timeZone } = deps;
   const weeklyExport = (week: string) =>
     capExport(buildWeeklyExport(db, { products, week, now: deps.now(), timeZone }));
+  const gather = deps.noteFacts;
   try {
-    return specForJob(job.kind, job.params, { products, today: deps.today, weeklyExport });
+    return specForJob(job.kind, job.params, {
+      products,
+      today: deps.today,
+      weeklyExport,
+      noteFacts: gather && (() => gather(deps.now())),
+    });
   } catch (error) {
     throw new JobFailure((error as Error).message);
   }
@@ -94,9 +104,16 @@ function deferWhileEditing(deps: RunDeps, job: Job): boolean {
 }
 
 /** Throws unless the CLI finished successfully. */
-function checkOutcome(deps: RunDeps, outcome: RunOutcome, result: StreamResult | undefined) {
-  if (outcome.timedOut) throw new JobFailure(`Timed out after ${describeDuration(deps.timeoutMs)}`);
+function checkOutcome(
+  spec: AgentSpec,
+  timeoutMs: number,
+  outcome: RunOutcome,
+  result: StreamResult | undefined,
+) {
+  if (outcome.timedOut) throw new JobFailure(`Timed out after ${describeDuration(timeoutMs)}`);
   if (outcome.exitCode !== 0 || result?.isError) {
+    // A quiet run's agent text can hold the note and the owner's name: it never reaches the record.
+    if (spec.quiet) throw new JobFailure(QUIET_FAILURE);
     const detail = result?.text || outcome.stderrTail.slice(-300) || `exit ${outcome.exitCode}`;
     throw new JobFailure(`Agent failed: ${detail}`);
   }
@@ -105,7 +122,7 @@ function checkOutcome(deps: RunDeps, outcome: RunOutcome, result: StreamResult |
 const STOPPED = "Cancelled — the worker was stopped";
 
 /**
- * Runs one agent job (research, discovery, weekly analyst) end to end; always finishes the job row. `pushed` is whether
+ * Runs one agent job (research, discovery, weekly analyst, daily note) end to end; always finishes the job row. `pushed` is whether
  * the agent's commit reached the remote (null when nothing was committed), for the push backoff.
  */
 export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: boolean | null }> {
@@ -146,30 +163,29 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     writeRunMarker(deps.quarantineRoot, job.id, snapshot);
     const log = touchedLog(deps.quarantineRoot, job.id);
     touched = log;
+    // A reviewed run is published by the worker, not written by the agent: if it is discarded
+    // after publishing, the published file must count as the run's own.
+    if (spec.review) for (const path of spec.requiredOutputs) log.record(path);
 
     db.insert(agentRuns).values({ jobId: job.id, promptVersion: spec.promptVersion }).run();
     event("status", `Started ${spec.label}`);
-    let result: StreamResult | undefined;
-    const outcome = await deps.run({
-      bin: deps.bin,
-      args: claudeArgs(spec.prompt, deps.model),
-      cwd: root,
-      env: agentEnv(token, deps.home, deps.path),
-      timeoutMs: deps.timeoutMs,
-      onLine: (line) => {
-        const summary = summariseLine(line, root);
-        for (const raw of summary.touched)
-          recordTouched(root, log, raw, (text) => event("error", text));
-        for (const e of summary.events) event(e.kind, e.text);
-        if (summary.result) result = summary.result;
-      },
-      shouldCancel: () => deps.stopping() || isCancelRequested(db, job.id),
+    const totalMs = Math.min(deps.timeoutMs, spec.timeoutMs ?? deps.timeoutMs);
+    const attempt = cliAttempt({ deps, job, spec, token, log, event });
+    const last = await runReviewed({
+      spec,
+      root,
+      totalMs,
+      now: deps.now,
+      stopping: deps.stopping,
+      event: (kind, text) => event(kind, text),
+      attempt,
     });
+    const { outcome, result } = last;
     log.seal(); // every output line has been read: the touched list is complete
     setRun({
       exitCode: outcome.exitCode,
-      stdoutTail: outcome.stdoutTail,
-      stderrTail: outcome.stderrTail,
+      stdoutTail: spec.quiet ? QUIET_TAIL : outcome.stdoutTail,
+      stderrTail: spec.quiet ? QUIET_TAIL : outcome.stderrTail,
     });
     // A stopping worker's agent may die of the group SIGTERM before the cancel poll sees it;
     // an agent that finished cleanly is still committed.
@@ -185,29 +201,18 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
       finish(db, job.id, "cancelled", stopped ? STOPPED : null, deps.now());
       return { pushed: null };
     }
-    checkOutcome(deps, outcome, result);
+    checkOutcome(spec, totalMs, outcome, result);
 
+    const digest = publishReviewed(spec, root);
     const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
     checkRequiredOutputs(spec, paths); // a half-done run is discarded, never committed
-    // Validated before the commit: invalid output is discarded with the run, never imported.
-    const output = readAgentOutput(root, spec, deps.products);
-    const message = `agent(${spec.kind}): ${spec.label.replace(/^[^:]+:\s*/, "")}`;
-    const sha = commitChanges(root, paths, message);
-    snapshot = undefined; // committed: nothing left to discard
-    // Recorded first: a run with a commit and no import is what the import retry looks for.
-    setRun({ filesChanged: paths, commitSha: sha });
-    removeRunMarker(deps.quarantineRoot, job.id);
-    event("status", `Committed ${paths.length} file(s)`);
-
-    if (output) importAfterCommit(db, output, job, deps.now(), event);
-
-    const push = pushBrain(root);
-    setRun({ pushed: push.ok });
-    if (push.ok) event("status", "Pushed to the brain repository");
-    else
-      event("error", `Push failed — commit kept locally, will retry automatically: ${push.error}`);
-    finish(db, job.id, "ok", null, deps.now());
-    return { pushed: push.ok };
+    const { pushed } = commitAndPush(
+      { deps, job, spec, paths, event, setRun, result: digest },
+      () => {
+        snapshot = undefined; // committed: nothing left to discard
+      },
+    );
+    return { pushed };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!(error instanceof JobFailure)) console.error(`job ${job.id} crashed`, error);

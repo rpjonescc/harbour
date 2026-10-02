@@ -7,7 +7,7 @@ import { attentionFromActions } from "./from-actions";
 import { sampleToday } from "./sample";
 import type { ProductScores, SourceFailure, TodaySummary } from "./types";
 
-type ProductToday = {
+export type ProductToday = {
   row: ProductScores;
   scannedAt: Date | null;
   scanning: boolean;
@@ -16,7 +16,7 @@ type ProductToday = {
   failures: SourceFailure[];
 };
 
-function productToday(db: Db, productId: string, now: Date): ProductToday {
+export function productToday(db: Db, productId: string, now: Date): ProductToday {
   const { latest, deltas, trend } = productScoreTrend(db, productId, now);
   const scan = scanState(db, productId);
   const failed = scan.last?.status === "failed";

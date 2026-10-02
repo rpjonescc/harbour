@@ -1,9 +1,11 @@
 import { RefreshWhileScanning } from "@/components/products/RefreshWhileScanning";
 import type { CostMeterView } from "@/lib/costs/meter-view";
+import type { NoteSlot } from "@/lib/note/view";
 import type { BackupStatus } from "@/lib/ops/backup-status";
 import type { TodaySummary } from "@/lib/today/types";
 import { BackupNotice } from "./BackupNotice";
 import { CostMeter } from "./CostMeter";
+import { NoteCard } from "./note/NoteCard";
 import { SampleBanner } from "./SampleBanner";
 import { ScoresSection } from "./ScoresSection";
 import { SourceFailures } from "./SourceFailures";
@@ -16,6 +18,7 @@ import { WorthDoingNext } from "./WorthDoingNext";
  */
 export function TodayView({
   today,
+  note,
   costMeter,
   backup,
   now,
@@ -23,6 +26,8 @@ export function TodayView({
   locale,
 }: {
   today: TodaySummary;
+  /** The note card's content; null when the personality is quiet. */
+  note: NoteSlot | null;
   /** Real spend even on the sample Today: the ledger is never sample data. */
   costMeter: CostMeterView;
   /** Real backup health even on the sample Today: shown only when it needs a look. */
@@ -34,6 +39,7 @@ export function TodayView({
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8">
       <RefreshWhileScanning active={today.scanning} />
+      {note && <NoteCard slot={note} timeZone={timeZone} locale={locale} />}
       <TodayHeader
         now={now}
         timeZone={timeZone}

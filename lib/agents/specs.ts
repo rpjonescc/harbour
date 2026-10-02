@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { ANALYST_PROMPT_VERSION, weeklyAnalystPrompt, weeklyPaths } from "@/lib/analyst/prompt";
+import type { Facts } from "@/lib/explain/voice/facts";
+import { dailyNoteSpec } from "@/lib/note/spec";
 import type { Product } from "@/lib/products/catalog";
 import type { AllowedPaths } from "./brain-git";
 import {
@@ -11,9 +13,21 @@ import {
 } from "./prompts";
 import { RESEARCH_TOPICS } from "./topics";
 
-export type AgentKind = "research" | "discovery" | "weekly-analyst";
+export type AgentKind = "research" | "discovery" | "weekly-analyst" | "daily-note";
 /** The structured file a run writes for Harbour to import, if any. */
 export type AgentOutput = { kind: "discovery" | "weekly"; path: string } | null;
+
+export type SpecReview = {
+  check: (root: string) => string | null;
+  retryPrompt: (reason: string) => string;
+  /** Removes the rejected output before the retry (the agent cannot overwrite it). */
+  reset: (root: string) => void;
+  /**
+   * Moves the accepted output to where it is committed and shown, just before the commit.
+   * Returns the short result recorded on the job: what binds the shown output to what was checked.
+   */
+  publish: (root: string) => string;
+};
 
 export type AgentSpec = {
   kind: AgentKind;
@@ -28,6 +42,14 @@ export type AgentSpec = {
   requiredOutputs: string[];
   /** Recorded with the run, so output can be traced to the prompt that produced it. */
   promptVersion: string;
+  /** The tools this run gets, instead of the default research set. */
+  tools?: readonly string[];
+  /** A shorter timeout than HARBOUR_AGENT_TIMEOUT_MINUTES (never a longer one). */
+  timeoutMs?: number;
+  /** Checks what the run wrote before it is committed; one rejection earns one retry. */
+  review?: SpecReview;
+  /** Keep the agent's own words (stream text, output tails) out of the run record. */
+  quiet?: boolean;
 };
 
 export type SpecContext = {
@@ -35,6 +57,8 @@ export type SpecContext = {
   today: string;
   /** The weekly analyst's capped export for `week` (worker only). */
   weeklyExport?: (week: string) => string;
+  /** The daily note's facts snapshot, built when the job starts (worker only). */
+  noteFacts?: () => Facts;
 };
 
 /** Where a job's structured output lives, from its params alone (also used to re-import it). */
@@ -130,5 +154,6 @@ export function specForJob(
   if (kind === "research") return researchSpec(params, context);
   if (kind === "discovery") return discoverySpec(params, context);
   if (kind === "weekly-analyst") return weeklySpec(params, context);
+  if (kind === "daily-note") return dailyNoteSpec(params, context);
   throw new Error(`Not an agent job: ${kind}`);
 }

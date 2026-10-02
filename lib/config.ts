@@ -114,6 +114,15 @@ const schema = z
     HARBOUR_SCHEDULED_ANALYST: z.enum(["on", "off"]).default("on"),
     // "off" stops the worker queueing the monthly research refresh (Refresh stale research still works).
     HARBOUR_SCHEDULED_RESEARCH: z.enum(["on", "off"]).default("on"),
+    // "quiet" turns off the daily note, the note card on Today and the wave.
+    HARBOUR_PERSONALITY: z.enum(["warm", "quiet"]).default("warm"),
+    // Local time (HARBOUR_TIMEZONE) the worker writes the daily note.
+    HARBOUR_NOTE_TIME: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "HARBOUR_NOTE_TIME must be HH:MM, 24-hour, like 06:30")
+      .default("06:30"),
+    // "off" stops the worker queueing the daily note (Write me a fresh one still works).
+    HARBOUR_SCHEDULED_NOTE: z.enum(["on", "off"]).default("on"),
     // Where nightly backups go; default `<folder of HARBOUR_DB_PATH>/backups`. Never in the brain.
     HARBOUR_BACKUP_DIR: z.string().min(1).optional(),
     // "off" stops the worker queueing the nightly backup (`pnpm backup:now` still works).

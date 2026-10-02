@@ -17,8 +17,9 @@ export function finish(
   status: "ok" | "failed" | "cancelled",
   error: string | null,
   now: Date,
+  result: string | null = null,
 ): void {
-  if (!finishJob(db, id, status, error, now)) {
+  if (!finishJob(db, id, status, error, now, result)) {
     console.warn(`job ${id} was no longer running; its result (${status}) was not recorded`);
   }
 }

@@ -54,7 +54,10 @@ export function SchedulesCard({
                     formatWeekdayTime(row.next, timeZone, locale)
                   ) : (
                     <span className="text-ink-muted">
-                      Off — <code className="font-mono text-xs">{row.setting}=off</code>
+                      Off —{" "}
+                      <code className="font-mono text-xs">
+                        {row.setting}={row.offValue ?? "off"}
+                      </code>
                     </span>
                   )}
                 </td>

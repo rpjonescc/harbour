@@ -25,6 +25,13 @@ describe("jobLabel", () => {
     expect(jobLabel({ kind: "retention", params: { day: "2026-10-02" } }, products)).toBe(
       "Retention: 2026-10-02",
     );
+    expect(jobLabel({ kind: "daily-note", params: { stamp: "2026-10-02-0630" } }, products)).toBe(
+      "Daily note: 2026-10-02 06:30",
+    );
+    // A label never throws on odd params: the Agents page lists every job.
+    expect(jobLabel({ kind: "daily-note", params: { stamp: "nonsense" } }, products)).toBe(
+      "Daily note: nonsense",
+    );
     expect(jobLabel({ kind: "notes-sync", params: {} }, products)).toBe("Save notes to GitHub");
     expect(jobLabel({ kind: "scan", params: { productId: "acme-docs" } }, products)).toBe(
       "Scan: Acme Docs",

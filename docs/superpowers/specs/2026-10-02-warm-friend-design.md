@@ -67,8 +67,8 @@ A short note written by the agent each morning, shown at the top of Today:
 - The note is written once per day plus on demand. Today shows the newest valid note from the
   last 24 hours; older than that it shows the quiet gap ("No note yet today").
 - It reuses the existing agent runner and job queue, the same way the weekly analyst runs: one
-  job kind, bounded by its own time, size and rate caps (the cost ledger records paid API calls only; no agent run is metered there)
-  any other agent run.
+  job kind, bounded by its own time, size and rate caps. It is not counted in the cost ledger
+  (see §10(a)); each run is in the Agents run history like any other agent run.
 
 ### 3.3 What the agent is given
 
@@ -91,7 +91,8 @@ The agent's output is parsed with zod and rejected unless:
 - it matches the schema, with every string within its length cap;
 - it is plain text only: no markdown, HTML, links, code or control characters;
 - every number in the text appears in the facts snapshot (so no invented figures), and every
-  area or product it names is in the snapshot;
+  area or product it names is in the snapshot (known limit: a single invented name used only as a
+  sentence's first word cannot be told from an ordinary capitalised word);
 - every pick exactly matches a current active action title;
 - it contains no exclamation-mark runs, no ALL CAPS shouting, and none of a banned list
   (hurry, urgent, behind, overdue, falling behind, failing, must, should have);
@@ -100,16 +101,22 @@ The agent's output is parsed with zod and rejected unless:
   claim trouble.
 
 A rejected note is retried once with the reason fed back; a second failure is recorded as a
-failed run with the reason, and Today shows the quiet gap plus a plain, fixed fallback line built
-from the facts by the plain-language library (the briefing already on the page). Nothing
-rejected is ever shown.
+failed run with the reason, and Today shows the quiet gap (the fallback is the briefing already on
+the page: see §10(c)). Nothing rejected is ever shown.
 
 ### 3.5 Storage
 
 Valid notes are written as markdown files with frontmatter into the brain directory
 (`HARBOUR_BRAIN_DIR`), under `notes/daily/YYYY-MM-DD-HHmm.md`, through the existing brain git
-path, like every other agent output. The web process only reads them. Notes older than the
-retention window are pruned with the other agent artefacts. No new database tables.
+path, like every other agent output. The web process only reads them. Pruning old notes
+is not built (see §10(b)). No new database tables (the
+existing `jobs` table gains one nullable `result` column).
+
+Integrity: the agent can write anywhere in the brain, so a file there proves nothing. The agent
+writes a draft, the worker publishes it only after the checker accepts it, and on success the
+daily-note job stores the sha256 of the published bytes in `jobs.result`. The web process shows a
+note only while a succeeded job for its stamp holds the hash of the file's current bytes: a file
+edited after it was checked, or never checked, is not shown.
 
 ## 4. The Today note card
 
@@ -146,7 +153,8 @@ half of the viewport, behind all content, in the signed-in shell.
 - `ownerName` in `harbour.config.json` (gitignored): optional, trimmed, at most 40 characters,
   validated with zod, never logged, and sent to the agent only as a first name for the
   greeting. `harbour.config.example.json` shows a fictional value.
-- The note job obeys the existing agent budget and cost caps and appears in the Agents page
+- The note job is bounded by its own caps rather than the agent budget and cost caps (see
+  §10(a)) and appears in the Agents page
   run history like other jobs.
 
 ## 7. Architecture and boundaries (AGENTS.md)
@@ -189,3 +197,57 @@ half of the viewport, behind all content, in the signed-in shell.
 4. The Today note card and its data reading.
 5. The wave and its `/design` example.
 6. README, spec notes and full verification.
+
+## 10. As built
+
+Where the build differs from this spec or fills a gap, and why.
+
+- **(a) The cost ledger is not used.** It records paid API calls only, and the note runs on the
+  owner's Claude subscription like every other agent, so nothing is metered there. The note is
+  bounded by its own caps (one run at a time, five minutes an attempt, one retry, at most 5
+  on-demand requests a local day, a facts snapshot and a note file of bounded size) and shows in
+  the Agents run history with its prompt version.
+- **(b) Pruning old notes is not built.** Notes stay in the brain (about 400 small files a year);
+  readers look at only the newest 30.
+- **(c) The fallback line is the briefing already on the page.** Today never shows a made-up
+  substitute. `lib/explain/voice/fallback.ts` holds the quiet gap line, the card's state
+  messages and the fixed sample note for the sample Today.
+- **(d) `HARBOUR_SCHEDULED_NOTE` was added.** Every schedule has an off switch of this form, and
+  the end-to-end suite needs one so a scheduled run does not queue ahead of the runs under test.
+- **(e) "Out of hours" is 20:00 to 04:59 local time, and a weekend is all day Saturday and
+  Sunday** (the weekend wins). The default 06:30 note is therefore a working-morning slot.
+- **(f) The body cap is 360 characters hard, 330 asked of the agent,** so a few over never costs
+  a retry.
+- **(g) The checker has extra rules beyond the spec:** the area codes (SEO, GEO, AEO) are
+  rejected, a note may celebrate only when the facts list wins, scores that are not strong are
+  not praised, number words and vague quantities ("doubled", "dozens") are treated like figures,
+  hidden or look-alike characters are refused, and a pick must not repeat. Unknown names are found
+  by capitalised words that are not in the facts (product names and the first name count as whole
+  phrases; a short allowlist covers everyday proper nouns). Known limits: a single invented name
+  used only as the first word of a sentence can pass, a figure is checked against the whole set of
+  figures so it can sit in the wrong place when it exists elsewhere in the facts, and an invented
+  name in lowercase can pass. Statements made only of known words are not verified ("Google
+  changed its ranking rules overnight, which explains the dip" passes): the persona forbids
+  stating a cause or an outside event (rule 9), but the checker cannot enforce it.
+- **(h) The one retry runs inside the same job,** with the checker's reason fed back and only the
+  time the first attempt left. A rejected draft is deleted before the retry, because Claude
+  Code's `Write` will not overwrite a file it has not read.
+- **(i) The wave is filled with `--accent-soft`,** not `--accent`: that token is a pale tint in
+  light and a deep one in dark, so three faint layers stacked on one pixel keep every text colour
+  at WCAG AA, which `design/wave-contrast.test.ts` proves in light, dark and system dark. The
+  layers (opacity, speed, shape) are defined once in `design/wave.ts`.
+- **(j) The ripple is one CSS rule keyed on `data-mood="celebrate"`** on the note card, which
+  moves the front layer once; reduced motion switches it off with the drift.
+- **(k) The hidden-tab pause is the browser's:** no script watches visibility; browsers do not
+  animate a hidden tab.
+- **(l) The note agent has the `Write` tool only.** No Read and no web: the facts hold titles from
+  crawled pages, so a web tool would be a way out. It writes a draft that Harbour checks, then
+  moves into `notes/daily/`. Today shows a note only when a succeeded `daily-note` job vouches for
+  its stamp and the file's content hash equals the one the checker accepted, so a file added,
+  edited or overwritten afterwards (by any agent) is never shown.
+- **(m) The card knows how the newest run ended.** The note slot carries the newest `daily-note`
+  job's id and status, so "Write me a fresh one" stops waiting when its own run ends: a rejected
+  or failed run is said calmly ("That note didn't pass Harbour's checks, so nothing was shown. You
+  can try again."), and a note re-written in the same minute (same stamp) still ends the wait. The
+  card only promises "the next one is written at HH:MM" when the schedule is on and a token is
+  set. A catch-up note is stamped with the minute it is written, so "Written …" is true.

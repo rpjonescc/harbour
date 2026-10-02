@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { DEMO_NOTE } from "@/components/ui/demo-note";
 import type { ActionStatus } from "@/lib/actions/types";
 import { postJson } from "@/lib/auth/client-api";
 import { useBoardAnnouncer } from "./ActionAnnouncer";
-import { DEMO_NOTE, STATUS_CONTROLS, type StatusControl } from "./action-labels";
+import { STATUS_CONTROLS, type StatusControl } from "./action-labels";
 import { type ChangeSnapshot, snapshotBoard } from "./focus-after-change";
 import { SnoozeForm } from "./SnoozeForm";
 

@@ -1,4 +1,4 @@
-import { type BriefingInput, buildBriefing } from "./briefing";
+import { type BriefingInput, buildBriefing, troubleLines } from "./briefing";
 
 const PRODUCTS = [
   { id: "acme-docs", name: "Acme Docs" },
@@ -186,5 +186,22 @@ describe("buildBriefing", () => {
       backup: "ok",
     });
     expect(briefing.sentence).toBe("Your site needs some work.");
+  });
+
+  it("troubleLines lists each problem in the sub-line's order, and nothing when all is well", () => {
+    expect(troubleLines(input({}))).toEqual([]);
+    expect(
+      troubleLines(
+        input({
+          failedChecks: ["acme-docs"],
+          failures: [{ productId: "fern-and-field", collector: "pagespeed" }],
+          backup: "stale",
+        }),
+      ),
+    ).toEqual([
+      "the last check for Acme Docs didn't finish",
+      "Google speed test (PageSpeed) had a problem in the last check",
+      "no backup in the last 2 days",
+    ]);
   });
 });

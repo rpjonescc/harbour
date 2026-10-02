@@ -74,6 +74,7 @@ test("every schedule is off in the E2E environment", async ({ page }) => {
     ["Weekly analyst", "HARBOUR_SCHEDULED_ANALYST"],
     ["Monthly research refresh", "HARBOUR_SCHEDULED_RESEARCH"],
     ["Nightly backup", "HARBOUR_SCHEDULED_BACKUP"],
+    ["Morning note", "HARBOUR_SCHEDULED_NOTE"],
   ];
   for (const [label, setting] of rows) {
     const row = table.getByRole("row", { name: new RegExp(`^${label}`) });

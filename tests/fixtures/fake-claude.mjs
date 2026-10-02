@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Fake `claude -p` for tests and E2E. Behaviour chosen by FAKE_CLAUDE_SCENARIO.
 import { spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const scenario = process.env.FAKE_CLAUDE_SCENARIO ?? "success";
@@ -50,8 +50,52 @@ const weeklyProposals = (productId) => ({
   ],
 });
 
+// The daily note: the fake reads the fenced facts JSON from the prompt, as the real agent would,
+// and writes a note that is honest about them. note-bad invents a figure; note-retry does so only
+// until the checker's reason is fed back (the retry prompt carries it).
+const noteFacts = () => {
+  const match = /^(`{3,})json\n([\s\S]*?)\n\1$/m.exec(prompt);
+  return match ? JSON.parse(match[2]) : {};
+};
+const noteText = (facts, bad) => {
+  const name = facts.ownerFirstName ? `, ${facts.ownerFirstName}` : "";
+  const trouble = (facts.trouble ?? []).length > 0;
+  const body = bad
+    ? "Your score jumped to 93 overnight and everything is wonderful."
+    : trouble
+      ? "Nothing here is shouting for you. A good place to start is the first item on your list."
+      : "Nothing here is shouting for you. Pick whichever job on your list looks friendliest.";
+  const lines = [
+    "---",
+    `greeting: "Morning${name}."`,
+    'headline: "A quiet one, in a good way."',
+    'mood: "steady"',
+    "picks: []",
+  ];
+  if (facts.rest) lines.push('rest: "Everything here can wait until the next working day."');
+  return [...lines, "---", body, ""].join("\n");
+};
+
+// Like Claude Code's Write tool: an existing file the session has not Read is not overwritten
+// (the daily-note run has no Read tool, so a second attempt must write a fresh path).
 function write(rel, content) {
   const abs = join(process.cwd(), rel);
+  if (rel.startsWith("notes/daily/") && existsSync(abs)) {
+    tool("Write", { file_path: abs });
+    out({
+      type: "user",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            is_error: true,
+            content: "File has not been read yet. Read it first before writing to it.",
+          },
+        ],
+      },
+    });
+    return;
+  }
   mkdirSync(dirname(abs), { recursive: true });
   writeFileSync(abs, content);
   tool("Write", { file_path: abs });
@@ -72,13 +116,32 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
     () => out({ type: "result", subtype: "success", is_error: false, result: "late" }),
     60_000,
   );
+} else if (scenario === "note-fail-text") {
+  // A failed result whose text holds what a note run must never record.
+  out({
+    type: "result",
+    subtype: "success",
+    is_error: true,
+    result: "Sam, your score jumped to 93",
+  });
 } else if (scenario === "fail") {
   out({ type: "result", subtype: "success", is_error: true, result: "Not logged in" });
 } else {
   tool("WebSearch", { query: "fake research query" });
   if (scenario !== "noop") {
     for (const rel of targets) {
-      if (/^reports\/weekly\/.+\.proposals\.json$/.test(rel)) {
+      if (/^notes\/daily\/.+\.md$/.test(rel)) {
+        const retried = prompt.includes("was rejected by Harbour's checker");
+        const bad = scenario === "note-bad" || (scenario === "note-retry" && !retried);
+        const text = noteText(noteFacts(), bad);
+        // The agent's own words stream too: a run record must not keep them for a note.
+        out({ type: "assistant", message: { content: [{ type: "text", text }] } });
+        write(rel, text);
+        if (scenario === "note-write-then-fail") {
+          out({ type: "result", subtype: "success", is_error: true, result: "Crashed" });
+          process.exit(1);
+        }
+      } else if (/^reports\/weekly\/.+\.proposals\.json$/.test(rel)) {
         const productId = scenario === "bad-weekly" ? "ghost-product" : "acme-docs";
         write(rel, JSON.stringify(weeklyProposals(productId), null, 2));
       } else if (rel.endsWith(".md") && scenario === "no-report") {

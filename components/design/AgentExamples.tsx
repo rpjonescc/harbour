@@ -20,6 +20,7 @@ const GIVEN_UP: Job = {
   cancelRequested: false,
   notBefore: null,
   error: null,
+  result: null,
 };
 
 /** Fictional Agents page states: the weekly report and research refresh panels, and a run whose import gave up. */

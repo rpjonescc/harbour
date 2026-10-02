@@ -5,6 +5,7 @@ export const AGENT_JOB_KINDS = [
   "research",
   "discovery",
   "weekly-analyst",
+  "daily-note",
 ] as const satisfies readonly JobKind[];
 
 export type AgentJobKind = (typeof AGENT_JOB_KINDS)[number];

@@ -173,6 +173,15 @@ export const EXAMPLE_SETTINGS: SettingsView = {
       enabled: true,
       next: new Date("2026-10-03T02:15:00Z"),
     },
+    {
+      id: "note",
+      label: "Morning note",
+      when: "Every day at 06:30",
+      setting: "HARBOUR_PERSONALITY",
+      offValue: "quiet",
+      enabled: false,
+      next: null,
+    },
   ],
   keys: [
     {
@@ -180,7 +189,8 @@ export const EXAMPLE_SETTINGS: SettingsView = {
       label: "Claude token",
       settings: ["HARBOUR_CLAUDE_OAUTH_TOKEN"],
       status: "present",
-      usedFor: "Agents: research, discovery, the weekly analyst and research refreshes",
+      usedFor:
+        "Agents: research, discovery, the weekly analyst, research refreshes and the morning note",
       inUse: true,
       paid: false,
     },

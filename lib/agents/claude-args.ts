@@ -15,7 +15,12 @@ export const AGENT_TOOLS = [
 const PRE_APPROVED = ["WebSearch", "WebFetch"] as const;
 
 /** Headless Claude Code invocation with no user settings, plugins, hooks, skills or MCP. */
-export function claudeArgs(prompt: string, model: string): string[] {
+export function claudeArgs(
+  prompt: string,
+  model: string,
+  tools: readonly string[] = AGENT_TOOLS,
+): string[] {
+  const approved = PRE_APPROVED.filter((tool) => tools.includes(tool));
   return [
     "-p",
     prompt,
@@ -27,9 +32,9 @@ export function claudeArgs(prompt: string, model: string): string[] {
     "--permission-mode",
     "acceptEdits",
     "--tools",
-    AGENT_TOOLS.join(","),
-    "--allowed-tools",
-    PRE_APPROVED.join(","),
+    tools.join(","),
+    // Without any web tool there is nothing to pre-approve (and an empty list is not a valid value).
+    ...(approved.length > 0 ? ["--allowed-tools", approved.join(",")] : []),
     "--setting-sources",
     "",
     "--settings",
