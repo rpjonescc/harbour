@@ -54,6 +54,8 @@ describe("honest notes are accepted", () => {
     ["the word score", body("Your score is steady, and the score for Acme Docs is up 3.")],
     ["missing data", body("Acme Docs has missing data in Recommended by AI assistants.")],
     ["a reassurance", body("Nothing is broken, and there are no problems to report.")],
+    ["a failed-free reassurance", body("Nothing has failed, and there was no outage.")],
+    ["a went-wrong reassurance", body("Nothing went wrong overnight, which is a nice start.")],
     ["a score drop worded down 2", body("Acme Docs is down 2 in Found on Google, to 62."), DROPPED],
     [
       "a weekend note",
@@ -100,7 +102,27 @@ describe("bypasses are rejected", () => {
     ["no surprise", "No surprise the site is down."],
     ["never mind", "Never mind that Acme Docs crashed."],
     ["offline", "The checker is offline."],
+    ["an ordinal rank", "Acme Docs is now third on Google."],
+    ["a late ordinal", "Acme Docs climbed to twentieth place."],
+    ["a digit ordinal", "Acme Docs is now 3rd on Google."],
+    ["stalled", "The nightly check stalled."],
+    ["timed out", "The backup timed out."],
+    ["a mark inside a banned word", "Hu\u0301rry along now."],
+    ["a blank braille cell inside a banned word", "Hurr\u2800y along now."],
   ])("%s", (_name, text) => {
     expect(verdict(body(text))).not.toBe("PASS");
+  });
+});
+
+// Known limits: the checker is a net of word lists, not a proof. A statement made only of known
+// words is not verified, so an invented cause or outside event can pass. The persona forbids
+// them (rule 9); the checker cannot. These tests pin the limit so it is never mistaken for a
+// guarantee.
+describe("known limits: statements made only of known words", () => {
+  it.each([
+    ["an invented cause", "Google changed its ranking rules overnight, which explains the dip."],
+    ["an invented outside event", "Acme Docs was featured by Claude yesterday."],
+  ])("%s passes", (_name, text) => {
+    expect(verdict(body(text))).toBe("PASS");
   });
 });

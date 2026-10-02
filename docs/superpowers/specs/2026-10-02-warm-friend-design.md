@@ -108,8 +108,8 @@ the page: see §10(c)). Nothing rejected is ever shown.
 
 Valid notes are written as markdown files with frontmatter into the brain directory
 (`HARBOUR_BRAIN_DIR`), under `notes/daily/YYYY-MM-DD-HHmm.md`, through the existing brain git
-path, like every other agent output. The web process only reads them. Notes older than the
-retention window are pruned with the other agent artefacts. No new database tables (the
+path, like every other agent output. The web process only reads them. Pruning old notes
+is not built (see §10(b)). No new database tables (the
 existing `jobs` table gains one nullable `result` column).
 
 Integrity: the agent can write anywhere in the brain, so a file there proves nothing. The agent
@@ -153,7 +153,8 @@ half of the viewport, behind all content, in the signed-in shell.
 - `ownerName` in `harbour.config.json` (gitignored): optional, trimmed, at most 40 characters,
   validated with zod, never logged, and sent to the agent only as a first name for the
   greeting. `harbour.config.example.json` shows a fictional value.
-- The note job obeys the existing agent budget and cost caps and appears in the Agents page
+- The note job is bounded by its own caps rather than the agent budget and cost caps (see
+  §10(a)) and appears in the Agents page
   run history like other jobs.
 
 ## 7. Architecture and boundaries (AGENTS.md)
@@ -225,7 +226,9 @@ Where the build differs from this spec or fills a gap, and why.
   phrases; a short allowlist covers everyday proper nouns). Known limits: a single invented name
   used only as the first word of a sentence can pass, a figure is checked against the whole set of
   figures so it can sit in the wrong place when it exists elsewhere in the facts, and an invented
-  name in lowercase can pass.
+  name in lowercase can pass. Statements made only of known words are not verified ("Google
+  changed its ranking rules overnight, which explains the dip" passes): the persona forbids
+  stating a cause or an outside event (rule 9), but the checker cannot enforce it.
 - **(h) The one retry runs inside the same job,** with the checker's reason fed back and only the
   time the first attempt left. A rejected draft is deleted before the retry, because Claude
   Code's `Write` will not overwrite a file it has not read.

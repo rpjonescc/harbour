@@ -499,18 +499,23 @@ on the same runner, git gate and Claude subscription as the other agents.
   checked against all the numbers in the snapshot, so it can sit in the wrong place when it
   exists elsewhere in the facts. An invented name written in lowercase can pass. The wording of
   trouble, praise and quantities is matched by word lists, so unusual phrasing can slip through.
+  Statements made only of known words are not verified: "Google changed its ranking rules
+  overnight" passes, because every word is one the checker knows. The persona is told never to
+  say why something moved or to claim a cause or an outside event, but that is a rule for the
+  agent, not something Harbour can check.
 - **Limits** — one run at a time, five minutes an attempt, one retry, and only the `Write` tool.
   It runs on your Claude subscription, so it is not in the cost ledger (which records paid API
   calls only); each run is in the **Agents** history with its prompt version.
 - **When** — like the weekly analyst, the schedule is worked out from the job history: a
   restart never queues it twice, and a worker that was down at the time queues one note when it
-  starts (a first start writes one straight away). A note you asked for after that time counts.
+  starts (a first start writes one straight away), stamped with the minute it is written, so
+  "Written 14:00" on the card is true. A note you asked for after that time counts.
   A failed run is not retried automatically. Without `HARBOUR_CLAUDE_OAUTH_TOKEN` the worker
   skips it and says so in its log. `HARBOUR_SCHEDULED_NOTE=off` stops the schedule.
 - **Write me a fresh one** — the button on Today queues a note now (one at a time, at most 5 a
   day; the scheduled note does not count). Today shows the newest valid note from the last 24
   hours; older than that, or with none, it shows "No note yet today. The next one is written at
-  06:30." The sample Today shows a fixed, labelled sample note.
+  06:30." (or just "No note yet today." when the schedule is off or there is no token). The sample Today shows a fixed, labelled sample note.
 - **Changing the personality** — edit `lib/note/persona/warm-friend.md` (the voice, the honesty
   rules, the format) and bump `NOTE_PROMPT_VERSION` in `lib/note/prompt.ts`. The rules the
   checker enforces are in `lib/explain/voice/`.

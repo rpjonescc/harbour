@@ -6,7 +6,7 @@ import { fenceFor } from "@/lib/text/fence";
 import { draftPath } from "./stamp";
 
 /** Recorded with each run, so a note can be traced to the persona that wrote it. */
-export const NOTE_PROMPT_VERSION = "warm-v1";
+export const NOTE_PROMPT_VERSION = "warm-v2";
 
 const PERSONA = new URL("./persona/warm-friend.md", import.meta.url);
 

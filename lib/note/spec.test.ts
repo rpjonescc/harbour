@@ -21,7 +21,7 @@ describe("dailyNoteSpec", () => {
       requiredOutputs: [PATH],
       requiredFiles: [],
       output: null,
-      promptVersion: "warm-v1",
+      promptVersion: "warm-v2",
       tools: ["Write"],
       timeoutMs: NOTE_TIMEOUT_MS,
     });
