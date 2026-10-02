@@ -14,6 +14,13 @@ const PRODUCT: Product = {
   hue: "amber",
 };
 
+/** The card's one Technical details section; everything else is the card's surface. */
+function technicalDetails(card: HTMLElement): HTMLDetailsElement {
+  const details = within(card).getByText("Technical details", { exact: false }).closest("details");
+  if (!details) throw new Error("the card has no Technical details");
+  return details;
+}
+
 function renderCard(over: Partial<ActionView> = {}) {
   const action = exampleActionView(over);
   render(
@@ -51,10 +58,7 @@ describe("ActionCard", () => {
 
   it("keeps the fix, source, rule key, evidence, docs and prompt inside Technical details", () => {
     const card = renderCard();
-    const details = within(card)
-      .getByText("Technical details", { exact: false })
-      .closest("details");
-    if (!details) throw new Error("the card has no Technical details");
+    const details = technicalDetails(card);
     const inside = within(details);
     for (const text of [
       "Fix",
@@ -83,6 +87,56 @@ describe("ActionCard", () => {
     ).toBeVisible();
   });
 
+  it("keeps the source, rule key and prompt button off the card's surface", () => {
+    const card = renderCard();
+    const surface = card.cloneNode(true) as HTMLElement;
+    const clone = technicalDetails(surface);
+    clone.remove();
+    const outside = within(surface);
+    expect(outside.queryByText("Found by a scan")).toBeNull();
+    expect(outside.queryByText("missing-title")).toBeNull();
+    expect(outside.queryByRole("button", { name: /^Hand to Claude/, hidden: true })).toBeNull();
+  });
+
+  it("gives every card its own names for the parts that repeat", () => {
+    const first = exampleActionView({ id: 1, title: "First thing" });
+    const second = exampleActionView({ id: 2, title: "Second thing" });
+    render(
+      <>
+        {[first, second].map((action) => (
+          <ActionCard
+            key={action.id}
+            action={action}
+            product={PRODUCT}
+            locale="en-GB"
+            timeZone="Europe/London"
+            today="2026-10-02"
+          />
+        ))}
+      </>,
+    );
+    const names = (selector: string, attribute?: string) =>
+      [...document.querySelectorAll(selector)].map((el) =>
+        attribute ? el.getAttribute(attribute) : el.textContent?.replace(/\s+/g, " ").trim(),
+      );
+    for (const list of [
+      names("details > summary"),
+      names("ul[aria-label^='Related docs']", "aria-label"),
+    ]) {
+      expect(new Set(list).size).toBe(list.length);
+    }
+    expect(names("ul[aria-label^='Related docs']", "aria-label")).toEqual([
+      "Related docs: First thing",
+      "Related docs: Second thing",
+    ]);
+    expect(names("details > summary")).toEqual([
+      "History (First thing)",
+      "Technical details (evidence, source and the prompt for Claude: First thing)",
+      "History (Second thing)",
+      "Technical details (evidence, source and the prompt for Claude: Second thing)",
+    ]);
+  });
+
   it("shows the snooze date, and the analyst as the source inside Technical details", () => {
     const card = renderCard({
       status: "snoozed",
@@ -92,7 +146,9 @@ describe("ActionCard", () => {
       who: null,
     });
     expect(within(card).getByText("Snoozed until 12 Oct 2026")).toBeInTheDocument();
-    expect(within(card).getByText("Suggested by the weekly analyst")).toBeInTheDocument();
+    expect(
+      within(technicalDetails(card)).getByText("Suggested by the weekly analyst"),
+    ).toBeInTheDocument();
     expect(within(card).queryByText("Waiting for you")).toBeNull();
   });
 
@@ -118,10 +174,9 @@ describe("ActionCard", () => {
   // Review Focus 5: unreadable stored evidence is a gap, and the rest of the section stays.
   it("says when stored evidence could not be read and keeps the other technical parts", () => {
     const card = renderCard({ evidenceInvalid: true, evidence: { items: [], total: 0 } });
-    expect(
-      within(card).getByText("Harbour could not read the stored evidence."),
-    ).toBeInTheDocument();
-    expect(within(card).getByText("Every page has a title.")).toBeInTheDocument();
+    const inside = within(technicalDetails(card));
+    expect(inside.getByText("Harbour could not read the stored evidence.")).toBeInTheDocument();
+    expect(inside.getByText("Every page has a title.")).toBeInTheDocument();
   });
 
   it("shows agent text as plain text, never markup", () => {

@@ -74,6 +74,7 @@ export function ActionCard({
         </div>
         <PullRequestLink url={action.prUrl} />
         <ActionHistory
+          title={action.title}
           events={action.events}
           truncated={action.historyTruncated}
           timeZone={timeZone}

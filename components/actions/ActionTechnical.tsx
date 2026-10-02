@@ -8,11 +8,12 @@ import type { Product } from "@/lib/products/catalog";
 import { ActionEvidence } from "./ActionEvidence";
 import { SOURCE_LABEL } from "./action-labels";
 
-function DocLinks({ links, invalid }: { links: ActionView["docLinks"]; invalid: boolean }) {
+function DocLinks({ action }: { action: ActionView }) {
+  const { docLinks: links, docsInvalid: invalid } = action;
   if (invalid) return <p className="text-ink-muted">Harbour could not read the related docs.</p>;
   if (links.length === 0) return null;
   return (
-    <ul className="flex flex-wrap gap-x-3 gap-y-1" aria-label="Related docs">
+    <ul className="flex flex-wrap gap-x-3 gap-y-1" aria-label={`Related docs: ${action.title}`}>
       {links.map(({ path, exists }) => (
         <li key={path} className="break-all font-mono">
           {exists ? (
@@ -37,7 +38,10 @@ function DocLinks({ links, invalid }: { links: ActionView["docLinks"]; invalid: 
  */
 export function ActionTechnical({ action, product }: { action: ActionView; product: Product }) {
   return (
-    <TechnicalDetails id="action-card" topic="evidence, source and the prompt for Claude">
+    <TechnicalDetails
+      id="action-card"
+      topic={`evidence, source and the prompt for Claude: ${action.title}`}
+    >
       <div className="flex flex-col gap-3">
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
           <dt className="text-ink-muted">Fix</dt>
@@ -54,7 +58,7 @@ export function ActionTechnical({ action, product }: { action: ActionView; produ
           )}
         </dl>
         <ActionEvidence evidence={action.evidence} invalid={action.evidenceInvalid} />
-        <DocLinks links={action.docLinks} invalid={action.docsInvalid} />
+        <DocLinks action={action} />
         <CopyPromptButton prompt={actionHandoffPrompt(product, action)} title={action.title} />
       </div>
     </TechnicalDetails>

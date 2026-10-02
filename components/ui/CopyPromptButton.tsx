@@ -37,7 +37,7 @@ export function CopyPromptButton({ prompt, title }: { prompt: string; title: str
       {state === "failed" && (
         <textarea
           readOnly
-          aria-label="Prompt for Claude"
+          aria-label={`Prompt for Claude: ${title}`}
           value={prompt}
           rows={8}
           className="w-full rounded-sm border border-line bg-surface-sunk p-2 font-mono text-xs text-ink"
