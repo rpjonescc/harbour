@@ -18,9 +18,12 @@ const ROOTS = [
   "lib/ops/backup-job.ts",
   "lib/ops/retention.ts",
 ];
-const WORD = /\bscan(?:s|ned|ning)?\b/i;
+const WORD = /\b(?:re)?scan(?:s|ned|ning|ner|ners)?\b/i;
 const LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
-const JSX_TEXT = />\s*([^<>{}]*)</g;
+// Text between a tag or an expression and the next one: <p>a {x} b</p> reads "a" and "b".
+// Between `}` and `{` the pattern also reads plain TypeScript; assignments, calls and logic are code.
+const CODE_LIKE = /[=;()]|&&|\|\|/;
+const JSX_TEXT = /(?<=[>}])([^<>{}]*)(?=[<{])/g;
 // Module paths ("@/lib/scan/views") are not prose, and neither are comments.
 const MODULE_PATH = /\bfrom\s+["'][^"']*["']|\bimport\s*\(?\s*["'][^"']*["']/g;
 const COMMENT = /\/\*[\s\S]*?\*\/|(?<![:"'`\\])\/\/.*$/gm;
@@ -42,10 +45,10 @@ function sourcesUnder(path: string): string[] {
  * "scanning" and "scanned" are all prose.
  */
 const allowed = (text: string) =>
-  text === "scan" || /^[\w-]*[/.][\w./-]*$/.test(text) || /^scan-[a-z-]+$/.test(text);
+  text === "scan" || /^\/?[\w-]+(?:[./][\w-]+)+$/.test(text) || /^scan-[a-z-]+$/.test(text);
 
 /** `plural(n, "scan")` builds a word the owner reads, so the bare literal is not a stored value. */
-const pluralised = (before: string) => /\bplural\([^()]*,\s*$/.test(before);
+const pluralised = (before: string) => /\bplural\((?:[^()]|\([^()]*\))*,\s*$/.test(before);
 
 const blank = (text: string) => text.replace(/[^\n]/g, " ");
 
@@ -71,11 +74,13 @@ function literalsIn(code: string, base: number, whole: string): Piece[] {
 /** Every piece of text in the source a person might read: string literals and JSX text. */
 function texts(source: string): Piece[] {
   const code = prose(source);
-  const jsx = [...code.matchAll(JSX_TEXT)].map((m) => ({
-    index: m.index,
-    text: m[1] ?? "",
-    before: "",
-  }));
+  const jsx = [...code.matchAll(JSX_TEXT)]
+    .map((m) => ({
+      index: m.index,
+      text: m[1] ?? "",
+      before: "",
+    }))
+    .filter((piece) => !CODE_LIKE.test(piece.text));
   return [...literalsIn(code, 0, code), ...jsx];
 }
 
@@ -110,6 +115,17 @@ describe("plain vocabulary", () => {
     }
     expect(offencesIn('const t = `${n} ${plural(n, "scan")}`;')).toHaveLength(1);
     expect(offencesIn("const t = `first line\nsecond ${x} scan`;")).toHaveLength(1);
+  });
+
+  it("reads JSX text that touches an expression, and the near-miss words", () => {
+    expect(offencesIn("const a = <p>Next scan: {when}</p>;")).toHaveLength(1);
+    expect(offencesIn("const a = <p>{n} scan results</p>;")).toHaveLength(1);
+    expect(offencesIn("const a = <p>{a} then scan {b}</p>;")).toHaveLength(1);
+    expect(offencesIn("const a = <p>{a} fine {b}</p>;")).toEqual([]);
+    for (const word of ["Scanning...", "Scan.", "Scans/", "rescan", "Rescanned", "scanner"]) {
+      expect(offencesIn(`const label = "${word}";`)).toHaveLength(1);
+    }
+    expect(offencesIn('const t = plural(Math.max(1, n), "scan");')).toHaveLength(1);
   });
 
   it("lets stored values, paths, ids, comments, marked lines and evidence text through", () => {
