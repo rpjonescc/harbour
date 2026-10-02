@@ -209,6 +209,17 @@ describe("SettingsOverview", () => {
     expect(budget.getByText(/A\$12\.40 of A\$60\.00 this month/)).toBeInTheDocument();
   });
 
+  it("shows the morning note as off until Claude is connected when there is no token", () => {
+    const config = parseConfig({
+      HARBOUR_ALLOWED_LOGINS: "owner@example.com",
+      HARBOUR_ORIGIN: "https://harbour.example.ts.net",
+      HARBOUR_RP_ID: "harbour.example.ts.net",
+    });
+    renderView(settingsView(openTestDb(), [], config, EXAMPLE_ZONE.now, false, false));
+    const row = within(section("Schedules")).getByRole("row", { name: /Morning note/ });
+    expect(row).toHaveTextContent("Off until Claude is connected");
+  });
+
   it("links to the other settings pages", () => {
     renderView();
     const more = within(section("More settings"));
@@ -252,7 +263,7 @@ describe("SettingsOverview", () => {
           kind: "product" as const,
         },
       ] as const;
-      const view = settingsView(openTestDb(), products, config, EXAMPLE_ZONE.now, false);
+      const view = settingsView(openTestDb(), products, config, EXAMPLE_ZONE.now, false, true);
       const { container } = renderView(view);
       expect(container.innerHTML).not.toContain("SENTINEL");
       expect(container.innerHTML).not.toContain(dir);

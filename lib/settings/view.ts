@@ -51,15 +51,22 @@ export type SettingsView = {
   timeZone: string;
 };
 
-function schedules(config: Config, now: Date): ScheduleRow[] {
+/** Why the morning note is off: the personality, then its own schedule, else no Claude token. */
+function noteOffReason(config: Config): string {
+  if (config.HARBOUR_PERSONALITY === "quiet") return NOTE_OFF_REASON.quiet;
+  if (config.HARBOUR_SCHEDULED_NOTE === "off") return NOTE_OFF_REASON.schedule;
+  return NOTE_OFF_REASON.token;
+}
+
+function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] {
   const zone = config.HARBOUR_TIMEZONE;
   const on = (value: "on" | "off") => value === "on";
   const scans = on(config.HARBOUR_SCHEDULED_SCANS);
   const analyst = on(config.HARBOUR_SCHEDULED_ANALYST);
   const refresh = on(config.HARBOUR_SCHEDULED_RESEARCH);
   const backup = on(config.HARBOUR_SCHEDULED_BACKUP);
-  const note = noteEnabled(config);
-  const quiet = config.HARBOUR_PERSONALITY === "quiet";
+  // Without Claude the worker never queues a note, so the row must not promise one.
+  const note = noteEnabled(config) && tokenSet;
   return [
     {
       id: "scan",
@@ -102,7 +109,7 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
       label: "Morning note",
       when: `Every day at ${config.HARBOUR_NOTE_TIME}`,
       setting: "HARBOUR_SCHEDULED_NOTE",
-      offReason: note ? null : quiet ? NOTE_OFF_REASON.quiet : NOTE_OFF_REASON.schedule,
+      offReason: note ? null : noteOffReason(config),
       enabled: note,
       next: nextNoteRun(now, zone, config.HARBOUR_NOTE_TIME, note),
     },
@@ -116,6 +123,7 @@ export function settingsView(
   config: Config,
   now: Date,
   isDemoConfig: boolean,
+  tokenSet: boolean,
 ): SettingsView {
   const waiting = new Map(approvalsWaiting(db, products).map((w) => [w.productId, w.count]));
   const month = monthWindow(now, config.HARBOUR_TIMEZONE);
@@ -130,7 +138,7 @@ export function settingsView(
       awaitingApproval: waiting.get(p.id) ?? 0,
     })),
     isDemoConfig,
-    schedules: schedules(config, now),
+    schedules: schedules(config, now, tokenSet),
     keys: keyStatusRows(config),
     budget: {
       ...costMeterView(db, config, now),

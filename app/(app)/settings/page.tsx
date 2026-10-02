@@ -13,7 +13,14 @@ export default async function SettingsPage() {
   const now = new Date();
   return (
     <SettingsOverview
-      view={settingsView(getDb(), products, config, now, demo)}
+      view={settingsView(
+        getDb(),
+        products,
+        config,
+        now,
+        demo,
+        Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN),
+      )}
       now={now}
       locale={config.HARBOUR_LOCALE}
     />

@@ -21,6 +21,7 @@ export const SETTINGS_PURPOSE = {
 export const NOTE_OFF_REASON = {
   quiet: "Off while the personality is quiet",
   schedule: "Off: the morning note schedule is switched off",
+  token: "Off until Claude is connected",
 } as const;
 
 /** The morning note also stops when the personality is quiet; shown only in Technical details. */
