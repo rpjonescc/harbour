@@ -31,10 +31,12 @@ continues with:
   source that failed in the last check, each saying what happened, whether it matters and what
   to do (raw errors under Technical details). Until the first scan finishes it shows clearly
   labelled sample data.
-- **Product pages** — per product: the three scores, **Scan now**, SEO/GEO/AEO tabs explaining
-  every sub-score (its weight, evidence, or why it is missing), the issues the scan found with
-  a **Hand to Claude** button that copies a ready prompt, the crawled pages and their problems,
-  and Search Console clicks, impressions and top queries.
+- **Product pages** — per product: three area cards (Found on Google, Recommended by AI
+  assistants, Answer-ready) each with a verdict, the small number and "What's this?", a
+  one-line summary, **Scan now**, a tab per area listing its sub-scores as plain sentences
+  (weakest first), **What to fix** with a **Hand to Claude** button that copies a ready prompt,
+  the pages Harbour checked, and Google Search Console totals. The numbers, scoring keys, raw
+  evidence, page and search tables sit under **Technical details**.
 - **Actions board** — every issue the scan finds becomes a tracked action, grouped as Big wins,
   Worth doing and Small wins. Each card is a headline, one line on why it matters, a chip for how big a win it is
   (Big win, Worth doing, Small win) and a chip for who's on it (a new idea not decided yet,
@@ -588,9 +590,16 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   Pull request waiting for your OK, or Waiting for you), and the briefing's second line counts
   every one of them; the rest are a link away on the Actions board. Before the first scan is
   scored, Today shows clearly flagged sample data instead.
-- **Product page** (`/products/<id>`) shows where scanning stands (never scanned, queued,
-  running, or how the last scan ended — a failed scan never hides the last good results) and
-  explains each score in its tab. **Issues** come from the scan's raw observations: pages
+- **Product page** (`/products/<id>`) opens with the three area cards and a one-line summary
+  (for example "Acme Docs is in fair shape. Weakest: Answer-ready (needs work)."), plus a note
+  on where scanning stands (never scanned, queued, running, or how the last scan ended, in one
+  sentence; a failed scan never hides the last good results, and the raw error sits under
+  **Technical details**). Each area's tab explains every sub-score as a plain sentence, weakest
+  first, with "What's this?"; one with no data reads "Not counted yet" with the reason and is
+  left out of the score rather than counted as zero. **What to fix** lists the scan's issues
+  with plain titles (the rule titles in `lib/scan/issue-rules.ts`, such as "No guide to your
+  site for AI assistants"); the exact fix and check text and the affected URLs sit under
+  **Technical details**. Issues come from the scan's raw observations: pages
   without a title or meta description, broken internal links, pages hidden by noindex, AI
   crawlers blocked in robots.txt, no llms.txt, no FAQ structured data and no Google Preferred
   Sources button. An issue is raised only from collectors that ran ok in that scan: when the
@@ -601,8 +610,14 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   repository; it contains only the product's name and URL and the scan's findings. Each issue
   also shows its action's status (to do, in progress, snoozed until a date, dismissed, or done
   but still found in the last scan) with a link to it on the Actions board; an issue with no
-  action yet says tracking starts with the next scan. The
-  **Pages** table lists the 50 crawled pages with the most problems.
+  action yet says tracking starts with the next scan. **Pages Harbour checked** is a one-line
+  verdict; the table of the 50 crawled pages with the most problems sits under **Technical
+  details**. The Google Search Console and paid-data panels say in plain words whether they are
+  connected, what they show and how to connect them (setting names only inside the steps), and
+  Search Console's top searches sit under **Technical details**. Actions created before a title
+  was reworded keep the old title until the next scan finds the issue again; open, in-progress,
+  snoozed and dismissed actions then take the new title, and an action already resolved keeps its
+  old one.
 - **Actions** (`/actions`) follow every scan that is not failed: each issue becomes one tracked
   action per product and rule. The next scan that no
   longer finds the issue marks its action done, with a dated note; if the issue comes back, or

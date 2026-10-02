@@ -160,6 +160,18 @@ and appears on `/design`.
 - Keyword, pages, issues and question-matrix tables move behind Technical details or a
   "See all …" link. Their column headers get plain names.
 
+As built:
+
+- The three area cards sit above the tabs; the tabs carry the plain area names and the
+  sub-scores, weakest first, with scores that have no number last as "Not counted yet".
+- The summary reads "Acme Docs is in fair shape. Weakest: Answer-ready (needs work)."
+- Issues stay visible as "What to fix" (plain titles from the rules); their fix and check
+  text, locations and "Hand to Claude" share one Technical details section per card.
+- The pages table and Search Console's top searches sit under Technical details with plain
+  headers. There is no question-matrix table yet; it goes under Technical details when it ships.
+- Rule titles are plain ("No guide to your site for AI assistants"); stored actions take the new
+  title on the next scan.
+
 ### 5.3 Actions
 
 - Board columns are renamed as in §3.
