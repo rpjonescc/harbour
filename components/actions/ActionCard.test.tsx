@@ -35,7 +35,7 @@ describe("ActionCard", () => {
     expect(within(card).getByRole("heading", { level: 3 })).toHaveTextContent(
       "3 pages have no title",
     );
-    for (const text of ["High impact", "SEO", "Acme Docs", "Open", "From scan"]) {
+    for (const text of ["Big win", "SEO", "Acme Docs", "To do", "Found by a scan"]) {
       expect(within(card).getByText(text)).toBeInTheDocument();
     }
     expect(card).toHaveTextContent("Search results show a generated title");
@@ -45,7 +45,7 @@ describe("ActionCard", () => {
     expect(terms).toEqual(["Fix", "Done when", "Effort"]);
     expect(card).toHaveTextContent("Give each page a unique title");
     expect(card).toHaveTextContent("Every page has a title.");
-    expect(within(card).getByText("Small")).toBeInTheDocument();
+    expect(within(card).getByText("quick job")).toBeInTheDocument();
     expect(within(card).getByText("Evidence (3)")).toBeInTheDocument();
     expect(within(card).getByText("…and 1 more")).toBeInTheDocument();
     expect(within(card).getByRole("link", { name: "research/acme-docs/seo.md" })).toHaveAttribute(
@@ -120,9 +120,9 @@ describe("ActionCard", () => {
     const items = within(card)
       .getAllByRole("listitem")
       .map((li) => li.textContent);
-    expect(items).toContain("1 Oct 2026, 10:00 · Scan · created as Open");
-    expect(items).toContain("2 Oct 2026, 10:30 · You · Open → In progress · Started on the docs");
-    expect(card).toHaveTextContent("Older history pruned.");
+    expect(items).toContain("1 Oct 2026, 10:00 · Harbour's scan · created as To do");
+    expect(items).toContain("2 Oct 2026, 10:30 · You · To do → In progress · Started on the docs");
+    expect(card).toHaveTextContent("Older history was cleared to save space.");
   });
 
   it("links the fix's pull request in a new tab", () => {
@@ -163,7 +163,7 @@ describe("ActionCard", () => {
       .getAllByRole("listitem")
       .map((li) => li.textContent);
     expect(items).toContain(
-      "2 Oct 2026, 10:30 · Claude · Open → In progress · Fixing in the docs repo",
+      "2 Oct 2026, 10:30 · Claude · To do → In progress · Fixing in the docs repo",
     );
     expect(items).toContain(
       "2 Oct 2026, 10:40 · Claude · Linked PR https://github.com/acme/widget/pull/42",

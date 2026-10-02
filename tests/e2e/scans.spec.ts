@@ -49,7 +49,7 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
   await broken.getByText("Where").click();
   await expect(broken.getByText(`${SITE}/missing (HTTP 404)`, { exact: false })).toBeVisible();
   // The scan's rule sync opened an action for each issue; the issue links to it on the board.
-  await expect(noTitle.getByText("Open", { exact: true })).toBeVisible();
+  await expect(noTitle.getByText("To do", { exact: true })).toBeVisible();
   await expect(noTitle.getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
     "href",
     /^\/actions\?product=acme-docs&status=all#action-\d+$/,

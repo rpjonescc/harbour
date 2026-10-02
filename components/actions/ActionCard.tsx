@@ -6,19 +6,20 @@ import { Tag } from "@/components/ui/Tag";
 import { actionHandoffPrompt } from "@/lib/actions/handoff";
 import type { ActionView } from "@/lib/actions/views";
 import { brainHref } from "@/lib/brain/wikilinks";
+import { EFFORT_PHRASE, IMPACT_PHRASE, STATUS_COLUMN } from "@/lib/explain/actions";
 import { formatIsoDay } from "@/lib/format/date";
 import type { Product } from "@/lib/products/catalog";
 import { ActionEvidence } from "./ActionEvidence";
 import { ActionHistory } from "./ActionHistory";
 import { ActionStatusControls } from "./ActionStatusControls";
-import { EFFORT_LABEL, IMPACT_LABEL, SOURCE_LABEL, STATUS_LABEL } from "./action-labels";
+import { SOURCE_LABEL } from "./action-labels";
 import { PullRequestLink } from "./PullRequestLink";
 
 function statusText(action: ActionView, locale: string): string {
   if (action.status === "snoozed" && action.snoozedUntil) {
     return `Snoozed until ${formatIsoDay(action.snoozedUntil, locale)}`;
   }
-  return STATUS_LABEL[action.status];
+  return STATUS_COLUMN[action.status];
 }
 
 function DocLinks({ links, invalid }: { links: ActionView["docLinks"]; invalid: boolean }) {
@@ -78,7 +79,7 @@ export function ActionCard({
       >
         <div className="flex flex-wrap items-center gap-1.5">
           <Tag tone={action.impact === "high" ? "warn" : "neutral"}>
-            {IMPACT_LABEL[action.impact]}
+            {IMPACT_PHRASE[action.impact]}
           </Tag>
           <Tag tone="accent">{action.area}</Tag>
           <span className="inline-flex items-center gap-1.5 px-1 text-2xs text-ink-muted">
@@ -102,7 +103,7 @@ export function ActionCard({
           <dt className="text-ink-muted">Done when</dt>
           <dd>{action.check}</dd>
           <dt className="text-ink-muted">Effort</dt>
-          <dd>{EFFORT_LABEL[action.effort]}</dd>
+          <dd>{EFFORT_PHRASE[action.effort]}</dd>
         </dl>
         <ActionEvidence evidence={action.evidence} invalid={action.evidenceInvalid} />
         <DocLinks links={action.docLinks} invalid={action.docsInvalid} />

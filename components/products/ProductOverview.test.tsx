@@ -185,7 +185,7 @@ describe("ProductOverview", () => {
   it("names open, dismissed and done-but-still-found actions", () => {
     const status = (s: "open" | "dismissed" | "done") => ({ id: 5, status: s, snoozedUntil: null });
     for (const [s, text] of [
-      ["open", "Open"],
+      ["open", "To do"],
       ["dismissed", "Dismissed"],
       ["done", "Done — still found in the last scan"],
     ] as const) {

@@ -1,8 +1,10 @@
+import { EmptyState } from "@/components/explain/EmptyState";
 import type { ActionFilter, ActionGroup } from "@/lib/actions/views";
+import { IMPACT_GROUP } from "@/lib/explain/actions";
 import type { Product } from "@/lib/products/catalog";
 import { ActionAnnouncer } from "./ActionAnnouncer";
 import { ActionCard } from "./ActionCard";
-import { EMPTY_MESSAGE, IMPACT_LABEL } from "./action-labels";
+import { EMPTY_STATE } from "./action-labels";
 
 /** The filtered actions, one section per impact, with what the cap left out. */
 export function ActionBoard({
@@ -27,7 +29,7 @@ export function ActionBoard({
   return (
     <ActionAnnouncer>
       {groups.length === 0 ? (
-        <p className="text-sm text-ink-muted">{EMPTY_MESSAGE[filter.status]}</p>
+        <EmptyState {...EMPTY_STATE[filter.status]} />
       ) : (
         <div className="flex flex-col gap-8">
           {groups.map(({ impact, actions }) => (
@@ -37,7 +39,7 @@ export function ActionBoard({
               className="flex flex-col gap-3"
             >
               <h2 id={`impact-${impact}`} tabIndex={-1} className="font-serif text-xl">
-                {IMPACT_LABEL[impact]}
+                {IMPACT_GROUP[impact]}
               </h2>
               {actions.map((action) => {
                 const product = byId.get(action.productId);
@@ -57,7 +59,9 @@ export function ActionBoard({
             </section>
           ))}
           {more > 0 && (
-            <p className="text-sm text-ink-muted">{more} more not shown — narrow the filter</p>
+            <p className="text-sm text-ink-muted">
+              {more} more aren't shown. Use the filters above to narrow the list.
+            </p>
           )}
         </div>
       )}

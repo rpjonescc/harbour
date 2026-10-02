@@ -14,10 +14,14 @@ import { SnoozeForm } from "./SnoozeForm";
 const CHANGED = new Set(["stale", "not_allowed", "until_required", "conflict", "not_found"]);
 
 function failureMessage(error: string): string {
-  if (error === "unauthenticated") return "Your session ended — reload the page and sign in again.";
+  if (error === "unauthenticated") {
+    return "Your sign-in has ended. Reload the page and sign in again, then try again.";
+  }
   if (error === "until_invalid") return "Pick a date between tomorrow and a year from now.";
-  if (CHANGED.has(error)) return "This action changed meanwhile — refreshed.";
-  return "Couldn't update the action — try again.";
+  if (CHANGED.has(error)) {
+    return "This card changed since you opened it, so Harbour refreshed the board. Check it and try again.";
+  }
+  return "That change wasn't saved. Try again in a moment.";
 }
 
 /**

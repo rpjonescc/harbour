@@ -29,8 +29,15 @@ describe("ActionFilters", () => {
     expect(screen.getByLabelText("Product")).toHaveValue("");
     expect(screen.getByLabelText("Area")).toHaveValue("");
     expect(screen.getByLabelText("Status")).toHaveValue("active");
-    expect(screen.getByRole("option", { name: "Open and in progress" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "To do and in progress" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Clear filters" })).toBeNull();
+  });
+
+  it("names the areas in plain words while the URL value stays the code", () => {
+    renderFilters(DEFAULT);
+    expect(screen.getByRole("option", { name: "Found on Google" })).toHaveValue("SEO");
+    expect(screen.getByRole("option", { name: "Recommended by AI assistants" })).toHaveValue("GEO");
+    expect(screen.getByRole("option", { name: "Answer-ready" })).toHaveValue("AEO");
   });
 
   it("keeps the selected values and offers to clear them", () => {

@@ -1,28 +1,11 @@
 import type { StatusChange } from "@/lib/actions/transitions";
 import type { ActionActor, ActionStatus } from "@/lib/actions/types";
 import type { ActionFilter } from "@/lib/actions/views";
-import type { Impact } from "@/lib/scan/issues";
+import { STATUS_COLUMN } from "@/lib/explain/actions";
 
-/** Group headings and card tags. */
-export const IMPACT_LABEL: Record<Impact, string> = {
-  high: "High impact",
-  medium: "Medium impact",
-  low: "Low impact",
-};
-
-export const STATUS_LABEL: Record<ActionStatus, string> = {
-  suggested: "Suggested",
-  open: "Open",
-  in_progress: "In progress",
-  snoozed: "Snoozed",
-  done: "Done",
-  dismissed: "Dismissed",
-};
-
-export const EFFORT_LABEL = { small: "Small", medium: "Medium", large: "Large" } as const;
-
+/** Where an action came from, in Technical details. */
 export const SOURCE_LABEL = {
-  rule: "From scan",
+  rule: "Found by a scan",
   agent: "Suggested by the weekly analyst",
 } as const;
 
@@ -30,29 +13,56 @@ export const SOURCE_LABEL = {
 export const ACTOR_LABEL: Record<ActionActor, string> = {
   owner: "You",
   claude: "Claude",
-  scan: "Scan",
+  scan: "Harbour's scan",
   agent: "Weekly analyst",
   system: "Harbour",
 };
 
-/** Status filter options, in menu order; the default comes first. */
+/** Status filter options, in menu order; the default comes first. URL values stay the stored statuses. */
 export const STATUS_FILTER_LABEL: Record<ActionFilter["status"], string> = {
-  active: "Open and in progress",
-  suggested: "Suggested",
-  snoozed: "Snoozed",
-  done: "Done",
-  dismissed: "Dismissed",
-  all: "All statuses",
+  active: "To do and in progress",
+  suggested: STATUS_COLUMN.suggested,
+  snoozed: STATUS_COLUMN.snoozed,
+  done: STATUS_COLUMN.done,
+  dismissed: STATUS_COLUMN.dismissed,
+  all: "Everything",
 };
 
-/** What the board says when a status filter matches nothing. */
-export const EMPTY_MESSAGE: Record<ActionFilter["status"], string> = {
-  active: "Nothing open. New actions arrive with each scan and the weekly report.",
-  suggested: "No suggestions waiting. The weekly analyst suggests actions with each report.",
-  snoozed: "Nothing snoozed.",
-  done: "Nothing done yet.",
-  dismissed: "Nothing dismissed.",
-  all: "No actions yet. New actions arrive with each scan and the weekly report.",
+/** What the board says when a filter matches nothing: what appears here, when, and why. */
+export const EMPTY_STATE: Record<
+  ActionFilter["status"],
+  { what: string; when: string; why: string }
+> = {
+  active: {
+    what: "Nothing to do right now.",
+    when: "New things show up after each scan and each weekly report.",
+    why: "Until then nothing is waiting on you.",
+  },
+  suggested: {
+    what: "No new ideas waiting.",
+    when: "The weekly analyst adds ideas with each report, on Sundays.",
+    why: "You decide which ones to accept.",
+  },
+  snoozed: {
+    what: "Nothing is snoozed.",
+    when: "A snoozed item comes back on the date you pick.",
+    why: "You can snooze anything on your to-do list.",
+  },
+  done: {
+    what: "Nothing is done yet.",
+    when: "Finished items, and problems a scan no longer finds, appear here.",
+    why: "They stay so you can see what changed.",
+  },
+  dismissed: {
+    what: "Nothing is dismissed.",
+    when: "Items you dismiss appear here.",
+    why: "You can bring any of them back.",
+  },
+  all: {
+    what: "No actions yet.",
+    when: "They arrive after each scan and each weekly report.",
+    why: "Run Scan now on a product page to get the first ones.",
+  },
 };
 
 /** What a /design example says instead of changing anything. */
@@ -64,21 +74,18 @@ export type StatusControl = { label: string; to: StatusChange["to"]; done: strin
 const DONE: StatusControl = { label: "Mark done", to: "done", done: "Marked done" };
 const SNOOZE: StatusControl = { label: "Snooze…", to: "snoozed", done: "Snoozed" };
 const DISMISS: StatusControl = { label: "Dismiss", to: "dismissed", done: "Dismissed" };
+const BACK: StatusControl = {
+  label: "Move back to To do",
+  to: "open",
+  done: "Moved back to To do",
+};
 
 /** The owner's buttons per status: exactly the transitions the server allows. */
 export const STATUS_CONTROLS: Record<ActionStatus, readonly StatusControl[]> = {
-  suggested: [
-    { label: "Accept", to: "open", done: "Accepted" },
-    { label: "Reject", to: "dismissed", done: "Rejected" },
-  ],
+  suggested: [{ label: "Accept", to: "open", done: "Accepted, now in To do" }, DISMISS],
   open: [{ label: "Start", to: "in_progress", done: "Started" }, DONE, SNOOZE, DISMISS],
-  in_progress: [
-    { label: "Back to open", to: "open", done: "Moved back to open" },
-    DONE,
-    SNOOZE,
-    DISMISS,
-  ],
-  snoozed: [{ label: "Wake now", to: "open", done: "Woken up" }, DONE, DISMISS],
-  done: [{ label: "Reopen", to: "open", done: "Reopened" }],
-  dismissed: [{ label: "Restore", to: "open", done: "Restored" }],
+  in_progress: [BACK, DONE, SNOOZE, DISMISS],
+  snoozed: [{ label: "Bring back now", to: "open", done: "Brought back to To do" }, DONE, DISMISS],
+  done: [BACK],
+  dismissed: [{ label: "Restore to To do", to: "open", done: "Restored to To do" }],
 };

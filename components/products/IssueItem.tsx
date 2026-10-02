@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { IMPACT_LABEL, STATUS_LABEL } from "@/components/actions/action-labels";
 import { CopyPromptButton } from "@/components/ui/CopyPromptButton";
 import { Tag } from "@/components/ui/Tag";
 import type { RuleActionStatus } from "@/lib/actions/views";
+import { IMPACT_PHRASE, STATUS_COLUMN } from "@/lib/explain/actions";
 import { formatIsoDay } from "@/lib/format/date";
 import type { Product } from "@/lib/products/catalog";
 import { handoffPrompt } from "@/lib/scan/handoff";
@@ -15,7 +15,7 @@ function actionStatusText(action: RuleActionStatus | null, locale: string): stri
   if (action.status === "snoozed" && action.snoozedUntil) {
     return `Snoozed until ${formatIsoDay(action.snoozedUntil, locale)}`;
   }
-  return STATUS_LABEL[action.status];
+  return STATUS_COLUMN[action.status];
 }
 
 /**
@@ -39,7 +39,7 @@ export function IssueItem({
   return (
     <article aria-labelledby={headingId} className="flex flex-col gap-2 py-4">
       <div className="flex flex-wrap gap-1.5">
-        <Tag tone={issue.impact === "high" ? "warn" : "neutral"}>{IMPACT_LABEL[issue.impact]}</Tag>
+        <Tag tone={issue.impact === "high" ? "warn" : "neutral"}>{IMPACT_PHRASE[issue.impact]}</Tag>
         <Tag tone="accent">{issue.area}</Tag>
         <Tag tone={action?.status === "done" ? "warn" : "neutral"}>
           {actionStatusText(action, locale)}

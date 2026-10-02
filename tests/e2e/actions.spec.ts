@@ -57,19 +57,19 @@ test("the sidebar counts open actions and the board groups them, high impact fir
   ])
     await expect(card(page, title)).toBeVisible();
   await expect(page.getByRole("main").getByRole("heading", { level: 2 }).first()).toHaveText(
-    "High impact",
+    "Big wins",
   );
   // Suggestions wait outside the default view.
   await expect(card(page, SUGGESTED.geo)).toHaveCount(0);
 
   await page.goto("/actions?status=all");
-  const high = page.getByRole("region", { name: "High impact" });
+  const high = page.getByRole("region", { name: "Big wins" });
   await expect(page.getByRole("main").getByRole("heading", { level: 2 }).first()).toHaveText(
-    "High impact",
+    "Big wins",
   );
-  await expect(high.getByRole("article", { name: SUGGESTED.geo })).toContainText("Suggested");
+  await expect(high.getByRole("article", { name: SUGGESTED.geo })).toContainText("New ideas");
   await expect(
-    page.getByRole("region", { name: "Low impact" }).getByRole("article", { name: SUGGESTED.aeo }),
+    page.getByRole("region", { name: "Small wins" }).getByRole("article", { name: SUGGESTED.aeo }),
   ).toBeVisible();
 });
 
@@ -77,7 +77,7 @@ test("filters narrow the board, live in the URL, and clear", async ({ page }) =>
   await page.goto("/actions");
   await page.getByLabel("Product", { exact: true }).selectOption({ label: CAFE.name });
   await page.getByLabel("Area", { exact: true }).selectOption("GEO");
-  await page.getByLabel("Status", { exact: true }).selectOption({ label: "Suggested" });
+  await page.getByLabel("Status", { exact: true }).selectOption({ label: "New ideas" });
   await page.getByRole("button", { name: "Apply" }).click();
 
   await expect(page).toHaveURL(/\/actions\?product=lighthouse-cafe&area=GEO&status=suggested$/);
@@ -98,10 +98,10 @@ test("filters narrow the board, live in the URL, and clear", async ({ page }) =>
 
 test("accept, start and mark done move an action through the board", async ({ page }) => {
   await page.goto(`${CAFE_BOARD}&status=all`);
-  await changeStatus(page, SUGGESTED.aeo, "Accept", "Open");
+  await changeStatus(page, SUGGESTED.aeo, "Accept", "To do");
   const history = card(page, SUGGESTED.aeo).locator("details");
   await card(page, SUGGESTED.aeo).getByText("History").click();
-  await expect(history.getByRole("listitem").last()).toContainText("You · Suggested → Open");
+  await expect(history.getByRole("listitem").last()).toContainText("You · New ideas → To do");
   await changeStatus(page, SUGGESTED.aeo, "Start", "In progress");
   await changeStatus(page, SUGGESTED.aeo, "Mark done", "Done");
 
@@ -112,7 +112,7 @@ test("accept, start and mark done move an action through the board", async ({ pa
   await expect(card(page, SUGGESTED.aeo)).toBeVisible();
 });
 
-test("snooze hides an action until its date; Wake now brings it back", async ({ page }) => {
+test("snooze hides an action until its date; Bring back now brings it back", async ({ page }) => {
   const title = "No llms.txt";
   await page.goto(`${CAFE_BOARD}&status=all`);
   const snooze = card(page, title).getByRole("button", { name: `Snooze…: ${title}` });
@@ -137,12 +137,12 @@ test("snooze hides an action until its date; Wake now brings it back", async ({ 
   await expect(card(page, title)).toHaveCount(0);
 
   await page.goto(`${CAFE_BOARD}&status=snoozed`);
-  const wake = card(page, title).getByRole("button", { name: `Wake now: ${title}` });
+  const wake = card(page, title).getByRole("button", { name: `Bring back now: ${title}` });
   await hydrated(wake);
   await wake.click();
   await expect(page.getByText("Nothing snoozed.")).toBeVisible();
   await page.goto(CAFE_BOARD);
-  await expect(card(page, title).getByText("Open", { exact: true })).toBeVisible();
+  await expect(card(page, title).getByText("To do", { exact: true })).toBeVisible();
 });
 
 test("Hand to Claude copies a prompt with the product, fenced evidence and the check", async ({
@@ -187,7 +187,7 @@ test("Today lists the top three actions in board order; issues link to their act
   const issues = page.getByRole("region", { name: "Issues" });
   for (const title of ["No page has FAQ structured data", "No llms.txt"]) {
     const issue = issues.getByRole("article", { name: title });
-    await expect(issue.getByText("Open", { exact: true })).toBeVisible();
+    await expect(issue.getByText("To do", { exact: true })).toBeVisible();
     await expect(issue.getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
       "href",
       /^\/actions\?product=lighthouse-cafe&status=all#action-\d+$/,

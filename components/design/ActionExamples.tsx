@@ -2,8 +2,8 @@ import { ActionAnnouncer } from "@/components/actions/ActionAnnouncer";
 import { ActionCard } from "@/components/actions/ActionCard";
 import { ActionFilters } from "@/components/actions/ActionFilters";
 import { ApprovalsNote } from "@/components/actions/ApprovalsNote";
-import { STATUS_LABEL } from "@/components/actions/action-labels";
 import { SyncFailureNote } from "@/components/actions/SyncFailureNote";
+import { STATUS_COLUMN } from "@/lib/explain/actions";
 import { EXAMPLE_ACTIONS } from "./action-example-data";
 import { EXAMPLE_PRODUCT } from "./scan-example-data";
 
@@ -31,7 +31,7 @@ export function ActionExamples() {
         {EXAMPLE_ACTIONS.map(({ status, action }) => (
           <div key={status} className="flex flex-col gap-1">
             <p className="text-2xs uppercase tracking-widest text-ink-muted">
-              {STATUS_LABEL[status]}
+              {STATUS_COLUMN[status]}
             </p>
             <ActionCard
               action={action}
