@@ -30,7 +30,7 @@
   --clay-300: #e07a6e;
   --clay-700: #a63d32;
   --fern-300: #86c493;
-  --fern-700: #3d7a4a;
+  --fern-700: #367242; /* WCAG AA (>=4.5:1) as text on bg, surface and surface-sunk */
   /* Primitives: product hues (300 on dark surfaces, 600 on light) */
   --hue-amber-300: #e8b26a;
   --hue-amber-600: #c9822e;
