@@ -10,6 +10,9 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { renderFile } from "@/lib/content/files";
+import type { Platform } from "@/lib/content/ids";
+import { renderPiece } from "@/lib/content/render";
+import type { ContentOf } from "@/lib/content/shapes";
 import { connectionOf, type Db } from "@/lib/db/client";
 import type { ContentProduct } from "@/lib/products/content";
 import { setup } from "./run-job";
@@ -216,5 +219,64 @@ export function digestFile(day: string, themes: [string, string][]): string {
       })),
     },
     themes.map(([, text]) => `- ${text}`).join("\n"),
+  );
+}
+
+export const words = (n: number, word = "word") => Array.from({ length: n }, () => word).join(" ");
+export const tags = (n: number) => Array.from({ length: n }, (_, i) => `#tag${i}`);
+
+/** One valid piece of content per platform (spec §7.3 shapes). */
+export const PIECES: { [P in Platform]: ContentOf<P> } = {
+  linkedin: { text: "Docs that ship in five minutes.", hashtags: ["#docs"] },
+  x: { posts: ["Ship docs in five minutes."], hashtags: [] },
+  instagram: {
+    caption: "Five minutes to a first deploy.",
+    hashtags: tags(3),
+    visual: {
+      concept: "A stopwatch beside a laptop",
+      onImageText: "5 minutes",
+      altText: "A stopwatch",
+    },
+  },
+  facebook: { text: "Our getting-started guide, rebuilt.", hashtags: [] },
+  blog: {
+    title: "Five minutes to a first deploy",
+    metaTitle: "Deploy docs in five minutes",
+    metaDescription: "The shortest path from sign-up to a live docs page.",
+    slug: "five-minutes-to-a-first-deploy",
+    answer: words(45),
+    body: words(700),
+  },
+  website: {
+    heading: "Publish docs today",
+    body: words(60),
+    bullets: ["One page"],
+    ctaLabel: "Try it free",
+  },
+};
+
+/** A valid piece file (drafting, revision 1, every gate pending) for `ideaId` and `platform`. */
+export function pieceFile(ideaId: string, platform: Platform = "linkedin"): string {
+  const content = PIECES[platform];
+  return renderFile(
+    {
+      title: "Five minutes to a first deploy",
+      kind: "content-piece",
+      ideaId,
+      productId: "acme-docs",
+      platform,
+      state: "drafting",
+      revision: 1,
+      gates: { slop: "pending", humanizer: "pending", facts: "pending", platform: "pending" },
+      flags: [],
+      claims: [],
+      questions: [],
+      needsYou: null,
+      edited: false,
+      approvedAt: null,
+      exportPath: null,
+      content,
+    },
+    renderPiece(platform, content),
   );
 }

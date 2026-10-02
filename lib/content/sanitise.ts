@@ -1,3 +1,5 @@
+import type { Platform } from "./ids";
+
 export type SanitiseResult =
   | { ok: true; text: string; stripped: boolean }
   | { ok: false; reason: string };
@@ -30,9 +32,8 @@ function hostOf(target: string): string | null {
   return new URL(target).hostname.toLowerCase().replace(/^www\./, "");
 }
 
-function markdownProblem(text: string, hosts: readonly string[]): string | null {
-  if (BAD_HEADING.test(text)) return "Only ## and ### headings are allowed.";
-  if (BAD_BLOCK.test(text)) return "Quotes and tables are not allowed.";
+/** Why a link in `text` is not allowed (every link must go to one of `hosts`), or null. */
+function linkProblem(text: string, hosts: readonly string[]): string | null {
   const targets = [
     ...text.matchAll(INLINE_LINK),
     ...text.matchAll(REFERENCE_LINK),
@@ -44,6 +45,12 @@ function markdownProblem(text: string, hosts: readonly string[]): string | null 
       return "A link goes outside the product's own site.";
   }
   return null;
+}
+
+function markdownProblem(text: string, hosts: readonly string[]): string | null {
+  if (BAD_HEADING.test(text)) return "Only ## and ### headings are allowed.";
+  if (BAD_BLOCK.test(text)) return "Quotes and tables are not allowed.";
+  return linkProblem(text, hosts);
 }
 
 /**
@@ -69,4 +76,51 @@ export function sanitiseText(
   const problem = kind === "markdown" ? markdownProblem(text, options.allowedHosts ?? []) : null;
   if (problem) return reject(problem);
   return { ok: true, text, stripped: cleaned !== crlf };
+}
+
+function mapStrings(
+  value: unknown,
+  path: string[],
+  visit: (text: string, path: string[]) => string,
+): unknown {
+  if (typeof value === "string") return visit(value, path);
+  if (Array.isArray(value)) return value.map((v, i) => mapStrings(v, [...path, String(i)], visit));
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, mapStrings(v, [...path, k], visit)]),
+    );
+  }
+  return value;
+}
+
+/**
+ * Sanitises every text in a platform piece. Only a blog body may be markdown; every other text is
+ * plain, and a link in any text must go to `allowedHosts`. A rejected text is named by a fixed
+ * sentence, never by its content.
+ */
+export function sanitiseContent<T>(
+  platform: Platform,
+  content: T,
+  allowedHosts: readonly string[],
+): { ok: true; content: T; stripped: boolean } | { ok: false; reason: string } {
+  let stripped = false;
+  let failure: string | null = null;
+  const cleaned = mapStrings(content, [], (text, path) => {
+    const markdown = platform === "blog" && path.join(".") === "body";
+    const result = sanitiseText(text, markdown ? "markdown" : "social", { allowedHosts });
+    const reason = result.ok
+      ? markdown
+        ? null
+        : linkProblem(result.text, allowedHosts)
+      : result.reason;
+    if (reason !== null || !result.ok) {
+      failure ??= reason ?? "It could not be read.";
+      return text;
+    }
+    stripped ||= result.stripped;
+    return result.text;
+  });
+  return failure === null
+    ? { ok: true, content: cleaned as T, stripped }
+    : { ok: false, reason: failure };
 }

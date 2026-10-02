@@ -20,9 +20,10 @@ export type WorkPlan<Out> = {
   files: (value: Out, note: (text: string) => void) => Record<string, string>;
   /**
    * Every planned file is a new one: created exclusively, so a file that appears between the
-   * plan and the write is never overwritten. The failure is this fixed sentence.
+   * plan and the write is never overwritten. The failure is this fixed sentence. `except` names
+   * planned files that may replace an existing one (the idea file an atomise run updates).
    */
-  createOnly?: { inTheWay: string };
+  createOnly?: { inTheWay: string; except?: readonly string[] };
 };
 
 /** Parses a work file's text as strict JSON; the reason never repeats the agent's own values. */
@@ -104,10 +105,11 @@ export function workReview<Out>(input: {
       const created = input.plan.createOnly;
       for (const [path, text] of Object.entries(files)) {
         mkdirSync(dirname(join(root, path)), { recursive: true });
+        const exclusive = created !== undefined && !created.except?.includes(path);
         try {
-          writeFileSync(join(root, path), text, created ? { flag: "wx" } : undefined);
+          writeFileSync(join(root, path), text, exclusive ? { flag: "wx" } : undefined);
         } catch (error) {
-          if (created && (error as NodeJS.ErrnoException).code === "EEXIST") {
+          if (exclusive && created && (error as NodeJS.ErrnoException).code === "EEXIST") {
             throw new Error(created.inTheWay);
           }
           throw error;

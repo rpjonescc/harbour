@@ -48,4 +48,31 @@ describe("workReview with createOnly", () => {
       cleanup();
     }
   });
+
+  it("lets a named file replace the one that is there, and still refuses the rest", () => {
+    const other = "content/ideas/acme-docs/b.md";
+    const mixed: WorkPlan<z.infer<typeof schema>> = {
+      ...plan,
+      files: (value) => ({ [other]: "# other\n", [TARGET]: `# ${value.title}\n` }),
+      createOnly: { inTheWay: SENTENCE, except: [TARGET] },
+    };
+    const { root, cleanup } = makeBrain({
+      "content/work/9.json": '{"title":"new"}',
+      [TARGET]: "old\n",
+      [other]: "owner text\n",
+    });
+    try {
+      const review = workReview({
+        jobId: 9,
+        prompt: "P",
+        plan: mixed,
+        allowed: { prefixes: [], exact: [] },
+      });
+      expect(review.check(root)).toBeNull();
+      expect(() => review.publish(root, () => {})).toThrow(SENTENCE);
+      expect(readFileSync(join(root, other), "utf8")).toBe("owner text\n");
+    } finally {
+      cleanup();
+    }
+  });
 });

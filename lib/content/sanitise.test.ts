@@ -1,4 +1,5 @@
-import { sanitiseText } from "./sanitise";
+import { PIECES } from "@/tests/helpers/content";
+import { sanitiseContent, sanitiseText } from "./sanitise";
 
 const HOSTS = { allowedHosts: ["docs.example.com"] };
 
@@ -96,5 +97,61 @@ describe("sanitiseText hostile input", () => {
     const text =
       "[a]( https://docs.example.com/a )\n\n[b]: https://docs.example.com/b\n\nSee https://docs.example.com/c.";
     expect(sanitiseText(text, "markdown", HOSTS).ok).toBe(true);
+  });
+});
+
+describe("sanitiseContent", () => {
+  const hosts = ["docs.example.com"];
+  it("passes a clean piece unchanged and strips hidden characters from any field, reporting it", () => {
+    expect(sanitiseContent("linkedin", PIECES.linkedin, hosts)).toMatchObject({
+      ok: true,
+      stripped: false,
+    });
+    const dirty = sanitiseContent(
+      "linkedin",
+      { ...PIECES.linkedin, text: "Hi\u200b there" },
+      hosts,
+    );
+    expect(dirty).toMatchObject({ ok: true, stripped: true, content: { text: "Hi there" } });
+    const tag = sanitiseContent("linkedin", { text: "a", hashtags: ["#d\u202eocs"] }, hosts);
+    expect(tag).toMatchObject({ ok: true, stripped: true, content: { hashtags: ["#docs"] } });
+  });
+
+  it("lets only the blog body be markdown, and only with links to the product's own site", () => {
+    const blog = (body: string) => ({ ...PIECES.blog, body });
+    expect(
+      sanitiseContent("blog", blog("## Q?\n\nSee [guide](https://docs.example.com/x)."), hosts).ok,
+    ).toBe(true);
+    expect(sanitiseContent("blog", blog("[x](https://attacker.example/)"), hosts).ok).toBe(false);
+    expect(
+      sanitiseContent("blog", { ...PIECES.blog, answer: "## Heading\n> quote" }, hosts).ok,
+    ).toBe(true);
+    expect(sanitiseContent("linkedin", { ...PIECES.linkedin, text: "## Heading" }, hosts).ok).toBe(
+      true,
+    );
+  });
+
+  it("allows a link to the product's own site in a plain piece and refuses any other host", () => {
+    const link = (text: string) => sanitiseContent("facebook", { text, hashtags: [] }, hosts).ok;
+    expect(link("Read it at https://docs.example.com/start")).toBe(true);
+    expect(link("Read it at https://www.docs.example.com/start")).toBe(true);
+    expect(link("Read it at https://attacker.example/start")).toBe(false);
+    expect(link("Read it at https://docs.example.com.attacker.example/")).toBe(false);
+    expect(link("[x](javascript:alert(1))")).toBe(false);
+  });
+
+  it.each([
+    ["an image beacon", { ...PIECES.blog, body: "![x](https://docs.example.com/p.png)" }, "blog"],
+    ["HTML in a plain piece", { ...PIECES.facebook, text: "<img src=x>" }, "facebook"],
+    ["HTML in a blog answer", { ...PIECES.blog, answer: "<b>hi</b>" }, "blog"],
+    ["a code fence in an X post", { posts: ["```\nx\n```"], hashtags: [] }, "x"],
+    ["a control character", { ...PIECES.linkedin, text: "a\u0007b" }, "linkedin"],
+  ] as const)("rejects %s", (_label, content, platform) => {
+    expect(sanitiseContent(platform, content, hosts).ok).toBe(false);
+  });
+
+  it("never repeats the rejected text in its reason", () => {
+    const result = sanitiseContent("facebook", { text: "<img src=SECRET>", hashtags: [] }, hosts);
+    expect(JSON.stringify(result)).not.toContain("SECRET");
   });
 });
