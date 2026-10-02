@@ -1267,8 +1267,9 @@ These are accepted for the MVP. Each is a limit of a check, not a hole in a prom
   title. Over-excluding is the intended failure; the owner reads the first digests. Added after the
   privacy review: cues are also matched on a copy with scanner mistakes folded (0 as o, 1, | and
   capital I as l, rn as m), short cues may be split by one character, a screen showing an email
-  address, phone or card-like number or credential link is dropped whole before redaction (this
-  also drops screens with a date such as 2026-10-01, by the phone rule), audio transcripts and
+  address, a clear phone shape, a Luhn-valid card number or a credential link is dropped whole
+  before redaction (dates, clocks, versions and plain counts do not drop a frame; excerpts that
+  are kept still go through the broader phone and number redaction), audio transcripts and
   rows of unknown source in `/activity-summary` snippets are never used, a reply with rows where
   none can be read fails as `bad-response`, and frames are deduplicated on letters only and spread
   over the day before the work budget (10,000 characters a frame, 100,000 a product, one second of
