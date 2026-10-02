@@ -5,6 +5,10 @@ import { z } from "zod";
 export const HUES = ["amber", "violet", "blue", "green", "rose", "teal"] as const;
 export type Hue = (typeof HUES)[number];
 
+/** News sites keep Preferred Sources in their AEO score; every other site is a product site. */
+export const PRODUCT_KINDS = ["news", "product"] as const;
+export type ProductKind = (typeof PRODUCT_KINDS)[number];
+
 const SC_DOMAIN = "sc-domain:";
 
 /** Search Console property: `sc-domain:example.com` or a URL prefix ending in "/". */
@@ -19,6 +23,9 @@ const productSchema = z.object({
   name: z.string().trim().min(1, "name must not be empty"),
   url: z.url({ protocol: /^https?$/, message: "url must be an http(s) URL" }),
   hue: z.enum(HUES, { message: `hue must be one of: ${HUES.join(", ")}` }),
+  kind: z
+    .enum(PRODUCT_KINDS, { message: `kind must be one of: ${PRODUCT_KINDS.join(", ")}` })
+    .default("product"),
   searchConsoleProperty: z
     .string()
     .refine(isSearchConsoleProperty, {

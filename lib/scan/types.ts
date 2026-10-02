@@ -1,6 +1,6 @@
 import type { Config } from "@/lib/config";
 import type { ScoreBreakdownEntry } from "@/lib/db/schema";
-import type { Product } from "@/lib/products/catalog";
+import type { Product, ProductKind } from "@/lib/products/catalog";
 
 /** One raw fact a collector saw, e.g. a crawled page or a Search Console day. */
 export type Observation = { kind: string; subject: string; value: Record<string, unknown> };
@@ -84,7 +84,10 @@ export type CollectContext = {
    * throwing. An allowed call never recorded stays counted if the collector throws.
    */
   cost: { record(entry: { provider: string; units: number; amountMicroAud: number }): void };
-  /** Whether a paid call estimated at `estimateMicroAud` fits this month's budget. Ask before every paid call. */
+  /**
+   * Whether a paid call estimated at `estimateMicroAud` fits this month's budget. Ask before every
+   * paid call.
+   */
   budget: { allow(estimateMicroAud: number): boolean };
 };
 
@@ -119,6 +122,10 @@ export type ScanScores = {
 export type ScoreContext = {
   /** When the scan is scored: a carried-over result is judged by its age at this time. */
   now: Date;
+  /**
+   * "news" sites keep Preferred Sources in AEO (formula v1); "product" sites score freshness only.
+   */
+  productKind: ProductKind;
   /**
    * PageSpeed's latest ok run for the product when this scan skipped it (weekly cadence);
    * null when it was not skipped or never ran ok.

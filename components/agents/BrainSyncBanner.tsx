@@ -52,8 +52,8 @@ export function BrainSyncBanner({
           <span>
             {plural(unsaved, "note file", "note files")}{" "}
             {paused
-              ? "not saved yet — autosave resumes once recovery finishes"
-              : "will be saved automatically when the brain is quiet (before the next agent run at the latest)"}
+              ? "not saved yet — saving resumes once recovery finishes"
+              : "will be saved automatically soon"}
           </span>
           {!paused && (
             <Button variant="ghost" onClick={saveNow} disabled={busy}>
@@ -65,8 +65,8 @@ export function BrainSyncBanner({
       {unpushed > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span>
-            {plural(unpushed, "brain commit", "brain commits")} waiting to sync to GitHub — retrying
-            automatically
+            {unpushed} saved {unpushed === 1 ? "change is" : "changes are"} waiting to reach GitHub
+            — Harbour keeps retrying
           </span>
           <Button variant="ghost" onClick={retryNow} disabled={busy}>
             Retry now

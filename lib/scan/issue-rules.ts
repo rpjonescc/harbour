@@ -194,7 +194,10 @@ const noPreferredSources = rule(
     effort: "small",
     docs: [topicPath("google-preferred-sources")],
   },
-  ({ readiness }) => {
+  ({ readiness, productKind }) => {
+    // A Top Stories feature: for any other site the rule never applies, and a clear outcome lets
+    // the normal sync resolve an action raised before formula v2.
+    if (productKind !== "news") return "clear";
     if (!readiness) return NO_READINESS;
     const sources = readiness.preferredSources;
     if (!sources) return { unknown: "The Preferred Sources check had no pages to read" };

@@ -1,21 +1,23 @@
 import Link from "next/link";
 import { ProductDot } from "@/components/ui/ProductDot";
+import { approvalsPhrase } from "@/lib/explain/approvals";
+import { SETTINGS_PURPOSE } from "@/lib/explain/settings";
 import type { SettingsView } from "@/lib/settings/view";
 import { type SectionPlacement, SettingsSection } from "./SettingsSection";
 
 const LINK = "rounded-sm text-accent hover:underline";
 
-/** The products in harbour.config.json, with Search Console and research targets to approve. */
+/** The sites Harbour watches, with Search Console and research targets to approve. */
 export function ProductsCard({
   products,
   isDemoConfig,
   section,
 }: Pick<SettingsView, "products" | "isDemoConfig"> & { section?: SectionPlacement }) {
   return (
-    <SettingsSection {...section} title="Products">
+    <SettingsSection {...section} title="Products" purpose={SETTINGS_PURPOSE.products}>
       {isDemoConfig && (
         <p className="rounded-sm bg-warn-soft px-3 py-2 text-xs text-ink">
-          Demo config — add harbour.config.json to list your products.
+          These are example sites, not yours yet.
         </p>
       )}
       <ul className="flex flex-col divide-y divide-line">
@@ -26,18 +28,24 @@ export function ProductsCard({
               {product.name}
               <span className="font-normal text-ink-muted">{product.url}</span>
             </p>
+            {product.kind === "news" && (
+              <p className="text-xs text-ink-muted">Counted as a news site</p>
+            )}
             <p className="text-xs text-ink-muted">
               {product.searchConsoleProperty ? (
-                <code className="font-mono">{product.searchConsoleProperty}</code>
+                <>
+                  Search Console site:{" "}
+                  <code className="font-mono">{product.searchConsoleProperty}</code>
+                </>
               ) : (
-                "No Search Console property"
+                "Search Console: not set up for this site yet"
               )}
             </p>
             <p className="text-xs">
               {product.awaitingApproval > 0 ? (
                 <Link href={`/settings/products/${product.id}`} className={LINK}>
-                  {product.awaitingApproval} research{" "}
-                  {product.awaitingApproval === 1 ? "target" : "targets"} waiting for approval
+                  {approvalsPhrase(product.awaitingApproval)}{" "}
+                  <span className="sr-only">for {product.name}</span>
                 </Link>
               ) : (
                 <span className="text-ink-muted">No research targets waiting</span>

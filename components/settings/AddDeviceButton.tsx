@@ -22,7 +22,7 @@ export function AddDeviceButton() {
       {link && (
         <div className="space-y-1">
           <p className="text-sm text-ink-muted">
-            Open this on the new device within 15 minutes. It works once.
+            Open this on the new device within 15 minutes. It only works once.
           </p>
           <input
             readOnly

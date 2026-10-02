@@ -19,7 +19,7 @@ function syncActions(context: WorkerContext, { scanId, product, statuses }: Afte
   if (latestGoodScanId(db, product.id) !== scanId) {
     return `Actions: not synced — scan ${scanId} is not the latest good scan of ${product.name}`;
   }
-  const outcomes = evaluateRules(scanObservations(db, scanId), statuses);
+  const outcomes = evaluateRules(scanObservations(db, scanId), statuses, product.kind);
   const at = now();
   const scanDate = isoDateIn(context.config.HARBOUR_TIMEZONE, at);
   const counts = syncRuleActions(db, { productId: product.id, outcomes, scanDate, now: at });

@@ -1,3 +1,4 @@
+import type { ProductKind } from "@/lib/products/catalog";
 import { RULES } from "./issue-rules";
 import { collectorLabel } from "./labels";
 import type { Facts } from "./rule-def";
@@ -44,6 +45,7 @@ export const byImpact = (a: Pick<Issue, "impact">, b: Pick<Issue, "impact">) =>
 export function evaluateRules(
   observations: readonly ScanObservation[],
   statuses: Readonly<Record<string, CollectorStatus>>,
+  kind: ProductKind,
 ): RuleOutcome[] {
   const crawled = crawlPageFacts(observations);
   const facts: Facts = {
@@ -51,6 +53,7 @@ export function evaluateRules(
     unreadablePages: crawled.unreadable,
     site: crawlSiteFacts(observations),
     readiness: readinessFacts(observations),
+    productKind: kind,
   };
   return RULES.map((rule): RuleOutcome => {
     // A collector that did not run ok leaves facts that can't be trusted either way.
@@ -70,8 +73,9 @@ export function evaluateRules(
 export function deriveIssues(
   observations: readonly ScanObservation[],
   statuses: Readonly<Record<string, CollectorStatus>>,
+  kind: ProductKind,
 ): Issue[] {
-  return evaluateRules(observations, statuses)
+  return evaluateRules(observations, statuses, kind)
     .flatMap((outcome) => (outcome.state === "present" ? [outcome.issue] : []))
     .sort(byImpact);
 }

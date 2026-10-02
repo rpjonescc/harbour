@@ -10,6 +10,7 @@ export const EXAMPLE_PRODUCT: Product = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber",
+  kind: "product" as const,
 };
 
 const AT = new Date("2026-10-01T05:04:00Z");
@@ -18,7 +19,7 @@ export const EXAMPLE_SCORES: ScoreTrend = {
   latest: {
     scanId: 1,
     computedAt: AT,
-    formulaVersion: "v1",
+    formulaVersion: "v2",
     totals: { seo: 78, geo: 46, aeo: null },
     complete: { seo: true, geo: false, aeo: false },
     breakdown: [
@@ -71,13 +72,13 @@ const last = (status: "ok" | "partial" | "failed"): NonNullable<ScanState["last"
 });
 
 export const EXAMPLE_SCAN_STATES: { label: string; scan: ScanState }[] = [
-  { label: "Never scanned", scan: { active: null, last: null } },
+  { label: "Never checked", scan: { active: null, last: null } },
   {
     label: "Running",
     scan: { active: { jobId: 9, status: "running", since: AT }, last: last("ok") },
   },
   {
-    label: "Running after a failed scan",
+    label: "Running after a failed check",
     scan: { active: { jobId: 9, status: "running", since: AT }, last: last("failed") },
   },
   { label: "Partly failed", scan: { active: null, last: last("partial") } },

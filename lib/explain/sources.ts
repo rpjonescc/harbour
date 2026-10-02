@@ -17,7 +17,7 @@ export type SourceExplanation = {
 };
 
 const BUILT_IN = ["Nothing to set up: it runs with every daily check."];
-const RESTART =
+export const RESTART_WORKER =
   "Restart the worker so it picks up the change: systemctl --user restart harbour-worker.";
 const BUILT_IN_STATUS = { connected: "Working", notConnected: "Always on: nothing to connect" };
 const PAID_STATUS = {
@@ -75,7 +75,7 @@ export const SOURCES: readonly SourceExplanation[] = [
     connect: [
       "In the Google Cloud console, enable the PageSpeed Insights API and create a free API key restricted to it.",
       "Add the key to .env as HARBOUR_PAGESPEED_API_KEY.",
-      RESTART,
+      RESTART_WORKER,
     ],
     status: {
       connected: "Connected",
@@ -94,7 +94,7 @@ export const SOURCES: readonly SourceExplanation[] = [
       "Run pnpm gsc:connect on the Harbour machine and sign in with the Google account that can see your sites in Search Console.",
       "Set HARBOUR_GSC_CREDENTIALS in .env to the file it saved.",
       "Give each product its searchConsoleProperty in harbour.config.json.",
-      RESTART,
+      RESTART_WORKER,
     ],
     status: {
       connected: "Connected",

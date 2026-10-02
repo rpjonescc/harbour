@@ -18,7 +18,10 @@ export type RefreshPanelView = {
   schedule: string;
   /** How many research documents there are in all. */
   total: number;
-  /** Documents due for a refresh, oldest first: "researched 10 Jan", "date unknown" or "date in the future". */
+  /**
+   * Documents due for a refresh, oldest first: "researched 10 Jan", "date unknown" or "date in the
+   * future".
+   */
   due: { title: string; age: string }[];
   /** Research documents not written yet (the research sprint writes them, not a refresh). */
   missing: number;
@@ -41,9 +44,9 @@ function describeAge(researched: string | null, today: string, locale: string): 
 
 function scheduleLine(settings: RefreshPanelSettings, now: Date): string {
   const next = nextMonthlyRefresh(now, settings.timeZone, settings.enabled);
-  if (!next) return "Scheduled refresh is off";
-  if (!settings.tokenSet) return "Scheduled refresh needs a Claude token";
-  return `Next scheduled refresh: ${formatWeekdayTime(next, settings.timeZone, settings.locale)}`;
+  if (!next) return "Research is only updated when you ask.";
+  if (!settings.tokenSet) return "Research updates are paused until Claude is connected.";
+  return `Next research update: ${formatWeekdayTime(next, settings.timeZone, settings.locale)}`;
 }
 
 /** What the Agents page shows about the research refresh. */

@@ -54,7 +54,7 @@ describe("ScoreTable", () => {
       "61* (incomplete)▲up 2",
       "—no score",
       "22",
-      "—Not enough scans for a trend yet",
+      "—Not enough checks for a trend yet",
     ]);
     expect(screen.getByText(/Incomplete: a source is not connected or failed/)).toBeInTheDocument();
   });

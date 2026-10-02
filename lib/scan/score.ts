@@ -6,8 +6,11 @@ import { SEO_SUB_SCORES } from "./scoring/seo";
 import { type SubScore, type SubScoreSpec, type Total, toScore } from "./scoring/sub-score";
 import type { ScanScores, ScoreScan } from "./types";
 
-/** Bump with any change to a formula, weight or threshold: stored rows keep their version. */
-export const FORMULA_VERSION = "v1";
+/**
+ * Bump with any change to a formula, weight or threshold: stored rows keep their version.
+ * v2: Preferred Sources only counts for news sites (spec §6).
+ */
+export const FORMULA_VERSION = "v2";
 
 /** Each total's sub-scores. A weight-0 entry is a "not connected yet" note. */
 export const SUB_SCORES: Readonly<Record<Total, readonly SubScoreSpec[]>> = {
@@ -50,7 +53,7 @@ function total(scored: readonly Scored[]): { value: number | null; complete: boo
 }
 
 /**
- * Scoring v1: SEO, GEO and AEO totals (0–100) from a scan's observations, with a breakdown
+ * Scoring v2: SEO, GEO and AEO totals (0–100) from a scan's observations, with a breakdown
  * entry per sub-score explaining its number or why it is missing. Pure: same input, same
  * result; a collector that did not end ok, or whose data is malformed, is a gap, never a zero.
  */

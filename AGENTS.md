@@ -121,6 +121,8 @@ clear and easy to understand.
   steps. Area names, verdicts, sub-score, data-source and action wording come from
   `lib/explain/` — never a second copy in a component. Every message says what happened,
   whether it matters and what to do.
+  A visibility check is called "check" (button: Check now), never "scan"; command names, API
+  routes and settings keep *scan*.
 
 ## Reliability and security
 

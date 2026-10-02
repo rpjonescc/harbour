@@ -2,6 +2,7 @@ import {
   ACME_CRAWL,
   ACME_SCAN,
   ALL_OK,
+  CONTEXT,
   cwv,
   daysOf,
   entryOf as entry,
@@ -17,7 +18,7 @@ const DAY = 24 * 60 * 60_000;
 describe("scoreScan on a full scan", () => {
   it("scores every sub-score and total exactly, with the evidence behind each", () => {
     expect(score(ACME_SCAN)).toEqual({
-      formulaVersion: "v1",
+      formulaVersion: "v2",
       seo: 81,
       geo: 92,
       aeo: 88,
@@ -129,12 +130,11 @@ describe("scoreScan on a full scan", () => {
         },
         {
           key: "aeo.preferredSources",
-          label: "Preferred Sources readiness",
+          label: "Fresh content and Preferred Sources",
           score: 100,
           weight: 0.25,
           status: "ok",
-          evidence:
-            "Preferred Sources button on 1 page; 4 URLs updated in the last 30 days (fresh content).",
+          evidence: "4 URLs updated in the last 30 days (fresh content).",
         },
         {
           key: "aeo.snippets",
@@ -154,14 +154,9 @@ describe("scoreScan on a full scan", () => {
     expect(score(input)).toEqual(first);
     expect(input).toEqual(ACME_SCAN);
   });
-
-  it("is formula v1", () => {
-    expect(FORMULA_VERSION).toBe("v1");
-    expect(score(ACME_SCAN)?.formulaVersion).toBe("v1");
-  });
 });
 
-describe("scoring v1 weights", () => {
+describe("scoring v2 weights", () => {
   it.each(Object.entries(SUB_SCORES))("%s weights sum to 1", (_total, specs) => {
     const sum = specs.reduce((n, spec) => n + spec.weight, 0);
     expect(sum).toBeCloseTo(1, 10);
@@ -234,6 +229,7 @@ describe("scoreScan with a weekly PageSpeed skipped this scan", () => {
   const withoutCwv = ACME_SCAN.filter((o) => o.collector !== "pagespeed");
   const previous = (daysAgo: number) => ({
     now: NOW,
+    productKind: "product" as const,
     previousPagespeed: {
       observations: [cwv({ performanceScore: 90, fieldDataAvailable: false, inpMs: null })],
       finishedAt: new Date(NOW.getTime() - daysAgo * DAY),
@@ -273,5 +269,40 @@ describe("scoreScan with a weekly PageSpeed skipped this scan", () => {
   it("ignores an earlier result when PageSpeed failed this scan", () => {
     const result = score(withoutCwv, { ...ALL_OK, pagespeed: "failed" }, previous(1));
     expect(entry(result, "seo.cwv")?.evidence).toBe("PageSpeed failed in this scan");
+  });
+});
+
+describe("scoring v2", () => {
+  const stale = readiness({
+    preferredSources: {
+      button: true,
+      buttonPages: ["https://docs.example.com/"],
+      freshUrls: 1,
+      freshContent: false,
+    },
+  });
+  const observations = [
+    ...ACME_CRAWL,
+    stale,
+    cwv(),
+    ...searchConsole(daysOf(28, 59), daysOf(28, 50)),
+  ];
+  const scoreKind = (productKind: "news" | "product") =>
+    score(observations, ALL_OK, { ...CONTEXT, productKind });
+
+  it("is formula v2", () => {
+    expect(FORMULA_VERSION).toBe("v2");
+    expect(scoreKind("product")?.formulaVersion).toBe("v2");
+  });
+
+  it("changes only the Preferred Sources sub-score and the AEO total between kinds", () => {
+    const news = scoreKind("news");
+    const product = scoreKind("product");
+    expect(entry(news, "aeo.preferredSources")?.score).toBe(50);
+    expect(entry(product, "aeo.preferredSources")?.score).toBe(0);
+    expect(entry(product, "aeo.preferredSources")?.weight).toBe(0.25);
+    expect(news?.seo).toBe(product?.seo);
+    expect(news?.geo).toBe(product?.geo);
+    expect(news?.aeo).toBeGreaterThan(product?.aeo ?? 0);
   });
 });

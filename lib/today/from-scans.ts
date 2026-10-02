@@ -16,8 +16,12 @@ export type ProductToday = {
   failures: SourceFailure[];
 };
 
-export function productToday(db: Db, productId: string, now: Date): ProductToday {
-  const { latest, deltas, trend } = productScoreTrend(db, productId, now);
+export function productToday(
+  db: Db,
+  { id: productId, kind }: Pick<Product, "id" | "kind">,
+  now: Date,
+): ProductToday {
+  const { latest, deltas, trend } = productScoreTrend(db, productId, kind, now);
   const scan = scanState(db, productId);
   const failed = scan.last?.status === "failed";
   return {
@@ -48,7 +52,7 @@ export function todaySummary(
   now: Date,
   backup: BackupHealth,
 ): TodaySummary {
-  const perProduct = products.map((p) => productToday(db, p.id, now));
+  const perProduct = products.map((p) => productToday(db, p, now));
   const scanning = perProduct.some((p) => p.scanning);
   const scanned = perProduct.flatMap((p) => (p.scannedAt ? [p.scannedAt] : []));
   const failures = perProduct.flatMap((p) => p.failures);

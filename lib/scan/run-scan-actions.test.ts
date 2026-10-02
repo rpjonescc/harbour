@@ -88,7 +88,7 @@ describe("runScan action sync", () => {
       actor: "scan",
       from: "open",
       to: "done",
-      note: `Resolved — not found in scan of ${run.day(t0.getTime() + DAY)}`,
+      note: `Resolved — not found in the check of ${run.day(t0.getTime() + DAY)}`,
     });
     expect(texts(run.db, job)).toContain("Actions: 0 new, 1 resolved, 0 reopened");
   });

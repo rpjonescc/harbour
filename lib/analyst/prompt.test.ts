@@ -7,6 +7,7 @@ const acme = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber" as const,
+  kind: "product" as const,
 };
 const products = [acme];
 const exportJson = JSON.stringify({ week: "2026-W40", products: [] });
@@ -22,6 +23,12 @@ describe("weeklyAnalystPrompt", () => {
     );
     expect(prompt).toContain('A missing score is a gap, never "Needs work".');
     expect(prompt).not.toContain("search (SEO), being cited by AI engines (GEO)");
+  });
+
+  it("says a score from another formula version is not comparable", () => {
+    expect(prompt).toContain(
+      "A score from a different formula version is not comparable; do not call a change that crosses a version an improvement or a decline.",
+    );
   });
 
   it("names both target files on the first line", () => {
@@ -112,6 +119,6 @@ describe("weeklyAnalystPrompt", () => {
   });
 
   it("is versioned", () => {
-    expect(ANALYST_PROMPT_VERSION).toBe("4-v3");
+    expect(ANALYST_PROMPT_VERSION).toBe("4-v4");
   });
 });

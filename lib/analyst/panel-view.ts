@@ -17,7 +17,9 @@ export type WeeklyPanelSettings = {
 };
 
 export type WeeklyPanelView = {
-  /** One line on the schedule: off, blocked, a run queued or running, a catch-up due, or the next run. */
+  /**
+   * One line on the schedule: off, paused, a report waiting or being written, one due, or the next.
+   */
   schedule: string;
   latestReport: { week: string; href: string } | null;
   tokenSet: boolean;
@@ -51,15 +53,16 @@ function activeRunStatus(db: Db): string | null {
 function scheduleLine(db: Db, settings: WeeklyPanelSettings, now: Date): string {
   const { timeZone, locale, enabled, tokenSet } = settings;
   const next = nextWeeklyRun(now, timeZone, enabled);
-  if (!next) return "Scheduled runs are off";
-  if (!tokenSet) return "Scheduled runs need a Claude token";
+  if (!next) return "The weekly report only runs when you ask for it.";
+  if (!tokenSet) return "The weekly report is paused until Claude is connected.";
   const active = activeRunStatus(db);
-  if (active) return `A weekly report run is ${active}`;
+  if (active)
+    return `This week's report is ${active === "running" ? "being written now" : "waiting to start"}.`;
   const pending = pendingWeeklySlot(db, now, timeZone);
   if (pending) {
-    return `Catch-up due: the worker queues the ${pending.week} report at its next check, if a product was scanned in the last 7 days`;
+    return `Last week's report (${pending.week}) is due. Harbour starts it shortly, if a site was checked in the last 7 days.`;
   }
-  return `Next scheduled run: ${formatWeekdayTime(next, timeZone, locale)}`;
+  return `Next report: ${formatWeekdayTime(next, timeZone, locale)}`;
 }
 
 /** What the Agents page shows about the weekly analyst report. */

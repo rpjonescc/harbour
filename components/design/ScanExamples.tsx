@@ -5,10 +5,12 @@ import { PaidSourcePanels } from "@/components/products/PaidSourcePanels";
 import { ScanNowButton } from "@/components/products/ScanNowButton";
 import { ScanStatusNote } from "@/components/products/ScanStatusNote";
 import { ScoreBreakdown } from "@/components/products/ScoreBreakdown";
+import { ScoringNote } from "@/components/products/ScoringNote";
 import { SearchConsolePanel } from "@/components/products/SearchConsolePanel";
 import { ScoreBar } from "@/components/ui/ScoreBar";
 import { ScoreValue } from "@/components/ui/ScoreValue";
 import { Tabs } from "@/components/ui/Tabs";
+import type { RuleActionStatus } from "@/lib/actions/views";
 import { AREAS } from "@/lib/explain/areas";
 import {
   EXAMPLE_ISSUE,
@@ -19,12 +21,24 @@ import {
 
 const ZONE = { timeZone: "Europe/London", locale: "en-GB" };
 
+/** Every state an issue card's action chip can show. */
+const ISSUE_STATES: { label: string; action: RuleActionStatus | null }[] = [
+  {
+    label: "Claude is on it",
+    action: { id: 1, status: "in_progress", snoozedUntil: null, who: "claude" },
+  },
+  { label: "Open", action: { id: 2, status: "open", snoozedUntil: null, who: "you" } },
+  { label: "Done, still found", action: { id: 3, status: "done", snoozedUntil: null, who: null } },
+  { label: "Snoozed", action: { id: 4, status: "snoozed", snoozedUntil: "2026-10-20", who: null } },
+  { label: "Not tracked yet", action: null },
+];
+
 /** Fictional product-page states for checking the scan components in both themes. */
 export function ScanExamples() {
   const breakdown = EXAMPLE_SCORES.latest?.breakdown ?? [];
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-xs text-ink-muted">Illustrative scores, scans and issues.</p>
+      <p className="text-xs text-ink-muted">Illustrative scores, checks and issues.</p>
       <div className="flex flex-wrap items-center gap-6 text-sm">
         <ScoreValue value={78} delta={4} />
         <ScoreValue value={46} delta={-2} complete={false} />
@@ -37,6 +51,7 @@ export function ScanExamples() {
         </div>
         <ScanNowButton productId={EXAMPLE_PRODUCT.id} active={null} demo />
       </div>
+      <ScoringNote change={{ from: "v1", to: "v2", at: new Date("2026-09-28T06:00:00Z") }} />
       <AreaCards
         scores={EXAMPLE_SCORES}
         scan={EXAMPLE_SCAN_STATES[0]?.scan ?? { active: null, last: null }}
@@ -67,12 +82,17 @@ export function ScanExamples() {
           },
         ]}
       />
-      <IssueItem
-        issue={EXAMPLE_ISSUE}
-        action={{ id: 1, status: "in_progress", snoozedUntil: null }}
-        product={EXAMPLE_PRODUCT}
-        locale={ZONE.locale}
-      />
+      {ISSUE_STATES.map(({ label, action }) => (
+        <div key={label} className="flex flex-col gap-1">
+          <p className="text-2xs uppercase tracking-widest text-ink-muted">Issue · {label}</p>
+          <IssueItem
+            issue={{ ...EXAMPLE_ISSUE, id: `${EXAMPLE_ISSUE.id}-${action?.id ?? "none"}` }}
+            action={action}
+            product={EXAMPLE_PRODUCT}
+            locale={ZONE.locale}
+          />
+        </div>
+      ))}
       <PagesTable
         total={2}
         rows={[

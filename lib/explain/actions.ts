@@ -7,6 +7,11 @@ export const IMPACT_PHRASE: Readonly<Record<Impact, string>> = {
   low: "Small win",
 };
 
+/** The size of a win's chip tone: one answer for the board, Today and the issue cards. */
+export function impactTone(impact: Impact): "warn" | "neutral" {
+  return impact === "high" ? "warn" : "neutral";
+}
+
 export const EFFORT_PHRASE: Readonly<Record<Effort, string>> = {
   small: "quick job",
   medium: "an afternoon",
@@ -52,6 +57,30 @@ export function whoIsOnIt({ status, prUrl, statusActor }: WhoInput): WhoOnIt | n
   return statusActor === "claude" ? "claude" : "you";
 }
 
+export type StatusChip = { text: string; tone: "accent" | "warn" | "neutral" };
+
+/**
+ * The chip beside an action's size of win, for the board and the issue cards: who's on it, else
+ * where it stands. `stillFound` is the issue card, which sits on a page about what the last check
+ * found, so a done action says it is still found; null is an issue the rule sync hasn't tracked
+ * yet. `day` words a stored YYYY-MM-DD (the caller's locale), which keeps formatting out of here.
+ */
+export function statusChip(
+  action: { status: ActionStatus; who: WhoOnIt | null; snoozedUntil: string | null } | null,
+  day: (isoDay: string) => string,
+  stillFound = false,
+): StatusChip {
+  if (action === null) return { text: "Tracking starts with the next check", tone: "neutral" };
+  if (action.who) return { text: WHO_PHRASE[action.who], tone: "accent" };
+  if (action.status === "done" && stillFound) {
+    return { text: "Done — still found in the last check", tone: "warn" };
+  }
+  if (action.status === "snoozed" && action.snoozedUntil) {
+    return { text: `Snoozed until ${day(action.snoozedUntil)}`, tone: "neutral" };
+  }
+  return { text: STATUS_COLUMN[action.status], tone: "neutral" };
+}
+
 /** The Actions board's group headings: a group holds many, so these are plural. */
 export const IMPACT_GROUP: Readonly<Record<Impact, string>> = {
   high: "Big wins",
@@ -67,4 +96,9 @@ export function boardSummary(counts: {
 }): string {
   const ideas = counts.suggested === 1 ? "idea" : "ideas";
   return `${counts.open} to do · ${counts.in_progress} in progress · ${counts.suggested} new ${ideas}`;
+}
+
+/** "3 things worth doing": Today's sub-line and the sidebar badge say it the same way. */
+export function thingsWorthDoing(n: number): string {
+  return `${n} ${n === 1 ? "thing" : "things"} worth doing`;
 }

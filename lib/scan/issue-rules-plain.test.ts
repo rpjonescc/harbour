@@ -21,7 +21,7 @@ function issuesWhenBlocked(agent: string): Issue[] {
       preferredSources: { button: false },
     }),
   ];
-  return evaluateRules(observations, ALL_OK).flatMap((o) =>
+  return evaluateRules(observations, ALL_OK, "news").flatMap((o) =>
     o.state === "present" ? [o.issue] : [],
   );
 }
@@ -89,6 +89,7 @@ describe("rule titles in plain words", () => {
     const titles = evaluateRules(
       [htmlPage("/a", { titleLength: 0 }), htmlPage("/b", { titleLength: 0 }), crawlSite()],
       ALL_OK,
+      "product",
     ).flatMap((o) => (o.state === "present" ? [o.issue.title] : []));
     expect(titles).toContain("2 pages are missing a title");
   });

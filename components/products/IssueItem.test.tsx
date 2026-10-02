@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, within } from "@testing-library/react";
+import type { RuleActionStatus } from "@/lib/actions/views";
 import type { Product } from "@/lib/products/catalog";
 import { deriveIssues } from "@/lib/scan/issues";
 import { ACME_CRAWL, ALL_OK, readiness } from "@/tests/helpers/scoring";
@@ -10,33 +11,40 @@ const product: Product = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber",
+  kind: "product" as const,
 };
 // The real rules over Acme Docs' crawl: the first issue is the broken link.
-const [broken] = deriveIssues([...ACME_CRAWL, readiness()], ALL_OK);
+const [broken] = deriveIssues([...ACME_CRAWL, readiness()], ALL_OK, "product");
 const issue = (() => {
   if (!broken) throw new Error("expected an issue");
   return broken;
 })();
 
+const renderWith = (action: RuleActionStatus | null) =>
+  render(<IssueItem issue={issue} action={action} product={product} locale="en-GB" />);
 const renderIssue = () =>
-  render(
-    <IssueItem
-      issue={issue}
-      action={{ id: 5, status: "in_progress", snoozedUntil: null }}
-      product={product}
-      locale="en-GB"
-    />,
-  );
+  renderWith({ id: 5, status: "in_progress", snoozedUntil: null, who: "claude" });
 
 describe("IssueItem", () => {
-  it("leads with the plain words: size of win, effort, status, the title and why it matters", () => {
+  it("leads with two chips (size of win, who's on it), the title and why; effort is a quiet line", () => {
     renderIssue();
     const card = screen.getByRole("article", { name: "1 page you link to can't be found" });
-    for (const text of ["Big win", "an afternoon", "In progress"]) {
-      expect(within(card).getByText(text)).toBeInTheDocument();
-    }
+    expect(within(card).getByText("Big win")).toBeInTheDocument();
+    expect(within(card).getByText("Claude is on it")).toBeInTheDocument();
+    expect(within(card).getByText("an afternoon · In progress")).toBeInTheDocument();
     expect(within(card).getByText(issue.problem)).toBeInTheDocument();
     expect(within(card).queryByText("SEO")).toBeNull();
+  });
+
+  it("shows the status phrase when nobody is on it, and the same wording as the board", () => {
+    const { rerender } = renderWith({ id: 5, status: "open", snoozedUntil: null, who: "you" });
+    expect(screen.getByText("Waiting for you")).toBeInTheDocument();
+    const again = (action: RuleActionStatus | null) =>
+      rerender(<IssueItem issue={issue} action={action} product={product} locale="en-GB" />);
+    again({ id: 5, status: "done", snoozedUntil: null, who: null });
+    expect(screen.getByText("Done — still found in the last check")).toBeInTheDocument();
+    again(null);
+    expect(screen.getByText("Tracking starts with the next check")).toBeInTheDocument();
   });
 
   it("folds the area, where, the fix, the check and the hand-off into one Technical details section", () => {

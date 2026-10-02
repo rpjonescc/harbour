@@ -17,9 +17,16 @@ const PRODUCTS: Product[] = [
     name: "Acme Docs",
     url: "https://docs.example.com",
     hue: "amber",
+    kind: "product" as const,
     searchConsoleProperty: "sc-domain:example.com",
   },
-  { id: "acme-blog", name: "Acme Blog", url: "https://blog.example.com", hue: "teal" },
+  {
+    id: "acme-blog",
+    name: "Acme Blog",
+    url: "https://blog.example.com",
+    hue: "teal",
+    kind: "news" as const,
+  },
 ];
 let dir: string;
 let db: Db;
@@ -56,7 +63,7 @@ afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe("settingsView", () => {
   it("lists the four schedules with their next runs", () => {
-    const view = settingsView(db, PRODUCTS, config(), NOW, false);
+    const view = settingsView(db, PRODUCTS, config(), NOW, false, true);
     expect(view.timeZone).toBe("Europe/London");
     expect(view.schedules.map((s) => [s.id, s.setting, s.enabled, s.next?.toISOString()])).toEqual([
       ["scan", "HARBOUR_SCHEDULED_SCANS", true, "2026-10-03T05:00:00.000Z"],
@@ -66,8 +73,8 @@ describe("settingsView", () => {
       ["note", "HARBOUR_SCHEDULED_NOTE", true, "2026-10-03T05:30:00.000Z"],
     ]);
     expect(view.schedules.map((s) => [s.label, s.when])).toEqual([
-      ["Daily scan", "Every day at 06:00"],
-      ["Weekly analyst", "Sundays at 20:00"],
+      ["Daily check", "Every day at 06:00"],
+      ["Weekly report", "Sundays at 20:00"],
       ["Monthly research refresh", "First Sunday of the month at 21:00"],
       ["Nightly backup", "Every night at 03:15"],
       ["Morning note", "Every day at 06:30"],
@@ -82,19 +89,61 @@ describe("settingsView", () => {
       HARBOUR_SCHEDULED_BACKUP: "off",
       HARBOUR_SCHEDULED_NOTE: "off",
     });
-    const view = settingsView(db, PRODUCTS, off, NOW, false);
+    const view = settingsView(db, PRODUCTS, off, NOW, false, true);
     expect(view.schedules.every((s) => !s.enabled && s.next === null)).toBe(true);
     expect(view.backups.health).toBe("off");
   });
 
   it("shows the morning note as off by the personality when it is quiet", () => {
-    const view = settingsView(db, PRODUCTS, config({ HARBOUR_PERSONALITY: "quiet" }), NOW, false);
+    const view = settingsView(
+      db,
+      PRODUCTS,
+      config({ HARBOUR_PERSONALITY: "quiet" }),
+      NOW,
+      false,
+      true,
+    );
     expect(view.schedules.find((s) => s.id === "note")).toMatchObject({
-      setting: "HARBOUR_PERSONALITY",
-      offValue: "quiet",
+      setting: "HARBOUR_SCHEDULED_NOTE",
+      offReason: "Off while the personality is quiet",
       enabled: false,
       next: null,
     });
+  });
+
+  it("gives the morning note its own reason when only the schedule is off", () => {
+    const view = settingsView(
+      db,
+      PRODUCTS,
+      config({ HARBOUR_SCHEDULED_NOTE: "off" }),
+      NOW,
+      false,
+      true,
+    );
+    const rows = view.schedules.map((s) => [s.id, s.offReason]);
+    expect(rows).toContainEqual(["note", "Off: the morning note schedule is switched off"]);
+    expect(rows.filter(([id]) => id !== "note").every(([, reason]) => reason === null)).toBe(true);
+  });
+
+  it("says the morning note is off until Claude is connected when there is no token", () => {
+    const view = settingsView(db, PRODUCTS, config(), NOW, false, false);
+    expect(view.schedules.find((s) => s.id === "note")).toMatchObject({
+      offReason: "Off until Claude is connected",
+      enabled: false,
+      next: null,
+    });
+    const withToken = settingsView(db, PRODUCTS, config(), NOW, false, true);
+    expect(withToken.schedules.find((s) => s.id === "note")).toMatchObject({
+      offReason: null,
+      enabled: true,
+    });
+  });
+
+  it("keeps the personality and schedule reasons ahead of the missing token", () => {
+    const quiet = config({ HARBOUR_PERSONALITY: "quiet" });
+    expect(settingsView(db, PRODUCTS, quiet, NOW, false, false).schedules.at(-1)?.offReason).toBe(
+      "Off while the personality is quiet",
+    );
   });
 
   it("counts research targets awaiting approval per product", () => {
@@ -102,13 +151,14 @@ describe("settingsView", () => {
     propose("acme-docs", "b");
     propose("acme-docs", "c", "approved");
     propose("elsewhere", "d");
-    const view = settingsView(db, PRODUCTS, config(), NOW, false);
+    const view = settingsView(db, PRODUCTS, config(), NOW, false, true);
     expect(view.products).toEqual([
       {
         id: "acme-docs",
         name: "Acme Docs",
         url: "https://docs.example.com",
         hue: "amber",
+        kind: "product",
         searchConsoleProperty: "sc-domain:example.com",
         awaitingApproval: 2,
       },
@@ -117,6 +167,7 @@ describe("settingsView", () => {
         name: "Acme Blog",
         url: "https://blog.example.com",
         hue: "teal",
+        kind: "news",
         searchConsoleProperty: null,
         awaitingApproval: 0,
       },
@@ -129,6 +180,7 @@ describe("settingsView", () => {
       PRODUCTS,
       config({ HARBOUR_MONTHLY_BUDGET_AUD: "60" }),
       NOW,
+      true,
       true,
     );
     expect(view.isDemoConfig).toBe(true);
@@ -154,7 +206,7 @@ describe("settingsView", () => {
       },
       NOW,
     );
-    expect(settingsView(db, PRODUCTS, config(), NOW, false).reservations).toMatchObject([
+    expect(settingsView(db, PRODUCTS, config(), NOW, false, true).reservations).toMatchObject([
       { collector: "rankings", productId: "acme-docs", amountMicroAud: 500_000 },
     ]);
   });

@@ -2,6 +2,7 @@ import { ProductDot } from "@/components/ui/ProductDot";
 import { openActionCount } from "@/lib/actions/views";
 import { brainNewCount } from "@/lib/brain/runtime";
 import { getDb } from "@/lib/db/client";
+import { thingsWorthDoing } from "@/lib/explain/actions";
 import { getProductConfig } from "@/lib/products/catalog";
 import type { ThemePreference } from "@/lib/theme";
 import { LogoutButton } from "./LogoutButton";
@@ -29,7 +30,7 @@ export function Sidebar({ theme }: { theme: ThemePreference }) {
           },
     "actions-open": {
       count: openActions,
-      label: `${openActions} open ${openActions === 1 ? "action" : "actions"}`,
+      label: thingsWorthDoing(openActions),
     },
   };
   return (

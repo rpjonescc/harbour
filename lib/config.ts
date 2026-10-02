@@ -112,7 +112,7 @@ const schema = z
     HARBOUR_SCHEDULED_SCANS: z.enum(["on", "off"]).default("on"),
     // "off" stops the worker queueing the weekly analyst run (Run now and `pnpm analyst:now` still work).
     HARBOUR_SCHEDULED_ANALYST: z.enum(["on", "off"]).default("on"),
-    // "off" stops the worker queueing the monthly research refresh (Refresh stale research still works).
+    // "off" stops the worker queueing the monthly research refresh (Update old research on the Agents page still works).
     HARBOUR_SCHEDULED_RESEARCH: z.enum(["on", "off"]).default("on"),
     // "quiet" turns off the daily note, the note card on Today and the wave.
     HARBOUR_PERSONALITY: z.enum(["warm", "quiet"]).default("warm"),

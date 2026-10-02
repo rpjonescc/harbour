@@ -1,7 +1,13 @@
 import { getConfig } from "@/lib/config";
-import { type Hue, type LoadedProductConfig, loadProductConfig, ownerFirstName } from "./config";
+import {
+  type Hue,
+  type LoadedProductConfig,
+  loadProductConfig,
+  ownerFirstName,
+  type ProductKind,
+} from "./config";
 
-export type { Hue } from "./config";
+export type { Hue, ProductKind } from "./config";
 
 export type ProductId = string;
 
@@ -10,6 +16,8 @@ export type Product = {
   name: string;
   url: string;
   hue: Hue;
+  /** "news" keeps Preferred Sources in its AEO score; "product" (the default) does not. */
+  kind: ProductKind;
   /** Search Console property to query, e.g. "sc-domain:example.com"; unset = not connected. */
   searchConsoleProperty?: string;
 };

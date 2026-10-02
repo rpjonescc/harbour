@@ -14,9 +14,4 @@ describe("PaidSourcePanels", () => {
     }
     expect(screen.getAllByRole("region")).toHaveLength(2);
   });
-
-  it("only names sources Harbour knows, so a typo fails loudly", () => {
-    expect(() => sourceExplanation("openai")).not.toThrow();
-    expect(() => sourceExplanation("dataforseo")).not.toThrow();
-  });
 });

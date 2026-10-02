@@ -1,4 +1,6 @@
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { Tag } from "@/components/ui/Tag";
+import { NOTE_ALSO_OFF, SETTINGS_PURPOSE } from "@/lib/explain/settings";
 import { formatWeekdayTime } from "@/lib/format/date";
 import type { ScheduleRow } from "@/lib/settings/view";
 import { type SectionPlacement, SettingsSection } from "./SettingsSection";
@@ -18,7 +20,7 @@ export function SchedulesCard({
   locale: string;
 }) {
   return (
-    <SettingsSection {...section} title="Schedules">
+    <SettingsSection {...section} title="Schedules" purpose={SETTINGS_PURPOSE.schedules}>
       <p className="text-xs text-ink-muted">All times are in {timeZone}.</p>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
@@ -53,12 +55,7 @@ export function SchedulesCard({
                   {row.next ? (
                     formatWeekdayTime(row.next, timeZone, locale)
                   ) : (
-                    <span className="text-ink-muted">
-                      Off —{" "}
-                      <code className="font-mono text-xs">
-                        {row.setting}={row.offValue ?? "off"}
-                      </code>
-                    </span>
+                    <span className="text-ink-muted">{row.offReason ?? "Off"}</span>
                   )}
                 </td>
               </tr>
@@ -66,6 +63,20 @@ export function SchedulesCard({
           </tbody>
         </table>
       </div>
+      <TechnicalDetails id="schedule-settings" topic="how to turn a schedule on or off">
+        <p>
+          In <code className="font-mono">.env</code>, set a schedule's setting to the value shown to
+          stop it, or remove the line to start it, then restart Harbour:
+        </p>
+        <ul className="mt-1 flex flex-col gap-0.5">
+          {schedules.map((row) => (
+            <li key={row.id}>
+              {row.label}: <code className="font-mono">{row.setting}=off</code>
+              {row.id === "note" && ` ${NOTE_ALSO_OFF}`}
+            </li>
+          ))}
+        </ul>
+      </TechnicalDetails>
     </SettingsSection>
   );
 }

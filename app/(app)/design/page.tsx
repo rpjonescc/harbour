@@ -96,7 +96,7 @@ export default async function DesignPage() {
       <Section title="Second Brain examples">
         <BrainExamples />
       </Section>
-      <Section title="Visibility scan examples">
+      <Section title="Visibility check examples">
         <ScanExamples />
       </Section>
       <Section title="Actions board examples">

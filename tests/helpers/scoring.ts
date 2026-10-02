@@ -202,7 +202,9 @@ function dayAfter(start: string, offset: number): string {
 const rows = (kind: string, start: string, days: (number | null)[]) =>
   days.flatMap((n, i) => (n === null ? [] : [gscDay(kind, dayAfter(start, i), n)]));
 
-/** Daily impressions this window and the 28 days before (from their first days), and the summary. */
+/**
+ * Daily impressions this window and the 28 days before (from their first days), and the summary.
+ */
 export function searchConsole(
   current: (number | null)[],
   prior: (number | null)[],
@@ -247,9 +249,9 @@ export const ALL_OK: Record<string, CollectorStatus> = {
   "search-console": "ok",
 };
 
-export const CONTEXT: ScoreContext = { now: NOW, previousPagespeed: null };
+export const CONTEXT: ScoreContext = { now: NOW, productKind: "product", previousPagespeed: null };
 
-/** Scores observations with the real v1 scorer; every collector ok unless `statuses` says. */
+/** Scores observations with the real scorer; every collector ok unless `statuses` says. */
 export const scoreOf = (
   observations: ScanObservation[],
   statuses: Record<string, CollectorStatus> = ALL_OK,

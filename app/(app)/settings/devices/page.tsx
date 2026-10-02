@@ -15,7 +15,8 @@ export default async function DevicesPage() {
       <header>
         <h1 className="font-serif text-3xl">Devices</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Passkeys that can open Harbour as {session.login}.
+          The devices that can open Harbour as {session.login}. Each signs in with a passkey: your
+          fingerprint, face or screen lock.
         </p>
       </header>
       <Panel className="px-4">

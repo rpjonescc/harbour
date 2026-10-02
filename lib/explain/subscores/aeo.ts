@@ -41,7 +41,7 @@ function preferredSources(evidence: string): string | null {
   if (evidence.startsWith("No Preferred Sources button")) {
     return `There's no Preferred Sources button yet, and ${changed}.`;
   }
-  return null;
+  return `${changed}.`;
 }
 
 /** The AEO sub-scores of the current formula (lib/scan/scoring/aeo.ts), in plain words. */
@@ -80,16 +80,16 @@ export const AEO_EXPLANATIONS: readonly SubScoreExplanation[] = [
   },
   {
     key: "aeo.preferredSources",
-    name: "Ready for Preferred Sources",
+    name: "Fresh pages",
     parts: {
       what:
-        "Two things: whether your site offers Google's Preferred Sources button, which lets " +
-        "readers choose to see more of you in Google's news results, and whether you've published " +
-        "or updated at least three pages in the last 30 days.",
-      why: "Google favours sources that readers have chosen, and fresh pages show the site is looked after.",
+        "Whether you've published or updated at least three pages in the last 30 days. News " +
+        "sites also get credit for Google's Preferred Sources button, which lets readers choose " +
+        "to see more of you in Google's news results.",
+      why: "Search engines and AI assistants trust a site that is looked after, and fresh pages show it is.",
       todo:
-        "Keep publishing or updating pages regularly. The button mostly matters for news sites, " +
-        "and a planned change will stop counting it for other kinds of site.",
+        "Keep publishing or updating pages regularly, even small ones. If you run a news site, " +
+        "add the Preferred Sources button too.",
       worth: "Regular updates help in every area, and readers who choose you see more of you.",
     },
     summarise: preferredSources,

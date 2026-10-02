@@ -223,10 +223,10 @@ export function describeProductPlan(p: ProductRetention): string {
     p.observations === null
       ? "observations not counted"
       : `${num(p.observations)} ${plural(p.observations, "observation")}`;
-  return `${p.productId}: ${num(n)} old ${plural(n, "scan")}, ${rows}`;
+  return `${p.productId}: ${num(n)} old ${plural(n, "scan")}, ${rows}`; // vocabulary-ok: the CLI/log line keeps "scan"
 }
 
-/** "Removed 18,240 observations from 11 scans". */
+/** "Removed 18,240 observations from 11 checks". */
 export function describeRemoved(result: { deleted: number; scans: number }): string {
-  return `Removed ${num(result.deleted)} ${plural(result.deleted, "observation")} from ${num(result.scans)} ${plural(result.scans, "scan")}`;
+  return `Removed ${num(result.deleted)} ${plural(result.deleted, "observation")} from ${num(result.scans)} ${plural(result.scans, "check")}`;
 }

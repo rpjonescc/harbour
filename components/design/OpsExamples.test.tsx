@@ -14,6 +14,13 @@ describe("OpsExamples", () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
+  it("gives each example's Technical details its own name", () => {
+    const { container } = render(<OpsExamples />);
+    const names = [...container.querySelectorAll("summary")].map((el) => el.textContent);
+    expect(names.length).toBeGreaterThan(1);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it("nests the Settings card headings under the design page's section heading", () => {
     render(<OpsExamples />);
     expect(screen.queryAllByRole("heading", { level: 2 })).toEqual([]);

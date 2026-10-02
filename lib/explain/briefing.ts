@@ -1,9 +1,9 @@
 import type { BackupHealth } from "@/lib/ops/backup-status";
 import type { IssueArea } from "@/lib/scan/issues";
-import { plural } from "@/lib/scan/scoring/sub-score";
 import type { AreaKey, AreaValues } from "@/lib/scan/views";
-import type { WhoOnIt } from "./actions";
+import { thingsWorthDoing, type WhoOnIt } from "./actions";
 import { AREA_ORDER, AREAS, areaKeyOf } from "./areas";
+import { CANT_OPEN_BACKUP_FOLDER } from "./backups";
 import { sourceTrouble } from "./sources";
 import { averageScore, verdictFor } from "./verdict";
 
@@ -68,7 +68,7 @@ function opportunity(input: BriefingInput): string | null {
 const BACKUP_TROUBLE: Partial<Record<BackupHealth, string>> = {
   failed: "the last backup didn't finish",
   stale: "no backup in the last 2 days",
-  unreadable: "Harbour can't open the backup folder",
+  unreadable: CANT_OPEN_BACKUP_FOLDER,
 };
 
 export type TroubleInput = Pick<BriefingInput, "products" | "failures" | "failedChecks" | "backup">;
@@ -99,7 +99,7 @@ export function troubleLines(input: TroubleInput): string[] {
 
 function subLine(input: BriefingInput): string {
   const n = input.work.length;
-  const parts = [n === 0 ? "Nothing on the to-do list" : `${n} ${plural(n, "thing")} worth doing`];
+  const parts = [n === 0 ? "Nothing on the to-do list" : thingsWorthDoing(n)];
   const claude = input.work.filter((w) => w.who === "claude").length;
   if (claude > 0) parts.push(`Claude is handling ${claude}`);
   const broken = troubleLines(input);

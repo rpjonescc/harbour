@@ -10,8 +10,9 @@ const product: Product = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber",
+  kind: "product" as const,
 };
-const issues = deriveIssues([...ACME_CRAWL, readiness()], ALL_OK);
+const issues = deriveIssues([...ACME_CRAWL, readiness()], ALL_OK, "product");
 const INTRO = /Each problem says why it matters/;
 
 const list = (items: typeof issues, scanned = true) =>

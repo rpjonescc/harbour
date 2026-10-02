@@ -136,9 +136,10 @@ describe("TodayView", () => {
 
   it("lists what's worth doing next with why, the size of the job and who's on it", () => {
     renderToday(real);
-    const section = screen.getByRole("region", { name: "Worth doing next" });
+    const section = screen.getByRole("region", { name: "Next up" });
     const card = within(section).getByRole("article", { name: "2 pages have no title" });
     expect(card).toHaveTextContent("Big win");
+    expect(within(card).getByText("Big win").className).toMatch(/bg-warn-soft/);
     expect(card).toHaveTextContent("Found on Google · quick job");
     expect(card).toHaveTextContent("Google uses the title as the headline of each result.");
     expect(card).toHaveTextContent("Acme Docs · Claude is on it");

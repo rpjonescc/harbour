@@ -56,7 +56,7 @@ describe("runRetentionJob", () => {
     expect(getJob(db, job.id)).toMatchObject({ status: "ok", error: null });
     expect(texts(db, job.id)).toEqual([
       ["status", "acme-docs: 11 old scans, 11,000 observations"],
-      ["status", "Removed 11,000 observations from 11 scans"],
+      ["status", "Removed 11,000 observations from 11 checks"],
     ]);
     expect(scansWithObservations(db)[0]).toBe(12);
   });
@@ -67,7 +67,7 @@ describe("runRetentionJob", () => {
     const again = claimRetention(db, "2026-10-03");
     await runRetentionJob(deps, again);
     expect(texts(db, again.id)).toEqual([
-      ["status", "No old scans to prune (newest 30 kept, plus the latest result of each source)"],
+      ["status", "No old checks to prune (newest 30 kept, plus the latest result of each source)"],
     ]);
   });
 
@@ -77,7 +77,7 @@ describe("runRetentionJob", () => {
     expect(getJob(db, job.id)).toMatchObject({ status: "ok", error: null });
     expect(texts(db, job.id)).toEqual([
       ["status", "acme-docs: 11 old scans, 11,000 observations"],
-      ["status", "Removed 2,000 observations from 2 scans"],
+      ["status", "Removed 2,000 observations from 2 checks"],
       ["status", "Stopped at the 2,000-row limit; the rest goes after tomorrow's backup"],
     ]);
     expect(scansWithObservations(db)[0]).toBe(3);
@@ -88,8 +88,8 @@ describe("runRetentionJob", () => {
     await runRetentionJob(deps, job);
     expect(texts(db, job.id)).toEqual([
       ["status", "acme-docs: 500 old scans, 500 observations"],
-      ["status", "Removed 500 observations from 500 scans"],
-      ["status", "Pruned the oldest 500 scans; the rest goes after tomorrow's backup"],
+      ["status", "Removed 500 observations from 500 checks"],
+      ["status", "Pruned the oldest 500 checks; the rest goes after tomorrow's backup"],
     ]);
     expect(scansWithObservations(db)[0]).toBe(501);
   });
@@ -100,7 +100,7 @@ describe("runRetentionJob", () => {
     await runRetentionJob(deps, job);
     expect(texts(db, job.id)).toEqual([
       ["status", "acme-docs: 11 old scans, observations not counted"],
-      ["status", "Removed 11,000 observations from 11 scans"],
+      ["status", "Removed 11,000 observations from 11 checks"],
     ]);
   });
 

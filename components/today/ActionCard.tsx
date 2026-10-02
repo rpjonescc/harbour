@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Panel } from "@/components/ui/Panel";
 import { Tag } from "@/components/ui/Tag";
-import { EFFORT_PHRASE, IMPACT_PHRASE, WHO_PHRASE } from "@/lib/explain/actions";
+import { EFFORT_PHRASE, IMPACT_PHRASE, impactTone, WHO_PHRASE } from "@/lib/explain/actions";
 import { AREAS, areaKeyOf } from "@/lib/explain/areas";
 import { productById } from "@/lib/products/catalog";
 import type { ActionPreview } from "@/lib/today/types";
@@ -14,9 +14,7 @@ export function ActionCard({ action }: { action: ActionPreview }) {
     <Panel className="p-4">
       <article aria-labelledby={titleId} className="flex flex-col gap-1.5">
         <p className="flex flex-wrap gap-1.5">
-          <Tag tone={action.impact === "high" ? "accent" : "neutral"}>
-            {IMPACT_PHRASE[action.impact]}
-          </Tag>
+          <Tag tone={impactTone(action.impact)}>{IMPACT_PHRASE[action.impact]}</Tag>
           <Tag tone="neutral">
             {AREAS[areaKeyOf(action.area)].name} · {EFFORT_PHRASE[action.effort]}
           </Tag>

@@ -11,7 +11,7 @@ const ACTOR: Record<ActionActor, string> = {
   owner: "Owner",
   claude: "Claude",
   scan: "Scan",
-  agent: "Weekly analyst",
+  agent: "Weekly report",
   system: "Harbour",
 };
 
@@ -69,7 +69,7 @@ export function showText(
   history: { events: Event[]; truncated: boolean },
 ): string {
   const status = row.status === "snoozed" ? `snoozed until ${row.snoozedUntil}` : row.status;
-  const source = row.source === "rule" ? `scan rule ${t(row.ruleKey ?? "")}` : "weekly analyst";
+  const source = row.source === "rule" ? `scan rule ${t(row.ruleKey ?? "")}` : "weekly report";
   const { docs, invalid: docsInvalid } = readDocs(row.docs);
   return [
     DATA_NOTE,

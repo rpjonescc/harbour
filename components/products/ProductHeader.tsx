@@ -2,25 +2,28 @@ import Link from "next/link";
 import { ProductDot } from "@/components/ui/ProductDot";
 import { productSummary } from "@/lib/explain/product-summary";
 import type { Product } from "@/lib/products/catalog";
-import type { ScanState, ScoreTrend } from "@/lib/scan/views";
+import type { FormulaChange, ScanState, ScoreTrend } from "@/lib/scan/views";
 import { AreaCards } from "./AreaCards";
 import { ScanNowButton } from "./ScanNowButton";
 import { ScanStatusNote } from "./ScanStatusNote";
+import { ScoringNote } from "./ScoringNote";
 
 /**
- * Product name and links, Scan now, where scanning stands, a one-line summary and the three area
- * cards.
+ * Product name and links, Check now, where the latest check stands, a one-line summary and the
+ * three area cards.
  */
 export function ProductHeader({
   product,
   scores,
   scan,
+  formulaChange,
   timeZone,
   locale,
 }: {
   product: Product;
   scores: ScoreTrend;
   scan: ScanState;
+  formulaChange: FormulaChange | null;
   timeZone: string;
   locale: string;
 }) {
@@ -48,6 +51,8 @@ export function ProductHeader({
         {productSummary(product.name, scores.latest?.totals ?? null)}
       </p>
       <AreaCards scores={scores} scan={scan} />
+      {/* Only product sites lost the Preferred Sources weight, so only theirs moved. */}
+      {product.kind === "product" && <ScoringNote change={formulaChange} />}
     </header>
   );
 }

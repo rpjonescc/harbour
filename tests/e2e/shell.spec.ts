@@ -13,7 +13,9 @@ import { sessionStorageState } from "./session-state";
 const SAMPLE_BRIEFING =
   "Your sites need some work. Biggest opportunity: Recommended by AI assistants for Acme Docs (needs work).";
 
-/** Collects CSP violations reported to the console; assert the list is empty after the page settles. */
+/**
+ * Collects CSP violations reported to the console; assert the list is empty after the page settles.
+ */
 function watchCspErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on("console", (message) => {
@@ -141,9 +143,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(table.getByRole("rowheader", { name: "Fern & Field" })).toBeVisible();
       const products = page.getByRole("region", { name: "Products" });
       await expect(products.getByRole("link", { name: "Acme Docs" })).toBeVisible();
-      await expect(
-        page.getByRole("heading", { name: "Worth doing next", exact: true }),
-      ).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Next up", exact: true })).toBeVisible();
       await expectPlainLanguage(page);
       await page.waitForLoadState("networkidle");
       expect(cspErrors).toEqual([]);
@@ -162,11 +162,11 @@ for (const colorScheme of ["light", "dark"] as const) {
       ]) {
         await expect(page.getByRole("heading", { name })).toBeVisible();
       }
-      // A scan running after a failed one says so without offering the disabled Scan now.
-      const running = page.getByText("Running after a failed scan").locator("..");
+      // A check running after a failed one says so without offering the disabled Check now.
+      const running = page.getByText("Running after a failed check").locator("..");
       await expect(running).toBeVisible();
-      await expect(running).toContainText("The last scan didn't finish");
-      await expect(running).not.toContainText("Try Scan now");
+      await expect(running).toContainText("The last check didn't finish");
+      await expect(running).not.toContainText("Try Check now");
       const whatsThis = page.getByRole("button", {
         name: "What's this? (Recommended by AI assistants example)",
       });

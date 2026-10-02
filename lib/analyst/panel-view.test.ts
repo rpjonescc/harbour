@@ -34,7 +34,7 @@ describe("weeklyPanelView", () => {
     ]);
     lastWeekRan(db);
     expect(weeklyPanelView(db, settings, NOW)).toEqual({
-      schedule: "Next scheduled run: Sunday 4 Oct, 20:00",
+      schedule: "Next report: Sunday 4 Oct, 20:00",
       latestReport: { week: "2026-W40", href: "/brain/reports/weekly/2026-W40.md" },
       tokenSet: true,
     });
@@ -43,7 +43,7 @@ describe("weeklyPanelView", () => {
   it("says when scheduled runs are off, and that there is no report before the first", () => {
     const view = weeklyPanelView(indexDocs([]), { ...settings, enabled: false }, NOW);
     expect(view).toEqual({
-      schedule: "Scheduled runs are off",
+      schedule: "The weekly report only runs when you ask for it.",
       latestReport: null,
       tokenSet: true,
     });
@@ -51,12 +51,15 @@ describe("weeklyPanelView", () => {
 
   it("says scheduled runs need a token when it is missing", () => {
     const view = weeklyPanelView(indexDocs([]), { ...settings, tokenSet: false }, NOW);
-    expect(view).toMatchObject({ schedule: "Scheduled runs need a Claude token", tokenSet: false });
+    expect(view).toMatchObject({
+      schedule: "The weekly report is paused until Claude is connected.",
+      tokenSet: false,
+    });
   });
 
   it("says a catch-up is due when last Sunday's run was never queued", () => {
     expect(weeklyPanelView(indexDocs([]), settings, NOW).schedule).toBe(
-      "Catch-up due: the worker queues the 2026-W39 report at its next check, if a product was scanned in the last 7 days",
+      "Last week's report (2026-W39) is due. Harbour starts it shortly, if a site was checked in the last 7 days.",
     );
   });
 
@@ -64,8 +67,12 @@ describe("weeklyPanelView", () => {
     const db = indexDocs([]);
     lastWeekRan(db);
     enqueueWeeklyAnalyst(db, "2026-W40", "owner", NOW);
-    expect(weeklyPanelView(db, settings, NOW).schedule).toBe("A weekly report run is queued");
+    expect(weeklyPanelView(db, settings, NOW).schedule).toBe(
+      "This week's report is waiting to start.",
+    );
     claimNextJob(db, NOW);
-    expect(weeklyPanelView(db, settings, NOW).schedule).toBe("A weekly report run is running");
+    expect(weeklyPanelView(db, settings, NOW).schedule).toBe(
+      "This week's report is being written now.",
+    );
   });
 });

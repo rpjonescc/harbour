@@ -7,6 +7,8 @@ import { auditLog } from "@/lib/db/schema";
 import { isoDateIn } from "@/lib/format/date";
 import { E2E_DB, E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
 import { hydrated } from "./hydration";
+import { expectPlainLanguage } from "./plain-language";
+import { openRunLog } from "./run-log";
 
 // Runs last: Back up now and the research refresh share the worker's queue with every earlier
 // run. Every schedule is off in the E2E env, so only these clicks queue work. With
@@ -38,16 +40,52 @@ test("the sidebar marks Settings, then only Devices on the devices page", async 
   await expect(current).toHaveText("Devices");
 });
 
+test("Settings speaks plainly: one line per section, no setting names outside Technical details", async ({
+  page,
+}) => {
+  await page.goto("/settings");
+  await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
+  await expectPlainLanguage(page);
+  for (const name of [
+    "Products",
+    "Schedules",
+    "Connections",
+    "Budget",
+    "Backups",
+    "More settings",
+  ]) {
+    await expect(settingsRegion(page, name)).toHaveAccessibleDescription(/\S/);
+  }
+  // The sidebar says "things worth doing", beside the Actions link.
+  await expect(
+    page.locator("aside").getByRole("link", { name: /\d+ things? worth doing/ }),
+  ).toBeVisible();
+  // The setup steps are one click away, from the keyboard.
+  const summary = page
+    .locator("summary", { hasText: /Technical details \(how to connect/ })
+    .first();
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    summary
+      .locator("xpath=..")
+      .getByText(/HARBOUR_[A-Z_]+/)
+      .first(),
+  ).toBeVisible();
+});
+
 test("Products lists the three products and their research approvals", async ({ page }) => {
   await page.goto("/settings");
   const products = settingsRegion(page, "Products");
   for (const name of ["Acme Docs", "Lighthouse Café", "Fern & Field"]) {
     const item = products.getByRole("listitem").filter({ hasText: name });
-    await expect(item).toContainText("No Search Console property");
+    await expect(item).toContainText("Search Console: not set up for this site yet");
   }
   // agents.spec.ts imported three discovery proposals for Acme Docs and approved one.
   const acme = products.getByRole("listitem").filter({ hasText: "Acme Docs" });
-  await acme.getByRole("link", { name: "2 research targets waiting for approval" }).click();
+  await acme
+    .getByRole("link", { name: "2 research targets waiting for your OK for Acme Docs" })
+    .click();
   await expect(
     page.getByRole("heading", { level: 1, name: "Acme Docs — research targets" }),
   ).toBeVisible();
@@ -70,30 +108,32 @@ test("every schedule is off in the E2E environment", async ({ page }) => {
   await page.goto("/settings");
   const table = page.getByRole("table", { name: "What runs on a schedule and when it runs next" });
   const rows = [
-    ["Daily scan", "HARBOUR_SCHEDULED_SCANS"],
-    ["Weekly analyst", "HARBOUR_SCHEDULED_ANALYST"],
+    ["Daily check", "HARBOUR_SCHEDULED_SCANS"],
+    ["Weekly report", "HARBOUR_SCHEDULED_ANALYST"],
     ["Monthly research refresh", "HARBOUR_SCHEDULED_RESEARCH"],
     ["Nightly backup", "HARBOUR_SCHEDULED_BACKUP"],
     ["Morning note", "HARBOUR_SCHEDULED_NOTE"],
   ];
-  for (const [label, setting] of rows) {
+  for (const [label] of rows) {
     const row = table.getByRole("row", { name: new RegExp(`^${label}`) });
     await expect(row.getByRole("cell").nth(1)).toHaveText("Off");
-    await expect(row).toContainText(`Off — ${setting}=off`);
+    await expect(row.getByRole("cell").nth(2)).toHaveText(/^Off/);
   }
+  await page.getByText(/Technical details \(how to turn a schedule on or off\)/).click();
+  for (const [, setting] of rows) await expect(page.getByText(setting ?? "").first()).toBeVisible();
 });
 
-test("API keys show status only, never a value", async ({ page }) => {
+test("Connections show status only, never a value", async ({ page }) => {
   const response = await page.goto("/settings");
-  const table = page.getByRole("table", { name: "API keys and whether each is set" });
+  const table = page.getByRole("table", { name: "Connections and whether each is connected" });
   const status = (label: string) =>
     table
       .getByRole("row", { name: new RegExp(`^${label}`) })
       .getByRole("cell")
       .last();
-  await expect(status("Claude token")).toHaveText("Present");
-  await expect(status("PageSpeed Insights")).toHaveText("Missing");
-  await expect(status("DataForSEO")).toHaveText("Missing");
+  await expect(status("Claude token")).toHaveText("Connected");
+  await expect(status("PageSpeed Insights")).toHaveText(/^Not connected yet/);
+  await expect(status("DataForSEO")).toHaveText("Not available yet");
   // The HTML (including the serialised server components) never carries the token.
   expect(await response?.text()).not.toContain(FAKE_TOKEN);
   expect(await page.content()).not.toContain(FAKE_TOKEN);
@@ -102,7 +142,7 @@ test("API keys show status only, never a value", async ({ page }) => {
 test("no budget means no paid calls, on Settings and Today", async ({ page }) => {
   await page.goto("/settings");
   const budget = settingsRegion(page, "Budget");
-  await expect(budget.getByText("A$0.00 — no paid calls allowed")).toBeVisible();
+  await expect(budget.getByText("A$0.00 — paid data is switched off")).toBeVisible();
   await expect(budget.getByText(/^No paid data connected/)).toBeVisible();
   await page.goto("/");
   await expect(page.getByRole("main").getByText(/^No paid data connected/)).toBeVisible();
@@ -134,12 +174,12 @@ test("keyboard: Tab reaches the Settings links and Back up now with visible focu
     expect(focused.width).not.toBe("0px");
     stops.push(focused.name);
   }
-  expect(stops).toContain("2 research targets waiting for approval");
+  expect(stops).toContain("2 research targets waiting for your OK for Acme Docs");
   expect(stops).toContain("Back up now");
   await expect(backUp).toBeFocused();
   await page.keyboard.press("Tab");
-  // Past the button: the backup docs link, then the More settings links.
-  await expect(page.getByRole("link", { name: "Backups and restore" })).toBeFocused();
+  // Past the button: the backup setup steps (closed), then the More settings links.
+  await expect(page.locator("summary", { hasText: "where backups go" })).toBeFocused();
 });
 
 test("Settings renders in light and dark", async ({ page }) => {
@@ -165,11 +205,11 @@ test("Back up now writes a verified backup, then retention runs", async ({ page 
   await backUp.click();
   await expect(page).toHaveURL(/\/agents\/\d+$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Nightly backup: ${today()}`);
-  const activity = page.getByRole("list", { name: "Run activity" });
+  const activity = await openRunLog(page);
   await expect(
     activity.getByText(/^Backup verified: .* MB, .* pages in .* s; 1 kept$/),
   ).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("Finished", { exact: true })).toBeVisible();
+  await expect(page.getByText("Done", { exact: true })).toBeVisible();
 
   const latest = openDb(E2E_DB).select().from(auditLog).orderBy(desc(auditLog.id)).get();
   expect(latest).toMatchObject({ login: E2E_LOGIN, event: "backup_requested" });
@@ -182,42 +222,42 @@ test("Back up now writes a verified backup, then retention runs", async ({ page 
   // The verified backup queues retention; the scans so far are far below the 30 kept.
   await page.goto("/agents");
   await page
-    .getByRole("table", { name: "Agent runs" })
-    .getByRole("link", { name: `Retention: ${today()}` })
+    .getByRole("table", { name: "Recent runs" })
+    .getByRole("link", { name: `Tidy old data: ${today()}` })
     .click();
-  await expect(activity.getByText(/^No old scans to prune \(newest 30 kept/)).toBeVisible({
+  await expect(activity.getByText(/^No old checks to prune \(newest 30 kept/)).toBeVisible({
     timeout: 60_000,
   });
-  await expect(page.getByText("Finished", { exact: true })).toBeVisible();
+  await expect(page.getByText("Done", { exact: true })).toBeVisible();
 
   await page.goto("/settings");
-  await expect(backups.getByText("1 of 14 kept")).toBeVisible();
+  await expect(backups.getByText("1 of 14")).toBeVisible();
   await expect(backups.getByText(/· \d+\.\d MB$/)).toBeVisible();
-  await expect(backups.getByRole("link", { name: /No old scans to prune/ })).toBeVisible();
+  await expect(backups.getByRole("link", { name: /No old checks to prune/ })).toBeVisible();
   await page.goto("/");
   await expect(page.getByRole("main")).toBeVisible();
   await expect(page.getByRole("main").getByText(/backup/i)).toHaveCount(0);
 });
 
-test("Refresh stale research rewrites the oldest document with today's date", async ({ page }) => {
+test("Update old research rewrites the oldest document with today's date", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto("/agents");
-  const refresh = page.getByRole("button", { name: "Refresh stale research" });
+  const refresh = page.getByRole("button", { name: "Update old research" });
   await hydrated(refresh);
   await refresh.click();
-  await expect(page.getByRole("status").filter({ hasText: /^Queued/ })).toHaveText(
-    /^Queued [123] refresh(es)?$/,
+  await expect(page.getByRole("status").filter({ hasText: /^Started/ })).toHaveText(
+    /^Started [123] updates?$/,
   );
-  // Newest first: the last "Refresh:" link is the first one queued (oldest document first).
-  const runs = page.getByRole("table", { name: "Agent runs" });
+  // Newest first: the last "Update:" link is the first one queued (oldest document first).
+  const runs = page.getByRole("table", { name: "Recent runs" });
   await runs
-    .getByRole("link", { name: /^Refresh: / })
+    .getByRole("link", { name: /^Update: / })
     .last()
     .click();
   await expect(page).toHaveURL(/\/agents\/\d+$/);
-  const activity = page.getByRole("list", { name: "Run activity" });
+  const activity = await openRunLog(page);
   await expect(activity.getByText("Committed 1 file(s)")).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("Finished", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Done", { exact: true })).toBeVisible({ timeout: 30_000 });
 
   // Files changed is rendered by the server once the run has committed.
   await page.reload();

@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, gte, inArray, max, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { collectorRuns, jobs, type ScoreBreakdownEntry, scanRuns, scores } from "@/lib/db/schema";
+import { formulaChangedArea, hasScoringNote } from "@/lib/explain/scoring-notes";
+import type { ProductKind } from "@/lib/products/config";
 import type { CollectorStatus } from "./types";
 
 export type AreaKey = "seo" | "geo" | "aeo";
@@ -77,11 +79,29 @@ function snapshot(row: ScoreRow): ScoreSnapshot {
   return { ...rest, totals: { seo, geo, aeo } };
 }
 
-const delta = (now: number | null | undefined, before: number | null | undefined) =>
-  now == null || before == null ? null : now - before;
+/**
+ * A change in one area between two scores; null (a gap, not a change) when either has no number
+ * or that area was computed on a different formula, since that move says nothing about the site.
+ */
+function delta(
+  kind: ProductKind,
+  area: AreaKey,
+  latest: ScoreRow | undefined,
+  previous: ScoreRow | undefined,
+): number | null {
+  const [now, before] = [latest?.[area], previous?.[area]];
+  if (now == null || before == null || !latest || !previous) return null;
+  const moved = formulaChangedArea(kind, area, previous.formulaVersion, latest.formulaVersion);
+  return moved ? null : now - before;
+}
 
 /** Latest scores of a product's good scans, deltas against the one before, and the SEO trend. */
-export function productScoreTrend(db: Db, productId: string, now: Date): ScoreTrend {
+export function productScoreTrend(
+  db: Db,
+  productId: string,
+  kind: ProductKind,
+  now: Date,
+): ScoreTrend {
   const [latest, previous] = scoreRows(db, productId)
     .orderBy(desc(scores.computedAt), desc(scores.id))
     .limit(2)
@@ -94,12 +114,37 @@ export function productScoreTrend(db: Db, productId: string, now: Date): ScoreTr
   return {
     latest: latest ? snapshot(latest) : null,
     deltas: {
-      seo: delta(latest?.seo, previous?.seo),
-      geo: delta(latest?.geo, previous?.geo),
-      aeo: delta(latest?.aeo, previous?.aeo),
+      seo: delta(kind, "seo", latest, previous),
+      geo: delta(kind, "geo", latest, previous),
+      aeo: delta(kind, "aeo", latest, previous),
     },
     trend,
   };
+}
+
+export type FormulaChange = { from: string; to: string; at: Date };
+
+/**
+ * The newest change of scoring formula in the 30-day window that has a note to show. A later
+ * formula without a note leaves the older note in place rather than hiding it.
+ */
+export function formulaChange(db: Db, productId: string, now: Date): FormulaChange | null {
+  const since = new Date(now.getTime() - TREND_DAYS * DAY_MS);
+  const rows = scoreRows(db, productId, since)
+    .orderBy(asc(scores.computedAt), asc(scores.id))
+    .all();
+  let change: FormulaChange | null = null;
+  for (const [i, row] of rows.entries()) {
+    const before = rows[i - 1];
+    if (
+      before &&
+      before.formulaVersion !== row.formulaVersion &&
+      hasScoringNote(row.formulaVersion)
+    ) {
+      change = { from: before.formulaVersion, to: row.formulaVersion, at: row.computedAt };
+    }
+  }
+  return change;
 }
 
 const forProduct = (productId: string) =>

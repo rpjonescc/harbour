@@ -30,6 +30,8 @@ export type SeedScan = {
   totals?: { seo: number | null; geo: number | null; aeo: number | null };
   complete?: { seo: boolean; geo: boolean; aeo: boolean };
   breakdown?: ScoreBreakdownEntry[];
+  /** Defaults to "v1". */
+  formulaVersion?: string;
   /** False stores no score row (as for a scan the worker stopped). */
   scored?: boolean;
 };
@@ -60,7 +62,7 @@ export function seedScan(db: Db, scan: SeedScan): number {
     scanId,
     scan.productId,
     {
-      formulaVersion: "v1",
+      formulaVersion: scan.formulaVersion ?? "v1",
       ...(scan.totals ?? { seo: 50, geo: 40, aeo: 30 }),
       complete: scan.complete ?? { seo: true, geo: true, aeo: true },
       breakdown: scan.breakdown ?? [],

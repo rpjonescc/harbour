@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ProductKind } from "@/lib/products/catalog";
 import { collectorLabel } from "../labels";
 import type { CollectorStatus, Observation, ScanObservation, ScoreContext } from "../types";
 
@@ -104,6 +105,7 @@ export type ScoringInputs = {
   readiness: Source<Readiness>;
   vitals: Source<Vitals>;
   searchConsole: Source<SearchConsole>;
+  productKind: ProductKind;
 };
 
 const isoDate = (date: Date) => date.toISOString().slice(0, 10);
@@ -215,5 +217,6 @@ export function readInputs(
     readiness: when("readiness", (of) => single(of, "readiness", "readiness", readiness)),
     vitals: readVitals(ofCollector("pagespeed"), statuses.pagespeed, context),
     searchConsole: when("search-console", readSearchConsole),
+    productKind: context.productKind,
   };
 }

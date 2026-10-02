@@ -344,9 +344,9 @@ describe("AEO sub-scores", () => {
           freshContent,
         },
       });
-    expect(preferredSources(ready(false, true)).score).toBe(50);
-    expect(preferredSources(ready(true, false)).score).toBe(50);
-    expect(preferredSources(ready(false, false))).toMatchObject({
+    expect(preferredSources(ready(false, true), "news").score).toBe(50);
+    expect(preferredSources(ready(true, false), "news").score).toBe(50);
+    expect(preferredSources(ready(false, false), "news")).toMatchObject({
       score: 0,
       evidence:
         "No Preferred Sources button; 2 URLs updated in the last 30 days (not enough for fresh content).",
@@ -355,8 +355,46 @@ describe("AEO sub-scores", () => {
 
   it("counts one fresh URL in the singular", () => {
     const one = { button: false, buttonPages: [], freshUrls: 1, freshContent: false };
-    expect(preferredSources(readinessOf({ preferredSources: one })).evidence).toContain(
+    expect(preferredSources(readinessOf({ preferredSources: one }), "news").evidence).toContain(
       "1 URL updated in the last 30 days",
     );
   });
+});
+
+describe("preferredSources by kind (formula v2)", () => {
+  const ready = (button: boolean, freshContent: boolean) =>
+    readinessOf({
+      preferredSources: {
+        button,
+        buttonPages: button ? ["https://docs.example.com/"] : [],
+        freshUrls: freshContent ? 3 : 2,
+        freshContent,
+      },
+    });
+
+  it("scores a product site on freshness alone: the button adds nothing", () => {
+    expect(preferredSources(ready(true, false), "product")).toMatchObject({
+      score: 0,
+      evidence: "2 URLs updated in the last 30 days (not enough for fresh content).",
+    });
+    expect(preferredSources(ready(false, true), "product")).toMatchObject({
+      score: 100,
+      evidence: "3 URLs updated in the last 30 days (fresh content).",
+    });
+    expect(preferredSources(ready(true, true), "product").score).toBe(100);
+  });
+
+  it("keeps the v1 split for a news site", () => {
+    expect(preferredSources(ready(true, false), "news").score).toBe(50);
+    expect(preferredSources(ready(false, true), "news").score).toBe(50);
+    expect(preferredSources(ready(true, true), "news").score).toBe(100);
+  });
+
+  it.each(["news", "product"] as const)(
+    "is missing, not zero, when readiness can't read the crawl (%s)",
+    (kind) => {
+      const blind = readinessOf({ preferredSources: null });
+      expect(preferredSources(blind, kind).score).toBeNull();
+    },
+  );
 });

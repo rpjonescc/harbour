@@ -61,7 +61,7 @@ test("the sidebar counts open actions and the board groups them, biggest wins fi
   expect(active).toBeGreaterThanOrEqual(5);
   await expect(
     page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: /^Actions/ }),
-  ).toHaveAccessibleName(new RegExp(`^Actions\\s*${active} open actions$`));
+  ).toHaveAccessibleName(new RegExp(`^Actions\\s*${active} things worth doing$`));
 
   await expect(card(page, "1 page is missing a title", "Acme Docs")).toBeVisible();
   await expect(card(page, "1 page you link to can't be found", "Acme Docs")).toBeVisible();
@@ -201,7 +201,7 @@ test("Today lists the top three actions in board order; issues link to their act
   );
 
   await page.goto("/");
-  const attention = page.getByRole("region", { name: "Worth doing next" });
+  const attention = page.getByRole("region", { name: "Next up" });
   await expect(attention.getByRole("article")).toHaveCount(3);
   await expect(attention.getByRole("heading", { level: 3 })).toHaveText(titles.map((t) => t ?? ""));
   await expect(attention.getByRole("link", { name: /more on the Actions board$/ })).toHaveText(
@@ -215,7 +215,7 @@ test("Today lists the top three actions in board order; issues link to their act
     "No guide to your site for AI assistants",
   ]) {
     const issue = issues.getByRole("article", { name: title });
-    await expect(issue.getByText("To do", { exact: true })).toBeVisible();
+    await expect(issue.getByText("Waiting for you", { exact: true })).toBeVisible();
     await expect(issue.getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
       "href",
       /^\/actions\?product=lighthouse-cafe&status=all#action-\d+$/,

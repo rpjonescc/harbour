@@ -1,6 +1,7 @@
 import { insertAction, setStatus } from "@/lib/actions/store";
 import { decideProposal, importProposals, listProposals } from "@/lib/agents/proposals";
 import type { ScoreBreakdownEntry } from "@/lib/db/schema";
+import type { Product } from "@/lib/products/catalog";
 import { deriveIssues } from "@/lib/scan/issues";
 import type { Observation } from "@/lib/scan/types";
 import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
@@ -17,18 +18,21 @@ const acme = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber" as const,
+  kind: "product" as const,
 };
 const beta = {
   id: "beta-shop",
   name: "Beta Shop",
   url: "https://shop.example.com",
   hue: "blue" as const,
+  kind: "product" as const,
 };
 const quiet = {
   id: "quiet-blog",
   name: "Quiet Blog",
   url: "https://blog.example.com",
   hue: "teal" as const,
+  kind: "product" as const,
 };
 const at = (iso: string) => new Date(iso);
 
@@ -130,7 +134,7 @@ function seedActions(db: ReturnType<typeof openTestDb>) {
   return { openId };
 }
 
-const build = (db: ReturnType<typeof openTestDb>, products = [acme, beta, quiet]) =>
+const build = (db: ReturnType<typeof openTestDb>, products: Product[] = [acme, beta, quiet]) =>
   buildWeeklyExport(db, { products, week: "2026-W40", now: NOW, timeZone: TZ });
 
 describe("buildWeeklyExport", () => {
@@ -150,6 +154,7 @@ describe("buildWeeklyExport", () => {
     expect(product?.scores).toEqual([
       {
         date: "2026-09-29",
+        formulaVersion: "v1",
         seo: 45,
         geo: 35,
         aeo: 20,
@@ -157,6 +162,7 @@ describe("buildWeeklyExport", () => {
       },
       {
         date: "2026-10-03",
+        formulaVersion: "v1",
         seo: 50,
         geo: null,
         aeo: 25,
@@ -165,6 +171,44 @@ describe("buildWeeklyExport", () => {
     ]);
     // Baseline is the 25 September scan; its AEO was a gap and the latest GEO is one.
     expect(product?.deltas).toEqual({ seo: 10, geo: null, aeo: null });
+  });
+
+  describe("against a baseline scored on another formula", () => {
+    const seedAcross = () => {
+      const db = openTestDb();
+      seedScan(db, {
+        productId: "acme-docs",
+        at: at("2026-09-25T06:00:00Z"),
+        totals: { seo: 50, geo: 40, aeo: 30 },
+      });
+      seedScan(db, {
+        productId: "acme-docs",
+        at: at("2026-10-03T06:00:00Z"),
+        totals: { seo: 55, geo: 45, aeo: 17 },
+        formulaVersion: "v2",
+      });
+      return db;
+    };
+
+    it("leaves out only the AEO change on a product site, which v2 changed", () => {
+      expect(build(seedAcross()).products[0]?.deltas).toEqual({ seo: 5, geo: 5, aeo: null });
+    });
+
+    it("keeps every change on a news site, which v2 did not change", () => {
+      const news = { ...acme, kind: "news" as const };
+      expect(build(seedAcross(), [news]).products[0]?.deltas).toEqual({ seo: 5, geo: 5, aeo: -13 });
+    });
+  });
+
+  it("labels each point of the series with its formula version", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: at("2026-09-30T06:00:00Z") });
+    seedScan(db, {
+      productId: "acme-docs",
+      at: at("2026-10-03T06:00:00Z"),
+      formulaVersion: "v2",
+    });
+    expect(build(db).products[0]?.scores.map((s) => s.formulaVersion)).toEqual(["v1", "v2"]);
   });
 
   it("has null deltas with nothing to compare, and empty lists for a product never scanned", () => {
@@ -201,6 +245,7 @@ describe("buildWeeklyExport", () => {
     const expected = deriveIssues(
       ACME_SCAN.filter((o) => o.collector !== "pagespeed"),
       statuses,
+      "product",
     );
     expect(product?.issues.map((i) => i.id)).toEqual(expected.map((i) => i.id));
     expect(product?.issues.length).toBeGreaterThan(0);

@@ -17,9 +17,16 @@ const products: Product[] = [
     name: "Acme Docs",
     url: "https://docs.example.com",
     hue: "amber",
+    kind: "product" as const,
     searchConsoleProperty: "sc-domain:docs.example.com",
   },
-  { id: "fern-and-field", name: "Fern & Field", url: "https://fern.example.com", hue: "green" },
+  {
+    id: "fern-and-field",
+    name: "Fern & Field",
+    url: "https://fern.example.com",
+    hue: "green",
+    kind: "product" as const,
+  },
 ];
 
 describe("sourcesView", () => {

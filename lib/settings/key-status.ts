@@ -9,10 +9,7 @@ export type KeyStatus = "present" | "missing" | "file-not-found";
 export type KeyRow = {
   id: string;
   label: string;
-  /** The `.env` setting(s) to fill in. */
-  settings: string[];
   status: KeyStatus;
-  usedFor: string;
   /** False for a source whose collector does not exist yet ("not used yet"). */
   inUse: boolean;
   paid: boolean;
@@ -45,37 +42,28 @@ export function keyStatusRows(
     {
       id: "claude",
       label: "Claude token",
-      settings: ["HARBOUR_CLAUDE_OAUTH_TOKEN"],
       status: presence(config, ["HARBOUR_CLAUDE_OAUTH_TOKEN"]),
-      usedFor:
-        "Agents: research, discovery, the weekly analyst, research refreshes and the morning note",
       inUse: true,
       paid: false,
     },
     {
       id: "pagespeed",
       label: "PageSpeed Insights",
-      settings: ["HARBOUR_PAGESPEED_API_KEY"],
       status: presence(config, ["HARBOUR_PAGESPEED_API_KEY"]),
-      usedFor: "Core Web Vitals and Lighthouse scores in each scan",
       inUse: true,
       paid: false,
     },
     {
       id: "search-console",
       label: "Search Console",
-      settings: ["HARBOUR_GSC_CREDENTIALS"],
       status: !gsc ? "missing" : fileExists(gsc) ? "present" : "file-not-found",
-      usedFor: "Clicks, impressions and queries from Google Search Console",
       inUse: true,
       paid: false,
     },
     ...PAID_SOURCES.map((source) => ({
       id: source.id,
       label: source.label,
-      settings: [...source.settings],
       status: presence(config, source.settings),
-      usedFor: source.provides,
       inUse: source.collector !== null,
       paid: true,
     })),

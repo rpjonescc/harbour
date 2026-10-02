@@ -15,6 +15,7 @@ export const product: Product = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber",
+  kind: "product" as const,
 };
 
 export const page = (path: string) => ({

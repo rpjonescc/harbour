@@ -2,7 +2,8 @@ import type { Note } from "./note";
 
 /**
  * Today's quiet gap: no valid note in the last 24 hours. `noteTime` is when the worker writes the
- * next one, or null when no schedule runs (switched off, or no Claude token): then none is promised.
+ * next one, or null when no schedule runs (switched off, or no Claude token): then none is
+ * promised.
  */
 export function gapLine(noteTime: string | null): string {
   return noteTime === null
@@ -29,10 +30,14 @@ export const NOTE_MESSAGES = {
   failed: "Harbour couldn't start a note just now. Try again in a moment.",
   starting: "Starting…",
   rejected: "That note didn't pass Harbour's checks, so nothing was shown. You can try again.",
-  noToken: "Notes need Harbour's Claude token. The setup steps are on the Agents page.",
+  noToken: "Notes need Claude to be connected. The setup steps are on the Agents page.",
   unavailable: "Harbour couldn't read today's note. The briefing below is still up to date.",
   rateLimited: (noteTime: string | null) =>
     noteTime === null
       ? "That's plenty of notes for one day. You can ask again tomorrow."
       : `That's plenty of notes for one day. Tomorrow's is written at ${noteTime}.`,
 } as const;
+
+/** A daily note is asked for on Today, not on the Agents page. */
+export const NOTE_RUN_FAILED_LINE =
+  "This note didn't get written. You can ask for a fresh one on Today.";

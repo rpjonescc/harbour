@@ -21,7 +21,6 @@ describe("PAID_SOURCES", () => {
     for (const source of PAID_SOURCES) {
       expect(source.settings.length, source.id).toBeGreaterThan(0);
       expect(source.label, source.id).not.toBe("");
-      expect(source.provides, source.id).not.toBe("");
     }
   });
 

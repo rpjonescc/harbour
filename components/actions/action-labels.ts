@@ -5,20 +5,23 @@ import { STATUS_COLUMN } from "@/lib/explain/actions";
 
 /** Where an action came from, in Technical details. */
 export const SOURCE_LABEL = {
-  rule: "Found by a scan",
-  agent: "Suggested by the weekly analyst",
+  rule: "Found by a check",
+  agent: "Suggested by the weekly report",
 } as const;
 
 /** Who made a change, in the card's history. */
 export const ACTOR_LABEL: Record<ActionActor, string> = {
   owner: "You",
   claude: "Claude",
-  scan: "Harbour's scan",
-  agent: "Weekly analyst",
+  scan: "Harbour's check",
+  agent: "Weekly report",
   system: "Harbour",
 };
 
-/** Status filter options, in menu order; the default comes first. URL values stay the stored statuses. */
+/**
+ * Status filter options, in menu order; the default comes first. URL values stay the stored
+ * statuses.
+ */
 export const STATUS_FILTER_LABEL: Record<ActionFilter["status"], string> = {
   active: "To do and in progress",
   suggested: STATUS_COLUMN.suggested,
@@ -35,12 +38,12 @@ export const EMPTY_STATE: Record<
 > = {
   active: {
     what: "Nothing to do right now.",
-    when: "New things show up after each scan and each weekly report.",
+    when: "New things show up after each check and each weekly report.",
     why: "New ideas you haven't decided on yet are under the New ideas filter.",
   },
   suggested: {
     what: "No new ideas waiting.",
-    when: "The weekly analyst adds ideas with each report, on Sundays.",
+    when: "The weekly report adds ideas, on Sundays.",
     why: "You decide which ones to accept.",
   },
   snoozed: {
@@ -50,7 +53,7 @@ export const EMPTY_STATE: Record<
   },
   done: {
     what: "Nothing is done yet.",
-    when: "Finished items, and problems a scan no longer finds, appear here.",
+    when: "Finished items, and problems a check no longer finds, appear here.",
     why: "They stay so you can see what changed.",
   },
   dismissed: {
@@ -60,8 +63,8 @@ export const EMPTY_STATE: Record<
   },
   all: {
     what: "No actions yet.",
-    when: "They arrive after each scan and each weekly report.",
-    why: "Run Scan now on a product page to get the first ones.",
+    when: "They arrive after each check and each weekly report.",
+    why: "Run Check now on a product page to get the first ones.",
   },
 };
 

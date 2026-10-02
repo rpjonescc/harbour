@@ -57,17 +57,17 @@ export function actionFields(issue: Issue): ActionFields {
 }
 
 function planPresent(row: RuleActionState | undefined, issue: Issue, date: string): SyncChange {
-  if (!row) return { kind: "insert", issue, note: `Found in scan of ${date}` };
+  if (!row) return { kind: "insert", issue, note: `Found in the check of ${date}` };
   const reopen = (note: string): SyncChange => {
     return { kind: "status", id: row.id, from: row.status, to: "open", issue, note };
   };
   // The owner marked it done but the scan still finds it.
   if (row.status === "done" && row.issuePresent === true) {
-    return reopen(`Still present in scan of ${date}`);
+    return reopen(`Still present in the check of ${date}`);
   }
   // It had cleared since the owner closed it, and now it is back.
   if ((row.status === "done" || row.status === "dismissed") && row.issuePresent !== true) {
-    return reopen(`Back in scan of ${date}`);
+    return reopen(`Back in the check of ${date}`);
   }
   // Dismissed stays dismissed while the issue persists; a snooze lasts until its date.
   return { kind: "refresh", id: row.id, issue };
@@ -76,7 +76,7 @@ function planPresent(row: RuleActionState | undefined, issue: Issue, date: strin
 function planClear(row: RuleActionState | undefined, date: string): SyncChange | null {
   if (!row) return null;
   if (UNRESOLVED.includes(row.status)) {
-    const note = `Resolved — not found in scan of ${date}`;
+    const note = `Resolved — not found in the check of ${date}`;
     return { kind: "status", id: row.id, from: row.status, to: "done", issue: null, note };
   }
   if (row.issuePresent === false) return null;

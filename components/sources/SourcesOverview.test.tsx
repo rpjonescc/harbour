@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, within } from "@testing-library/react";
 import type { SourcesView } from "@/lib/scan/sources-view";
+import { textOutsideDetails } from "@/tests/helpers/plain-text";
 import { SourcesOverview } from "./SourcesOverview";
 
 const AT = new Date("2026-10-01T05:04:00Z");
@@ -60,47 +61,51 @@ const view: SourcesView = {
 };
 
 describe("SourcesOverview", () => {
-  it("shows the daily schedule", () => {
-    render(<SourcesOverview view={view} locale="en-GB" />);
-    expect(screen.getByText(/Every product at 06:00 \(Europe\/London\)/)).toBeInTheDocument();
-    expect(screen.getByText("On")).toBeInTheDocument();
+  it("reads each connection as Connected or Not connected yet, with steps under Technical details", () => {
+    const { container } = render(<SourcesOverview view={view} locale="en-GB" />);
+    const list = screen.getByRole("list", { name: "Connections" });
+    const speed = within(list)
+      .getByText("Google speed test (PageSpeed)")
+      .closest("li") as HTMLElement;
+    expect(speed).toHaveTextContent("Not connected yet");
+    expect(within(speed).getByRole("link", { name: /Connect PageSpeed/ })).toHaveAttribute(
+      "href",
+      "https://github.com/rpjonescc/harbour#connect-pagespeed",
+    );
+    const gsc = within(list).getByText("Google Search Console").closest("li") as HTMLElement;
+    expect(gsc).toHaveTextContent("Connected");
+    expect(gsc).toHaveTextContent("Fern & Field isn't linked to a Search Console site yet.");
+    expect(textOutsideDetails(container)).not.toMatch(/HARBOUR_[A-Z_]+/);
   });
 
-  it("shows the schedule off", () => {
-    render(
+  it("says the daily check is on or off without a setting name", () => {
+    const { container, rerender } = render(<SourcesOverview view={view} locale="en-GB" />);
+    expect(
+      screen.getByText(/Harbour checks every site at 06:00 \(Europe\/London\)/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("On")).toBeInTheDocument();
+    rerender(
       <SourcesOverview
         view={{ ...view, schedule: { ...view.schedule, enabled: false } }}
         locale="en-GB"
       />,
     );
-    expect(screen.getByText(/HARBOUR_SCHEDULED_SCANS=off/)).toBeInTheDocument();
+    expect(screen.getByText(/Daily checks are off/)).toBeInTheDocument();
+    expect(textOutsideDetails(container)).not.toMatch(/HARBOUR_SCHEDULED/);
   });
 
-  it("lists connections with setup links for the ones not connected", () => {
-    render(<SourcesOverview view={view} locale="en-GB" />);
-    const list = screen.getByRole("list", { name: "Connections" });
-    const pagespeed = within(list).getByText("PageSpeed").closest("li") as HTMLElement;
-    expect(pagespeed).toHaveTextContent("Not connected");
-    expect(within(pagespeed).getByRole("link", { name: /Connect PageSpeed/ })).toHaveAttribute(
-      "href",
-      "https://github.com/rpjonescc/harbour#connect-pagespeed",
-    );
-    const gsc = within(list).getByText("Search Console").closest("li") as HTMLElement;
-    expect(gsc).toHaveTextContent("Connected");
-    expect(gsc).toHaveTextContent("No property for Fern & Field.");
-  });
-
-  it("gives each product's scan times and each source's last status and reason", () => {
-    render(<SourcesOverview view={view} locale="en-GB" />);
+  it("gives each product's check times and each source's status, raw reasons under Technical details", () => {
+    const { container } = render(<SourcesOverview view={view} locale="en-GB" />);
     const acme = screen.getByRole("region", { name: "Acme Docs" });
     expect(acme).toHaveTextContent(
-      "Last scan 1 Oct 2026, 06:04 (partial) · Next scan: tomorrow at 06:00",
+      "Last check 1 Oct 2026, 06:04 (some data was missing) · Next check: tomorrow at 06:00",
     );
-    const row = within(acme).getByRole("row", { name: /Search Console/ });
-    expect(row).toHaveTextContent("failed");
-    expect(row).toHaveTextContent("Search Console refused access");
-    const fern = screen.getByRole("region", { name: "Fern & Field" });
-    expect(fern).toHaveTextContent("Scan running now");
-    expect(within(fern).getAllByText("never ran")).toHaveLength(4);
+    const row = within(acme).getByRole("row", { name: /Google Search Console/ });
+    expect(row).toHaveTextContent("Google didn't send the data in the last check");
+    expect(within(row).getByText("(Acme Docs: Google Search Console)")).toBeInTheDocument();
+    expect(textOutsideDetails(container)).not.toContain("Search Console refused access");
+    expect(screen.getByRole("region", { name: "Fern & Field" })).toHaveTextContent(
+      "Check running now",
+    );
   });
 });

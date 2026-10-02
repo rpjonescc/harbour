@@ -9,12 +9,13 @@ import { audToMicro } from "@/lib/costs/budget";
 import { type Reservation, reservationsBetween } from "@/lib/costs/ledger";
 import { type CostMeterView, costMeterView } from "@/lib/costs/meter-view";
 import type { Db } from "@/lib/db/client";
+import { NOTE_OFF_REASON } from "@/lib/explain/settings";
 import { monthWindow } from "@/lib/format/zoned-time";
 import { nextScheduledScans } from "@/lib/jobs/scan-schedule";
 import { nextNoteRun, noteEnabled } from "@/lib/note/schedule";
 import { nextBackupRun } from "@/lib/ops/backup-schedule";
 import { type BackupStatus, backupStatus } from "@/lib/ops/backup-status";
-import type { Hue, Product } from "@/lib/products/catalog";
+import type { Hue, Product, ProductKind } from "@/lib/products/catalog";
 import { type KeyRow, keyStatusRows } from "./key-status";
 
 export type ScheduleRow = {
@@ -22,8 +23,8 @@ export type ScheduleRow = {
   label: string;
   when: string;
   setting: string;
-  /** The value that switches it off, when it is not `off`. */
-  offValue?: string;
+  /** A plain reason for Off when the row's own setting doesn't explain it; else null. */
+  offReason: string | null;
   enabled: boolean;
   next: Date | null;
 };
@@ -34,6 +35,7 @@ export type SettingsView = {
     name: string;
     url: string;
     hue: Hue;
+    kind: ProductKind;
     searchConsoleProperty: string | null;
     awaitingApproval: number;
   }[];
@@ -49,29 +51,38 @@ export type SettingsView = {
   timeZone: string;
 };
 
-function schedules(config: Config, now: Date): ScheduleRow[] {
+/** Why the morning note is off: the personality, then its own schedule, else no Claude token. */
+function noteOffReason(config: Config): string {
+  if (config.HARBOUR_PERSONALITY === "quiet") return NOTE_OFF_REASON.quiet;
+  if (config.HARBOUR_SCHEDULED_NOTE === "off") return NOTE_OFF_REASON.schedule;
+  return NOTE_OFF_REASON.token;
+}
+
+function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] {
   const zone = config.HARBOUR_TIMEZONE;
   const on = (value: "on" | "off") => value === "on";
   const scans = on(config.HARBOUR_SCHEDULED_SCANS);
   const analyst = on(config.HARBOUR_SCHEDULED_ANALYST);
   const refresh = on(config.HARBOUR_SCHEDULED_RESEARCH);
   const backup = on(config.HARBOUR_SCHEDULED_BACKUP);
-  const note = noteEnabled(config);
-  const quiet = config.HARBOUR_PERSONALITY === "quiet";
+  // Without Claude the worker never queues a note, so the row must not promise one.
+  const note = noteEnabled(config) && tokenSet;
   return [
     {
       id: "scan",
-      label: "Daily scan",
+      label: "Daily check",
       when: "Every day at 06:00",
       setting: "HARBOUR_SCHEDULED_SCANS",
+      offReason: null,
       enabled: scans,
       next: nextScheduledScans(now, zone, scans),
     },
     {
       id: "analyst",
-      label: "Weekly analyst",
+      label: "Weekly report",
       when: "Sundays at 20:00",
       setting: "HARBOUR_SCHEDULED_ANALYST",
+      offReason: null,
       enabled: analyst,
       next: nextWeeklyRun(now, zone, analyst),
     },
@@ -80,6 +91,7 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
       label: "Monthly research refresh",
       when: "First Sunday of the month at 21:00",
       setting: "HARBOUR_SCHEDULED_RESEARCH",
+      offReason: null,
       enabled: refresh,
       next: nextMonthlyRefresh(now, zone, refresh),
     },
@@ -88,6 +100,7 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
       label: "Nightly backup",
       when: "Every night at 03:15",
       setting: "HARBOUR_SCHEDULED_BACKUP",
+      offReason: null,
       enabled: backup,
       next: nextBackupRun(now, zone, backup),
     },
@@ -95,8 +108,8 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
       id: "note",
       label: "Morning note",
       when: `Every day at ${config.HARBOUR_NOTE_TIME}`,
-      setting: quiet ? "HARBOUR_PERSONALITY" : "HARBOUR_SCHEDULED_NOTE",
-      ...(quiet ? { offValue: "quiet" } : {}),
+      setting: "HARBOUR_SCHEDULED_NOTE",
+      offReason: note ? null : noteOffReason(config),
       enabled: note,
       next: nextNoteRun(now, zone, config.HARBOUR_NOTE_TIME, note),
     },
@@ -110,6 +123,7 @@ export function settingsView(
   config: Config,
   now: Date,
   isDemoConfig: boolean,
+  tokenSet: boolean,
 ): SettingsView {
   const waiting = new Map(approvalsWaiting(db, products).map((w) => [w.productId, w.count]));
   const month = monthWindow(now, config.HARBOUR_TIMEZONE);
@@ -119,11 +133,12 @@ export function settingsView(
       name: p.name,
       url: p.url,
       hue: p.hue,
+      kind: p.kind,
       searchConsoleProperty: p.searchConsoleProperty ?? null,
       awaitingApproval: waiting.get(p.id) ?? 0,
     })),
     isDemoConfig,
-    schedules: schedules(config, now),
+    schedules: schedules(config, now, tokenSet),
     keys: keyStatusRows(config),
     budget: {
       ...costMeterView(db, config, now),

@@ -10,7 +10,13 @@ vi.mock("@/lib/db/client", async (importOriginal) => ({
 }));
 vi.mock("@/lib/products/catalog", () => ({
   getProducts: () => [
-    { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" },
+    {
+      id: "acme-docs",
+      name: "Acme Docs",
+      url: "https://docs.example.com",
+      hue: "amber",
+      kind: "product" as const,
+    },
   ],
 }));
 

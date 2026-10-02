@@ -42,6 +42,7 @@ export function ProductOverview({
         product={product}
         scores={view.scores}
         scan={view.scan}
+        formulaChange={view.formulaChange}
         timeZone={timeZone}
         locale={locale}
       />

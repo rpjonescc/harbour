@@ -1,3 +1,5 @@
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
+
 /** Shown while interrupted agent runs still need their changes moved to quarantine. */
 export function RecoveryBanner({
   pending,
@@ -7,18 +9,23 @@ export function RecoveryBanner({
   lastError: string | null;
 }) {
   if (pending.length === 0) return null;
-  const runs =
-    pending.length === 1 ? "1 interrupted agent run" : `${pending.length} interrupted agent runs`;
+  const runs = pending.length === 1 ? "1 run was" : `${pending.length} runs were`;
   return (
     <section
       aria-label="Agent run recovery"
       className="flex flex-col gap-1 rounded-sm bg-warn-soft px-3 py-2 text-sm text-ink"
     >
-      <p>Recovering {runs} — notes autosave is paused</p>
+      <p>
+        {runs} interrupted. Harbour is putting your notes back in order, so saving is paused for a
+        moment.
+      </p>
       {lastError && (
-        <p role="alert" className="whitespace-pre-line text-bad">
-          {lastError}
-        </p>
+        <TechnicalDetails
+          id="recovery-error"
+          topic="what Harbour recorded about the interrupted run"
+        >
+          <p className="whitespace-pre-line break-words font-mono text-bad">{lastError}</p>
+        </TechnicalDetails>
       )}
     </section>
   );

@@ -14,12 +14,14 @@ const product: Product = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber",
+  kind: "product" as const,
 };
 const AT = new Date("2026-10-01T06:04:00Z");
 
 const empty: ProductView = {
   scores: { latest: null, deltas: { seo: null, geo: null, aeo: null }, trend: [] },
   scan: { active: null, last: null },
+  formulaChange: null,
   issues: [],
   actionByRule: new Map(),
   pages: { rows: [], total: 0 },
@@ -27,6 +29,7 @@ const empty: ProductView = {
 };
 
 const scanned: ProductView = {
+  formulaChange: null,
   scores: {
     latest: {
       scanId: 1,
@@ -83,24 +86,43 @@ const scanned: ProductView = {
       failedCollectors: [{ collector: "pagespeed", error: "quota exceeded" }],
     },
   },
-  issues: deriveIssues([...ACME_CRAWL, readiness()], ALL_OK),
+  issues: deriveIssues([...ACME_CRAWL, readiness()], ALL_OK, "product"),
   actionByRule: new Map([
-    ["broken-links", { id: 5, status: "in_progress", snoozedUntil: null }],
-    ["noindex", { id: 6, status: "snoozed", snoozedUntil: "2026-10-12" }],
+    ["broken-links", { id: 5, status: "in_progress", snoozedUntil: null, who: "claude" }],
+    ["noindex", { id: 6, status: "snoozed", snoozedUntil: "2026-10-12", who: null }],
   ]),
   pages: pageRows(ACME_CRAWL),
   search: { state: "not_configured", reason: "HARBOUR_GSC_CREDENTIALS is not set" },
 };
 
-const renderPage = (view: ProductView) =>
-  render(<ProductOverview product={product} view={view} timeZone="UTC" locale="en-GB" />);
+const renderPage = (view: ProductView, productOverrides: Partial<Product> = {}) =>
+  render(
+    <ProductOverview
+      product={{ ...product, ...productOverrides }}
+      view={view}
+      timeZone="UTC"
+      locale="en-GB"
+    />,
+  );
 
 describe("ProductOverview", () => {
-  it("for a product never scanned says so everywhere, with Scan now and the research link", () => {
+  it("shows the scoring note under the area cards for a product site", () => {
+    renderPage({ ...scanned, formulaChange: { from: "v1", to: "v2", at: AT } });
+    expect(
+      screen.getByText("Scoring updated: Preferred Sources now only counts for news sites."),
+    ).toBeInTheDocument();
+  });
+
+  it("doesn't show it for a news site, whose score did not change", () => {
+    renderPage({ ...scanned, formulaChange: { from: "v1", to: "v2", at: AT } }, { kind: "news" });
+    expect(screen.queryByText(/Scoring updated/)).toBeNull();
+  });
+
+  it("for a product never checked says so everywhere, with Check now and the research link", () => {
     renderPage(empty);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Acme Docs");
-    expect(screen.getByText(/hasn't scanned this site yet/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Scan now" })).toBeEnabled();
+    expect(screen.getByText(/hasn't checked this site yet/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check now" })).toBeEnabled();
     expect(screen.getByRole("link", { name: "Research targets" })).toHaveAttribute(
       "href",
       "/settings/products/acme-docs",
@@ -110,13 +132,13 @@ describe("ProductOverview", () => {
     expect(screen.getAllByText("No score yet")).toHaveLength(3);
   });
 
-  it("shows a running scan and disables Scan now", () => {
+  it("shows a running scan and disables Check now", () => {
     renderPage({
       ...empty,
       scan: { active: { jobId: 4, status: "running", since: AT }, last: null },
     });
-    expect(screen.getByText(/Scanning now \(started 1 Oct 2026, 06:04\)/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Scan now" })).toBeDisabled();
+    expect(screen.getByText(/Checking now \(started 1 Oct 2026, 06:04\)/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check now" })).toBeDisabled();
   });
 
   it("explains scores: area cards, breakdown with missing reasons and not-connected notes", () => {
@@ -150,7 +172,7 @@ describe("ProductOverview", () => {
     const issue = (name: string) =>
       screen.getByRole("article", { name: new RegExp(name) }) as HTMLElement;
     const broken = issue("you link to can't be found");
-    expect(within(broken).getByText("In progress")).toBeInTheDocument();
+    expect(within(broken).getByText("Claude is on it")).toBeInTheDocument();
     expect(
       within(broken).getByRole("link", {
         name: "View on the Actions board: 1 page you link to can't be found",
@@ -160,7 +182,7 @@ describe("ProductOverview", () => {
       within(issue("hidden from search")).getByText("Snoozed until 12 Oct 2026"),
     ).toBeInTheDocument();
     const untracked = issue("opts out of AI training");
-    expect(within(untracked).getByText("Tracking starts with the next scan")).toBeInTheDocument();
+    expect(within(untracked).getByText("Tracking starts with the next check")).toBeInTheDocument();
     expect(
       within(untracked).queryByRole("link", {
         name: /^View on the Actions board/,
@@ -169,11 +191,16 @@ describe("ProductOverview", () => {
   });
 
   it("names open, dismissed and done-but-still-found actions", () => {
-    const status = (s: "open" | "dismissed" | "done") => ({ id: 5, status: s, snoozedUntil: null });
+    const status = (s: "open" | "dismissed" | "done") => ({
+      id: 5,
+      status: s,
+      snoozedUntil: null,
+      who: s === "open" ? ("you" as const) : null,
+    });
     for (const [s, text] of [
-      ["open", "To do"],
+      ["open", "Waiting for you"],
       ["dismissed", "Dismissed"],
-      ["done", "Done — still found in the last scan"],
+      ["done", "Done — still found in the last check"],
     ] as const) {
       const { unmount } = renderPage({
         ...scanned,

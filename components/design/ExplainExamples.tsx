@@ -2,7 +2,7 @@ import { EmptyState } from "@/components/explain/EmptyState";
 import { Explainer } from "@/components/explain/Explainer";
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { VerdictLine } from "@/components/explain/VerdictLine";
-import { NOTHING_TO_DO } from "@/components/today/WorthDoingNext";
+import { NOTHING_TO_DO } from "@/components/today/NextUp";
 import { AREAS, areaNextStep } from "@/lib/explain/areas";
 import { subScoreExplanation, subScoreLine } from "@/lib/explain/subscores";
 import { GAP_REASONS } from "@/lib/explain/verdict";

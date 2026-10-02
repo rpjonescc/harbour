@@ -11,11 +11,11 @@ export const NOTHING_TO_DO = {
 } as const;
 
 /** Today's top actions as plain cards, with the rest a link away on the Actions board. */
-export function WorthDoingNext({ actions, more }: { actions: ActionPreview[]; more: number }) {
+export function NextUp({ actions, more }: { actions: ActionPreview[]; more: number }) {
   return (
-    <section aria-labelledby="worth-doing-heading" className="flex flex-col gap-3">
-      <h2 id="worth-doing-heading" className="font-serif text-xl">
-        Worth doing next
+    <section aria-labelledby="next-up-heading" className="flex flex-col gap-3">
+      <h2 id="next-up-heading" className="font-serif text-xl">
+        Next up
       </h2>
       {actions.length === 0 ? (
         <EmptyState {...NOTHING_TO_DO} />

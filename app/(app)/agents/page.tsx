@@ -9,6 +9,7 @@ import { weeklyPanelView } from "@/lib/analyst/panel-view";
 import { requireSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
+import { AGENT_PURPOSE, AGENTS_INTRO } from "@/lib/explain/agents";
 import { importsGivenUp, listJobs } from "@/lib/jobs/queue";
 import { getProducts } from "@/lib/products/catalog";
 
@@ -47,10 +48,7 @@ export default async function AgentsPage() {
     <div className="flex max-w-5xl flex-col gap-6">
       <header>
         <h1 className="font-serif text-3xl">Agents</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Research, discovery, the weekly analyst, the research refresh and the morning note write
-          into your Second Brain. One runs at a time.
-        </p>
+        <p className="mt-1 text-sm text-ink-muted">{AGENTS_INTRO}</p>
       </header>
       <BrainStatus status={status} />
       <RunPanel products={products.map(({ id, name }) => ({ id, name }))} tokenSet={tokenSet} />
@@ -58,6 +56,7 @@ export default async function AgentsPage() {
       <ResearchRefreshPanel view={refresh} />
       <section className="flex flex-col gap-3">
         <h2 className="font-serif text-xl">Recent runs</h2>
+        <p className="text-sm text-ink-muted">{AGENT_PURPOSE.recent}</p>
         <JobList
           jobs={jobs}
           products={products}

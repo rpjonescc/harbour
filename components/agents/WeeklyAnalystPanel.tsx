@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import type { WeeklyPanelView } from "@/lib/analyst/panel-view";
 import { postJson } from "@/lib/auth/client-api";
+import { AGENT_PURPOSE } from "@/lib/explain/agents";
+import { CLAUDE_OFF_HERE } from "@/lib/explain/claude";
 
-/** The weekly analyst report: when it next runs, the latest one, and Run now. */
+/** The weekly report: when it next runs, the latest one, and Write this week's report now. */
 export function WeeklyAnalystPanel({ view }: { view: WeeklyPanelView }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -24,7 +26,7 @@ export function WeeklyAnalystPanel({ view }: { view: WeeklyPanelView }) {
     const jobId = result.ok ? result.data.jobIds[0] : undefined;
     if (jobId === undefined) {
       setBusy(false);
-      return setError("Couldn't queue the weekly report. Try again.");
+      return setError("Couldn't start the report. Try again.");
     }
     router.push(`/agents/${jobId}`);
   }
@@ -38,14 +40,15 @@ export function WeeklyAnalystPanel({ view }: { view: WeeklyPanelView }) {
           disabled={busy || !view.tokenSet}
           aria-describedby={view.tokenSet ? undefined : whyDisabledId}
         >
-          Run weekly report now
+          Write this week's report now
         </Button>
       </div>
       {!view.tokenSet && (
         <p id={whyDisabledId} className="text-sm text-ink-muted">
-          Run now needs a Claude token (HARBOUR_CLAUDE_OAUTH_TOKEN).
+          {CLAUDE_OFF_HERE}
         </p>
       )}
+      <p className="text-sm text-ink-muted">{AGENT_PURPOSE.weekly}</p>
       <p className="text-sm text-ink-muted">{view.schedule}</p>
       {view.latestReport ? (
         <p className="text-sm">
@@ -54,7 +57,9 @@ export function WeeklyAnalystPanel({ view }: { view: WeeklyPanelView }) {
           </Link>
         </p>
       ) : (
-        <p className="text-sm text-ink-muted">No weekly report yet.</p>
+        <p className="text-sm text-ink-muted">
+          No report yet. The first one arrives on Sunday, or write one now.
+        </p>
       )}
       {error && (
         <p role="alert" className="text-sm text-bad">

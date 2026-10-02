@@ -1,3 +1,4 @@
+import type { ProductKind } from "@/lib/products/catalog";
 import { hasSchemaFamily } from "../schema-types";
 import type { Crawl, Readiness } from "./inputs";
 import { type HtmlPage, htmlPages } from "./pages";
@@ -51,25 +52,28 @@ export function conciseAnswers(crawl: Crawl): SubScore {
 }
 
 /**
- * Preferred Sources readiness: 50 for a Google Preferred Sources button or deeplink on some
- * page, 50 for fresh content (3+ URLs updated or published in the last 30 days).
+ * Fresh content: 3+ URLs updated or published in the last 30 days. News sites also get 50 points
+ * for a Google Preferred Sources button (formula v1): it is a Top Stories feature, so for any
+ * other site the button counts for nothing and fresh content is worth the whole score.
  */
-export function preferredSources(readiness: Readiness): SubScore {
+export function preferredSources(readiness: Readiness, kind: ProductKind): SubScore {
   const ready = readiness.preferredSources;
-  if (!ready)
+  if (!ready) {
     return missing("Readiness could not read this scan's crawl: Preferred Sources unknown");
+  }
+  const urls = `${ready.freshUrls} ${plural(ready.freshUrls, "URL")}`;
+  const fresh = ready.freshContent ? "fresh content" : "not enough for fresh content";
+  const updated = `${urls} updated in the last 30 days (${fresh}).`;
+  if (kind === "product") return measured(ready.freshContent ? 100 : 0, updated);
   const score = (ready.button ? BUTTON_POINTS : 0) + (ready.freshContent ? FRESH_POINTS : 0);
   const pages = ready.buttonPages.length;
   const button = ready.button
     ? `Preferred Sources button on ${pages} ${plural(pages, "page")}`
     : "No Preferred Sources button";
-  const fresh = ready.freshContent ? "fresh content" : "not enough for fresh content";
-  const urls = `${ready.freshUrls} ${plural(ready.freshUrls, "URL")}`;
-  const evidence = `${button}; ${urls} updated in the last 30 days (${fresh}).`;
-  return measured(score, evidence);
+  return measured(score, `${button}; ${updated}`);
 }
 
-/** AEO sub-scores of formula v1; scored weights sum to 1. */
+/** AEO sub-scores of formula v2; scored weights sum to 1. */
 export const AEO_SUB_SCORES: readonly SubScoreSpec[] = [
   {
     key: "aeo.qaCoverage",
@@ -85,10 +89,12 @@ export const AEO_SUB_SCORES: readonly SubScoreSpec[] = [
   },
   {
     key: "aeo.preferredSources",
-    label: "Preferred Sources readiness",
+    label: "Fresh content and Preferred Sources",
     weight: 0.25,
     measure: (i) =>
-      withSources([i.crawl, i.readiness], (_crawl, r: Readiness) => preferredSources(r)),
+      withSources([i.crawl, i.readiness], (_crawl, r: Readiness) =>
+        preferredSources(r, i.productKind),
+      ),
   },
   {
     key: "aeo.snippets",

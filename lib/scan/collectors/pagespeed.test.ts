@@ -89,7 +89,8 @@ describe("pagespeed collector", () => {
 
   it("never selects inside `audits`: Google rejects masks that name audit keys (HTTP 400)", () => {
     // Live API, Oct 2026: "Cannot find matching fields for path
-    // 'lighthouseResult.audits.largest-contentful-paint.numericValue'" — audits is a map, so the mask
+    // 'lighthouseResult.audits.largest-contentful-paint.numericValue'" — audits is a map, so the
+    // mask
     // can only take it whole. The local applyFieldMask helper is more lenient than Google.
     expect(PSI_FIELDS).not.toMatch(/audits[/(]/);
     expect(PSI_FIELDS).toContain("audits");
@@ -97,7 +98,8 @@ describe("pagespeed collector", () => {
 
   it("asks only for the fields it reads: the masked response reads the same", async () => {
     const masked = JSON.stringify(applyFieldMask(JSON.parse(recorded), PSI_FIELDS));
-    // The recorded fixture is already trimmed (mostly audits), so the mask saves less here than live.
+    // The recorded fixture is already trimmed (mostly audits), so the mask saves less here than
+    // live.
     expect(masked.length).toBeLessThan(recorded.length);
     const full = await pagespeed.collect(contextWith(answering(recorded).fetch));
     const trimmed = await pagespeed.collect(contextWith(answering(masked).fetch));
@@ -211,7 +213,15 @@ describe("pagespeed in a scan", () => {
     const { db, scan, advance } = setup([pagespeed], {
       fetch,
       config: { ...getConfig(), HARBOUR_PAGESPEED_API_KEY: KEY },
-      products: [{ id: "acme-docs", name: "Acme Docs", url: PRODUCT, hue: "amber" }],
+      products: [
+        {
+          id: "acme-docs",
+          name: "Acme Docs",
+          url: PRODUCT,
+          hue: "amber",
+          kind: "product" as const,
+        },
+      ],
     });
     await scan();
     advance(3 * DAY);

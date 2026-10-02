@@ -6,6 +6,7 @@
       "name": "Acme Docs",
       "url": "https://docs.example.com",
       "hue": "amber",
+      "kind": "product",
       "searchConsoleProperty": "sc-domain:docs.example.com"
     },
     {

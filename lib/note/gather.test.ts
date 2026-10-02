@@ -9,12 +9,19 @@ import { gatherFacts } from "./gather";
 // Friday 2 October 2026, 06:30 in London (BST).
 const NOW = new Date("2026-10-02T05:30:00Z");
 const PRODUCTS = [
-  { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" as const },
+  {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url: "https://docs.example.com",
+    hue: "amber" as const,
+    kind: "product" as const,
+  },
   {
     id: "fern-and-field",
     name: "Fern & Field",
     url: "https://fern.example.com",
     hue: "green" as const,
+    kind: "product" as const,
   },
 ];
 
@@ -124,6 +131,54 @@ describe("gatherFacts", () => {
         "Google speed test (PageSpeed) had a problem in the last check",
         "no backup in the last 2 days",
       ]);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("counts only work the owner or Claude finished, not an action a check or the system closed", () => {
+    const { brain, db, gather } = setup();
+    try {
+      const at = new Date("2026-10-02T03:00:00Z");
+      const job = analystJob(db);
+      insertAction(
+        db,
+        agentAction(job, "Fix the footer links", { status: "done" }),
+        "claude",
+        null,
+        at,
+      );
+      insertAction(db, agentAction(job, "Closed by a check", { status: "done" }), "scan", null, at);
+      insertAction(
+        db,
+        agentAction(job, "Closed by the system", { status: "done" }),
+        "system",
+        null,
+        at,
+      );
+      insertAction(db, agentAction(job, "Owner did this", { status: "done" }), "owner", null, at);
+      expect(gather().wins).toEqual(["Finished: Owner did this", "Finished: Fix the footer links"]);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("celebrates a real rise across the v2 formula, but not the AEO jump the formula caused", () => {
+    const { brain, db, gather } = setup();
+    try {
+      seedScan(db, {
+        productId: "acme-docs",
+        at: new Date("2026-10-01T05:00:00Z"),
+        totals: { seo: 50, geo: 40, aeo: 30 },
+      });
+      seedScan(db, {
+        productId: "acme-docs",
+        at: new Date("2026-10-02T05:00:00Z"),
+        totals: { seo: 53, geo: 40, aeo: 60 },
+        formulaVersion: "v2",
+      });
+      expect(gather().wins).toEqual(["Found on Google for Acme Docs is up 3 since the last check"]);
+      expect(gather().products[0]?.areas.find((a) => a.name === "Answer-ready")?.change).toBeNull();
     } finally {
       brain.cleanup();
     }

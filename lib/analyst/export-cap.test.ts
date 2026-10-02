@@ -16,6 +16,7 @@ function product(
     url: `https://p${i}.example.com`,
     scores: Array.from({ length: 7 }, (_, d) => ({
       date: `2026-09-2${d}`,
+      formulaVersion: "v1",
       seo: 50 + d,
       geo: null,
       aeo: 30,

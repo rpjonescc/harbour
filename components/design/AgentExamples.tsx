@@ -23,27 +23,30 @@ const GIVEN_UP: Job = {
   result: null,
 };
 
-/** Fictional Agents page states: the weekly report and research refresh panels, and a run whose import gave up. */
+/**
+ * Fictional Agents page states: the weekly report and research refresh panels, and a run whose
+ * import gave up.
+ */
 export function AgentExamples() {
   return (
     <div className="flex flex-col gap-6">
       <WeeklyAnalystPanel
         view={{
-          schedule: "Next scheduled run: Sunday 11 Oct, 20:00",
+          schedule: "Next report: Sunday 11 Oct, 20:00",
           latestReport: { week: "2026-W40", href: "/brain/reports/weekly/2026-W40.md" },
           tokenSet: true,
         }}
       />
       <WeeklyAnalystPanel
         view={{
-          schedule: "Scheduled runs need a Claude token",
+          schedule: "The weekly report is paused until Claude is connected.",
           latestReport: null,
           tokenSet: false,
         }}
       />
       <ResearchRefreshPanel
         view={{
-          schedule: "Next scheduled refresh: Sunday 1 Nov, 21:00",
+          schedule: "Next research update: Sunday 1 Nov, 21:00",
           total: 10,
           due: [
             { title: "Local SEO", age: "date unknown" },
@@ -55,7 +58,7 @@ export function AgentExamples() {
       />
       <ResearchRefreshPanel
         view={{
-          schedule: "Scheduled refresh is off",
+          schedule: "Research is only updated when you ask.",
           total: 10,
           due: [],
           missing: 0,

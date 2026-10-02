@@ -120,6 +120,7 @@ describe("actionHandoffPrompt", () => {
     ...product,
     id: "acme-docs",
     hue: "amber",
+    kind: "product" as const,
     searchConsoleProperty: "sc-domain:example.com",
   };
 

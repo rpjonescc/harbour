@@ -2,7 +2,13 @@ import { Panel } from "@/components/ui/Panel";
 import { ProductDot } from "@/components/ui/ProductDot";
 import { Tag } from "@/components/ui/Tag";
 import type { ActionView } from "@/lib/actions/views";
-import { EFFORT_PHRASE, IMPACT_PHRASE, STATUS_COLUMN, WHO_PHRASE } from "@/lib/explain/actions";
+import {
+  EFFORT_PHRASE,
+  IMPACT_PHRASE,
+  impactTone,
+  STATUS_COLUMN,
+  statusChip,
+} from "@/lib/explain/actions";
 import { AREAS, areaKeyOf } from "@/lib/explain/areas";
 import { formatIsoDay } from "@/lib/format/date";
 import type { Product } from "@/lib/products/catalog";
@@ -11,13 +17,6 @@ import { ActionHistory } from "./ActionHistory";
 import { ActionStatusControls } from "./ActionStatusControls";
 import { ActionTechnical } from "./ActionTechnical";
 import { PullRequestLink } from "./PullRequestLink";
-
-function statusText(action: ActionView, locale: string): string {
-  if (action.status === "snoozed" && action.snoozedUntil) {
-    return `Snoozed until ${formatIsoDay(action.snoozedUntil, locale)}`;
-  }
-  return STATUS_COLUMN[action.status];
-}
 
 /**
  * One action on the board: the plain title and one line on why, how big a win it is and who's on
@@ -44,6 +43,7 @@ export function ActionCard({
 }) {
   const headingId = `action-${action.id}-title`;
   const reason = firstSentence(action.why);
+  const chip = statusChip(action, (day) => formatIsoDay(day, locale));
   return (
     <Panel className="p-4">
       <article
@@ -54,12 +54,8 @@ export function ActionCard({
         className="flex flex-col gap-4"
       >
         <div className="flex flex-wrap items-center gap-2">
-          <Tag tone={action.impact === "high" ? "warn" : "neutral"}>
-            {IMPACT_PHRASE[action.impact]}
-          </Tag>
-          <Tag tone={action.who ? "accent" : "neutral"}>
-            {action.who ? WHO_PHRASE[action.who] : statusText(action, locale)}
-          </Tag>
+          <Tag tone={impactTone(action.impact)}>{IMPACT_PHRASE[action.impact]}</Tag>
+          <Tag tone={chip.tone}>{chip.text}</Tag>
         </div>
         <div className="flex flex-col gap-1.5">
           <h3 id={headingId} tabIndex={-1} className="text-lg font-medium text-ink">

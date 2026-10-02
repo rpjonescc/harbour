@@ -1,5 +1,6 @@
 import { type RuleActionStatus, ruleActionStatuses } from "@/lib/actions/views";
 import type { Db } from "@/lib/db/client";
+import type { Product } from "@/lib/products/catalog";
 import { deriveIssues, type Issue } from "./issues";
 import { type PageRow, pageRows } from "./page-rows";
 import { type SearchSummary, searchSummary } from "./search-summary";
@@ -7,6 +8,8 @@ import { scanObservations } from "./store";
 import type { CollectorStatus, ScanObservation } from "./types";
 import {
   type CollectorRunView,
+  type FormulaChange,
+  formulaChange,
   productScoreTrend,
   type ScanState,
   type ScoreTrend,
@@ -22,6 +25,8 @@ export type SearchState =
 /** Everything the product page shows. */
 export type ProductView = {
   scores: ScoreTrend;
+  /** A change of scoring formula in the trend window, for the note that explains it. */
+  formulaChange: FormulaChange | null;
   scan: ScanState;
   issues: Issue[];
   /** Each issue's action by rule id; an issue without one is not tracked yet. */
@@ -30,7 +35,9 @@ export type ProductView = {
   search: SearchState;
 };
 
-/** What a scan found: its observations, how each collector ended, and those endings by collector. */
+/**
+ * What a scan found: its observations, how each collector ended, and those endings by collector.
+ */
 export function scanFindings(
   db: Db,
   scanId: number | undefined,
@@ -56,14 +63,15 @@ function searchState(observations: ScanObservation[], runs: CollectorRunView[]):
 }
 
 /** The product page's data, all from the scan behind the latest scores. */
-export function productView(db: Db, productId: string, now: Date): ProductView {
-  const scores = productScoreTrend(db, productId, now);
+export function productView(db: Db, product: Pick<Product, "id" | "kind">, now: Date): ProductView {
+  const scores = productScoreTrend(db, product.id, product.kind, now);
   const { observations, runs, statuses } = scanFindings(db, scores.latest?.scanId);
   return {
     scores,
-    scan: scanState(db, productId),
-    issues: deriveIssues(observations, statuses),
-    actionByRule: ruleActionStatuses(db, productId),
+    formulaChange: formulaChange(db, product.id, now),
+    scan: scanState(db, product.id),
+    issues: deriveIssues(observations, statuses, product.kind),
+    actionByRule: ruleActionStatuses(db, product.id),
     pages: pageRows(observations),
     search: searchState(observations, runs),
   };

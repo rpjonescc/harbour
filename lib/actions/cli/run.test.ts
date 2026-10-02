@@ -177,6 +177,12 @@ describe("runActionsCli", () => {
       }
     });
 
+    it("names an agent suggestion's source in the owner's words: the weekly report", () => {
+      const { db, run } = setup();
+      const id = insertAction(db, agentAction(analystJob(db), "Add an FAQ"), "agent", null, t0);
+      expect(run("show", String(id)).stdout).toContain("Source: weekly report\n");
+    });
+
     it("treats an action of an unconfigured product as not found", () => {
       const { add, run } = setup();
       const id = add({ productId: "retired-product" });

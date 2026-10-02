@@ -62,7 +62,7 @@ export function ScoreTable({ scores }: { scores: ProductScores[] }) {
                   ) : (
                     <span className="text-ink-muted">
                       <span aria-hidden="true">—</span>
-                      <span className="sr-only">Not enough scans for a trend yet</span>
+                      <span className="sr-only">Not enough checks for a trend yet</span>
                     </span>
                   )}
                 </td>

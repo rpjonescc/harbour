@@ -46,6 +46,7 @@ describe("missingLine", () => {
       { ...ALL_OK, pagespeed: "skipped" },
       {
         now: NOW,
+        productKind: "product" as const,
         previousPagespeed: {
           observations: [cwv()],
           finishedAt: new Date(NOW.getTime() - 15 * DAY_MS),

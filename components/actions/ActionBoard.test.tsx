@@ -15,6 +15,7 @@ const PRODUCT: Product = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber",
+  kind: "product" as const,
 };
 const card = (id: number, impact: "high" | "medium" = "high") =>
   exampleActionView({ id, impact, title: `Action ${id}` });

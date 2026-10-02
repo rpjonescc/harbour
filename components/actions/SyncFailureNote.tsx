@@ -15,8 +15,8 @@ export function SyncFailureNote({
     <ul className="flex flex-col gap-1 rounded-md bg-warn-soft px-3 py-2 text-sm text-ink">
       {failures.map(({ productName, at }) => (
         <li key={productName}>
-          {productName}: the list below may be out of date. The last scan finished, but Harbour
-          couldn't update the actions ({formatDateTime(at, timeZone, locale)}). The next scan tries
+          {productName}: the list below may be out of date. The last check finished, but Harbour
+          couldn't update the actions ({formatDateTime(at, timeZone, locale)}). The next check tries
           again.
         </li>
       ))}

@@ -12,7 +12,6 @@ const NOW = new Date("2026-10-16T00:00:00Z");
 const RANKINGS: PaidSource = {
   id: "dataforseo",
   label: "DataForSEO",
-  provides: "Rankings",
   settings: ["HARBOUR_DATAFORSEO_LOGIN", "HARBOUR_DATAFORSEO_PASSWORD"],
   collector: "rankings",
 };

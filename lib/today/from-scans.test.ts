@@ -10,8 +10,20 @@ import { todaySummary } from "./from-scans";
 import { sampleToday } from "./sample";
 
 const products: Product[] = [
-  { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" },
-  { id: "fern-and-field", name: "Fern & Field", url: "https://fern.example.com", hue: "green" },
+  {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url: "https://docs.example.com",
+    hue: "amber",
+    kind: "product" as const,
+  },
+  {
+    id: "fern-and-field",
+    name: "Fern & Field",
+    url: "https://fern.example.com",
+    hue: "green",
+    kind: "product" as const,
+  },
 ];
 const obs = ({
   kind,

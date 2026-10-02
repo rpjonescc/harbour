@@ -225,10 +225,36 @@ describe("counts and summaries", () => {
     insertAction(db, agentAction(job, "agent idea"), "agent", null, at(99));
     expect(ruleActionStatuses(db, "acme-docs")).toEqual(
       new Map([
-        ["missing-title", { id: open, status: "open", snoozedUntil: null }],
-        ["thin-content", { id: snoozed, status: "snoozed", snoozedUntil: "2026-10-09" }],
+        ["missing-title", { id: open, status: "open", snoozedUntil: null, who: "you" }],
+        ["thin-content", { id: snoozed, status: "snoozed", snoozedUntil: "2026-10-09", who: null }],
       ]),
     );
+  });
+
+  it("says who is on an in-progress rule action: Claude, a pull request, or the owner", () => {
+    const db = openTestDb();
+    const byClaude = insertAction(
+      db,
+      ruleAction({ ruleKey: "a-rule", status: "in_progress" }),
+      "claude",
+      null,
+      at(1),
+    );
+    const byOwner = add(db, { status: "open" }, "b-rule");
+    setStatus(db, byOwner, "open", "in_progress", { actor: "owner", now: at(2) });
+    const withPr = add(db, { status: "open" }, "c-rule");
+    setStatus(db, withPr, "open", "in_progress", { actor: "claude", now: at(3) });
+    linkPullRequest(db, {
+      id: withPr,
+      url: "https://github.com/example/site/pull/7",
+      productIds: PRODUCTS,
+      now: at(4),
+    });
+    const who = (key: string) => ruleActionStatuses(db, "acme-docs").get(key)?.who;
+    expect(byClaude).toBeGreaterThan(0);
+    expect(who("a-rule")).toBe("claude");
+    expect(who("b-rule")).toBe("you");
+    expect(who("c-rule")).toBe("pr_waiting");
   });
 });
 

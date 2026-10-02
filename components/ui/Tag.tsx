@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 
-type Tone = "accent" | "warn" | "neutral";
+type Tone = "accent" | "good" | "warn" | "neutral";
 
 const TONES: Record<Tone, string> = {
   accent: "bg-accent-soft text-accent",
+  good: "bg-surface-sunk text-good",
   warn: "bg-warn-soft text-ink",
   neutral: "bg-surface-sunk text-ink-muted",
 };

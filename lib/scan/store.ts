@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, max, ne } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { collectorRuns, jobs, observations, scanRuns, scores } from "@/lib/db/schema";
+import type { Product } from "@/lib/products/catalog";
 import type {
   CollectorStatus,
   Observation,
@@ -166,14 +167,15 @@ export function storeScores(
  */
 export function scoreContext(
   db: Db,
-  productId: string,
+  product: Pick<Product, "id" | "kind">,
   statuses: Readonly<Record<string, CollectorStatus>>,
   now: Date,
 ): ScoreContext {
   const skipped = statuses.pagespeed === "skipped";
   return {
     now,
-    previousPagespeed: skipped ? latestOkObservations(db, productId, "pagespeed") : null,
+    productKind: product.kind,
+    previousPagespeed: skipped ? latestOkObservations(db, product.id, "pagespeed") : null,
   };
 }
 

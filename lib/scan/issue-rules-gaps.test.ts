@@ -6,7 +6,7 @@ import type { ScanObservation } from "./types";
 // enough of the site to be sure. These tests pin when a would-be clear becomes unknown.
 
 const outcomes = (observations: ScanObservation[]) =>
-  Object.fromEntries(evaluateRules(observations, ALL_OK).map((o) => [o.ruleId, o]));
+  Object.fromEntries(evaluateRules(observations, ALL_OK, "product").map((o) => [o.ruleId, o]));
 
 const unknown = (ruleId: string, reason: string): RuleOutcome => ({
   ruleId,
