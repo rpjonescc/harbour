@@ -12,8 +12,8 @@ import type { Issue } from "@/lib/scan/issues";
 
 /** Where the issue's action stands; the issue is on the page, so a done action is still found. */
 function actionStatusText(action: RuleActionStatus | null, locale: string): string {
-  if (action === null) return "Tracking starts with the next scan";
-  if (action.status === "done") return "Done — still found in the last scan";
+  if (action === null) return "Tracking starts with the next check";
+  if (action.status === "done") return "Done — still found in the last check";
   if (action.status === "snoozed" && action.snoozedUntil) {
     return `Snoozed until ${formatIsoDay(action.snoozedUntil, locale)}`;
   }

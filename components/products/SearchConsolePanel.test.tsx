@@ -40,16 +40,16 @@ describe("SearchConsolePanel", () => {
     ).not.toBeNull();
   });
 
-  it("says Google didn't send the data, using only the word scan, and that Harbour will try again", () => {
+  it("says Google didn't send the data, using only the word check, and that Harbour will try again", () => {
     const region = panel({ state: "failed", reason: "403 from the API" });
     expect(within(region).getByText("Needs a look")).toBeInTheDocument();
     expect(
       within(region).getByText(
-        "Google didn't send the data in the last scan, so these numbers are missing, not zero.",
+        "Google didn't send the data in the last check, so these numbers are missing, not zero.",
       ),
     ).toBeInTheDocument();
-    expect(outsideDetails(region)).not.toMatch(/check/i);
-    expect(region).toHaveTextContent("Harbour will try again with the next scan.");
+    expect(outsideDetails(region)).not.toMatch(/scan/i);
+    expect(region).toHaveTextContent("Harbour will try again with the next check.");
     expect(outsideDetails(region)).not.toMatch(/403/);
   });
 
@@ -86,7 +86,7 @@ describe("SearchConsolePanel", () => {
 
   it("does not offer setup steps when it ran but stored no summary", () => {
     const region = panel({ state: "ok", summary: null });
-    expect(region).toHaveTextContent("Google sent no search data for this scan");
+    expect(region).toHaveTextContent("Google sent no search data for this check");
     expect(region).not.toHaveTextContent("normal for a new site");
     expect(within(region).queryByRole("link", { name: /How to connect/ })).toBeNull();
   });

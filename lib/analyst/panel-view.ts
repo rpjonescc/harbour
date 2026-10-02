@@ -57,7 +57,7 @@ function scheduleLine(db: Db, settings: WeeklyPanelSettings, now: Date): string 
   if (active) return `A weekly report run is ${active}`;
   const pending = pendingWeeklySlot(db, now, timeZone);
   if (pending) {
-    return `Catch-up due: the worker queues the ${pending.week} report at its next check, if a product was scanned in the last 7 days`;
+    return `Catch-up due: the worker queues the ${pending.week} report at its next check, if a product was checked in the last 7 days`;
   }
   return `Next scheduled run: ${formatWeekdayTime(next, timeZone, locale)}`;
 }

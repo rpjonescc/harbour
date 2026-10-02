@@ -94,13 +94,13 @@ describe("SourcesOverview", () => {
     render(<SourcesOverview view={view} locale="en-GB" />);
     const acme = screen.getByRole("region", { name: "Acme Docs" });
     expect(acme).toHaveTextContent(
-      "Last scan 1 Oct 2026, 06:04 (partial) · Next scan: tomorrow at 06:00",
+      "Last check 1 Oct 2026, 06:04 (partial) · Next check: tomorrow at 06:00",
     );
     const row = within(acme).getByRole("row", { name: /Search Console/ });
     expect(row).toHaveTextContent("failed");
     expect(row).toHaveTextContent("Search Console refused access");
     const fern = screen.getByRole("region", { name: "Fern & Field" });
-    expect(fern).toHaveTextContent("Scan running now");
+    expect(fern).toHaveTextContent("Check running now");
     expect(within(fern).getAllByText("never ran")).toHaveLength(4);
   });
 });

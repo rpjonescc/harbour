@@ -9,13 +9,13 @@ export function ScheduleCard({ enabled, timeZone }: { enabled: boolean; timeZone
     <Panel className="p-4">
       <div>
         <h2 className="flex items-center gap-2 font-serif text-lg">
-          Daily scan <Tag tone={enabled ? "accent" : "neutral"}>{enabled ? "On" : "Off"}</Tag>
+          Daily check <Tag tone={enabled ? "accent" : "neutral"}>{enabled ? "On" : "Off"}</Tag>
         </h2>
         <p className="text-sm text-ink-muted">
           {enabled
             ? `Every product at 06:00 (${timeZone}), plus a catch-up when the worker starts.`
-            : "Off (HARBOUR_SCHEDULED_SCANS=off): scans run only when you choose Scan now."}{" "}
-          <DocsLink href={DOCS_LINKS.schedule}>When scans run</DocsLink>
+            : "Off (HARBOUR_SCHEDULED_SCANS=off): checks run only when you choose Check now."}{" "}
+          <DocsLink href={DOCS_LINKS.schedule}>When checks run</DocsLink>
         </p>
       </div>
     </Panel>

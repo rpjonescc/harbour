@@ -13,12 +13,6 @@ const ID = "search-console";
 const TITLE = sourceName(ID);
 const MISSING_NOT_ZERO = "Until then, these numbers are missing, not zero.";
 
-/**
- * The Product page speaks of "scans" throughout (spec Decision 7), while Today's shared phrase
- * says "check". Reword it here so this panel uses one word.
- */
-const LAST_SCAN = (phrase: string) => phrase.replace("last check", "last scan");
-
 /** The raw reason Harbour recorded (setting names, API errors): only under Technical details. */
 function Raw({ reason }: { reason: string | null }) {
   if (!reason) return null;
@@ -54,7 +48,7 @@ function ConnectedBody({ summary, locale }: { summary: SearchSummary; locale: st
   );
 }
 
-/** What Google showed and how many clicked over the scan's 28 days, or why there is nothing yet. */
+/** What Google showed and how many clicked over the check's 28 days, or why there is nothing yet. */
 export function SearchConsolePanel({ search, locale }: { search: SearchState; locale: string }) {
   if (search.state === "ok" && search.summary) {
     return (
@@ -77,7 +71,7 @@ export function SearchConsolePanel({ search, locale }: { search: SearchState; lo
         statusLabel={sourceStatusPhrase(ID, "ok")}
       >
         <p className="text-sm text-ink-muted">
-          Connected, but Google sent no search data for this scan.
+          Connected, but Google sent no search data for this check.
         </p>
       </SourcePanel>
     );
@@ -86,9 +80,9 @@ export function SearchConsolePanel({ search, locale }: { search: SearchState; lo
     return (
       <SourcePanel id={ID} title={TITLE} status="failed" statusLabel="Needs a look">
         <p className="text-sm text-ink">
-          {LAST_SCAN(sourceStatusPhrase(ID, "failed"))}, so these numbers are missing, not zero.
+          {sourceStatusPhrase(ID, "failed")}, so these numbers are missing, not zero.
         </p>
-        <ConnectLink lead="Harbour will try again with the next scan." />
+        <ConnectLink lead="Harbour will try again with the next check." />
         <Raw reason={search.reason} />
       </SourcePanel>
     );

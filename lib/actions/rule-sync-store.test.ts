@@ -70,7 +70,7 @@ describe("syncRuleActions", () => {
       },
     });
     expect(history(db, row.id)).toEqual([
-      { actor: "scan", from: null, to: "open", note: "Found in scan of 2026-10-02" },
+      { actor: "scan", from: null, to: "open", note: "Found in the check of 2026-10-02" },
     ]);
   });
 
@@ -85,12 +85,12 @@ describe("syncRuleActions", () => {
     const row = only(db);
     expect(row).toMatchObject({ status: "done", issuePresent: false, statusChangedAt: t2 });
     expect(history(db, row.id)).toEqual([
-      { actor: "scan", from: null, to: "open", note: "Found in scan of 2026-10-02" },
+      { actor: "scan", from: null, to: "open", note: "Found in the check of 2026-10-02" },
       {
         actor: "scan",
         from: "open",
         to: "done",
-        note: "Resolved — not found in scan of 2026-10-03",
+        note: "Resolved — not found in the check of 2026-10-03",
       },
     ]);
   });
@@ -152,7 +152,7 @@ describe("syncRuleActions", () => {
       actor: "scan",
       from: "done",
       to: "open",
-      note: "Still present in scan of 2026-10-03",
+      note: "Still present in the check of 2026-10-03",
     });
   });
 
@@ -188,7 +188,7 @@ describe("syncRuleActions", () => {
       actor: "scan",
       from: "done",
       to: "open",
-      note: "Back in scan of 2026-10-04",
+      note: "Back in the check of 2026-10-04",
     });
   });
 

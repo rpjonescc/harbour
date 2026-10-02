@@ -114,7 +114,7 @@ describe("SettingsOverview", () => {
     expect(backups.getByText("2 Oct, 03:15 · 12.4 MB")).toBeInTheDocument();
     expect(backups.getByText("9 of 14 kept")).toBeInTheDocument();
     expect(backups.getByText(/next to the database/)).toBeInTheDocument();
-    expect(backups.getByText(/Removed 18,240 observations from 11 scans/)).toBeInTheDocument();
+    expect(backups.getByText(/Removed 18,240 observations from 11 checks/)).toBeInTheDocument();
     expect(backups.getByRole("button", { name: "Back up now" })).toBeEnabled();
   });
 

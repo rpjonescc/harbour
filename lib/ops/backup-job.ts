@@ -103,7 +103,7 @@ export async function runRetentionJob(deps: OpsJobDeps, job: Job): Promise<void>
     const plan = planRetention(db, keep);
     const due = plan.products.filter((p) => p.pruneScanIds.length > 0);
     if (due.length === 0) {
-      status(`No old scans to prune (newest ${keep} kept, plus the latest result of each source)`);
+      status(`No old checks to prune (newest ${keep} kept, plus the latest result of each source)`);
       finishJob(db, job.id, "ok", null, now());
       return;
     }
@@ -122,7 +122,7 @@ export async function runRetentionJob(deps: OpsJobDeps, job: Job): Promise<void>
     if (!result.complete) {
       const limit = (retention.batchRows * retention.maxBatches).toLocaleString("en-US");
       status(`Stopped at the ${limit}-row limit; ${LATER}`);
-    } else if (plan.truncated) status(`Pruned the oldest ${MAX_PLANNED_SCANS} scans; ${LATER}`);
+    } else if (plan.truncated) status(`Pruned the oldest ${MAX_PLANNED_SCANS} checks; ${LATER}`);
     finishJob(db, job.id, "ok", null, now());
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

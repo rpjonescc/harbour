@@ -41,7 +41,7 @@ const row = (
 describe("planRuleSync: present", () => {
   it("inserts an open action when there is none", () => {
     expect(planRuleSync([], [present()], D)).toEqual([
-      { kind: "insert", issue: issue(), note: "Found in scan of 2026-10-03" },
+      { kind: "insert", issue: issue(), note: "Found in the check of 2026-10-03" },
     ]);
   });
 
@@ -68,7 +68,7 @@ describe("planRuleSync: present", () => {
         from: "dismissed",
         to: "open",
         issue: issue(),
-        note: "Back in scan of 2026-10-03",
+        note: "Back in the check of 2026-10-03",
       },
     ]);
   });
@@ -81,7 +81,7 @@ describe("planRuleSync: present", () => {
         from: "done",
         to: "open",
         issue: issue(),
-        note: "Still present in scan of 2026-10-03",
+        note: "Still present in the check of 2026-10-03",
       },
     ]);
   });
@@ -94,7 +94,7 @@ describe("planRuleSync: present", () => {
         from: "done",
         to: "open",
         issue: issue(),
-        note: "Back in scan of 2026-10-03",
+        note: "Back in the check of 2026-10-03",
       },
     ]);
   });
@@ -109,7 +109,7 @@ describe("planRuleSync: clear", () => {
         from: status,
         to: "done",
         issue: null,
-        note: "Resolved — not found in scan of 2026-10-03",
+        note: "Resolved — not found in the check of 2026-10-03",
       },
     ]);
   });
@@ -156,7 +156,11 @@ describe("planRuleSync: a whole scan", () => {
     expect(planRuleSync(existing, outcomes, D)).toEqual([
       expect.objectContaining({ kind: "status", id: 1, from: "open", to: "done" }),
       expect.objectContaining({ kind: "status", id: 2, from: "done", to: "open" }),
-      { kind: "insert", issue: issue({ id: "no-llms-txt" }), note: "Found in scan of 2026-10-03" },
+      {
+        kind: "insert",
+        issue: issue({ id: "no-llms-txt" }),
+        note: "Found in the check of 2026-10-03",
+      },
     ]);
   });
 });

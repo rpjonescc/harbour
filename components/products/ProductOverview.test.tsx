@@ -96,11 +96,11 @@ const renderPage = (view: ProductView) =>
   render(<ProductOverview product={product} view={view} timeZone="UTC" locale="en-GB" />);
 
 describe("ProductOverview", () => {
-  it("for a product never scanned says so everywhere, with Scan now and the research link", () => {
+  it("for a product never checked says so everywhere, with Check now and the research link", () => {
     renderPage(empty);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Acme Docs");
-    expect(screen.getByText(/hasn't scanned this site yet/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Scan now" })).toBeEnabled();
+    expect(screen.getByText(/hasn't checked this site yet/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check now" })).toBeEnabled();
     expect(screen.getByRole("link", { name: "Research targets" })).toHaveAttribute(
       "href",
       "/settings/products/acme-docs",
@@ -110,13 +110,13 @@ describe("ProductOverview", () => {
     expect(screen.getAllByText("No score yet")).toHaveLength(3);
   });
 
-  it("shows a running scan and disables Scan now", () => {
+  it("shows a running scan and disables Check now", () => {
     renderPage({
       ...empty,
       scan: { active: { jobId: 4, status: "running", since: AT }, last: null },
     });
-    expect(screen.getByText(/Scanning now \(started 1 Oct 2026, 06:04\)/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Scan now" })).toBeDisabled();
+    expect(screen.getByText(/Checking now \(started 1 Oct 2026, 06:04\)/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Check now" })).toBeDisabled();
   });
 
   it("explains scores: area cards, breakdown with missing reasons and not-connected notes", () => {
@@ -160,7 +160,7 @@ describe("ProductOverview", () => {
       within(issue("hidden from search")).getByText("Snoozed until 12 Oct 2026"),
     ).toBeInTheDocument();
     const untracked = issue("opts out of AI training");
-    expect(within(untracked).getByText("Tracking starts with the next scan")).toBeInTheDocument();
+    expect(within(untracked).getByText("Tracking starts with the next check")).toBeInTheDocument();
     expect(
       within(untracked).queryByRole("link", {
         name: /^View on the Actions board/,
@@ -173,7 +173,7 @@ describe("ProductOverview", () => {
     for (const [s, text] of [
       ["open", "To do"],
       ["dismissed", "Dismissed"],
-      ["done", "Done — still found in the last scan"],
+      ["done", "Done — still found in the last check"],
     ] as const) {
       const { unmount } = renderPage({
         ...scanned,

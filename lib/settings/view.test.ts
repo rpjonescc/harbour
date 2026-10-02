@@ -66,7 +66,7 @@ describe("settingsView", () => {
       ["note", "HARBOUR_SCHEDULED_NOTE", true, "2026-10-03T05:30:00.000Z"],
     ]);
     expect(view.schedules.map((s) => [s.label, s.when])).toEqual([
-      ["Daily scan", "Every day at 06:00"],
+      ["Daily check", "Every day at 06:00"],
       ["Weekly analyst", "Sundays at 20:00"],
       ["Monthly research refresh", "First Sunday of the month at 21:00"],
       ["Nightly backup", "Every night at 03:15"],

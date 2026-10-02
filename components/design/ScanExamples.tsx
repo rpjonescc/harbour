@@ -24,7 +24,7 @@ export function ScanExamples() {
   const breakdown = EXAMPLE_SCORES.latest?.breakdown ?? [];
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-xs text-ink-muted">Illustrative scores, scans and issues.</p>
+      <p className="text-xs text-ink-muted">Illustrative scores, checks and issues.</p>
       <div className="flex flex-wrap items-center gap-6 text-sm">
         <ScoreValue value={78} delta={4} />
         <ScoreValue value={46} delta={-2} complete={false} />

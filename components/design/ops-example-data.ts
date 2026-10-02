@@ -80,7 +80,7 @@ const healthy: BackupStatus = {
     jobId: 41,
     at: new Date("2026-10-02T02:16:10Z"),
     status: "ok",
-    summary: "Removed 18,240 observations from 11 scans",
+    summary: "Removed 18,240 observations from 11 checks",
   },
   health: "ok",
 };
@@ -143,7 +143,7 @@ export const EXAMPLE_SETTINGS: SettingsView = {
   schedules: [
     {
       id: "scan",
-      label: "Daily scan",
+      label: "Daily check",
       when: "Every day at 06:00",
       setting: "HARBOUR_SCHEDULED_SCANS",
       enabled: true,

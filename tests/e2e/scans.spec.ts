@@ -5,7 +5,7 @@ import { expectPlainIssueTitles, expectPlainLanguage } from "./plain-language";
 
 // The worker scans the fictional Acme Docs site served by tests/e2e/fixture-site.ts
 // (tests/fixtures/sites/acme-docs): /about has no title, / and /about link to a missing page.
-// Scheduled scans are off, so the only scan is the one these specs queue with Scan now.
+// Scheduled scans are off, so the only scan is the one these specs queue with Check now.
 
 const SITE = `http://127.0.0.1:${E2E_SITE_PORT}`;
 
@@ -18,18 +18,18 @@ const areaCard = (page: Page, name: string) =>
     .getByRole("listitem")
     .filter({ hasText: name });
 
-test("Scan now runs a scan and the product page shows its results", async ({ page }) => {
+test("Check now runs a scan and the product page shows its results", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto("/products/acme-docs");
-  await expect(page.getByText(/hasn't scanned this site yet/)).toBeVisible();
-  const scanNow = page.getByRole("button", { name: "Scan now" });
+  await expect(page.getByText(/hasn't checked this site yet/)).toBeVisible();
+  const scanNow = page.getByRole("button", { name: "Check now" });
   // A click before hydration is lost; a repeat click is harmless (one scan per product queues).
   await expect(async () => {
     await scanNow.click();
     await expect(scanNow).toBeDisabled({ timeout: 1_000 });
   }).toPass();
   // The page refreshes itself every 10 s while the scan is queued or running.
-  await expect(page.getByText(/^Last scan .+\.$/)).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByText(/^Last check .+\.$/)).toBeVisible({ timeout: 90_000 });
   await expect(scanNow).toBeEnabled();
 
   await expect(
@@ -161,13 +161,13 @@ test("Sources lists each source's last run and how to connect the missing ones",
   }
 
   const acme = page.getByRole("region", { name: "Acme Docs" });
-  await expect(acme).toContainText(/Last scan .+ \(ok\)/);
+  await expect(acme).toContainText(/Last check .+ \(ok\)/);
   const run = (name: string) => acme.getByRole("row", { name: new RegExp(`^${name}`) });
   await expect(run("Crawler")).toContainText("ok");
   await expect(run("Readiness")).toContainText("ok");
   await expect(run("PageSpeed")).toContainText("not connected");
   await expect(run("Search Console")).toContainText("not connected");
-  await expect(page.getByRole("region", { name: "Fern & Field" })).toContainText("Never scanned");
+  await expect(page.getByRole("region", { name: "Fern & Field" })).toContainText("Never checked");
 });
 
 test("Today shows the real verdicts instead of the sample, with the numbers a click away", async ({

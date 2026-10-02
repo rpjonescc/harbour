@@ -56,7 +56,7 @@ describe("weeklyPanelView", () => {
 
   it("says a catch-up is due when last Sunday's run was never queued", () => {
     expect(weeklyPanelView(indexDocs([]), settings, NOW).schedule).toBe(
-      "Catch-up due: the worker queues the 2026-W39 report at its next check, if a product was scanned in the last 7 days",
+      "Catch-up due: the worker queues the 2026-W39 report at its next check, if a product was checked in the last 7 days",
     );
   });
 

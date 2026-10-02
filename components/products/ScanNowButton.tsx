@@ -44,7 +44,7 @@ export function ScanNowButton({
         {active ? "" : note}
       </p>
       <Button onClick={scan} disabled={busy || active !== null}>
-        Scan now
+        Check now
       </Button>
     </div>
   );

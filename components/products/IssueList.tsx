@@ -6,14 +6,14 @@ import type { Issue } from "@/lib/scan/issues";
 import { IssueItem } from "./IssueItem";
 
 const NONE_FOUND = {
-  what: "No problems found in the last scan.",
-  when: "Harbour checks again with every scan.",
+  what: "No problems found in the last check.",
+  when: "Harbour looks again at the next check.",
   why: "Anything new it finds appears here and on the Actions board.",
 };
 
 const NOT_SCANNED = {
   what: "Problems Harbour finds will be listed here.",
-  when: "They appear after the first scan finishes.",
+  when: "They appear after the first check finishes.",
   why: "Each comes with what to do about it and how to tell it's fixed.",
 };
 

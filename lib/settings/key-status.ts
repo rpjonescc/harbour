@@ -57,7 +57,7 @@ export function keyStatusRows(
       label: "PageSpeed Insights",
       settings: ["HARBOUR_PAGESPEED_API_KEY"],
       status: presence(config, ["HARBOUR_PAGESPEED_API_KEY"]),
-      usedFor: "Core Web Vitals and Lighthouse scores in each scan",
+      usedFor: "Core Web Vitals and Lighthouse scores in each check",
       inUse: true,
       paid: false,
     },

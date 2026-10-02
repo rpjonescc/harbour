@@ -118,7 +118,7 @@ describe("ActionCard", () => {
       "Give each page a unique title of 10–60 characters.",
       "Done when",
       "Every page has a title.",
-      "Found by a scan",
+      "Found by a check",
       "missing-title",
       "Evidence (3)",
       "…and 1 more",
@@ -146,7 +146,7 @@ describe("ActionCard", () => {
     const clone = technicalDetails(surface);
     clone.remove();
     const outside = within(surface);
-    expect(outside.queryByText("Found by a scan")).toBeNull();
+    expect(outside.queryByText("Found by a check")).toBeNull();
     expect(outside.queryByText("missing-title")).toBeNull();
     expect(outside.queryByRole("button", { name: /^Hand to Claude/, hidden: true })).toBeNull();
   });
@@ -285,7 +285,7 @@ describe("ActionCard", () => {
     const items = within(card)
       .getAllByRole("listitem")
       .map((li) => li.textContent);
-    expect(items).toContain("1 Oct 2026, 10:00 · Harbour's scan · created as To do");
+    expect(items).toContain("1 Oct 2026, 10:00 · Harbour's check · created as To do");
     expect(items).toContain("2 Oct 2026, 10:30 · You · To do → In progress · Started on the docs");
     expect(card).toHaveTextContent("Older history was cleared to save space.");
   });

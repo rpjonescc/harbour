@@ -59,7 +59,7 @@ export function ScoreBreakdown({
     return (
       <EmptyState
         what={`The details behind ${name} will appear here.`}
-        when="They appear after the first scan finishes."
+        when="They appear after the first check finishes."
         why="Each one says what Harbour looked at and how your site did."
       />
     );

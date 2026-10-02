@@ -70,7 +70,7 @@ test("every schedule is off in the E2E environment", async ({ page }) => {
   await page.goto("/settings");
   const table = page.getByRole("table", { name: "What runs on a schedule and when it runs next" });
   const rows = [
-    ["Daily scan", "HARBOUR_SCHEDULED_SCANS"],
+    ["Daily check", "HARBOUR_SCHEDULED_SCANS"],
     ["Weekly analyst", "HARBOUR_SCHEDULED_ANALYST"],
     ["Monthly research refresh", "HARBOUR_SCHEDULED_RESEARCH"],
     ["Nightly backup", "HARBOUR_SCHEDULED_BACKUP"],
@@ -185,7 +185,7 @@ test("Back up now writes a verified backup, then retention runs", async ({ page 
     .getByRole("table", { name: "Agent runs" })
     .getByRole("link", { name: `Retention: ${today()}` })
     .click();
-  await expect(activity.getByText(/^No old scans to prune \(newest 30 kept/)).toBeVisible({
+  await expect(activity.getByText(/^No old checks to prune \(newest 30 kept/)).toBeVisible({
     timeout: 60_000,
   });
   await expect(page.getByText("Finished", { exact: true })).toBeVisible();
@@ -193,7 +193,7 @@ test("Back up now writes a verified backup, then retention runs", async ({ page 
   await page.goto("/settings");
   await expect(backups.getByText("1 of 14 kept")).toBeVisible();
   await expect(backups.getByText(/· \d+\.\d MB$/)).toBeVisible();
-  await expect(backups.getByRole("link", { name: /No old scans to prune/ })).toBeVisible();
+  await expect(backups.getByRole("link", { name: /No old checks to prune/ })).toBeVisible();
   await page.goto("/");
   await expect(page.getByRole("main")).toBeVisible();
   await expect(page.getByRole("main").getByText(/backup/i)).toHaveCount(0);

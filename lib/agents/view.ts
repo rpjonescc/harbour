@@ -13,7 +13,7 @@ export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly P
   if (job.kind === "discovery" || job.kind === "scan") {
     const id = job.params.productId ?? "";
     const name = products.find((p) => p.id === id)?.name ?? id;
-    return `${job.kind === "scan" ? "Scan" : "Discovery"}: ${name}`;
+    return `${job.kind === "scan" ? "Check" : "Discovery"}: ${name}`;
   }
   if (job.kind === "weekly-analyst") return `Weekly report: ${job.params.week ?? ""}`;
   if (job.kind === "daily-note") {

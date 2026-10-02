@@ -7,7 +7,7 @@ const api = vi.hoisted(() => ({ postJson: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => nav }));
 vi.mock("@/lib/auth/client-api", () => api);
 
-const button = () => screen.getByRole("button", { name: "Scan now" });
+const button = () => screen.getByRole("button", { name: "Check now" });
 
 describe("ScanNowButton", () => {
   afterEach(() => vi.resetAllMocks());
@@ -16,7 +16,7 @@ describe("ScanNowButton", () => {
     api.postJson.mockResolvedValue({ ok: true, data: { jobId: 7, created: true } });
     render(<ScanNowButton productId="acme-docs" active={null} />);
     fireEvent.click(button());
-    expect(await screen.findByRole("status")).toHaveTextContent("Scan queued. It starts shortly.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Check queued. It starts shortly.");
     expect(api.postJson).toHaveBeenCalledWith("/api/scans", { productId: "acme-docs" });
     expect(nav.refresh).toHaveBeenCalled();
   });
@@ -26,7 +26,7 @@ describe("ScanNowButton", () => {
     render(<ScanNowButton productId="acme-docs" active={null} />);
     fireEvent.click(button());
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "A scan is already waiting to run.",
+      "A check is already waiting to run.",
     );
   });
 
@@ -34,7 +34,7 @@ describe("ScanNowButton", () => {
     api.postJson.mockResolvedValue({ ok: false, error: "network_error" });
     render(<ScanNowButton productId="acme-docs" active={null} />);
     fireEvent.click(button());
-    expect(await screen.findByRole("status")).toHaveTextContent("Harbour couldn't start the scan");
+    expect(await screen.findByRole("status")).toHaveTextContent("Harbour couldn't start the check");
     expect(nav.refresh).not.toHaveBeenCalled();
     expect(button()).toBeEnabled();
   });

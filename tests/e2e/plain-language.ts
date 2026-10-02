@@ -31,6 +31,8 @@ export async function expectPlainLanguage(page: Page): Promise<void> {
   const text = await textOutsideDetails(page);
   expect(text).not.toMatch(/HARBOUR_[A-Z_]+/);
   expect(text).not.toMatch(/\b(?:seo|geo|aeo)\.[a-zA-Z]/);
+  // One word for a visibility check: "check" (Decision 1).
+  expect(text).not.toMatch(/\bscan(?:s|ned|ning)?\b/i);
   // Rule reasons once leaked tags and header names (spec §5.3, step 3).
   expect(text).not.toMatch(/<\/?[a-z][^>]*>|X-Robots-Tag|JSON-LD/i);
 }

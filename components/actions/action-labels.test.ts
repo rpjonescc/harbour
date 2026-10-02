@@ -48,7 +48,7 @@ describe("filter and empty-state wording", () => {
     }
   });
 
-  it("calls the scan Harbour's scan in a card's history", () => {
-    expect(ACTOR_LABEL.scan).toBe("Harbour's scan");
+  it("calls the scan Harbour's check in a card's history", () => {
+    expect(ACTOR_LABEL.scan).toBe("Harbour's check");
   });
 });

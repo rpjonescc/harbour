@@ -17,10 +17,10 @@ const STATUS: Record<
 };
 
 const NEXT: Record<NextDailyScan, string> = {
-  off: "Next scan: only when you choose Scan now",
-  today: "Next scan: today at 06:00",
-  tomorrow: "Next scan: tomorrow at 06:00",
-  due: "Next scan: due now — queued at the worker's next check",
+  off: "Next check: only when you choose Check now",
+  today: "Next check: today at 06:00",
+  tomorrow: "Next check: tomorrow at 06:00",
+  due: "Next check: due now — queued at the worker's next check",
 };
 
 /** One product's scan times and each source's latest run, with its error or reason. */
@@ -45,10 +45,10 @@ export function ProductSourcesTable({
       </h2>
       <p className="text-xs text-ink-muted">
         {active
-          ? `Scan ${active.status === "running" ? "running" : "queued"} now`
+          ? `Check ${active.status === "running" ? "running" : "queued"} now`
           : lastScan
-            ? `Last scan ${at(lastScan.finishedAt ?? lastScan.startedAt)} (${lastScan.status})`
-            : "Never scanned"}{" "}
+            ? `Last check ${at(lastScan.finishedAt ?? lastScan.startedAt)} (${lastScan.status})`
+            : "Never checked"}{" "}
         · {NEXT[product.next]}
       </p>
       <Panel className="overflow-x-auto px-4">

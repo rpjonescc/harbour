@@ -4,8 +4,8 @@ A calm, private, self-hosted control centre for your own projects. Harbour runs 
 always-on machine at home, is reachable only over your Tailscale network, and opens only
 with a passkey.
 
-The secure shell, design system, Second Brain viewer, agents, the daily visibility scan, the
-Actions board and the weekly AI analyst are built. The scan measures how findable each product is in classic search (SEO), in AI assistants
+The secure shell, design system, Second Brain viewer, agents, the daily visibility check, the
+Actions board and the weekly AI analyst are built. The check measures how findable each product is in classic search (SEO), in AI assistants
 (GEO) and as direct answers (AEO), scored 0–100 with explainable breakdowns. The roadmap
 continues with:
 
@@ -29,15 +29,15 @@ continues with:
   next** (the top three actions as plain cards: why each matters, its area, how big a job it
   is and who's on it), and **Behind the scenes**: paid spend, backup warnings and any data
   source that failed in the last check, each saying what happened, whether it matters and what
-  to do (raw errors under Technical details). Until the first scan finishes it shows clearly
+  to do (raw errors under Technical details). Until the first check finishes it shows clearly
   labelled sample data.
 - **Product pages** — per product: three area cards (Found on Google, Recommended by AI
   assistants, Answer-ready) each with a verdict, the small number and "What's this?", a
-  one-line summary, **Scan now**, a tab per area listing its sub-scores as plain sentences
+  one-line summary, **Check now**, a tab per area listing its sub-scores as plain sentences
   (weakest first), **What to fix** with a **Hand to Claude** button that copies a ready prompt,
   the pages Harbour checked, and Google Search Console totals. The numbers, scoring keys, raw
   evidence, page and search tables sit under **Technical details**.
-- **Actions board** — every issue the scan finds becomes a tracked action, grouped as Big wins,
+- **Actions board** — every issue the check finds becomes a tracked action, grouped as Big wins,
   Worth doing and Small wins. Each card is a headline, one line on why it matters, a chip for
   how big a win it is (Big win, Worth doing, Small win) and a chip for who's on it (a new idea
   not decided yet, Claude is on it, a pull request waiting for your OK, or waiting for you), with
@@ -47,7 +47,7 @@ continues with:
   Filter by product, area and status (a plain, bookmarkable form); move an action through New
   ideas → To do → In progress → Done, snooze it until a date or dismiss it. The sidebar shows
   how many are open. Claude can triage the board for you with `pnpm actions`, every change recorded with its reason.
-- **Sources** — whether the daily scan is on, which data sources are connected (never their
+- **Sources** — whether the daily check is on, which data sources are connected (never their
   secrets), and each source's last run, status and reason per product.
 - **Products from config** — list your products in `harbour.config.json`; each gets a
   colour from a six-hue palette. Without it, a clearly labelled demo config is shown.
@@ -86,7 +86,7 @@ continues with:
 | `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`; the status values are the stored ones, which the board shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed) |
 | `/settings` | Settings overview: products, schedules, key status, budget and backups |
 | `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors) |
-| `/settings/sources` | Scan schedule, connections and each source's last run |
+| `/settings/sources` | Check schedule, connections and each source's last run |
 | `/brain` | Second Brain |
 | `/agents` | Agent runs |
 | `/settings/devices` | Passkeys and devices |
@@ -95,7 +95,7 @@ continues with:
 Four JSON endpoints change things; like every mutating route they take same-origin JSON from a
 signed-in session:
 
-- `POST /api/scans` with `{"productId": "<id>"}` queues a scan for the worker (as **Scan now**
+- `POST /api/scans` with `{"productId": "<id>"}` queues a check for the worker (as **Check now**
   does).
 - `POST /api/backups` with an empty body `{}` queues a backup of today for the worker (as
   **Back up now** on Settings does), even when the nightly backup is off. It answers
@@ -306,9 +306,9 @@ Start the app and register your first passkey:
 ```bash
 pnpm dev            # http://localhost:3400
 pnpm setup-token    # prints a one-time link; open it to create a passkey
-pnpm worker         # runs queued jobs (agents, scans, backups, retention), one at a time (reads .env)
+pnpm worker         # runs queued jobs (agents, checks, backups, retention), one at a time (reads .env)
 pnpm agents:initial-run  # once: queues every research topic, then discovery per product
-pnpm scan:now       # queues a visibility scan of every product now (or: pnpm scan:now <productId>)
+pnpm scan:now       # queues a visibility check of every product now (or: pnpm scan:now <productId>)
 pnpm analyst:now    # queues the weekly analyst report for the current week now
 pnpm backup:now     # queues a backup of the database now (see "Backups and restore")
 pnpm retention:check  # read-only: what the next retention run would delete (see "Data kept")
@@ -352,7 +352,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_RP_ID` | yes | — | WebAuthn relying-party id: the origin's hostname or a parent domain. |
 | `HARBOUR_DB_PATH` | no | `./data/harbour.db` | SQLite database file. |
 | `HARBOUR_CONFIG_PATH` | no | unset | Product config file; must exist if set. Unset reads `./harbour.config.json` and shows the example (demo) only if that file does not exist. |
-| `HARBOUR_TIMEZONE` | no | server's zone | IANA timezone for dates, the nightly backup at 03:15, the daily scan at 06:00 and the weekly analyst on Sundays at 20:00 local time (daylight saving included). |
+| `HARBOUR_TIMEZONE` | no | server's zone | IANA timezone for dates, the nightly backup at 03:15, the daily check at 06:00 and the weekly analyst on Sundays at 20:00 local time (daylight saving included). |
 | `HARBOUR_LOCALE` | no | `en-US` | BCP 47 locale for dates. |
 | `HARBOUR_BRAIN_DIR` | no | `./brain` | Second Brain directory — point it at a separate private repo. The worker refuses all git work unless it is the root of its own git repository. |
 | `HARBOUR_EDITOR_URL_TEMPLATE` | no | `vscode://file/{path}` | Editor link for brain documents; `{path}` is the encoded absolute file path. Empty hides the link. |
@@ -361,8 +361,8 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_CLAUDE_BIN` | no | `claude` | Claude Code CLI executable the worker runs: a command on the worker's `PATH`, or an absolute path (e.g. `/opt/claude/bin/claude`). |
 | `HARBOUR_AGENT_MODEL` | no | `claude-sonnet-5-5` | Full model id used for agent runs. |
 | `HARBOUR_AGENT_TIMEOUT_MINUTES` | no | `30` | Maximum agent run length, 1 to 120 minutes. |
-| `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility scan's crawler fetches per product per scan, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
-| `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing scans by itself (the daily 06:00 scan and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
+| `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility check's crawler fetches per product per check, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
+| `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing checks by itself (the daily 06:00 check and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Run weekly report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
 | `HARBOUR_PERSONALITY` | no | `warm` | `warm` or `quiet`. `quiet` turns off the daily note (its job, its card on Today) and the wave behind the app. See [Daily note](#daily-note). Restart both services after changing it. |
 | `HARBOUR_NOTE_TIME` | no | `06:30` | The local time, `HH:MM` in `HARBOUR_TIMEZONE`, the worker writes the daily note each day (and catches up on start). Restart the worker after changing it. |
@@ -370,9 +370,9 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_RESEARCH` | no | `on` | `off` stops the worker queueing the monthly research refresh by itself (the first Sunday of each month at 21:00 and the catch-up on start); **Refresh stale research** on **Agents** still queues it by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
-| `HARBOUR_OBSERVATION_SCANS_KEPT` | no | `30` | How many of each product's newest scans keep their raw observations (7 to 365); older scans' observations are deleted after each verified backup (see [Data kept](#data-kept)). Scores and scan history are always kept. Restart the worker after changing it. |
-| `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the scan asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
-| `HARBOUR_GSC_CREDENTIALS` | for Search Console | unset | Absolute path to a Google credentials JSON file — a service account key or an OAuth authorized-user file (see [Connect Search Console](#connect-search-console)). Keep it outside the repo with mode 600; Harbour warns in the scan if other users can read it. Read by the worker only; its contents and the access tokens are never logged, shown or stored. Restart the worker after changing it. |
+| `HARBOUR_OBSERVATION_SCANS_KEPT` | no | `30` | How many of each product's newest checks keep their raw observations (7 to 365); older checks' observations are deleted after each verified backup (see [Data kept](#data-kept)). Scores and check history are always kept. Restart the worker after changing it. |
+| `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the check asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
+| `HARBOUR_GSC_CREDENTIALS` | for Search Console | unset | Absolute path to a Google credentials JSON file — a service account key or an OAuth authorized-user file (see [Connect Search Console](#connect-search-console)). Keep it outside the repo with mode 600; Harbour warns in the check if other users can read it. Read by the worker only; its contents and the access tokens are never logged, shown or stored. Restart the worker after changing it. |
 | `HARBOUR_MONTHLY_BUDGET_AUD` | no | `0` | Monthly cap on paid API spend in Australian dollars, 0 to 10000 in whole cents (e.g. `60` or `12.50`). `0` means no paid calls at all. See [Costs and budget](#costs-and-budget). Restart both services after changing it. |
 | `HARBOUR_DATAFORSEO_LOGIN` | no | unset | Not used yet — reserved for the DataForSEO login of the future rankings and SERP collectors. Secret: only whether it is set will ever be shown (on Settings), never its value. |
 | `HARBOUR_DATAFORSEO_PASSWORD` | no | unset | Not used yet — reserved for the DataForSEO password of the future rankings and SERP collectors. Secret: only whether it is set will ever be shown (on Settings), never its value. |
@@ -380,7 +380,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_PERPLEXITY_API_KEY` | no | unset | Not used yet — reserved for the future AI-engines collector (Perplexity Sonar). Secret: only whether it is set will ever be shown (on Settings), never its value. |
 | `HARBOUR_GEMINI_API_KEY` | no | unset | Not used yet — reserved for the future AI-engines collector (Gemini with Google grounding). Secret: only whether it is set will ever be shown (on Settings), never its value. |
 | `HARBOUR_TEST_MODE` | tests only | `0` | `1` marks the end-to-end test environment (`pnpm test:e2e` sets it). Refused unless `HARBOUR_ORIGIN` is a loopback origin (`http://localhost`, `127.0.0.1` or `[::1]`), so a deployed Harbour cannot turn it on. Never set it yourself. |
-| `HARBOUR_SCAN_ALLOW_LOOPBACK` | tests only | `0` | `1` lets scans reach `127.0.0.1` / `::1`, so the end-to-end tests can scan a local fixture site. Refused unless `HARBOUR_TEST_MODE=1`; private and tailnet addresses stay refused either way. Never set it yourself. |
+| `HARBOUR_SCAN_ALLOW_LOOPBACK` | tests only | `0` | `1` lets checks reach `127.0.0.1` / `::1`, so the end-to-end tests can check a local fixture site. Refused unless `HARBOUR_TEST_MODE=1`; private and tailnet addresses stay refused either way. Never set it yourself. |
 | `HARBOUR_HTTPS_PORT` | no | `8444` | Shell variable for `deploy/install.sh` (Tailscale Serve HTTPS port); the app itself does not read it. |
 
 `harbour.config.json` lists 1–12 products:
@@ -419,7 +419,7 @@ belongs in its own private repository.
 ### Nightly backup
 
 The worker backs up the database each night at 03:15 in `HARBOUR_TIMEZONE` (see
-[Backups and restore](#backups-and-restore)). Like the scans it is worked out from the job
+[Backups and restore](#backups-and-restore)). Like the checks it is worked out from the job
 history: a restart never queues it twice, and a worker that was down at 03:15 queues that
 night's backup at its first check; one that was down for several nights queues only the latest
 night's, never one per missed night. A failed backup is tried again 10 minutes later, then 40
@@ -428,38 +428,40 @@ worker's own stop interrupts counts as a failed attempt and is retried the same 
 cancel on **Agents** stays cancelled until the next night. A backup you queue by hand
 (`pnpm backup:now`) counts as that day's. Set `HARBOUR_SCHEDULED_BACKUP=off` to
 back up only by hand. The worker's start-up line says when the next backup is due. Each
-verified backup then queues a retention job that prunes old scan observations (see
+verified backup then queues a retention job that prunes old check observations (see
 [Data kept](#data-kept)).
 
-### Daily scans
+### Daily checks
 
-The worker queues a visibility scan of every product each day at 06:00 in `HARBOUR_TIMEZONE`.
-If the worker is down at 06:00, it queues the day's scans at its first check after it starts.
-On start it also catches up: any product without a successful (or partly successful) scan in
-the last 24 hours is scanned straight away. A product never has more than one scan queued or
-running, and the daily scan is queued once a day however often the worker restarts. A daily
-scan that fails or that you cancel still counts as that day's: the next try is the following
+A visibility check is called a *check* on screen; the commands, API routes and settings keep the older word *scan* (`pnpm scan:now`, `HARBOUR_SCHEDULED_SCANS`).
+
+The worker queues a visibility check of every product each day at 06:00 in `HARBOUR_TIMEZONE`.
+If the worker is down at 06:00, it queues the day's checks at its first check after it starts.
+On start it also catches up: any product without a successful (or partly successful) check in
+the last 24 hours is checked straight away. A product never has more than one check queued or
+running, and the daily check is queued once a day however often the worker restarts. A daily
+check that fails or that you cancel still counts as that day's: the next try is the following
 day at 06:00, or the catch-up when the worker next starts. A catch-up that runs before 06:00
-is still followed by that day's 06:00 scan. Set `HARBOUR_SCHEDULED_SCANS=off` to queue scans
+is still followed by that day's 06:00 check. Set `HARBOUR_SCHEDULED_SCANS=off` to queue checks
 only by hand.
 
-Scans are ordinary jobs: they run one at a time, in queue order, between agent runs. Unlike
-agent runs they never wait for the brain to be quiet, because they don't touch it. To scan
-now, choose **Scan now** on the product's page, or run `pnpm scan:now` (every product) or
+Checks are ordinary jobs: they run one at a time, in queue order, between agent runs. Unlike
+agent runs they never wait for the brain to be quiet, because they don't touch it. To check
+now, choose **Check now** on the product's page, or run `pnpm scan:now` (every product) or
 `pnpm scan:now <productId>`; an unknown id is rejected with the configured ones. Both services
 read `harbour.config.json` once, so after changing it restart them
-(`systemctl --user restart harbour-worker harbour-web`) before scanning. The **Sources** page shows whether the daily scan is on and when each
-product was last scanned and will be next.
+(`systemctl --user restart harbour-worker harbour-web`) before checking. The **Sources** page shows whether the daily check is on and when each
+product was last checked and will be next.
 
 ### Weekly analyst
 
 The worker queues one weekly analyst run (see [Weekly analyst](#weekly-analyst)) each Sunday at
-20:00 in `HARBOUR_TIMEZONE`, for that Sunday's ISO week. Like the daily scan it is worked out from
+20:00 in `HARBOUR_TIMEZONE`, for that Sunday's ISO week. Like the daily check it is worked out from
 the job history, so a restart never queues it twice, and a worker that was down on Sunday evening
 queues exactly one run, for that Sunday's week, when it starts. A run you start by hand counts
 only if you start it after Sunday's 20:00: one earlier in the week does not stop the full-week
 report. The worker skips the week, and says so in its log, when `HARBOUR_CLAUDE_OAUTH_TOKEN` is
-not set ("weekly analyst skipped: no Claude token") or when no product has a scored scan in the
+not set ("weekly analyst skipped: no Claude token") or when no product has a scored check in the
 last 7 days ("no scan data this week"). A failed run is not retried automatically: choose **Run
 weekly report now** on **Agents** or run `pnpm analyst:now`. Set `HARBOUR_SCHEDULED_ANALYST=off` to
 run it only by hand. Like every agent run it waits for the brain to be quiet first.
@@ -595,27 +597,27 @@ To restore one:
 
 ### Data kept
 
-Raw observations (every page, robots.txt and PageSpeed record a scan stores) are most of the
+Raw observations (every page, robots.txt and PageSpeed record a check stores) are most of the
 database: a crawl alone stores up to 200 page records per product per day. After each verified
-backup the worker runs a retention job that deletes the observations of old scans, so the file
+backup the worker runs a retention job that deletes the observations of old checks, so the file
 stops growing. For each product (configured or not) it keeps:
 
-- the observations of the newest `HARBOUR_OBSERVATION_SCANS_KEPT` scans (default 30, whatever
-  their outcome) and of any scan still running;
+- the observations of the newest `HARBOUR_OBSERVATION_SCANS_KEPT` checks (default 30, whatever
+  their outcome) and of any check still running;
 - the observations of each source's latest successful run, however old, so a weekly result
   such as PageSpeed still counts in later scores (only sources Harbour still has: a removed
-  source's last run is pruned like any other old scan);
-- the observations of the scan behind the latest scores, which the product page and the
+  source's last run is pruned like any other old check);
+- the observations of the check behind the latest scores, which the product page and the
   weekly export read.
 
-Nothing else is ever pruned: scan runs, collector runs (with how many records each stored) and
+Nothing else is ever pruned: check runs, collector runs (with how many records each stored) and
 scores stay complete, so score history, trends and **Sources** never change, and nor do job
 history, agent runs, actions or the audit log. A run deletes at most 2,000 rows per statement,
 each statement its own short transaction so the web never waits long, and at most 500,000 rows
-(from at most 500 scans) per night; the rest goes after the next night's backup. The job's
+(from at most 500 checks) per night; the rest goes after the next night's backup. The job's
 events on **Agents** say how many observations it removed per product.
 
-Deleted space is reused by later scans rather than returned to the disk: Harbour never runs
+Deleted space is reused by later checks rather than returned to the disk: Harbour never runs
 `VACUUM`, which rewrites the whole file and blocks the web while it runs. If you lower
 `HARBOUR_OBSERVATION_SCANS_KEPT` a lot and want the space back, stop both services
 (`systemctl --user stop harbour-worker harbour-web`), run `sqlite3 data/harbour.db 'VACUUM'`
@@ -649,7 +651,7 @@ spend what you allow.
   the reservation stays counted (the call may have been billed) and the meter shows it as
   "unconfirmed".
 - **At 80 %** Today's meter shows a warning tag.
-- **At 100 %** paid collectors are skipped until the 1st of next month (the scan records them as
+- **At 100 %** paid collectors are skipped until the 1st of next month (the check records them as
   "skipped — budget: …"). Free collectors, agents and everything else keep running.
 
 The meter on **Today** says one of the lines below. Amounts follow `HARBOUR_LOCALE`'s currency
@@ -668,55 +670,55 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
 - **Today** (`/`) gives every product a verdict per area. A missing score reads "No score yet"
   with the reason (a gap, never a zero); an asterisk marks a verdict where some data was
   missing because a source was not connected or failed, and the numbers are under **Technical
-  details**. Each product name opens its page. While a scan is queued or running, the page
+  details**. Each product name opens its page. While a check is queued or running, the page
   refreshes itself. **Worth doing next** shows the top three open or in-progress actions (in
   the Actions board's order), each linked to its card and saying who's on it (Claude is on it,
   Pull request waiting for your OK, or Waiting for you), and the briefing's second line counts
-  every one of them; the rest are a link away on the Actions board. Before the first scan is
+  every one of them; the rest are a link away on the Actions board. Before the first check is
   scored, Today shows clearly flagged sample data instead.
 - **Product page** (`/products/<id>`) opens with the three area cards and a one-line summary
   (for example "Acme Docs is in fair shape. Weakest: Answer-ready (needs work)."), plus a note
-  on where scanning stands (never scanned, queued, running, or how the last scan ended, in one
-  sentence; a failed scan never hides the last good results, and the raw error sits under
+  on where checking stands (never checked, queued, running, or how the last check ended, in one
+  sentence; a failed check never hides the last good results, and the raw error sits under
   **Technical details**). Each area's tab explains every sub-score as a plain sentence, weakest
   first, with "What's this?"; one with no data reads "Not counted yet" with the reason and is
-  left out of the score rather than counted as zero. **What to fix** lists the scan's issues
+  left out of the score rather than counted as zero. **What to fix** lists the check's issues
   with plain titles (the rule titles in `lib/scan/issue-rules.ts`, such as "No guide to your
   site for AI assistants"); the exact fix and check text and the affected URLs sit under
-  **Technical details**. Issues come from the scan's raw observations: pages
+  **Technical details**. Issues come from the check's raw observations: pages
   without a title or meta description, broken internal links, pages hidden by noindex, AI
   crawlers blocked in robots.txt, no llms.txt, no FAQ structured data and no Google Preferred
-  Sources button. An issue is raised only from collectors that ran ok in that scan: when the
+  Sources button. An issue is raised only from collectors that ran ok in that check: when the
   crawler or readiness check failed, its issues are unknown rather than fixed. The same goes for
   a page check that found nothing on a partial crawl (stopped at its page or byte limit, or some
   pages could not be fetched or read). **Hand to Claude** copies a prompt with the product, the affected URLs, the
   problem, a suggested fix and an acceptance check, to paste into Claude Code in the site's
-  repository; it contains only the product's name and URL and the scan's findings. Each issue
+  repository; it contains only the product's name and URL and the check's findings. Each issue
   also shows its action's status (to do, in progress, snoozed until a date, dismissed, or done
-  but still found in the last scan) with a link to it on the Actions board; an issue with no
-  action yet says tracking starts with the next scan. **Pages Harbour checked** is a one-line
+  but still found in the last check) with a link to it on the Actions board; an issue with no
+  action yet says tracking starts with the next check. **Pages Harbour checked** is a one-line
   verdict; the table of the 50 crawled pages with the most problems sits under **Technical
   details**. The Google Search Console and paid-data panels say in plain words whether they are
   connected and what they show. Search Console also says how to connect it; the paid-data
   panels say Harbour doesn't collect that data yet. Setting names appear only under
   **Technical details** (Search Console's raw reason), as do its top searches. Actions created
-  before a title was reworded keep the old title until the next scan finds the issue again; open,
+  before a title was reworded keep the old title until the next check finds the issue again; open,
   in-progress, snoozed and dismissed actions then take the new title, and an action already
   resolved keeps its old one.
-- **Actions** (`/actions`) follow every scan that is not failed: each issue becomes one tracked
-  action per product and rule. The next scan that no
+- **Actions** (`/actions`) follow every check that is not failed: each issue becomes one tracked
+  action per product and rule. The next check that no
   longer finds the issue marks its action done, with a dated note; if the issue comes back, or
-  you marked an action done while the scan still finds it, the action reopens. A dismissed
+  you marked an action done while the check still finds it, the action reopens. A dismissed
   action stays dismissed while the issue persists and reopens only if the issue clears and
   later returns. A snoozed action stays snoozed until its date even while the issue persists,
-  and is marked done if the issue clears. When a rule could not judge a scan (its collector
+  and is marked done if the issue clears. When a rule could not judge a check (its collector
   failed, or the crawl was partial), its action is left exactly as it was: missing data never
-  creates, resolves or reopens an action. The scan's job log ends with how many actions were
+  creates, resolves or reopens an action. The check's job log ends with how many actions were
   new, resolved and reopened; if this step fails the job is marked failed with the reason, the
-  scan and its scores are kept, and the next scan tries again; until it does, the Actions page
-  says the list may be out of date, that the last scan finished but couldn't update the actions
-  (with the time), and that the next scan tries again. Reasons are written in plain words;
-  actions raised before a wording change keep the old text until the next scan refreshes them.
+  check and its scores are kept, and the next check tries again; until it does, the Actions page
+  says the list may be out of date, that the last check finished but couldn't update the actions
+  (with the time), and that the next check tries again. Reasons are written in plain words;
+  actions raised before a wording change keep the old text until the next check refreshes them.
 - **The Actions board** shows To do and In progress actions by default, grouped Big wins → Worth
   doing → Small wins, in-progress first, then the smallest effort. Filters (product, area,
   status) are a normal form, so a filtered view can be bookmarked; at most 200 actions are shown,
@@ -724,7 +726,7 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   **Mark done**, **Snooze…** with a date from tomorrow to a year ahead, **Dismiss**, **Move back
   to To do**, **Bring back now**, **Restore to To do**; new ideas from the weekly analyst are
   **Accept**ed or **Dismiss**ed). **History** lists every change with who made it (**You**,
-  **Claude**, **Harbour's scan**…) and its note; a card whose fix has a pull request links to it
+  **Claude**, **Harbour's check**…) and its note; a card whose fix has a pull request links to it
   (**Pull request owner/repo#42**, in a new tab). **Hand to Claude** copies a prompt with the
   problem, evidence (fenced as data), fix and acceptance check, and sits under **Technical
   details** on each card, which remembers whether you opened it. When agents have proposed
@@ -772,9 +774,9 @@ terminal escape sequences and control characters removed.
 
 ## Connecting Google data
 
-The visibility scan works without any Google account: the crawler and the readiness checks
+The visibility check works without any Google account: the crawler and the readiness checks
 read your sites directly. Two optional Google sources add more; until you connect one, the
-scan shows it as not connected and the scores it feeds are marked incomplete (a gap, never a
+check shows it as not connected and the scores it feeds are marked incomplete (a gap, never a
 zero).
 
 ### Connect PageSpeed
@@ -853,7 +855,7 @@ Then, on the Harbour machine:
 3. In `harbour.config.json`, give each product its property as Search Console names it:
    `"searchConsoleProperty": "sc-domain:example.com"` for a domain property, or
    `"searchConsoleProperty": "https://www.example.com/"` for a URL-prefix property.
-4. Restart the worker (`systemctl --user restart harbour-worker`). The next scan's job events
+4. Restart the worker (`systemctl --user restart harbour-worker`). The next check's job events
    show, for each product, either `Search Console: 27 days, 250 queries, 100 pages (2026-09-01
    to 2026-09-28); 28 days in the 28 before` followed by `Search Console: 406 observations`, or
    `Search Console: not connected — …` saying what is still missing, or
@@ -867,7 +869,7 @@ requests and responses, access tokens included.
 
 ## How scores work
 
-After each scan Harbour turns the raw observations into three scores from 0 to 100: **SEO**
+After each check Harbour turns the raw observations into three scores from 0 to 100: **SEO**
 (classic search), **GEO** (being used and cited by AI assistants) and **AEO** (being the direct
 answer). Each score is the weighted mean of its sub-scores, and every sub-score keeps the
 evidence behind its number, so the product page can explain it.
@@ -931,9 +933,9 @@ runs, commits, pushes and discovery approvals are tested end to end without a re
 
 It also serves the fictional Acme Docs fixture site (`tests/fixtures/sites/acme-docs`) on
 `http://127.0.0.1:3402` (keep ports 3401, 3402 and 3403 free; 3403 is a second web server with `HARBOUR_PERSONALITY=quiet` for the note specs), and the E2E product config
-(`tests/fixtures/harbour.config.e2e.json`) points Acme Docs at it. Scheduled scans are off;
-the scan specs choose **Scan now** and check the product page, Sources and Today on the real
-results. Only this environment may scan a loopback address (`HARBOUR_TEST_MODE` and
+(`tests/fixtures/harbour.config.e2e.json`) points Acme Docs at it. Scheduled checks are off;
+the scan specs choose **Check now** and check the product page, Sources and Today on the real
+results. Only this environment may check a loopback address (`HARBOUR_TEST_MODE` and
 `HARBOUR_SCAN_ALLOW_LOOPBACK`, both refused outside tests).
 
 The shell and scans specs also check that Today speaks plainly: no SEO, GEO or AEO heading, and
@@ -944,7 +946,7 @@ The note specs choose **Write me a fresh one** against the fake CLI, which reads
 
 The Playwright projects run in order — the shell and brain specs, then agents, scans, actions,
 the weekly analyst, the note and finally operations (Settings) — because each later one changes what the
-earlier ones check. The actions specs seed a scored scan of the fictional Lighthouse Café and
+earlier ones check. The actions specs seed a scored check of the fictional Lighthouse Café and
 two analyst suggestions through Harbour's own code (`tests/e2e/seed-actions.ts`), then work the
 Actions board: filters, status changes, snooze, **Hand to Claude** (read back from the
 clipboard), Today's top three, keyboard paths and both themes. The analyst specs choose **Run weekly report now** twice (the scheduled
@@ -966,7 +968,7 @@ app/          routes (thin: parse input, call lib/, render)
 components/   UI components built on semantic tokens
 design/       tokens.css (primitives + semantic), the token list for /design, the wave and contrast maths
 lib/          auth, agents, brain, config, costs (ledger, budget), db, jobs, note (the daily note), ops (backups), products, security, formatting — logic + tests
-worker/       the job worker (`pnpm worker`): agent runs, scans, backups, autosave and push retries
+worker/       the job worker (`pnpm worker`): agent runs, checks, backups, autosave and push retries
 deploy/       systemd unit template, install script, deployment guide
 drizzle/      SQL migrations
 scripts/      repo checks and the setup-token, initial-run, scan-now, analyst-now, backup-now, retention-check, gsc-connect and actions CLIs

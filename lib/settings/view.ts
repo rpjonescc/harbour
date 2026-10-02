@@ -61,7 +61,7 @@ function schedules(config: Config, now: Date): ScheduleRow[] {
   return [
     {
       id: "scan",
-      label: "Daily scan",
+      label: "Daily check",
       when: "Every day at 06:00",
       setting: "HARBOUR_SCHEDULED_SCANS",
       enabled: scans,

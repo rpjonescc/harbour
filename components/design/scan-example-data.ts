@@ -71,13 +71,13 @@ const last = (status: "ok" | "partial" | "failed"): NonNullable<ScanState["last"
 });
 
 export const EXAMPLE_SCAN_STATES: { label: string; scan: ScanState }[] = [
-  { label: "Never scanned", scan: { active: null, last: null } },
+  { label: "Never checked", scan: { active: null, last: null } },
   {
     label: "Running",
     scan: { active: { jobId: 9, status: "running", since: AT }, last: last("ok") },
   },
   {
-    label: "Running after a failed scan",
+    label: "Running after a failed check",
     scan: { active: { jobId: 9, status: "running", since: AT }, last: last("failed") },
   },
   { label: "Partly failed", scan: { active: null, last: last("partial") } },

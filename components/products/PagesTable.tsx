@@ -23,7 +23,7 @@ export function PagesTable({ rows, total }: { rows: PageRow[]; total: number }) 
       {rows.length === 0 ? (
         <EmptyState
           what="The pages Harbour checks will be listed here."
-          when="They appear after the first scan finishes."
+          when="They appear after the first check finishes."
           why="Each shows whether it loaded and anything to fix on it."
         />
       ) : (
