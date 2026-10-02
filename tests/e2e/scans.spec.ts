@@ -61,9 +61,13 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
     /^\/actions\?product=acme-docs&status=all#action-\d+$/,
   );
 
-  const pages = page.getByRole("region", { name: "Pages" }).getByRole("table");
-  await expect(pages.getByRole("row", { name: /\/about\b.*No title/ })).toBeVisible();
-  await expect(pages.getByRole("row", { name: /\/missing\b.*404.*HTTP 404/ })).toBeVisible();
+  const pagesRegion = page.getByRole("region", { name: "Pages Harbour checked" });
+  await pagesRegion.getByText("Technical details").click();
+  const pages = pagesRegion.getByRole("table");
+  await expect(pages.getByRole("row", { name: /\/about\b.*Missing title/ })).toBeVisible();
+  await expect(
+    pages.getByRole("row", { name: /\/missing\b.*Not found \(404\).*Didn't load/ }),
+  ).toBeVisible();
   await expect(pages.getByRole("row", { name: /\/guides\/faq\b/ })).toBeVisible();
 
   const searchConsole = page.getByRole("region", { name: "Search Console" });

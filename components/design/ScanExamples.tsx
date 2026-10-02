@@ -80,9 +80,14 @@ export function ScanExamples() {
             url: "https://docs.example.com/pricing",
             status: 200,
             title: null,
-            problems: ["No title", "No description"],
+            problems: ["Missing title", "Missing description"],
           },
-          { url: "https://docs.example.com/old", status: 404, title: null, problems: ["HTTP 404"] },
+          {
+            url: "https://docs.example.com/old",
+            status: 404,
+            title: null,
+            problems: ["Didn't load"],
+          },
         ]}
       />
       <SearchConsolePanel

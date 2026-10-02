@@ -106,7 +106,7 @@ describe("ProductOverview", () => {
       "/settings/products/acme-docs",
     );
     expect(screen.getByText(/Problems Harbour finds will be listed here\./)).toBeInTheDocument();
-    expect(screen.getByText("No crawled pages yet.")).toBeInTheDocument();
+    expect(screen.getByText(/The pages Harbour checks will be listed here/)).toBeInTheDocument();
     expect(screen.getAllByText("No score yet")).toHaveLength(3);
   });
 
@@ -158,9 +158,9 @@ describe("ProductOverview", () => {
         name: "Hand to Claude: 1 page you link to can't be found",
       }),
     ).toBeInTheDocument();
-    const pages = screen.getByRole("table", { name: /crawled pages/ });
+    const pages = screen.getByRole("table", { name: /most to fix first/ });
     expect(within(pages).getByRole("link", { name: "/about" })).toBeInTheDocument();
-    expect(within(pages).getByText("noindex")).toBeInTheDocument();
+    expect(within(pages).getByText("Hidden from search")).toBeInTheDocument();
   });
 
   it("shows each issue's action status with a link to it on the Actions board", () => {

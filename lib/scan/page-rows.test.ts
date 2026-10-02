@@ -8,9 +8,9 @@ describe("pageRows", () => {
     const { rows, total } = pageRows(ACME_CRAWL);
     expect(total).toBe(6);
     expect(rows.map((r) => [r.url, r.status, r.problems])).toEqual([
-      [at("/about"), 200, ["noindex"]],
-      [at("/blog/launch"), 200, ["2 h1s"]],
-      [at("/missing"), 404, ["HTTP 404"]],
+      [at("/about"), 200, ["Hidden from search"]],
+      [at("/blog/launch"), 200, ["2 main headings"]],
+      [at("/missing"), 404, ["Didn't load"]],
       [at("/"), 200, []],
       [at("/faq"), 200, []],
       [at("/guides/install"), 200, []],
@@ -22,7 +22,7 @@ describe("pageRows", () => {
     const { rows } = pageRows([
       htmlPage("/a", { title: null, titleLength: 0, descriptionLength: 0, h1Count: 0 }),
     ]);
-    expect(rows[0]?.problems).toEqual(["No title", "No description", "No h1"]);
+    expect(rows[0]?.problems).toEqual(["Missing title", "Missing description", "No main heading"]);
   });
 
   it("leaves out a page whose stored URL is malformed rather than failing", () => {
