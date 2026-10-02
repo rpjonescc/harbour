@@ -1,13 +1,14 @@
+import type { LocalMoment, Weekday } from "@/lib/format/zoned-time";
 import type { Effort, Impact } from "@/lib/scan/issues";
 import type { AreaValues } from "@/lib/scan/views";
 import { EFFORT_PHRASE, IMPACT_PHRASE, WHO_PHRASE, type WhoOnIt } from "../actions";
 import { AREA_ORDER, AREAS } from "../areas";
 import { trendPhrase, verdictFor } from "../verdict";
-import { type DayPart, dayPartOf, type LocalMoment, type Rest, restOf } from "./day-part";
+import { type DayPart, dayPartOf, type Rest, restOf } from "./day-part";
 
 /** What Harbour has gathered, as plain values (the worker fills it; nothing here does I/O). */
 export type FactsInput = {
-  local: LocalMoment & { day: string };
+  local: LocalMoment;
   ownerFirstName: string | null;
   products: {
     name: string;
@@ -27,7 +28,7 @@ export type FactsInput = {
 /** The facts snapshot the agent is given and the checker holds it to (spec §3.3). */
 export type Facts = {
   date: string;
-  weekday: string;
+  weekday: Weekday;
   time: string;
   dayPart: DayPart;
   rest: Rest | null;

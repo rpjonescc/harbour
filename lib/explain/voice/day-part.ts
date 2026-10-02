@@ -1,9 +1,9 @@
+import type { LocalMoment } from "@/lib/format/zoned-time";
+
 export type DayPart = "morning" | "afternoon" | "evening" | "night";
 export type Rest = "weekend" | "out-of-hours";
-/** The owner's local weekday (English, "Friday") and clock time. */
-export type LocalMoment = { weekday: string; hour: number; minute: number };
 
-const WEEKEND = new Set(["Saturday", "Sunday"]);
+const WEEKEND = new Set<string>(["Saturday", "Sunday"]);
 // 20:00 to 04:59 is out of hours. The default 06:30 note is a working-morning slot.
 const OUT_OF_HOURS_FROM = 20;
 const OUT_OF_HOURS_UNTIL = 5;
@@ -17,7 +17,7 @@ export function dayPartOf(hour: number): DayPart {
 }
 
 /** Whether the moment suggests rest: the weekend (which wins) or out of hours; else null. */
-export function restOf({ weekday, hour }: LocalMoment): Rest | null {
+export function restOf({ weekday, hour }: Omit<LocalMoment, "day">): Rest | null {
   if (WEEKEND.has(weekday)) return "weekend";
   return hour >= OUT_OF_HOURS_FROM || hour < OUT_OF_HOURS_UNTIL ? "out-of-hours" : null;
 }

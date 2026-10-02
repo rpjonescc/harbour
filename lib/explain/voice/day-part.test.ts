@@ -1,3 +1,4 @@
+import type { Weekday } from "@/lib/format/zoned-time";
 import { dayPartOf, restOf } from "./day-part";
 
 describe("dayPartOf", () => {
@@ -17,7 +18,7 @@ describe("dayPartOf", () => {
 });
 
 describe("restOf", () => {
-  const at = (weekday: string, hour: number, minute = 0) => restOf({ weekday, hour, minute });
+  const at = (weekday: Weekday, hour: number, minute = 0) => restOf({ weekday, hour, minute });
 
   it("is no rest on a working morning, including the default 06:30 note", () => {
     expect(at("Friday", 6, 30)).toBeNull();

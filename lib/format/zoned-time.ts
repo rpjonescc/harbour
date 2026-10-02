@@ -4,10 +4,31 @@ const DAY_MS = 24 * 60 * 60_000;
 
 export type LocalTime = { day: string; minute: number };
 
-/** The local date (YYYY-MM-DD) and minute of the day of `at` in `timeZone`, DST-aware. */
-export function localTime(timeZone: string, at: Date): LocalTime {
+export const WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+export type Weekday = (typeof WEEKDAYS)[number];
+
+/** A local wall-clock moment: date, English weekday, and the clock as hour and minute. */
+export type LocalMoment = { day: string; weekday: Weekday; hour: number; minute: number };
+
+const isWeekday = (value: string): value is Weekday =>
+  (WEEKDAYS as readonly string[]).includes(value);
+
+/**
+ * The local date, weekday and clock time of `at` in `timeZone`, DST-aware. Every field comes from
+ * one formatter call, so the weekday and the hour can never disagree across midnight.
+ */
+export function localMoment(timeZone: string, at: Date): LocalMoment {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone,
+    weekday: "long",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -17,10 +38,20 @@ export function localTime(timeZone: string, at: Date): LocalTime {
   }).formatToParts(at);
   const part = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((p) => p.type === type)?.value ?? "";
+  const weekday = part("weekday");
+  if (!isWeekday(weekday)) throw new Error(`Unexpected weekday from Intl: ${weekday}`);
   return {
     day: `${part("year")}-${part("month")}-${part("day")}`,
-    minute: Number(part("hour")) * 60 + Number(part("minute")),
+    weekday,
+    hour: Number(part("hour")),
+    minute: Number(part("minute")),
   };
+}
+
+/** The local date (YYYY-MM-DD) and minute of the day of `at` in `timeZone`, DST-aware. */
+export function localTime(timeZone: string, at: Date): LocalTime {
+  const { day, hour, minute } = localMoment(timeZone, at);
+  return { day, minute: hour * 60 + minute };
 }
 
 const toDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);

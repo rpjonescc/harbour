@@ -2,6 +2,7 @@ import {
   addDays,
   latestDailySlotDay,
   latestMonthlySlot,
+  localMoment,
   monthWindow,
   nextDailySlot,
   nextMonthlySlot,
@@ -158,5 +159,55 @@ describe("nextMonthlySlot", () => {
     expect(nextMonthlySlot(new Date("2026-12-20T12:00:00Z"), LONDON)).toEqual(
       new Date("2027-01-03T21:00:00Z"),
     );
+  });
+});
+
+describe("localMoment", () => {
+  const at = (iso: string, zone = LONDON) => localMoment(zone, new Date(iso));
+
+  it("reads the day, weekday and clock from the zone", () => {
+    expect(at("2026-10-02T05:30:00Z")).toEqual({
+      day: "2026-10-02",
+      weekday: "Friday",
+      hour: 6,
+      minute: 30,
+    });
+  });
+
+  it("keeps the weekday and the hour together across local midnight", () => {
+    // 23:59 BST Friday, then 00:01 BST Saturday: hour is 0, never 24, and the weekday flips with it.
+    expect(at("2026-10-02T22:59:00Z")).toEqual({
+      day: "2026-10-02",
+      weekday: "Friday",
+      hour: 23,
+      minute: 59,
+    });
+    expect(at("2026-10-02T23:01:00Z")).toEqual({
+      day: "2026-10-03",
+      weekday: "Saturday",
+      hour: 0,
+      minute: 1,
+    });
+  });
+
+  it("follows a clock change (Sydney springs forward 02:00 → 03:00 on Sunday 4 October)", () => {
+    expect(at("2026-10-03T15:59:00Z", SYDNEY)).toEqual({
+      day: "2026-10-04",
+      weekday: "Sunday",
+      hour: 1,
+      minute: 59,
+    });
+    expect(at("2026-10-03T16:00:00Z", SYDNEY)).toEqual({
+      day: "2026-10-04",
+      weekday: "Sunday",
+      hour: 3,
+      minute: 0,
+    });
+  });
+
+  it("follows a fall-back day (London 25 October: 01:30 happens twice)", () => {
+    expect(at("2026-10-25T00:30:00Z")).toMatchObject({ weekday: "Sunday", hour: 1, minute: 30 });
+    expect(at("2026-10-25T01:30:00Z")).toMatchObject({ weekday: "Sunday", hour: 1, minute: 30 });
+    expect(at("2026-10-25T02:30:00Z")).toMatchObject({ weekday: "Sunday", hour: 2, minute: 30 });
   });
 });
