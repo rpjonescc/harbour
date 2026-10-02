@@ -29,42 +29,99 @@ function renderCard(over: Partial<ActionView> = {}) {
 }
 
 describe("ActionCard", () => {
-  it("renders every field", () => {
+  it("leads with the plain title, reason, impact, effort, status and who's on it", () => {
     const card = renderCard();
-    expect(card).toHaveAttribute("id", "action-1");
     expect(within(card).getByRole("heading", { level: 3 })).toHaveTextContent(
       "3 pages have no title",
     );
-    for (const text of ["Big win", "SEO", "Acme Docs", "To do", "Found by a scan"]) {
+    for (const text of [
+      "Big win",
+      "Found on Google · quick job",
+      "To do",
+      "Acme Docs",
+      "Waiting for you",
+    ]) {
       expect(within(card).getByText(text)).toBeInTheDocument();
     }
     expect(card).toHaveTextContent("Search results show a generated title");
-    const terms = within(card)
-      .getAllByRole("term")
-      .map((t) => t.textContent);
-    expect(terms).toEqual(["Fix", "Done when", "Effort"]);
-    expect(card).toHaveTextContent("Give each page a unique title");
-    expect(card).toHaveTextContent("Every page has a title.");
-    expect(within(card).getByText("quick job")).toBeInTheDocument();
-    expect(within(card).getByText("Evidence (3)")).toBeInTheDocument();
-    expect(within(card).getByText("…and 1 more")).toBeInTheDocument();
-    expect(within(card).getByRole("link", { name: "research/acme-docs/seo.md" })).toHaveAttribute(
+    // Codes and the old effort wording are gone from the surface.
+    expect(within(card).queryByText("SEO")).toBeNull();
+    expect(within(card).queryByText("Small")).toBeNull();
+  });
+
+  it("keeps the fix, source, rule key, evidence, docs and prompt inside Technical details", () => {
+    const card = renderCard();
+    const details = within(card)
+      .getByText("Technical details", { exact: false })
+      .closest("details");
+    if (!details) throw new Error("the card has no Technical details");
+    const inside = within(details);
+    for (const text of [
+      "Fix",
+      "Give each page a unique title of 10–60 characters.",
+      "Done when",
+      "Every page has a title.",
+      "Found by a scan",
+      "missing-title",
+      "Evidence (3)",
+      "…and 1 more",
+    ]) {
+      expect(inside.getByText(text)).toBeInTheDocument();
+    }
+    expect(inside.getByRole("link", { name: "research/acme-docs/seo.md" })).toHaveAttribute(
       "href",
       "/brain/research/acme-docs/seo.md",
     );
+    // A closed <details> hides its body from the accessibility tree; the button keeps its name.
+    expect(
+      inside.getByRole("button", { name: "Hand to Claude: 3 pages have no title", hidden: true }),
+    ).toBeInTheDocument();
+    expect(details).not.toHaveAttribute("open");
     expect(within(card).getByText("History")).toBeInTheDocument();
     expect(
       within(card).getByRole("button", { name: "Mark done: 3 pages have no title" }),
     ).toBeVisible();
-    expect(
-      within(card).getByRole("button", { name: "Hand to Claude: 3 pages have no title" }),
-    ).toBeInTheDocument();
   });
 
-  it("shows the snooze date and the analyst as the source", () => {
-    const card = renderCard({ status: "snoozed", snoozedUntil: "2026-10-12", source: "agent" });
+  it("shows the snooze date, and the analyst as the source inside Technical details", () => {
+    const card = renderCard({
+      status: "snoozed",
+      snoozedUntil: "2026-10-12",
+      source: "agent",
+      ruleKey: null,
+      who: null,
+    });
     expect(within(card).getByText("Snoozed until 12 Oct 2026")).toBeInTheDocument();
     expect(within(card).getByText("Suggested by the weekly analyst")).toBeInTheDocument();
+    expect(within(card).queryByText("Waiting for you")).toBeNull();
+  });
+
+  it.each([
+    ["claude", "Claude is on it"],
+    ["pr_waiting", "Pull request waiting for your OK"],
+    ["undecided", "New idea, not decided yet"],
+  ] as const)("says %s as %j", (who, phrase) => {
+    const card = renderCard({ who });
+    expect(within(card).getByText(phrase)).toBeInTheDocument();
+  });
+
+  it("links the pull request on the card, outside Technical details", () => {
+    const card = renderCard({
+      status: "in_progress",
+      who: "pr_waiting",
+      prUrl: "https://github.com/example/site/pull/42",
+    });
+    const link = within(card).getByRole("link", { name: /Pull request example\/site#42/ });
+    expect(link.closest("details")).toBeNull();
+  });
+
+  // Review Focus 5: unreadable stored evidence is a gap, and the rest of the section stays.
+  it("says when stored evidence could not be read and keeps the other technical parts", () => {
+    const card = renderCard({ evidenceInvalid: true, evidence: { items: [], total: 0 } });
+    expect(
+      within(card).getByText("Harbour could not read the stored evidence."),
+    ).toBeInTheDocument();
+    expect(within(card).getByText("Every page has a title.")).toBeInTheDocument();
   });
 
   it("shows agent text as plain text, never markup", () => {
