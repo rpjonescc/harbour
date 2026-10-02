@@ -13,7 +13,10 @@ const plainLine = (max: number) =>
     .max(max)
     // Also look-alike blanks: any space separator but U+0020, Hangul filler and braille blank.
     .refine(
-      (v) => !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}   -   　ㅤ⠀]/u.test(v),
+      (v) =>
+        !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\u00a0\u1680\u2000-\u200a\u202f\u205f\u3000\u3164\u2800]/u.test(
+          v,
+        ),
       "must be plain text on one line",
     );
 

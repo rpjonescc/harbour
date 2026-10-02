@@ -11,8 +11,8 @@ describe("hidden characters", () => {
     ["a half-width Hangul filler", "\uffa0"],
     ["an interlinear annotation mark", "\ufff9"],
     ["a Mongolian variation selector", "᠋"],
-    ["a soft hyphen", "­"],
-    ["a line separator", " "],
+    ["a soft hyphen", "\u00ad"],
+    ["a line separator", "\u2028"],
   ])("sees %s and strips it", (_label, char) => {
     expect(hasInvisible(`a${char}b`)).toBe(true);
     expect(stripInvisible(`a${char}b`)).toBe("ab");
