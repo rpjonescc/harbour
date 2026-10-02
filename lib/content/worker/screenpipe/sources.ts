@@ -10,6 +10,7 @@ import {
 } from "./client";
 import { hasPrivateCue } from "./frame-checks";
 import { filterHits } from "./hits";
+import { hasPersonalData } from "./personal-data";
 import { filterSnippets, type RedactRules } from "./redact";
 import type { Hit, WindowRow } from "./schema";
 
@@ -36,7 +37,7 @@ const windowText = (row: WindowRow): string => `${row.window} (${Math.round(row.
 function keepWindows(rows: readonly WindowRow[], rules: RedactRules) {
   return filterSnippets(
     mergeWindows(rows)
-      .filter((row) => !hasPrivateCue(row.window))
+      .filter((row) => !hasPrivateCue(row.window) && !hasPersonalData(row.window))
       .map((row) => ({ app: row.app, window: row.window, text: windowText(row) })),
     rules,
   );

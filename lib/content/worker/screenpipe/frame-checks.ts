@@ -22,12 +22,21 @@ function foldedKey(canonical: string): string {
     .replace(/rn/g, "m");
 }
 
+/** The other misreading: a one, bar or l for "i" ("lnbox", "S1gn in"), with the same other folds. */
+function foldedForI(canonical: string): string {
+  return skeleton(canonical)
+    .replace(/[1|lL]/g, "i")
+    .replace(/0/g, "o")
+    .toLowerCase()
+    .replace(/rn/g, "m");
+}
+
 /**
- * True when screen text holds a private-context cue, on the plain key or on the folded one.
+ * True when screen text holds a private-context cue, on the plain key or on a folded one.
  * Zero-width characters, full-width letters and lookalike letters cannot hide a cue.
  */
 export function hasPrivateCue(text: string): boolean {
   const canonical = canonicalise(text);
-  const keys = [matchKey(canonical), foldedKey(canonical)];
+  const keys = [matchKey(canonical), foldedKey(canonical), foldedForI(canonical)];
   return PATTERNS.some((pattern) => keys.some((key) => pattern.test(key)));
 }

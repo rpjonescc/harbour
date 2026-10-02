@@ -1265,15 +1265,16 @@ These are accepted for the MVP. Each is a limit of a check, not a hole in a prom
   screen with none of the listed cues gets through as an excerpt, and a harmless screen that shows a
   cue ("syntax" is not one, "inbox" is) is dropped. The window source still requires an app and a
   title. Over-excluding is the intended failure; the owner reads the first digests. Added after the
-  privacy review: cues are also matched on a copy with scanner mistakes folded (0 as o, 1, | and
-  capital I as l, rn as m), short cues may be split by one character, a screen showing an email
-  address, a clear phone shape, a Luhn-valid card number or a credential link is dropped whole
-  before redaction (dates, clocks, versions and plain counts do not drop a frame; excerpts that
-  are kept still go through the broader phone and number redaction), audio transcripts and
-  rows of unknown source in `/activity-summary` snippets are never used, a reply with rows where
-  none can be read fails as `bad-response`, and frames are deduplicated on letters only and spread
-  over the day before the work budget (10,000 characters a frame, 100,000 a product, one second of
-  filtering) is spent. Residuals the owner accepts: a chat line naming a person with no cue, a
+  privacy review: cues are also matched on copies with scanner mistakes folded (0 as o; 1, | and
+  capital I as l, or 1, | and l as i; rn as m), and short cues may be split by one character. A screen
+  (or window title) that shows an email address, a credential link or query parameter, a Luhn-valid
+  card number starting 2 to 6, or a phone number in a clear phone shape (country code, bracketed
+  area code, grouped or unseparated national number) is dropped whole before redaction; dates,
+  clocks, versions, counts and plain numbers do not count. Audio transcripts and rows of unknown or
+  missing source in `/activity-summary` snippets are never used. A reply with rows where none can be
+  read fails as `bad-response`. Frames are deduplicated on their letters only (not on canonical text,
+  so a changed clock does not make a new frame) and spread over the day before the work budget
+  (10,000 characters a frame, 100,000 a product, one second of filtering) is spent. Residuals the owner accepts: a chat line naming a person with no cue, a
   medical value, an address, a password alone on screen, a 20-character hex string.
 - **Crash recovery keeps files.** After a worker crash, startup recovery has no spec and so
   quarantines, and keeps, the files a digest agent wrote, outside the brain; the owner can delete the
@@ -1376,7 +1377,7 @@ phone numbers, tokens, card-like numbers and handles, never-mention terms, norma
 verbatim-run theme check (§17) applies to excerpts and to window rows alike.
 
 **Sampling and bounds.** Near-duplicate excerpts (the same frame text seen many times a minute) are
-dropped by comparing canonical text; the remaining excerpts are spread evenly over the day, at most 30
+dropped by comparing their letters only (canonical text with everything but letters removed); the remaining excerpts are spread evenly over the day, at most 30
 per product, and at most 24 KiB of excerpt text in total per product. A product's `/search` or
 `/activity-summary` failure fails the digest with the same plain sentences as §5.6. Per-product counts
 are recorded as events, as now: "Screenpipe returned N text hit(s) and M window(s) for <product>; K kept

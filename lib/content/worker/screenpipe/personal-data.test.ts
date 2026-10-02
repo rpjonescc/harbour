@@ -78,3 +78,103 @@ describe("hasPersonalData: what every screen shows does not drop it", () => {
     for (const text of SCREENS) expect(hasPersonalData(`Acme Docs ${text}`), text).toBe(false);
   });
 });
+
+describe("hasPersonalData: regression tables from the re-review", () => {
+  it.each([
+    "Sam.Jones@Example.com",
+    "OWNER@EXAMPLE.COM",
+    "Mail: Sam@Example.Org now",
+    "j.smith+tag@Mail.Example.co.uk",
+    "https://example.com/x?Token=abcdef123456",
+    "https://example.com/x?X-Amz-Signature=0123456789abcdef",
+    "https://example.com/x?Access_Token=abc",
+    "https://USER:Secret@Example.com/path",
+    "https://example.com/cb?code=4%2F0AbCdEfGh",
+    "https://example.com/x?Password=hunter2",
+  ])("drops a frame with the mixed-case form %s", (text) => {
+    expect(hasPersonalData(`Acme Docs ${text}`)).toBe(true);
+  });
+
+  it.each([
+    "0412345678",
+    "0299991234",
+    "0733334444",
+    "0812345678",
+    "61412345678",
+    "61 412 345 678",
+    "61 4 1234 5678",
+    "0412 345 678",
+    "02 9999 1234",
+    "+61412345678",
+  ])("drops a frame with the phone number %s", (text) => {
+    expect(hasPersonalData(`Acme Docs call ${text} now`)).toBe(true);
+  });
+
+  it.each([
+    "https://example.com/x?token=abc",
+    "https://example.com/x?id_token=eyJabc",
+    "https://example.com/x?refresh_token=r1x",
+    "https://example.com/x?api_key=k12",
+    "https://example.com/x?secret=s3c",
+    "https://example.com/x?passwd=pw1",
+    "https://example.com/x?key=0123456789",
+    "https://example.com/x?sessionid=0123456789",
+    "https://example.com/x?AWSSignature=0123456789",
+    "https://example.com/x?x-amz-credential=AKIA0123456789",
+  ])("drops a frame with the credential parameter in %s", (text) => {
+    expect(hasPersonalData(`Acme Docs ${text}`)).toBe(true);
+  });
+
+  it.each([
+    "https://example.com/x?page=2&sort=asc",
+    "https://example.com/x?key=abc",
+    "https://example.com/x?code=12",
+    "https://example.com/x?tokens=1",
+    "https://example.com/x?q=token",
+    "https://example.com/x?keyword=documentation",
+    "https://example.com/x?utm_source=newsletter&ref=home",
+    "https://example.com/x?id=1234567890",
+    "https://example.com/x?lang=en-AU",
+    "https://example.com/x?v=2026-10-03",
+  ])("keeps a frame with the ordinary query in %s", (text) => {
+    expect(hasPersonalData(`Acme Docs ${text}`)).toBe(false);
+  });
+
+  it.each([
+    "1759478400000",
+    "1000234567890123",
+    "7123456789012345",
+    "9999999999999999",
+    "1234567890123",
+    "20261003084712123",
+    "0123456789012345",
+    "order 7001234567890123",
+    "id 1759478400123456",
+    "8888 8888 8888 8888",
+  ])("keeps a frame with the long number %s that is no card", (text) => {
+    expect(hasPersonalData(`Acme Docs ${text}`)).toBe(false);
+  });
+
+  const MORE_SCREENS = [
+    "guide.md - Acme Docs - Visual Studio Code",
+    "src/components/Sidebar.tsx:120:45 error TS2322",
+    "3f9a1c5 Fix the sidebar (HEAD -> main) 3f9a1c5e7b2d4f6a8c0e1b3d5f7a9c1e",
+    "2026-10-03 and 10/03/2026 and 03/10/2026 and 3 Oct 2026",
+    "08:47 12:30:45 and 08:47:12+10:00 and 2026-10-03T08:47:12+10:00",
+    "next 15.2.0-canary.12 and v15.2.0-canary.12",
+    "PR #4821 closes issue #4777",
+    "12.3 MB downloaded, 1,237 frames",
+    "ping 10.0.0.1 and 192.168.1.100:3000",
+    "Acme Docs roadmap - Google Docs",
+    "550e8400-e29b-41d4-a716-446655440000",
+    "Total $1,299.00 incl. GST",
+    "1759478400123 ms since the epoch",
+    "Order 7001234567890123 shipped",
+    "Version 4.2.1 build 20261003",
+    "14 files changed, 1,203 insertions(+), 88 deletions(-)",
+    "Unread count 0 and 12 items",
+  ];
+  it("keeps the extra ordinary screens", () => {
+    for (const text of MORE_SCREENS) expect(hasPersonalData(`Acme Docs ${text}`), text).toBe(false);
+  });
+});

@@ -6,15 +6,24 @@ import { canonicalise, skeleton } from "./canonical";
 // uses the broad rules in redact-rules.ts; over-redacting there is fine.
 
 const EMAIL = /[^\s@<>"'()]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/;
-// A link with a user name and password, or a secret-looking query parameter with a real value.
-const CREDENTIAL_URL =
-  /[a-z][a-z0-9+.-]{1,15}:\/\/[^\s/@]+:[^\s/@]*@|[?&](?:token|access_token|session|sessionid|key|api_key|apikey|secret|password|auth|sig|signature)=[^\s&]{8,}/;
-const CARD_CANDIDATE = /(?<!\d)\d(?:[ -]?\d){12,18}(?!\d)/g;
-// Clear phone shapes only: a leading country code, a bracketed area code, a national mobile
-// number in groups, or three-three-four groups.
+// A link with a user name and password, or a secret-looking query parameter with a real value:
+// a strong name (token, password, secret, API key) with 3 or more characters, or another
+// credential-like name (key, code, session, auth, signature, x-amz-*) with 8 or more.
+const CREDENTIAL_URL = [
+  /[a-z][a-z0-9+.-]{1,15}:\/\/[^\s/@]+:[^\s/@]*@/,
+  /[?&;](?:token|[a-z]+_token|api_?key|apikey|password|passwd|secret)=[^\s&]{3,}/,
+  /[?&;](?:key|code|sessionid?|auth|sig|[\w-]*signature|x-amz-[\w-]+)=[^\s&]{8,}/,
+];
+// A card number starts with 2 to 6; that and the Luhn check keep epoch-millisecond timestamps and
+// order numbers from reading as cards.
+const CARD_CANDIDATE = /(?<!\d)[2-6](?:[ -]?\d){12,18}(?!\d)/g;
+// Clear phone shapes only: a leading country code (with or without the plus), a bracketed area
+// code, a national number in groups or unseparated, or three-three-four groups.
 const PHONE_SHAPES = [
   /(?<![\w+])\+\d{1,3}(?:[\s.-]?\(?\d{1,4}\)?){2,5}(?!\d)/,
+  /(?<![\d./:+-])61 ?[2-478](?: ?\d){8}(?!\d)/,
   /(?<![\d(])\(\d{2,4}\)[\s.-]?\d{3,4}[\s.-]?\d{3,4}(?!\d)/,
+  /(?<![\d./:+-])0[2-478]\d{8}(?!\d)/,
   /(?<![\d./:+-])0\d{2,3}[ -]\d{3}[ -]\d{3,4}(?!\d)/,
   /(?<![\d./:+-])0\d[ -]\d{4}[ -]\d{4}(?!\d)/,
   /(?<![\d./:+-])\d{3}[-. ]\d{3}[-. ]\d{4}(?!\d)/,
@@ -46,11 +55,14 @@ const hasPhone = (key: string): boolean =>
   });
 
 /**
- * True when screen text shows an email address, a credential link, a Luhn-valid card-like number
+ * True when screen text shows an email address, a credential link, a Luhn-valid card-like number starting 2 to 6
  * or a phone number in a clear phone shape. A whole screen that does is dropped (over-excluding is
  * the intended failure): redaction hides the value, but not that the screen is about a person.
  */
 export function hasPersonalData(text: string): boolean {
-  const key = skeleton(canonicalise(text));
-  return EMAIL.test(key) || CREDENTIAL_URL.test(key) || hasCard(key) || hasPhone(key);
+  // Lower case, so "Sam.Jones@Example.com" and "?Token=..." are read like their lower-case forms.
+  const key = skeleton(canonicalise(text)).toLowerCase();
+  return (
+    EMAIL.test(key) || CREDENTIAL_URL.some((p) => p.test(key)) || hasCard(key) || hasPhone(key)
+  );
 }

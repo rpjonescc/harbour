@@ -41,6 +41,7 @@ describe("gatherProduct: the window source", () => {
     ["no term in the title", win("Editor", "notes.md")],
     ["a denied app", win("Slack", "Acme Docs - general")],
     ["a denied window", win("Chrome", "Acme Docs - Inbox")],
+    ["an email address in the title", win("Chrome", "Acme Docs - sam@example.com")],
     ["a private-context cue in the title", win("Chrome", "Acme Docs - bank statement")],
   ])("drops a window with %s", async (_label, row) => {
     expect((await run({ windows: [row] })).snippets).toEqual([]);

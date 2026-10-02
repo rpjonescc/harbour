@@ -104,6 +104,21 @@ describe("hasPrivateCue: the plain words and other forms", () => {
     },
   );
 
+  it.each([
+    "lnbox",
+    "S1gn in",
+    "|nbox",
+    "Sign 1n",
+    "pass\u0077ord",
+    "1nvoice",
+    "Lnbox",
+    "bank1ng",
+    "Passw0rd",
+    "rnail",
+  ])("sees the cue through a misread letter: %s", (text) => {
+    expect(hasPrivateCue(`Acme Docs ${text}`), text).toBe(true);
+  });
+
   it("still does not fire inside ordinary words after the folding", () => {
     for (const text of [
       "Acme Docs syntax and taxonomy",
