@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { EmptyState } from "@/components/explain/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import { formatDuration, jobLabel } from "@/lib/agents/view";
+import { JOB_STATUS_PHRASE } from "@/lib/explain/agents";
 import { formatDateTime } from "@/lib/format/date";
 import type { Job, JobStatus } from "@/lib/jobs/queue";
 import type { Product } from "@/lib/products/catalog";
@@ -28,9 +30,17 @@ export function JobList({
   /** Runs whose committed suggestions were never imported (see `importsGivenUp`). */
   importsGivenUp?: ReadonlySet<number>;
 }) {
-  if (jobs.length === 0) return <p className="text-sm text-ink-muted">No runs yet.</p>;
+  if (jobs.length === 0) {
+    return (
+      <EmptyState
+        what="No runs yet."
+        when="Your first run appears here as soon as you start one."
+        why="Use the buttons above."
+      />
+    );
+  }
   return (
-    <table aria-label="Agent runs" className="w-full text-left text-sm">
+    <table aria-label="Recent runs" className="w-full text-left text-sm">
       <thead className="text-xs text-ink-muted">
         <tr className="border-b border-line">
           <th scope="col" className="py-2 font-medium">
@@ -55,11 +65,13 @@ export function JobList({
                 {jobLabel(job, products)}
               </Link>
               {importsGivenUp.has(job.id) && (
-                <p className="text-xs text-warn">Suggestions not imported — run the agent again</p>
+                <p className="text-xs text-warn">
+                  Claude's ideas from this run weren't saved. Run it again.
+                </p>
               )}
             </td>
             <td className="py-2 pr-3">
-              <Tag tone={TONE[job.status]}>{job.status}</Tag>
+              <Tag tone={TONE[job.status]}>{JOB_STATUS_PHRASE[job.status]}</Tag>
             </td>
             <td className="py-2 pr-3 text-ink-muted">
               {job.startedAt ? formatDateTime(job.startedAt, timeZone, locale) : "—"}

@@ -5,24 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { formatDuration, isActive } from "@/lib/agents/view";
 import { postJson } from "@/lib/auth/client-api";
-import type { EventKind } from "@/lib/jobs/queue";
+import { NOTE_RUN_FAILED_LINE, RUN_FAILED_LINE, RUN_HEADLINE } from "@/lib/explain/agents";
+import { RunLog } from "./RunLog";
 import type { RunEvent, RunJob } from "./run-types";
 import { useRunPolling } from "./useRunPolling";
-
-const EVENT_TONE: Record<EventKind, string> = {
-  error: "text-bad",
-  tool: "text-ink-muted",
-  status: "text-ink",
-  text: "text-ink",
-};
-
-const STATUS_TEXT: Record<RunJob["status"], string> = {
-  queued: "Queued — waiting for the worker",
-  running: "Running",
-  ok: "Finished",
-  failed: "Failed",
-  cancelled: "Cancelled",
-};
 
 const toDate = (iso: string | null) => (iso ? new Date(iso) : null);
 
@@ -78,7 +64,7 @@ export function RunActivity({
         <p className="text-sm text-ink">
           {/* Only the status is announced; the ticking elapsed time would be read every second. */}
           <span aria-live="polite">
-            {STATUS_TEXT[job.status]}
+            {RUN_HEADLINE[job.status]}
             {cancelState === "requested" && active && " — stopping…"}
           </span>
           <span className="text-ink-muted"> · {elapsed}</span>
@@ -89,18 +75,18 @@ export function RunActivity({
             onClick={cancel}
             disabled={cancelState === "busy" || cancelState === "requested"}
           >
-            Cancel
+            Stop this run
           </Button>
         )}
       </div>
-      {job.status === "failed" && job.error && (
-        <div role="alert" className="rounded-sm bg-warn-soft px-3 py-2 text-sm text-bad">
-          {job.error}
+      {job.status === "failed" && (
+        <div role="alert" className="rounded-sm bg-warn-soft px-3 py-2 text-sm text-ink">
+          {job.kind === "daily-note" ? NOTE_RUN_FAILED_LINE : RUN_FAILED_LINE}
         </div>
       )}
       {cancelState === "failed" && (
         <p role="alert" className="text-sm text-bad">
-          Couldn't cancel. Try again.
+          Couldn't stop it. Try again.
         </p>
       )}
       {lostConnection && (
@@ -108,17 +94,7 @@ export function RunActivity({
           Lost contact with Harbour — retrying.
         </p>
       )}
-      {events.length === 0 ? (
-        <p className="text-sm text-ink-muted">No activity yet.</p>
-      ) : (
-        <ol aria-label="Run activity" className="flex flex-col gap-1 font-mono text-xs">
-          {events.map((event) => (
-            <li key={event.id} className={EVENT_TONE[event.kind]}>
-              {event.text}
-            </li>
-          ))}
-        </ol>
-      )}
+      <RunLog events={events} error={job.status === "failed" ? job.error : null} />
     </div>
   );
 }

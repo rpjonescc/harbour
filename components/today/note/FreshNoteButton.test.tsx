@@ -148,7 +148,7 @@ describe("FreshNoteButton", () => {
 
   it.each([
     ["rate_limited", "That's plenty of notes for one day. Tomorrow's is written at 06:30."],
-    ["token_missing", "Notes need Harbour's Claude token."],
+    ["token_missing", "Notes need Claude to be connected."],
     ["network_error", "Harbour couldn't start a note just now."],
   ])("explains a %s answer in plain words, without refreshing", async (error, text) => {
     api.postJson.mockResolvedValue({ ok: false, error });
@@ -162,7 +162,7 @@ describe("FreshNoteButton", () => {
   it("is disabled, with the reason, when Harbour has no Claude token", () => {
     render(<FreshNoteButton latestAt={null} latestRun={null} tokenSet={false} noteTime="06:30" />);
     expect(button()).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent("Notes need Harbour's Claude token.");
+    expect(screen.getByRole("status")).toHaveTextContent("Notes need Claude to be connected.");
   });
 
   describe("the /design examples of its states", () => {

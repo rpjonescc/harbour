@@ -10,6 +10,7 @@ import { E2E_DB, E2E_LOGIN, E2E_ORIGIN, E2E_QUIET_ORIGIN } from "../../playwrigh
 import { GOOD_NOTE, noteFileText, seedNoteJob, seedPublishedNote } from "../helpers/note";
 import { hydrated } from "./hydration";
 import { expectPlainLanguage } from "./plain-language";
+import { openRunLog } from "./run-log";
 
 // The worker runs tests/fixtures/fake-claude.mjs: for a daily note it reads the fenced facts out
 // of the prompt and writes a note that is honest about them. Runs after scans.spec.ts, so Today
@@ -109,15 +110,13 @@ test("Write me a fresh one queues a note, the worker commits it, and it appears 
 test("the run is in the Agents history and committed one file", async ({ page }) => {
   await page.goto("/agents");
   const run = page
-    .getByRole("table", { name: "Agent runs" })
+    .getByRole("table", { name: "Recent runs" })
     .getByRole("link", { name: /^Daily note: \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/ })
     .first();
   await expect(run).toBeVisible();
   await run.click();
   await expect(page).toHaveURL(/\/agents\/\d+$/);
-  await expect(
-    page.getByRole("list", { name: "Run activity" }).getByText("Committed 1 file(s)"),
-  ).toBeVisible();
+  await expect((await openRunLog(page)).getByText("Committed 1 file(s)")).toBeVisible();
 });
 
 test("the button stops at the daily limit and says so", async ({ page }) => {

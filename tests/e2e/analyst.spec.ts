@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { isoWeekLabel } from "@/lib/analyst/week";
 import { isoDateIn } from "@/lib/format/date";
 import { hydrated } from "./hydration";
+import { openRunLog } from "./run-log";
 
 // The worker runs tests/fixtures/fake-claude.mjs: each weekly run writes the report and one
 // suggestion for Acme Docs. Runs last, after actions.spec.ts has counted the board.
@@ -16,17 +17,17 @@ const week = () =>
 /** Runs the weekly report from the Agents page and waits for the run to finish. */
 async function runWeeklyReport(page: Page) {
   await page.goto("/agents");
-  const run = page.getByRole("button", { name: "Run weekly report now" });
+  const run = page.getByRole("button", { name: "Write this week's report now" });
   await hydrated(run);
   await run.click();
   await expect(page).toHaveURL(/\/agents\/\d+$/);
-  const activity = page.getByRole("list", { name: "Run activity" });
+  const activity = await openRunLog(page);
   await expect(activity.getByText("Committed 2 file(s)")).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("Finished", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Done", { exact: true })).toBeVisible({ timeout: 30_000 });
   return activity;
 }
 
-test("Run weekly report now writes the report and suggests an action", async ({ page }) => {
+test("Writing this week's report writes the report and suggests an action", async ({ page }) => {
   test.setTimeout(120_000);
   const activity = await runWeeklyReport(page);
   await expect(activity.getByText("Imported 1 action(s); 0 already known")).toBeVisible();

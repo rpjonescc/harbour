@@ -41,9 +41,9 @@ function describeAge(researched: string | null, today: string, locale: string): 
 
 function scheduleLine(settings: RefreshPanelSettings, now: Date): string {
   const next = nextMonthlyRefresh(now, settings.timeZone, settings.enabled);
-  if (!next) return "Scheduled refresh is off";
-  if (!settings.tokenSet) return "Scheduled refresh needs a Claude token";
-  return `Next scheduled refresh: ${formatWeekdayTime(next, settings.timeZone, settings.locale)}`;
+  if (!next) return "Research is only updated when you ask.";
+  if (!settings.tokenSet) return "Research updates are paused until Claude is connected.";
+  return `Next research update: ${formatWeekdayTime(next, settings.timeZone, settings.locale)}`;
 }
 
 /** What the Agents page shows about the research refresh. */

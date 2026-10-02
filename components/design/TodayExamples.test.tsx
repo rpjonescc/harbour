@@ -62,7 +62,7 @@ describe("TodayExamples", () => {
     it("show the button off, with the reason, when there is no Claude token", () => {
       const card = example("Button · no Claude token, so it is switched off");
       expect(card.getByRole("button", { name: "Write me a fresh one" })).toBeDisabled();
-      expect(card.getByRole("status")).toHaveTextContent("Notes need Harbour's Claude token.");
+      expect(card.getByRole("status")).toHaveTextContent("Notes need Claude to be connected.");
     });
 
     it.each([

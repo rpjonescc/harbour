@@ -3,17 +3,17 @@ import { describeStamp, isNoteStamp } from "@/lib/note/stamp";
 import type { Product } from "@/lib/products/catalog";
 import { RESEARCH_TOPICS } from "./topics";
 
-/** Human label for a job, e.g. "Research: Glossary" or "Refresh: Glossary". */
+/** Human label for a job, e.g. "Research: Glossary" or "Update: Glossary". */
 export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly Product[]): string {
   if (job.kind === "research") {
     const topic = job.params.topic ?? "";
     const title = RESEARCH_TOPICS.find((t) => t.id === topic)?.title ?? topic;
-    return `${job.params.mode === "refresh" ? "Refresh" : "Research"}: ${title}`;
+    return `${job.params.mode === "refresh" ? "Update" : "Research"}: ${title}`;
   }
   if (job.kind === "discovery" || job.kind === "scan") {
     const id = job.params.productId ?? "";
     const name = products.find((p) => p.id === id)?.name ?? id;
-    return `${job.kind === "scan" ? "Check" : "Discovery"}: ${name}`;
+    return `${job.kind === "scan" ? "Check" : "Find ideas"}: ${name}`;
   }
   if (job.kind === "weekly-analyst") return `Weekly report: ${job.params.week ?? ""}`;
   if (job.kind === "daily-note") {
@@ -21,9 +21,9 @@ export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly P
     return `Daily note: ${isNoteStamp(stamp) ? describeStamp(stamp) : stamp}`;
   }
   if (job.kind === "backup") return `Nightly backup: ${job.params.day ?? ""}`;
-  if (job.kind === "retention") return `Retention: ${job.params.day ?? ""}`;
+  if (job.kind === "retention") return `Tidy old data: ${job.params.day ?? ""}`;
   if (job.kind === "notes-sync") return "Save notes to GitHub";
-  return "Sync brain to GitHub";
+  return "Sync Second Brain to GitHub";
 }
 
 /** Compact duration, e.g. "45s", "3m 05s"; "—" when not both ends are known. */

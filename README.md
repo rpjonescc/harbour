@@ -152,10 +152,10 @@ Open **Agents** in the sidebar (`/agents`) to run research and discovery agents 
 your Second Brain:
 
 - **Research** — one run per topic (SEO, GEO, AEO, a glossary, a start-here guide and a scoring
-  rationale), or **Run all research topics** to queue them all (a topic that already has a
+  rationale), or **Run all research** to queue them all (a topic that already has a
   research run or refresh queued or running keeps that run). Each writes one document under
   `research/` (or `00-start-here.md`).
-- **Discovery** — one run per product; it reads your `products/<id>/notes.md` and writes
+- **Find ideas** — one run per product; it reads your `products/<id>/notes.md` and writes
   `products/<id>/discovery.md` and `products/<id>/proposals.json`.
 
 Agents run Claude Code on the Harbour PC with your Claude subscription. Run
@@ -173,7 +173,7 @@ which files the agent wrote (every write it makes is listed in its output), so y
 editing the brain while a run is going: your edits are never committed with the agent's work or
 discarded with it — they stay in place and are saved automatically as usual. A file both of you
 edited counts as the agent's. Only one agent runs at a time; queued runs wait their turn. Each run
-has a live activity page with a **Cancel** button, and lists the files it changed. Without a
+has a live page with a **Stop this run** button (the step-by-step log is under **Technical details**), and lists the files it changed. Without a
 Claude token the server refuses new agent runs.
 
 Discovery results are proposals, not commitments. Open a product in the sidebar and choose
@@ -212,7 +212,7 @@ git gate and Claude subscription as the other agents (no paid API calls).
 - **When it runs** — every Sunday at 20:00 in `HARBOUR_TIMEZONE`, for that week (see
   [When things run](#when-things-run)). The **Weekly report** panel on **Agents** shows the next
   scheduled run (or that a run is queued or running, that a catch-up is due, or that scheduled
-  runs are off or need a Claude token) and links the latest report; **Run weekly report now** (or `pnpm analyst:now`)
+  runs are off or need a Claude token) and links the latest report; **Write this week's report now** (or `pnpm analyst:now`)
   queues a run for the current week straight away. A run whose suggestions could not be imported
   after 3 attempts says "Suggestions not imported — run the agent again" in **Recent runs**.
 
@@ -233,7 +233,7 @@ what is new, sets `researched` to today and `review_by` 90 days later, and ends 
   already has a research run queued or running is skipped. With 10 topics that means each one is
   refreshed every few months, not every month.
 - **When** — on the first Sunday of each month at 21:00 in `HARBOUR_TIMEZONE` (see
-  [When things run](#when-things-run)), and whenever you choose **Refresh stale research** on
+  [When things run](#when-things-run)), and whenever you choose **Update old research** on
   **Agents**. The **Research refresh** panel there shows the next scheduled refresh, which
   documents are due (with their dates) and how many are not written yet.
 
@@ -363,12 +363,12 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_AGENT_TIMEOUT_MINUTES` | no | `30` | Maximum agent run length, 1 to 120 minutes. |
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility check's crawler fetches per product per check, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
 | `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing checks by itself (the daily 06:00 check and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
-| `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Run weekly report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
+| `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Write this week's report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
 | `HARBOUR_PERSONALITY` | no | `warm` | `warm` or `quiet`. `quiet` turns off the daily note (its job, its card on Today) and the wave behind the app. See [Daily note](#daily-note). Restart both services after changing it. |
 | `HARBOUR_NOTE_TIME` | no | `06:30` | The local time, `HH:MM` in `HARBOUR_TIMEZONE`, the worker writes the daily note each day (and catches up on start). Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_NOTE` | no | `on` | `off` stops the worker queueing the daily note by itself; **Write me a fresh one** on Today still queues it. Restart the worker after changing it. |
 | `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
-| `HARBOUR_SCHEDULED_RESEARCH` | no | `on` | `off` stops the worker queueing the monthly research refresh by itself (the first Sunday of each month at 21:00 and the catch-up on start); **Refresh stale research** on **Agents** still queues it by hand. Restart the worker after changing it. |
+| `HARBOUR_SCHEDULED_RESEARCH` | no | `on` | `off` stops the worker queueing the monthly research refresh by itself (the first Sunday of each month at 21:00 and the catch-up on start); **Update old research** on **Agents** still queues it by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
 | `HARBOUR_OBSERVATION_SCANS_KEPT` | no | `30` | How many of each product's newest checks keep their raw observations (7 to 365); older checks' observations are deleted after each verified backup (see [Data kept](#data-kept)). Scores and check history are always kept. Restart the worker after changing it. |
 | `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the check asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
@@ -541,7 +541,7 @@ analyst, so that runs first) the worker queues refreshes of up to 3 stale resear
 [Research refresh](#research-refresh)). Each refresh job is labelled with its month, which is how
 the worker knows the month's round has run: a restart never queues it twice, a worker that was
 down over the slot queues one round, for the latest month, when it starts, and a round whose
-refreshes failed is not retried until the next month (choose **Refresh stale research** on
+refreshes failed is not retried until the next month (choose **Update old research** on
 **Agents** to retry by hand). When nothing is stale it logs "research refresh: nothing stale for
 2026-10" and queues nothing. It also queues nothing, and says so once in its log, when
 `HARBOUR_CLAUDE_OAUTH_TOKEN` is not set or the brain folder is missing. Set
@@ -582,7 +582,7 @@ thrown away and the job fails with the reason (see **Agents**). Details:
   the worker is not running), and when Harbour can't read the backup folder (check its
   permissions; the count is then unknown, not zero). Paths are never shown: an error names "the
   backup folder" instead.
-- **Bounded:** a backup gives up after 10 minutes. **Cancel** on **Agents** stops one in progress
+- **Bounded:** a backup gives up after 10 minutes. **Stop this run** on **Agents** stops one in progress
   and removes the unfinished copy.
 
 To restore one:
@@ -949,13 +949,13 @@ the weekly analyst, the note and finally operations (Settings) — because each 
 earlier ones check. The actions specs seed a scored check of the fictional Lighthouse Café and
 two analyst suggestions through Harbour's own code (`tests/e2e/seed-actions.ts`), then work the
 Actions board: filters, status changes, snooze, **Hand to Claude** (read back from the
-clipboard), Today's top three, keyboard paths and both themes. The analyst specs choose **Run weekly report now** twice (the scheduled
+clipboard), Today's top three, keyboard paths and both themes. The analyst specs choose **Write this week's report now** twice (the scheduled
 analyst is off, `HARBOUR_SCHEDULED_ANALYST=off`): the first run commits the report and imports a
 suggestion, the second finds it already known.
 
 The operations specs (`tests/e2e/settings.spec.ts`) check the Settings page — products, every
 schedule shown as off, key status without values, the A$0.00 budget — then choose **Back up
-now** and **Refresh stale research**. Every schedule is off in this environment
+now** and **Update old research**. Every schedule is off in this environment
 (`HARBOUR_SCHEDULED_SCANS`, `_ANALYST`, `_RESEARCH`, `_BACKUP` and `_NOTE` all `off`), so only these
 clicks queue work. `HARBOUR_BACKUP_DIR` is unset, so the backup lands in `data/e2e/backups`,
 which each run recreates; the specs check its file and folder modes and that the retention job

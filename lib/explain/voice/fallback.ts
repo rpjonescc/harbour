@@ -29,7 +29,7 @@ export const NOTE_MESSAGES = {
   failed: "Harbour couldn't start a note just now. Try again in a moment.",
   starting: "Starting…",
   rejected: "That note didn't pass Harbour's checks, so nothing was shown. You can try again.",
-  noToken: "Notes need Harbour's Claude token. The setup steps are on the Agents page.",
+  noToken: "Notes need Claude to be connected. The setup steps are on the Agents page.",
   unavailable: "Harbour couldn't read today's note. The briefing below is still up to date.",
   rateLimited: (noteTime: string | null) =>
     noteTime === null

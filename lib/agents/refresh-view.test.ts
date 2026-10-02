@@ -27,7 +27,7 @@ describe("refreshPanelView", () => {
 
   it("lists every due document oldest first, and counts the ones not written yet", () => {
     expect(refreshPanelView(settings(), NOW)).toEqual({
-      schedule: "Next scheduled refresh: Sunday 4 Oct, 21:00",
+      schedule: "Next research update: Sunday 4 Oct, 21:00",
       total: 10,
       due: [
         { title: "Local SEO", age: "date unknown" },
@@ -42,11 +42,11 @@ describe("refreshPanelView", () => {
 
   it("says when the schedule is off or has no token", () => {
     expect(refreshPanelView({ ...settings(), enabled: false }, NOW).schedule).toBe(
-      "Scheduled refresh is off",
+      "Research is only updated when you ask.",
     );
     const noToken = refreshPanelView({ ...settings(), tokenSet: false }, NOW);
     expect(noToken).toMatchObject({
-      schedule: "Scheduled refresh needs a Claude token",
+      schedule: "Research updates are paused until Claude is connected.",
       tokenSet: false,
     });
   });

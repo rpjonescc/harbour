@@ -11,19 +11,21 @@ describe("jobLabel", () => {
     );
     expect(
       jobLabel({ kind: "research", params: { topic: "glossary", mode: "refresh" } }, products),
-    ).toBe("Refresh: Glossary");
+    ).toBe("Update: Glossary");
     expect(jobLabel({ kind: "research", params: { topic: "gone" } }, products)).toBe(
       "Research: gone",
     );
     expect(jobLabel({ kind: "discovery", params: { productId: "acme-docs" } }, products)).toBe(
-      "Discovery: Acme Docs",
+      "Find ideas: Acme Docs",
     );
-    expect(jobLabel({ kind: "brain-push", params: {} }, products)).toBe("Sync brain to GitHub");
+    expect(jobLabel({ kind: "brain-push", params: {} }, products)).toBe(
+      "Sync Second Brain to GitHub",
+    );
     expect(jobLabel({ kind: "backup", params: { day: "2026-10-02" } }, products)).toBe(
       "Nightly backup: 2026-10-02",
     );
     expect(jobLabel({ kind: "retention", params: { day: "2026-10-02" } }, products)).toBe(
-      "Retention: 2026-10-02",
+      "Tidy old data: 2026-10-02",
     );
     expect(jobLabel({ kind: "daily-note", params: { stamp: "2026-10-02-0630" } }, products)).toBe(
       "Daily note: 2026-10-02 06:30",

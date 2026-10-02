@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
+import { openRunLog } from "./run-log";
 
 // The worker runs tests/fixtures/fake-claude.mjs instead of the real CLI; the brain is the
 // git-backed copy made by tests/e2e/prepare.ts.
@@ -10,13 +11,13 @@ test("a research run streams activity, commits, and the document appears in the 
   await page.goto("/agents");
   await page.getByRole("button", { name: "Run research: Glossary" }).click();
   await expect(page).toHaveURL(/\/agents\/\d+$/);
-  const activity = page.getByRole("list", { name: "Run activity" });
+  const activity = await openRunLog(page);
   await expect(activity.getByText("Searching: fake research query")).toBeVisible({
     timeout: 30_000,
   });
   await expect(activity.getByText("Committed 1 file(s)")).toBeVisible({ timeout: 30_000 });
   await expect(activity.getByText("Pushed to the brain repository")).toBeVisible();
-  await expect(page.getByText("Finished", { exact: true })).toBeVisible();
+  await expect(page.getByText("Done", { exact: true })).toBeVisible();
 
   await page.goto("/brain/research/glossary.md");
   await expect(
@@ -26,8 +27,9 @@ test("a research run streams activity, commits, and the document appears in the 
 
 test("discovery proposals can be approved", async ({ page }) => {
   await page.goto("/agents");
-  await page.getByRole("button", { name: "Run discovery: Acme Docs" }).click();
+  await page.getByRole("button", { name: "Find ideas for Acme Docs" }).click();
   await expect(page).toHaveURL(/\/agents\/\d+$/);
+  await openRunLog(page);
   await expect(page.getByText("Imported 3 proposal(s); 0 already known")).toBeVisible({
     timeout: 30_000,
   });

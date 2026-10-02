@@ -7,6 +7,7 @@ import { auditLog } from "@/lib/db/schema";
 import { isoDateIn } from "@/lib/format/date";
 import { E2E_DB, E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
 import { hydrated } from "./hydration";
+import { openRunLog } from "./run-log";
 
 // Runs last: Back up now and the research refresh share the worker's queue with every earlier
 // run. Every schedule is off in the E2E env, so only these clicks queue work. With
@@ -169,11 +170,11 @@ test("Back up now writes a verified backup, then retention runs", async ({ page 
   await backUp.click();
   await expect(page).toHaveURL(/\/agents\/\d+$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Nightly backup: ${today()}`);
-  const activity = page.getByRole("list", { name: "Run activity" });
+  const activity = await openRunLog(page);
   await expect(
     activity.getByText(/^Backup verified: .* MB, .* pages in .* s; 1 kept$/),
   ).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("Finished", { exact: true })).toBeVisible();
+  await expect(page.getByText("Done", { exact: true })).toBeVisible();
 
   const latest = openDb(E2E_DB).select().from(auditLog).orderBy(desc(auditLog.id)).get();
   expect(latest).toMatchObject({ login: E2E_LOGIN, event: "backup_requested" });
@@ -186,13 +187,13 @@ test("Back up now writes a verified backup, then retention runs", async ({ page 
   // The verified backup queues retention; the scans so far are far below the 30 kept.
   await page.goto("/agents");
   await page
-    .getByRole("table", { name: "Agent runs" })
-    .getByRole("link", { name: `Retention: ${today()}` })
+    .getByRole("table", { name: "Recent runs" })
+    .getByRole("link", { name: `Tidy old data: ${today()}` })
     .click();
   await expect(activity.getByText(/^No old checks to prune \(newest 30 kept/)).toBeVisible({
     timeout: 60_000,
   });
-  await expect(page.getByText("Finished", { exact: true })).toBeVisible();
+  await expect(page.getByText("Done", { exact: true })).toBeVisible();
 
   await page.goto("/settings");
   await expect(backups.getByText("1 of 14")).toBeVisible();
@@ -203,25 +204,25 @@ test("Back up now writes a verified backup, then retention runs", async ({ page 
   await expect(page.getByRole("main").getByText(/backup/i)).toHaveCount(0);
 });
 
-test("Refresh stale research rewrites the oldest document with today's date", async ({ page }) => {
+test("Update old research rewrites the oldest document with today's date", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto("/agents");
-  const refresh = page.getByRole("button", { name: "Refresh stale research" });
+  const refresh = page.getByRole("button", { name: "Update old research" });
   await hydrated(refresh);
   await refresh.click();
-  await expect(page.getByRole("status").filter({ hasText: /^Queued/ })).toHaveText(
-    /^Queued [123] refresh(es)?$/,
+  await expect(page.getByRole("status").filter({ hasText: /^Started/ })).toHaveText(
+    /^Started [123] updates?$/,
   );
-  // Newest first: the last "Refresh:" link is the first one queued (oldest document first).
-  const runs = page.getByRole("table", { name: "Agent runs" });
+  // Newest first: the last "Update:" link is the first one queued (oldest document first).
+  const runs = page.getByRole("table", { name: "Recent runs" });
   await runs
-    .getByRole("link", { name: /^Refresh: / })
+    .getByRole("link", { name: /^Update: / })
     .last()
     .click();
   await expect(page).toHaveURL(/\/agents\/\d+$/);
-  const activity = page.getByRole("list", { name: "Run activity" });
+  const activity = await openRunLog(page);
   await expect(activity.getByText("Committed 1 file(s)")).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("Finished", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Done", { exact: true })).toBeVisible({ timeout: 30_000 });
 
   // Files changed is rendered by the server once the run has committed.
   await page.reload();
