@@ -127,11 +127,8 @@ function buildSpec(params: Record<string, string>, context: SpecContext): AgentS
     questions: source.front.questions,
     facts: factsPackText(pack),
   });
-  const pieceFiles = product.platforms.flatMap((p) => [
-    contentPaths.piece(ideaId, p),
-    contentPaths.gates(ideaId, p),
-  ]);
-  const allowed = { prefixes: [], exact: [ideaPath, ...pieceFiles] };
+  // Empty: publish adds exactly the files it writes (as the ideas step does) before the git gate.
+  const allowed = { prefixes: [], exact: [] as string[] };
   const host = new URL(product.url).hostname.toLowerCase().replace(/^www\./, "");
   const files = (work: AtomiseWork, note: (text: string) => void): Record<string, string> => {
     // The owner may have edited the idea since this run started: never write over that.

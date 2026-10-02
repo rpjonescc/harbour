@@ -170,7 +170,9 @@ describe("the atomise job", () => {
     const r = go({ pieces });
     try {
       const job = await r.run();
-      expect(read(r, "website").front.needsYou).toBe("This piece wasn't written. Try again.");
+      expect(read(r, "website").front.needsYou).toBe(
+        "This piece wasn't written. Discard this idea and write it again.",
+      );
       expect((read(r, "linkedin").content as { text: string }).text).toBe("Hi there.");
       expect(events(r, job.id)).toMatch(/hidden characters/);
     } finally {

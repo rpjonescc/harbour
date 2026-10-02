@@ -45,8 +45,13 @@ describe("lengths", () => {
     );
     expect(weightedLength("no link")).toBe(7);
   });
-  it("counts emoji as one character and words by spaces", () => {
-    expect(weightedLength("🙂🙂")).toBe(2);
+  it("counts emoji and other characters outside X's light ranges as two", () => {
+    expect(weightedLength("🙂🙂")).toBe(4);
+    expect(weightedLength("🙂".repeat(150))).toBe(300);
+    expect(weightedLength("日本")).toBe(4);
+    expect(weightedLength("café – “ok”")).toBe(Array.from("café – “ok”").length);
+  });
+  it("counts words by spaces", () => {
     expect(wordCount("  one two\nthree ")).toBe(3);
     expect(wordCount("")).toBe(0);
   });

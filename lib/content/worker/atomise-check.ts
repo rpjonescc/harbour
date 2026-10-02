@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { PLATFORM_NAMES, type Platform, platformSchema } from "@/lib/content/ids";
-import { sanitiseContent, sanitiseText } from "@/lib/content/sanitise";
+import { isTooDeep, sanitiseContent, sanitiseText } from "@/lib/content/sanitise";
 import { claimSchema } from "@/lib/content/schema";
 import { contentSchemas, type PieceContent } from "@/lib/content/shapes";
 import { safeReason } from "@/lib/explain/voice/note";
@@ -53,6 +53,7 @@ export function atomiseProblem(
     if (seen.has(piece.platform)) return `The platform ${piece.platform} appears more than once.`;
     seen.add(piece.platform);
     const name = PLATFORM_NAMES[piece.platform];
+    if (isTooDeep(piece.content)) return `The ${name} piece is nested too deeply.`;
     for (const claim of piece.claims) {
       if (claim.trace !== "none" && !known.has(claim.trace)) {
         return `A claim in the ${name} piece cites a paragraph or fact that does not exist.`;
@@ -96,7 +97,11 @@ export function makeOne(
 ): MadePiece {
   const name = PLATFORM_NAMES[platform];
   if (!piece)
-    return { content: null, stub: "This piece wasn't written. Try again.", stripped: false };
+    return {
+      content: null,
+      stub: "This piece wasn't written. Discard this idea and write it again.",
+      stripped: false,
+    };
   if (piece.content === null || typeof piece.content !== "object" || Array.isArray(piece.content)) {
     return stub(name, "it has no content.");
   }

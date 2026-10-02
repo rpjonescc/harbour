@@ -1,5 +1,5 @@
 import { PIECES } from "@/tests/helpers/content";
-import { sanitiseContent, sanitiseText } from "./sanitise";
+import { isTooDeep, sanitiseContent, sanitiseText } from "./sanitise";
 
 const HOSTS = { allowedHosts: ["docs.example.com"] };
 
@@ -153,5 +153,38 @@ describe("sanitiseContent", () => {
   it("never repeats the rejected text in its reason", () => {
     const result = sanitiseContent("facebook", { text: "<img src=SECRET>", hashtags: [] }, hosts);
     expect(JSON.stringify(result)).not.toContain("SECRET");
+  });
+
+  it.each([
+    "see evil.example/x",
+    "see www.evil.example",
+    "go //evil.example/x",
+    "see evil.example",
+    "see evil.zzz?x=1",
+    "see evil.zzz:8080",
+    "see EVIL.COM",
+    "see sub.evil.example/x#y",
+  ])("refuses a link written without a scheme: %s", (text) => {
+    expect(sanitiseContent("facebook", { text, hashtags: [] }, hosts).ok).toBe(false);
+    expect(sanitiseContent("blog", { ...PIECES.blog, body: text }, hosts).ok).toBe(false);
+  });
+
+  it.each([
+    "see docs.example.com/start",
+    "see www.docs.example.com",
+    "see docs.example.com.",
+    "Version 2.5 of the guide, e.g. this one.",
+  ])("lets the product's own host and ordinary prose through: %s", (text) => {
+    expect(sanitiseContent("facebook", { text, hashtags: [] }, hosts).ok).toBe(true);
+  });
+
+  it("refuses content nested deeper than any platform shape", () => {
+    let deep: unknown = "x";
+    for (let i = 0; i < 20_000; i += 1) deep = { a: deep };
+    expect(sanitiseContent("linkedin", deep, hosts)).toEqual({
+      ok: false,
+      reason: "It is nested too deeply.",
+    });
+    expect(isTooDeep(PIECES.instagram)).toBe(false);
   });
 });

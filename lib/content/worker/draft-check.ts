@@ -34,7 +34,6 @@ const MARKDOWN = [
   /\*\*|__|`|~~/, // strong, code, strike
   /\*[^\s*][^*]*\*/, // emphasis
 ];
-const BARE_HOST = /\bwww\.([^\s/)>\]]+)/gi;
 
 /** The host of the product's own site, the only one a draft may link to (none when the URL is odd). */
 export function ownHosts(productUrl: string): string[] {
@@ -44,12 +43,11 @@ export function ownHosts(productUrl: string): string[] {
 
 /** One line of plain text: nothing hidden, no markup or markdown, and links only to `hosts`. */
 function isPlainLine(value: string, hosts: readonly string[]): boolean {
-  // The markdown pass checks every link target (inline, reference and bare URLs) against `hosts`.
   const clean = sanitiseText(value, "markdown", { allowedHosts: hosts });
   if (!clean.ok || clean.stripped || /[<>\n\r]|\]\(/.test(value)) return false;
   if (MARKDOWN.some((pattern) => pattern.test(value))) return false;
-  const bare = [...value.matchAll(BARE_HOST)].map((m) => (m[1] ?? "").toLowerCase());
-  return bare.every((host) => hosts.includes(host));
+  // The markdown pass above has checked every link, with or without a scheme, against `hosts`.
+  return true;
 }
 
 /** Why this draft cannot be used, in fixed words the agent can act on; null when it can. */

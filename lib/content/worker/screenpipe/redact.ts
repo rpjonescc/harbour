@@ -1,4 +1,5 @@
 import { scrub } from "@/lib/analyst/scrub";
+import { KNOWN_TLDS as TLDS } from "@/lib/content/sanitise";
 import { canonicalise, matchKey, skeleton, termPattern } from "./canonical";
 import type { Snippet } from "./schema";
 
@@ -99,11 +100,6 @@ const BROWSERS = [
 ];
 const PRODUCT_BYTES = 24 * 1024;
 
-const TLDS =
-  "com|net|org|io|co|ai|app|dev|xyz|me|tv|us|uk|au|nz|ca|de|fr|nl|se|eu|ch|es|it|in|ru|cn|jp|to|cc|ly|" +
-  "info|biz|site|online|store|tech|page|link|cloud|example|test|invalid|local|internal|localhost|" +
-  "shop|gov|edu|zip|mov|top|club|live|news|blog|work|space|world|pro|name|mobi|asia|win|bid|click|" +
-  "icu|rest|fun|vip|lol|wtf|onion|download|support|email|team|tools";
 const SLUG = "[\\w.~@%+=-]+";
 
 type Replacement = string | ((match: string) => string);

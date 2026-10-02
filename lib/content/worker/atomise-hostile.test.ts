@@ -15,6 +15,12 @@ import {
 import { contentSetup, ideaFile, PIECES, pieceFile } from "@/tests/helpers/content";
 import { runOne } from "@/tests/helpers/run-job";
 
+const nest = (depth: number) => {
+  let value: unknown = "x";
+  for (let i = 0; i < depth; i += 1) value = { a: value };
+  return value;
+};
+
 describe("the atomise job and hostile agent output", () => {
   it.each([
     ["an unrequested platform", { pieces: [...six().pieces, piece("tiktok")] }],
@@ -61,6 +67,10 @@ describe("the atomise job and hostile agent output", () => {
     ],
     ["a piece with no platform", { pieces: [{ content: PIECES.linkedin }] }],
     ["no pieces", { pieces: [] }],
+    [
+      "deeply nested content",
+      { pieces: six().pieces.map((p) => piece(p.platform, { content: nest(200) })) },
+    ],
   ])("rejects %s, retries once, then fails with nothing written", async (_label, works) => {
     const r = go(works);
     try {
