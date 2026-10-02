@@ -9,6 +9,17 @@ describe("firstSentence", () => {
     ["  Two\nlines and no full stop  ", "Two lines and no full stop"],
     ["Is it fast? Mostly.", "Is it fast?"],
     ["Loads in 2.5 seconds on a phone. That's slow.", "Loads in 2.5 seconds on a phone."],
+    [
+      "Add a button, e.g. near recent articles. Then wait.",
+      "Add a button, e.g. near recent articles.",
+    ],
+    [
+      "Use a short title, i.e. under 60 characters. Done.",
+      "Use a short title, i.e. under 60 characters.",
+    ],
+    ["Big vs. small pages matter. Next.", "Big vs. small pages matter."],
+    // "etc." often ends a sentence, so it is not treated as an abbreviation.
+    ["Titles, descriptions, etc. Then links.", "Titles, descriptions, etc."],
     ["", ""],
   ])("reads %j as %j", (text, sentence) => {
     expect(firstSentence(text)).toBe(sentence);
