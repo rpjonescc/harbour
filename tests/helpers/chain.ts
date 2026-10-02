@@ -2,11 +2,10 @@ import { renderFile } from "@/lib/content/files";
 import { PLATFORMS } from "@/lib/content/ids";
 import { contentPaths } from "@/lib/content/paths";
 import { renderGates } from "@/lib/content/read/pieces";
-import { afterContentJob } from "@/lib/content/worker/chain-controller";
+import { chainHook } from "@/lib/content/worker/chain-controller";
 import { claimNextJob } from "@/lib/jobs/queue";
 import { runAgentJob } from "@/lib/jobs/run-job";
 import { type contentSetup, ideaFile, PIECES, pieceFile } from "./content";
-import { reload } from "./run-job";
 
 /** The files of a drafted idea: the idea, a source piece and six `drafting` pieces with empty sidecars. */
 export function seedPieces(
@@ -108,26 +107,26 @@ export const CHAIN_WORKS = {
   "gate:humanizer:2": { pieces: cleanGate.pieces.filter((p) => p.platform === "x") },
 };
 
-/** Runs queued jobs through the real runner and the real chain controller until none is left. */
+/**
+ * Runs queued jobs through the real runner with the production chain hook (the next step is
+ * queued by the transaction that finishes each job) until none is left.
+ */
 export async function runChain(
   s: ReturnType<typeof contentSetup>,
   maxJobs = 12,
 ): Promise<number[]> {
+  s.deps.afterOk = chainHook({
+    db: s.deps.db,
+    root: s.brain.root,
+    timeZone: "Europe/London",
+    dailyRuns: 1,
+    now: () => new Date(),
+  });
   const ran: number[] = [];
   for (let i = 0; i < maxJobs; i++) {
     const job = claimNextJob(s.deps.db);
     if (!job) break;
     await runAgentJob(s.deps, job);
-    afterContentJob(
-      {
-        db: s.deps.db,
-        root: s.brain.root,
-        timeZone: "Europe/London",
-        dailyRuns: 1,
-        now: () => new Date(),
-      },
-      reload(s.deps, job.id),
-    );
     ran.push(job.id);
   }
   return ran;

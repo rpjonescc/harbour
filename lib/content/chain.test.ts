@@ -139,3 +139,25 @@ describe("fail closed", () => {
     });
   });
 });
+
+describe("only pieces still being written are checked", () => {
+  it("never targets a Ready, Needs you or edited piece", () => {
+    const pieces = [
+      piece("linkedin", [], { state: "ready" }),
+      piece("x", [], { state: "needs-you" }),
+      piece("blog", [], { edited: true }),
+      piece("website"),
+    ];
+    expect(gateTargets(pieces, { gate: "no-ai-slop", attempt: 1 }).map((p) => p.platform)).toEqual([
+      "website",
+    ]);
+    expect(chainNext(pieces.slice(0, 3))).toBeNull();
+  });
+
+  it("lets the newest first attempt decide, so a duplicate left by a crash forces no revision", () => {
+    const entries = [entry("no-ai-slop", "fail"), entry("no-ai-slop", "pass")];
+    expect(chainNext([piece("x", entries)])).toEqual({ gate: "humanizer", attempt: 1 });
+    const other = [entry("no-ai-slop", "pass"), entry("no-ai-slop", "fail")];
+    expect(chainNext([piece("x", other)])).toEqual({ gate: "no-ai-slop", attempt: 2 });
+  });
+});

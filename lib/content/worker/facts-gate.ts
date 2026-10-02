@@ -8,7 +8,7 @@ import { DraftStartError, labelOf, readIdeaFile } from "./draft";
 import { type FactsRun, factsChange } from "./facts-gate-change";
 import { buildFactsPack, factsPackText } from "./facts-pack";
 import { gateInputs } from "./gate-inputs";
-import { assertUnchanged, type PieceChange, writeUpdates } from "./gate-write";
+import { type PieceChange, pieceGuard, writeUpdates } from "./gate-write";
 import { requireContent } from "./run-context";
 import { loadSkill } from "./skills";
 import { parseWorkJson, workReview } from "./work-review";
@@ -83,6 +83,7 @@ export function factsGateSpec(
   const run: FactsRun = {
     attempt,
     jobId: context.jobId,
+    now: context.now ?? (() => new Date()),
     hosts,
     voice,
     factsText,
@@ -90,8 +91,9 @@ export function factsGateSpec(
     paragraphIds: source.paragraphs.map((p) => p.id),
     factRefs: pack.map((f) => f.ref),
   };
+  const unchanged = pieceGuard(content.root, ideaId);
   const files = (work: z.infer<typeof second>, note: (line: string) => void) => {
-    assertUnchanged(content.root, ideaId, view.pieces);
+    unchanged();
     for (const skill of skills) {
       note(
         `Skill ${skill.name}: ${skill.files.map((f) => `${f.name} ${f.sha256.slice(0, 12)}`).join(", ")}`,

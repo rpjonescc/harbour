@@ -102,7 +102,10 @@ function planNext(deps: RunDeps, job: Job, event: CommitInput["event"]) {
   try {
     return deps.afterOk?.(job) ?? null;
   } catch {
-    event("error", "Harbour couldn't work out the next step. Open the idea and use Try again.");
+    event(
+      "error",
+      "The next step didn't start. It will start the next time the worker restarts, or discard the idea and write it again.",
+    );
     return null;
   }
 }

@@ -20,6 +20,7 @@ export function chainView(
       state: p.front.state,
       hasContent: p.content !== null,
       entries: p.gates,
+      edited: p.front.edited,
     })),
   };
 }

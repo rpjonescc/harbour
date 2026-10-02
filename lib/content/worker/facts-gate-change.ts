@@ -10,6 +10,7 @@ import { type PieceChange, textHash } from "./gate-write";
 export type FactsRun = {
   attempt: 1 | 2;
   jobId: number;
+  now: () => Date;
   hosts: string[];
   voice: VoiceProfile;
   factsText: string;
@@ -41,7 +42,7 @@ function entryFor(
     findings: [],
     questions: [],
     jobId: run.jobId,
-    at: new Date().toISOString(),
+    at: run.now().toISOString(),
     textBefore: hashes.before,
     textAfter: hashes.after,
     // A revision edited text that gates a and b had passed; the record says what it was held to.

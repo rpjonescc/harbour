@@ -623,7 +623,7 @@ New job kinds (all run by the worker; the web process only enqueues):
 | `content-ideas` | yes | §6.2 |
 | `content-draft` | yes | §7.1 |
 | `content-atomise` | yes | §7.3 |
-| `content-gate` | yes, param `gate` = `slop`, `humanizer` or `facts`; `platform` runs inside the facts job's import with no agent unless a revision is needed | §8 |
+| `content-gate` | yes, params `ideaId`, `gate` = `no-ai-slop`, `humanizer` or `facts`, and `attempt` = `1` or `2`; `platform` runs inside the facts job's import with no agent unless a revision is needed | §8 |
 | `content-decision` | no | applies an owner's approve, edit or discard (§10.3) |
 | `content-postiz` | no (stretch) | §11 |
 

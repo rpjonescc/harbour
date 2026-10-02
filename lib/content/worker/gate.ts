@@ -9,7 +9,7 @@ import { factsGateSpec } from "./facts-gate";
 import { FactsPackError } from "./facts-pack";
 import { gateWorkSchema, outcome } from "./gate-check";
 import { gateInputs } from "./gate-inputs";
-import { assertUnchanged, type PieceChange, writeUpdates } from "./gate-write";
+import { type PieceChange, pieceGuard, writeUpdates } from "./gate-write";
 import { requireContent } from "./run-context";
 import { loadSkill, SkillError, skillRecord } from "./skills";
 import { parseWorkJson, workReview } from "./work-review";
@@ -79,8 +79,10 @@ function buildSpec(params: Record<string, string>, context: SpecContext): AgentS
     jobId: context.jobId,
     instructions: skillRecord(skill),
   } as const;
+  const stamped = () => ({ ...base, at: (context.now?.() ?? new Date()).toISOString() });
+  const unchanged = pieceGuard(content.root, ideaId);
   const files = (work: z.infer<typeof gateWorkSchema>, note: (text: string) => void) => {
-    assertUnchanged(content.root, ideaId, view.pieces);
+    unchanged();
     note(
       `Skill ${skill.name}: ${skill.files.map((f) => `${f.name} ${f.sha256.slice(0, 12)}`).join(", ")}`,
     );
@@ -90,7 +92,7 @@ function buildSpec(params: Record<string, string>, context: SpecContext): AgentS
     for (const target of targets) {
       const returned = work.pieces.find((p) => p.platform === target.platform);
       if (!returned) continue;
-      const made = outcome(target, returned, base, hosts);
+      const made = outcome(target, returned, stamped(), hosts);
       if (made.entry.result === "error") errors += 1;
       if (made.stripped) hidden += 1;
       changes.set(target.platform, {

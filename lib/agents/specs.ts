@@ -87,6 +87,8 @@ export type SpecContext = {
   jobId: number;
   /** The content machine's worker-side inputs (set only when content is on). */
   content?: ContentRunContext;
+  /** The worker clock, for timestamps a step records. */
+  now?: () => Date;
 };
 
 /** Where a job's structured output lives, from its params alone (also used to re-import it). */

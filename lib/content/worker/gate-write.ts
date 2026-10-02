@@ -1,14 +1,15 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { type ChainPiece, chainNext, finalPiece, summaries } from "@/lib/content/chain";
 import { renderFile } from "@/lib/content/files";
-import type { Platform } from "@/lib/content/ids";
+import { PLATFORMS, type Platform } from "@/lib/content/ids";
 import { contentPaths } from "@/lib/content/paths";
 import { type ReadPiece, renderGates } from "@/lib/content/read/pieces";
 import { renderPiece } from "@/lib/content/render";
 import type { GateEntry, PieceFront } from "@/lib/content/schema";
 import type { PieceContent } from "@/lib/content/shapes";
 import { transition } from "@/lib/content/state";
-import { chainView } from "./chain-pieces";
 import { DraftStartError } from "./draft";
 
 /** The hash of a piece's rendered text (what the owner would copy), recorded before and after a gate. */
@@ -47,23 +48,35 @@ export type PieceChange = {
 
 const CHANGED = "A piece changed while it was being checked, so Harbour saved nothing.";
 
-/**
- * Refuses to write over a piece the owner touched since the run began: every piece the run saw
- * must still be there at the same revision and state, with the same results.
- */
-export function assertUnchanged(root: string, ideaId: string, seen: readonly ReadPiece[]): void {
-  const now = chainView(root, ideaId).pieces;
-  for (const was of seen) {
-    const same = now.find((p) => p.platform === was.platform);
-    if (
-      !same ||
-      same.front.revision !== was.front.revision ||
-      same.front.state !== was.front.state ||
-      same.gates.length !== was.gates.length
-    ) {
-      throw new DraftStartError(CHANGED);
-    }
+const bytesHash = (root: string, path: string): string => {
+  try {
+    return createHash("sha256")
+      .update(readFileSync(join(root, path)))
+      .digest("hex");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return "absent";
+    throw error;
   }
+};
+
+/** A hash of the exact bytes of every piece file and sidecar the idea has (or lacks) right now. */
+function filesHash(root: string, ideaId: string): string {
+  return PLATFORMS.map(
+    (p) =>
+      `${bytesHash(root, contentPaths.piece(ideaId, p))}/${bytesHash(root, contentPaths.gates(ideaId, p))}`,
+  ).join(",");
+}
+
+/**
+ * Refuses to write over a piece the owner touched since the spec was built: the exact bytes of
+ * every piece file and sidecar of the idea must be as they were, so a hand edit that left the
+ * revision alone is caught too. Call it when the spec is built; call the result before writing.
+ */
+export function pieceGuard(root: string, ideaId: string): () => void {
+  const before = filesHash(root, ideaId);
+  return () => {
+    if (filesHash(root, ideaId) !== before) throw new DraftStartError(CHANGED);
+  };
 }
 
 /**

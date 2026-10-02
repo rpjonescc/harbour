@@ -8,6 +8,8 @@ export type ChainPiece = {
   state: PieceState;
   hasContent: boolean;
   entries: GateEntry[];
+  /** The owner changed the text by hand: the skills are not re-run on the owner's own words. */
+  edited?: boolean;
 };
 
 const STAGES = [
@@ -17,15 +19,24 @@ const STAGES = [
   { gate: "facts", names: ["facts", "platform"] },
 ] as const;
 
-const live = (p: ChainPiece) =>
-  p.hasContent && (p.state === "drafting" || p.state === "ready" || p.state === "needs-you");
+// Only a piece still being written is checked: a Ready or Needs you piece is finished, and one the
+// owner edited is the owner's own words.
+const live = (p: ChainPiece) => p.hasContent && p.state === "drafting" && p.edited !== true;
 const inStage = (p: ChainPiece, names: readonly string[]) =>
   p.entries.filter((e) => names.includes(e.gate));
 const bad = (e: GateEntry) => e.result === "fail" || e.result === "error";
 // Revise once: a first attempt that failed and no second attempt yet.
-const failedFirst = (p: ChainPiece, names: readonly string[]) =>
-  inStage(p, names).some((e) => e.attempt === 1 && bad(e)) &&
-  !inStage(p, names).some((e) => e.attempt === 2);
+// For each gate of the stage the newest attempt-1 entry decides: a duplicate left by a crash
+// recovery must not force a revision when the newest first attempt passed.
+const failedFirst = (p: ChainPiece, names: readonly string[]) => {
+  const lastFirst = (name: string) =>
+    p.entries.filter((e) => e.gate === name && e.attempt === 1).at(-1);
+  const failed = names.some((name) => {
+    const last = lastFirst(name);
+    return last !== undefined && bad(last);
+  });
+  return failed && !inStage(p, names).some((e) => e.attempt === 2);
+};
 
 /** The next gate run for an idea's live pieces, or null when the chain is done (spec §8.1). */
 export function chainNext(pieces: ChainPiece[]): GateStep | null {

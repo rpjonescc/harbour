@@ -178,7 +178,7 @@ describe("the next step is queued by the transaction that finishes the job", () 
     try {
       const job = await runOne(s.deps, "content-atomise", { ideaId: IDEA });
       expect(job.status).toBe("ok");
-      expect(events(s, job.id)).toContain("Harbour couldn't work out the next step");
+      expect(events(s, job.id)).toContain("The next step didn't start");
       expect(events(s, job.id)).not.toContain("CANARY");
       expect(queued(s)).toEqual([]);
     } finally {
@@ -215,17 +215,59 @@ describe("after a restart", () => {
     const files = { ...BASE, ...seedPieces(IDEA) };
     const s = contentSetup(CHAIN_WORKS, files);
     try {
+      const first = await runOne(s.deps, "content-gate", {
+        ideaId: IDEA,
+        gate: "no-ai-slop",
+        attempt: "1",
+      });
+      expect(first.status).toBe("ok");
+      for (const [path, text] of Object.entries(files))
+        writeFileSync(join(s.brain.root, path), text); // the sidecars forget it ran
+      s.brain.git("add", "-A");
+      s.brain.git("commit", "-q", "-m", "restore");
+      const second = await runOne(s.deps, "content-gate", {
+        ideaId: IDEA,
+        gate: "humanizer",
+        attempt: "1",
+      });
+      expect(afterContentJob(deps(s), second)).toBe(false);
+      expect(queued(s)).toEqual([]);
+      expect(events(s, second.id)).toContain("already ran");
+    } finally {
+      s.cleanup();
+    }
+  });
+
+  it("never repeats the step that just ran, so a mended sidecar cannot queue a duplicate attempt", async () => {
+    const files = { ...BASE, ...seedPieces(IDEA) };
+    const s = contentSetup(CHAIN_WORKS, files);
+    try {
       const job = await runOne(s.deps, "content-gate", {
         ideaId: IDEA,
         gate: "no-ai-slop",
         attempt: "1",
       });
-      expect(job.status).toBe("ok");
       for (const [path, text] of Object.entries(files))
-        writeFileSync(join(s.brain.root, path), text); // the sidecars forget it ran
-      expect(afterContentJob(deps(s), reload(s.deps, job.id))).toBe(false);
+        writeFileSync(join(s.brain.root, path), text);
+      expect(afterContentJob(deps(s), job)).toBe(false);
       expect(queued(s)).toEqual([]);
-      expect(events(s, job.id)).toContain("already ran");
+      expect(events(s, job.id)).toContain("just ran");
+    } finally {
+      s.cleanup();
+    }
+  });
+
+  it("resumes a chain whose hook failed: the job finished ok and nothing was queued", async () => {
+    const s = contentSetup(CHAIN_WORKS, beforeAtomise());
+    s.deps.afterOk = () => {
+      throw new Error("unreadable");
+    };
+    try {
+      const job = await runOne(s.deps, "content-atomise", { ideaId: IDEA });
+      expect(job.status).toBe("ok");
+      expect(queued(s)).toEqual([]);
+      expect(resumeChains(deps(s))).toBe(1);
+      expect(queued(s)).toEqual(["content-gate:no-ai-slop:1"]);
     } finally {
       s.cleanup();
     }

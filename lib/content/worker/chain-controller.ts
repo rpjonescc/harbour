@@ -54,6 +54,9 @@ function ranBefore(db: Db, next: Next): boolean {
     );
 }
 
+const sameParams = (a: Record<string, string>, b: Record<string, string>) =>
+  JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+
 /** The step that follows a finished content job, or null when the chain has nothing more to do. */
 function nextStep(root: string, job: Job): Next | null {
   const id = ideaIdSchema.safeParse(job.params.ideaId);
@@ -86,6 +89,10 @@ function nextStep(root: string, job: Job): Next | null {
 function plan(deps: ChainDeps, job: Job): ((tx: JobTx) => string | null) | null {
   const next = nextStep(deps.root, job);
   if (!next) return null;
+  // The job that just ran is never repeated by the chain: it would be a duplicate attempt.
+  if (next.kind === job.kind && sameParams(next.params, job.params)) {
+    return () => "The next step was the one that just ran, so Harbour queued nothing more.";
+  }
   if (ranBefore(deps.db, next))
     return () => "The next check already ran, so Harbour queued nothing more.";
   return (tx) => {

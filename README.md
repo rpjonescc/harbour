@@ -350,7 +350,7 @@ A deployed install runs the worker as the `harbour-worker` systemd user service 
 
 The content machine pastes three skills into its runs: `no-ai-slop` and `humanizer` (install them from their own repositories into `~/.claude/skills`) and `atomizer`, whose source is `skills/atomizer/` in this repository. `pnpm skills:install` copies `atomizer` into `HARBOUR_SKILLS_DIR` (default `~/.claude/skills`); run it again after pulling a newer Harbour.
 
-Once you pick an idea, the worker writes it as one chain of steps: a draft, six platform pieces, then the `no-ai-slop` and `humanizer` passes (the next step is queued as soon as one finishes, so a chain finishes even past the daily run limit). A piece that a pass still flags gets one revision, then the chain carries on. The worker picks an interrupted chain up again when it restarts; a step that failed stays stopped until you use Try again.
+Once you pick an idea, the worker writes it as one chain of steps: a draft, six platform pieces, then the `no-ai-slop` and `humanizer` passes (the next step is queued as soon as one finishes, so a chain finishes even past the daily run limit). A piece that a pass still flags gets one revision, then the chain carries on. A step that finished but whose next step did not start resumes when the worker restarts; a step that was stopped or killed mid-run needs you to discard the idea and write it again.
 
 The worker is the only process that runs agents or touches the brain's git history. Between
 jobs it saves your own brain edits (commit + push) once they have been quiet for 2 minutes,

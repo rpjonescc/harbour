@@ -80,6 +80,7 @@ function specOrFail(deps: RunDeps, job: Job): AgentSpec {
       noteFacts: gather && (() => gather(deps.now())),
       jobId: job.id,
       content: deps.content,
+      now: deps.now,
     });
   } catch (error) {
     throw new JobFailure((error as Error).message);

@@ -3,7 +3,7 @@ import { platformSchema } from "@/lib/content/ids";
 import { unknownNumbers } from "@/lib/content/numbers";
 import { allText } from "@/lib/content/piece-text";
 import type { ReadPiece } from "@/lib/content/read/pieces";
-import { sanitiseText } from "@/lib/content/sanitise";
+import { linkProblem, sanitiseText } from "@/lib/content/sanitise";
 import type { Finding, GateEntry } from "@/lib/content/schema";
 import type { PieceContent } from "@/lib/content/shapes";
 import { makeOne } from "./atomise-check";
@@ -35,6 +35,7 @@ export const gateWorkSchema = z.strictObject({
 export type GateWork = z.infer<typeof gateWorkSchema>;
 type Returned = GateWork["pieces"][number];
 
+const HANDLE = /@[\p{L}\p{N}_]/u;
 const LINKS = /https?:\/\/[^\s)>\]]+|\bwww\.[^\s)>\]]+/gi;
 const TAGS = /[#@][\p{L}\p{N}_]+/gu;
 const found = (pattern: RegExp, joined: string) =>
@@ -58,7 +59,9 @@ export function rewriteProblem(before: PieceContent, after: PieceContent): strin
 /** An agent's finding, claim or question as plain one-line text: what cannot be shown is replaced, never kept. */
 export function plain(value: string, fallback: string): string {
   const clean = sanitiseText(value, "social");
-  return clean.ok && !/[\n\r]/.test(clean.text) && clean.text.trim() !== ""
+  // No link or @handle of anyone's goes into a sidecar through an agent's finding or question.
+  const outward = clean.ok && (linkProblem(clean.text, []) !== null || HANDLE.test(clean.text));
+  return clean.ok && !outward && !/[\n\r]/.test(clean.text) && clean.text.trim() !== ""
     ? clean.text.trim()
     : fallback;
 }
@@ -74,6 +77,8 @@ export type Provenance = {
   order: 1 | 2;
   attempt: 1 | 2;
   jobId: number;
+  /** When this run published, from the worker clock. */
+  at: string;
   instructions: { name: SkillName; source: string; sha256: string };
 };
 
@@ -126,7 +131,7 @@ export function outcome(
 ): { entry: GateEntry; content: PieceContent; stripped: boolean } {
   const before = piece.content;
   if (before === null) throw new Error("A piece with no content is not a gate target");
-  const stamp = { ...base, at: new Date().toISOString() };
+  const stamp = base;
   const made = checkRewrite(piece, returned.content, hosts);
   const hash = textHash(piece, before);
   if (!made.ok) {
