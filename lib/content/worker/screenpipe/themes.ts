@@ -75,7 +75,7 @@ export function validateThemes(
   raw: readonly RawTheme[],
   rules: ThemeRules,
 ): { themes: Theme[]; dropped: number } {
-  if (!Array.isArray(raw)) return { themes: [], dropped: 0 };
+  if (!Array.isArray(raw)) return { themes: [], dropped: 1 };
   const never = rules.neverMention.flatMap((term) => {
     const pattern = typeof term === "string" ? termPattern(term) : null;
     return pattern ? [pattern] : [];

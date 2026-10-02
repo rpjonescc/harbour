@@ -42,6 +42,17 @@ describe("filterSnippets: dropping", () => {
     expect(one("Acme Docs update", "Editor", window)).toBeUndefined(),
   );
 
+  it.each([
+    ["Google Chrome", "general - Sam Example - Slack"],
+    ["Google Chrome", "Compose - Gmail"],
+    ["Firefox", "Inbox - Proton Mail"],
+    ["Safari", "Vault - 1Password"],
+    ["Google Chrome", "Join the call - Zoom"],
+    ["Firefox", "Online banking - Example Bank"],
+  ])("drops a browser tab that is webmail, chat or banking: %s, %j", (app, window) => {
+    expect(one("Acme Docs update", app, window)).toBeUndefined();
+  });
+
   it("treats an unknown window or app as private, because the deny-list cannot be applied", () => {
     expect(one("Acme Docs update", "Editor", null)).toBeUndefined();
     expect(one("Acme Docs update", "Editor", "")).toBeUndefined();
@@ -81,7 +92,7 @@ describe("filterSnippets: redacting", () => {
     ["a www host", "Acme Docs see www.attacker.example now", "Acme Docs see [link] now"],
     ["an email", "Acme Docs mail sam@example.com now", "Acme Docs mail [email] now"],
     ["an IP address", "Acme Docs host 192.168.1.20 down", "Acme Docs host [ip] down"],
-    ["a phone number", "Acme Docs call +61 412 345 678 now", "Acme Docs call [phone] now"],
+    ["a phone number", "Acme Docs call +61 491 570 156 now", "Acme Docs call [phone] now"],
     ["a card-like number", "Acme Docs card 4111 1111 1111 1111 ok", "Acme Docs card [number] ok"],
     ["a handle", "Acme Docs ping @samexample today", "Acme Docs ping [handle] today"],
     [
@@ -202,7 +213,7 @@ describe("hostile screen text", () => {
     for (const leak of [
       "attacker.example",
       "sam@example.com",
-      "412 345",
+      "491 570",
       "4111",
       "192.168",
       "@samexample",

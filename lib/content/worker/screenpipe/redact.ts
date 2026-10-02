@@ -46,6 +46,23 @@ export const DENY_WINDOW_PATTERNS = [
   "private",
   "incognito",
   "inbox",
+  // Webmail, web chat, web banking and password managers open in a browser: the app is "Chrome",
+  // so only the window title says what it is.
+  "gmail",
+  "webmail",
+  "proton",
+  "compose",
+  "slack",
+  "discord",
+  "whatsapp",
+  "messenger",
+  "1password",
+  "bitwarden",
+  "lastpass",
+  "dashlane",
+  "keepass",
+  "paypal",
+  "online banking",
 ] as const;
 
 export type RedactRules = {
@@ -56,13 +73,16 @@ export type RedactRules = {
 };
 
 const SNIPPET_CHARS = 240;
-// Redaction runs on this much of a snippet at most: it bounds every pattern's work on hostile input.
-const SCAN_CHARS = 2000;
+// The schema already caps a snippet at this; a longer one is refused rather than cut, because a
+// cut before redaction can leave a fragment of a secret or a forbidden term.
+const MAX_INPUT_CHARS = 10_000;
 const PRODUCT_BYTES = 24 * 1024;
 
 const TLDS =
   "com|net|org|io|co|ai|app|dev|xyz|me|tv|us|uk|au|nz|ca|de|fr|nl|se|eu|ch|es|it|in|ru|cn|jp|to|cc|ly|" +
-  "info|biz|site|online|store|tech|page|link|cloud|example|test|invalid|local|internal|localhost";
+  "info|biz|site|online|store|tech|page|link|cloud|example|test|invalid|local|internal|localhost|" +
+  "shop|gov|edu|zip|mov|top|club|live|news|blog|work|space|world|pro|name|mobi|asia|win|bid|click|" +
+  "icu|rest|fun|vip|lol|wtf|onion|download|support|email|team|tools";
 const SLUG = "[\\w.~@%+=-]+";
 
 type Replacement = string | ((match: string) => string);
@@ -101,10 +121,12 @@ function linkRules(host: string): Rule[] {
     [/[a-z][a-z0-9+.-]{1,15}:\/\/\S+/gi, "[link]"],
     [/\b(?:mailto|data|javascript|file|tel):\S+/gi, "[link]"],
     [/\bwww\.\S+/gi, "[link]"],
-    [/[^\s@<>"'()]+@[^\s@<>"'()]+\.[a-z]{2,}/gi, "[email]"],
+    // No TLD needed ("sam@localhost"); a domain split off by a line break is taken with it.
+    [/[^\s@<>"'()]+@[^\s@<>"'()]+(?:\s\.[a-z]{2,})*/gi, "[email]"],
     [
+      // A listed TLD makes a bare host a link; any TLD does once a path, query or port follows.
       new RegExp(
-        `(?<![\\w@-])(?:[a-z0-9-]+\\.)+(?:${TLDS})(?![\\w-])(?:[/?#]\\S*|:\\d\\S*)?`,
+        `(?<![\\w@-])(?:[a-z0-9-]+\\.)+(?:(?:${TLDS})(?![\\w-])(?:[/?#]\\S*|:\\d\\S*)?|[a-z]{2,}(?:[/?#]\\S*|:\\d\\S*))`,
         "gi",
       ),
       keepOwnHost,
@@ -116,13 +138,17 @@ const NUMBER_RULES: Rule[] = [
   [/(?<![\d.])\d{1,3}(?:\.\d{1,3}){3}(?![\d.]\d)/g, "[ip]"],
   [/(?<![0-9a-f:])(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}(?![0-9a-f:])/gi, "[ip]"],
   // Any separator between digits: a card number split by dots, slashes or underscores is still one.
-  [/(?<!\d)\d(?:[\s.\-_/]?\d){12,}(?!\d)/g, "[number]"],
-  [/(?<!\d)\+?\d[\d\s().-]{6,}\d(?!\d)/g, "[phone]"],
+  [/(?<!\d)\d(?:[\s.,\-_/]?\d){12,}(?!\d)/g, "[number]"],
+  [/(?<!\d)\+?\d[\d\s().,-]{6,}\d(?!\d)/g, "[phone]"],
 ];
 
 const SECRET_RULES: Rule[] = [
   [/(?<![\w@.])@\w{2,}/g, "[handle]"],
-  [/\b(?:password|passwd|pwd|passcode|pin|secret|api[ _-]?key|token)\s*[:=]\s*\S+/gi, "[redacted]"],
+  // A name ending in a secret word ("DB_PASSWORD", "client_secret") and its value.
+  [
+    /(?<![\w-])[\w-]*(?:password|passwd|pwd|pass|passcode|pin|secret|api[ _-]?key|apikey|token|auth)\s*[:=]\s*\S+/gi,
+    "[redacted]",
+  ],
   // Paths before tokens, so a long path reads as a path.
   [new RegExp(`(?<![\\w/])\\/(?:${SLUG}\\/)+(?:${SLUG})?`, "g"), "[path]"],
   [/(?<![\w/])[A-Za-z]:\\\S+/g, "[path]"],
@@ -157,14 +183,14 @@ function compile(rules: RedactRules): Compiled {
       const pattern = typeof t === "string" ? termPattern(t) : null;
       return pattern === null ? [] : [pattern];
     }),
-    rules: [
-      [/<\/?[a-z!][^>]*>/gi, ""],
-      ...linkRules(bareHost(rules.productHost)),
-      ...NUMBER_RULES,
-      ...SECRET_RULES,
-    ],
+    rules: [...linkRules(bareHost(rules.productHost)), ...NUMBER_RULES, ...SECRET_RULES],
   };
 }
+
+const hasWord = (haystack: string, word: string): boolean =>
+  new RegExp(`(?<![a-z0-9])${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![a-z0-9])`).test(
+    haystack,
+  );
 
 const containsAny = (haystack: string, needles: readonly string[]): boolean =>
   needles.some((n) => haystack.includes(n));
@@ -179,17 +205,26 @@ function isExcluded(snippet: Snippet, compiled: Compiled): boolean {
   const appKey = matchKey(app);
   const windowKey = matchKey(window);
   if (appKey === "" || windowKey === "") return true;
-  return containsAny(appKey, compiled.excluded) || containsAny(windowKey, DENY_WINDOW_PATTERNS);
+  // A browser tab can be webmail or chat, so the window title is held to the app list as well.
+  return (
+    containsAny(appKey, compiled.excluded) ||
+    containsAny(windowKey, DENY_WINDOW_PATTERNS) ||
+    compiled.excluded.some((name) => hasWord(windowKey, name))
+  );
 }
 
-/** Steps 3 and 4 for one snippet's canonical text: redact, then cap. */
+/**
+ * Steps 3 and 4 for one snippet's canonical text: redact all of it, then cap. Tags go first and
+ * then backticks and angle brackets (which could close a prompt fence or open a tag), removed
+ * rather than spaced so a secret or term split by them is whole again before any rule runs.
+ */
 function redact(canonical: string, compiled: Compiled): string {
-  let text = canonical.slice(0, SCAN_CHARS);
+  let text = canonical.replace(/<\/?[a-z!][^>]*>/gi, "").replace(/[`<>]/g, "");
   for (const pattern of compiled.never) text = replaceOn(text, pattern, "[removed]");
   for (const [pattern, to] of compiled.rules) text = replaceOn(text, pattern, to);
-  // Backticks and stray angle brackets could close a prompt fence or open a tag.
-  const clean = canonicalise(scrub(text).replace(/[`<>]/g, ""));
-  return Array.from(clean).slice(0, SNIPPET_CHARS).join("");
+  return Array.from(canonicalise(scrub(text)))
+    .slice(0, SNIPPET_CHARS)
+    .join("");
 }
 
 /**
@@ -222,9 +257,11 @@ function redactOne(snippet: Snippet, compiled: Compiled): string | null {
   try {
     if (typeof snippet.text !== "string" || isExcluded(snippet, compiled)) return null;
     const canonical = canonicalise(snippet.text);
+    if (canonical.length > MAX_INPUT_CHARS) return null;
     if (!containsAny(matchKey(canonical), compiled.terms)) return null;
     const text = redact(canonical, compiled);
-    return text === "" ? null : text;
+    // On topic after redaction too: a term inside a link or token must not vouch for the text around it.
+    return containsAny(matchKey(text), compiled.terms) ? text : null;
   } catch {
     // Fail closed: a snippet that breaks a rule is private. Nothing about it is kept or logged.
     return null;

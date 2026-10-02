@@ -79,6 +79,9 @@ describe("validateThemes", () => {
       "a personal topic with a lookalike letter",
       "Rewrote the guide after a d\u043ector appointment ran long today",
     ],
+    ["a family word", "Rewrote the guide while the family trip planning took over"],
+    ["a kids word", "Rewrote the guide after school pickup for the kids ran long"],
+    ["a health word", "Rewrote the guide while a sick day and health worries piled up"],
     ["a money topic", "Rewrote the guide while sorting out a loan for the team here"],
     ["a two-word personal topic", "Rewrote the guide while a credit card dispute ran on here"],
   ])("drops a theme with %s and counts it, never keeping its text", (_label, text) => {
@@ -141,7 +144,7 @@ describe("validateThemes", () => {
       undefined,
     ] as never;
     expect(validateThemes(odd, RULES)).toEqual({ themes: [], dropped: 5 });
-    expect(validateThemes("not a list" as never, RULES)).toEqual({ themes: [], dropped: 0 });
+    expect(validateThemes("not a list" as never, RULES)).toEqual({ themes: [], dropped: 1 });
   });
 
   it("rebuilds each kept theme from its known fields, so extra fields never travel on", () => {

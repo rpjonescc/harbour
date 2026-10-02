@@ -80,17 +80,21 @@ const FOREIGN_DIGIT = /^\p{Nd}$/u;
  * strip again: normalising can itself produce spaces or marks.
  */
 export function canonicalise(text: string): string {
-  return text
-    .replace(SEPARATORS, " ")
-    .replace(INVISIBLE, "")
-    .normalize("NFKC")
-    .normalize("NFD")
-    .replace(MARKS, "")
-    .normalize("NFC")
-    .replace(SEPARATORS, " ")
-    .replace(INVISIBLE, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    text
+      .replace(SEPARATORS, " ")
+      .replace(INVISIBLE, "")
+      .normalize("NFKC")
+      // Full stops NFKC leaves alone: "attacker\u3002com" is a domain to a reader.
+      .replace(/[\u3002\uff61]/g, ".")
+      .normalize("NFD")
+      .replace(MARKS, "")
+      .normalize("NFC")
+      .replace(SEPARATORS, " ")
+      .replace(INVISIBLE, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 /**

@@ -572,7 +572,7 @@ Gates run per idea, over all of its platform pieces in one run per gate (so 3 ag
 Each theme must: be 20–160 characters; be plain text (§8.3); contain no digits; no URL, email,
 `@handle`, path or token-like run; no term from `never-mention.md`; no product name other than its
 own product's; and none of a fixed list of personal-topic words (doctor, diagnosis, salary, loan,
-divorce, password and similar, kept in `lib/content/privacy-words.ts` with fictional-safe generic
+divorce, password and similar, kept in `lib/content/worker/screenpipe/privacy-words.ts` with fictional-safe generic
 terms only). A theme that fails is dropped and counted, never shown.
 
 ### 8.3 Gate details
