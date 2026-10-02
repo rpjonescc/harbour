@@ -9,6 +9,7 @@ import { SearchConsolePanel } from "@/components/products/SearchConsolePanel";
 import { ScoreBar } from "@/components/ui/ScoreBar";
 import { ScoreValue } from "@/components/ui/ScoreValue";
 import { Tabs } from "@/components/ui/Tabs";
+import { AREAS } from "@/lib/explain/areas";
 import {
   EXAMPLE_ISSUE,
   EXAMPLE_PRODUCT,
@@ -51,17 +52,17 @@ export function ScanExamples() {
         tabs={[
           {
             id: "seo",
-            label: "SEO",
+            label: AREAS.seo.name,
             panel: <ScoreBreakdown area="seo" entries={breakdown} complete />,
           },
           {
             id: "geo",
-            label: "GEO",
+            label: AREAS.geo.name,
             panel: <ScoreBreakdown area="geo" entries={breakdown} complete={false} />,
           },
           {
             id: "aeo",
-            label: "AEO",
+            label: AREAS.aeo.name,
             panel: <ScoreBreakdown area="aeo" entries={[]} complete={false} />,
           },
         ]}

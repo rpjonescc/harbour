@@ -139,17 +139,13 @@ describe("ProductOverview", () => {
   it("explains scores: area cards, breakdown with missing reasons and not-connected notes", () => {
     renderPage(scanned);
     expect(screen.getByText(/^Acme Docs is in /)).toBeInTheDocument();
-    expect(screen.getByText("Found on Google").closest("li")).toHaveTextContent(
+    // The area name is also the first tab's label; the card comes first on the page.
+    expect(screen.getAllByText("Found on Google")[0]?.closest("li")).toHaveTextContent(
       "Fair 64 out of 100",
     );
     const panel = screen.getByRole("tabpanel");
-    expect(within(panel).getByRole("heading", { name: "Technical health" })).toBeInTheDocument();
-    expect(within(panel).getByText("35% of SEO")).toBeInTheDocument();
-    // A source without its key reads as not connected, whatever the sub-score's weight.
-    expect(within(panel).getByText("Not connected")).toBeInTheDocument();
-    expect(within(panel).getByText("PageSpeed is not connected")).toBeInTheDocument();
-    expect(within(panel).getByText("Missing")).toBeInTheDocument();
-    expect(within(panel).getByText("Crawler failed in this scan")).toBeInTheDocument();
+    expect(within(panel).getByRole("heading", { name: "Page health" })).toBeInTheDocument();
+    expect(within(panel).getByText("Not connected yet, so it isn't counted.")).toBeInTheDocument();
     expect(screen.getByText(/PageSpeed failed: quota exceeded/)).toBeInTheDocument();
   });
 

@@ -1,7 +1,7 @@
 import { SUB_SCORES } from "@/lib/scan/score";
 import { ACME_SCAN, entryOf, scoreOf } from "@/tests/helpers/scoring";
 import { isComplete } from "../four-parts";
-import { SUB_SCORE_EXPLANATIONS, subScoreExplanation, subScoreLine } from ".";
+import { SUB_SCORE_EXPLANATIONS, subScoreExplanation, subScoreLine, weakestFirst } from ".";
 
 describe("subScoreLine", () => {
   it("reads a measured entry's evidence", () => {
@@ -45,5 +45,18 @@ describe("SUB_SCORE_EXPLANATIONS", () => {
       expect(line.length).toBeGreaterThan(10);
       expect(line).not.toMatch(/\b(?:seo|geo|aeo)\.|HARBOUR_|\b(?:SEO|GEO|AEO)\b/);
     }
+  });
+});
+
+describe("weakestFirst", () => {
+  it("sorts ascending, keeps ties in order and puts entries without a number last", () => {
+    const entries = [
+      { key: "a", score: 80 },
+      { key: "b", score: null },
+      { key: "c", score: 30 },
+      { key: "d", score: 80 },
+    ];
+    expect(weakestFirst(entries).map((e) => e.key)).toEqual(["c", "a", "d", "b"]);
+    expect(entries.map((e) => e.key)).toEqual(["a", "b", "c", "d"]);
   });
 });

@@ -40,10 +40,12 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
     );
   }
 
-  const breakdown = page.getByRole("tabpanel", { name: "SEO" });
-  await expect(breakdown.getByRole("heading", { name: "Technical health" })).toBeVisible();
+  const breakdown = page.getByRole("tabpanel", { name: "Found on Google" });
+  await expect(breakdown.getByRole("heading", { name: "Page health" })).toBeVisible();
   // Evidence for a source that is not set up says so rather than scoring it zero.
-  await expect(breakdown.getByText("Not connected").first()).toBeVisible();
+  await expect(
+    breakdown.getByText("Not connected yet, so it isn't counted.").first(),
+  ).toBeVisible();
 
   const issues = page.getByRole("region", { name: "Issues" });
   const noTitle = issues.getByRole("article", { name: "1 page is missing a title" });
@@ -80,32 +82,39 @@ test("keyboard: the score breakdown tabs move with the arrow keys", async ({ pag
   await page.goto("/products/acme-docs");
   const tabs = page.getByRole("tablist", { name: "Score breakdown" });
   const tab = (name: string) => tabs.getByRole("tab", { name });
-  await expect(tab("SEO")).toHaveAttribute("aria-selected", "true");
+  const [SEO, GEO, AEO] = [
+    "Found on Google",
+    "Recommended by AI assistants",
+    "Answer-ready",
+  ] as const;
+  await expect(tab(SEO)).toHaveAttribute("aria-selected", "true");
   // Keys pressed before hydration are lost; a click that selects GEO shows the tabs are live.
   await expect(async () => {
-    await tab("GEO").click();
-    await expect(tab("GEO")).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+    await tab(GEO).click();
+    await expect(tab(GEO)).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
   }).toPass();
   await page.keyboard.press("ArrowLeft");
-  await expect(tab("SEO")).toBeFocused();
-  await expect(tab("SEO")).toHaveAttribute("aria-selected", "true");
+  await expect(tab(SEO)).toBeFocused();
+  await expect(tab(SEO)).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowRight");
-  await expect(tab("GEO")).toBeFocused();
+  await expect(tab(GEO)).toBeFocused();
   await expect(
-    page.getByRole("tabpanel", { name: "GEO" }).getByRole("heading", { name: "llms.txt" }),
+    page
+      .getByRole("tabpanel", { name: GEO })
+      .getByRole("heading", { name: "A guide for AI assistants (llms.txt)" }),
   ).toBeVisible();
-  await expect(page.getByRole("tabpanel", { name: "SEO" })).toBeHidden();
+  await expect(page.getByRole("tabpanel", { name: SEO })).toBeHidden();
   await page.keyboard.press("End");
-  await expect(tab("AEO")).toBeFocused();
+  await expect(tab(AEO)).toBeFocused();
   await page.keyboard.press("ArrowRight");
-  await expect(tab("SEO")).toBeFocused();
+  await expect(tab(SEO)).toBeFocused();
   await page.keyboard.press("ArrowLeft");
-  await expect(tab("AEO")).toBeFocused();
+  await expect(tab(AEO)).toBeFocused();
   await page.keyboard.press("Home");
-  await expect(tab("SEO")).toBeFocused();
+  await expect(tab(SEO)).toBeFocused();
   // One tab stop: Tab leaves the tab list for the selected panel.
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("tabpanel", { name: "SEO" })).toBeFocused();
+  await expect(page.getByRole("tabpanel", { name: SEO })).toBeFocused();
 });
 
 test("Sources lists each source's last run and how to connect the missing ones", async ({
