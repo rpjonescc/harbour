@@ -162,12 +162,12 @@ describe("edit", () => {
   it("refuses text that breaks the platform's own limits, in words that name the platform", () => {
     const s = decisionSetup();
     try {
-      const long = s.decide({ ...edit, body: "a".repeat(3200) });
+      const long = s.decide({ ...edit, body: "a".repeat(2998) }); // with its hashtag the text is over the cap
       expect(long.error).toMatch(/^This piece wasn't saved: it doesn't fit LinkedIn's limits/);
-      const over = s.decide({ ...edit, body: "a".repeat(3301) });
+      const over = s.decide({ ...edit, body: "a".repeat(3001) });
       expect(over).toMatchObject({
         status: "failed",
-        error: "That is longer than this platform allows.",
+        error: "That is longer than LinkedIn allows (3,000 characters). Shorten it and try again.",
       });
       const thread = Array.from({ length: 6 }, (_, n) => `Post ${n}.`).join(
         "\n\n-- next post --\n\n",

@@ -26,6 +26,7 @@ describe("decisionStatus", () => {
     expect(status.failed.get(PIECE)).toEqual({
       error: "Tick every flag before approving.",
       revision: "3",
+      fromState: null,
     });
   });
 

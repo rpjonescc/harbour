@@ -23,6 +23,7 @@ export function IdeaDiscard({ idea }: { idea: IdeaView }) {
     <div className="flex flex-col gap-2">
       <Button
         ref={opener}
+        aria-label={`Discard idea: ${idea.title}`}
         variant="ghost"
         disabled={idea.saving}
         onClick={() => {
@@ -40,6 +41,7 @@ export function IdeaDiscard({ idea }: { idea: IdeaView }) {
               : "Discard this idea and all of its pieces?"
           }
           confirmLabel="Confirm discard of idea"
+          confirmName={`Confirm discard of idea: ${idea.title}`}
           busy={busy}
           onCancel={close}
           onConfirm={() => send({ action: "discard", ideaId: idea.id }, close)}

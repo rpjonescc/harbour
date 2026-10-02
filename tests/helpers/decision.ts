@@ -29,6 +29,7 @@ export function decisionSetup(files: Record<string, string> = brainFiles()) {
   const brain = makeGitBrain(files);
   const db = openTestDb();
   const deps = {
+    enabled: true,
     db,
     root: brain.root,
     quarantineRoot: join(brain.remote, "..", "quarantine"),

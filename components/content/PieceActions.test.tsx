@@ -185,4 +185,23 @@ describe("PieceActions", () => {
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
     expect(screen.getByRole("button", { name: "Discard" })).toBeVisible();
   });
+
+  it("names flags in plain words at approval", () => {
+    render(<PieceActions piece={piece({ flags: ["curriculum", "comparative"] })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    expect(
+      screen.getByRole("checkbox", { name: "I've checked the curriculum or education claim" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("checkbox", { name: "I've checked the comparison claim" }),
+    ).toBeVisible();
+  });
+
+  it("limits the edit box to the platform's cap and counts what is typed", () => {
+    render(<PieceActions piece={piece()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const box = screen.getByRole("textbox", { name: "Edit the piece text" });
+    expect(box).toHaveAttribute("maxlength", "3000");
+    expect(screen.getByText("31 of 3,000 characters.")).toBeVisible();
+  });
 });

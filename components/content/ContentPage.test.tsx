@@ -146,13 +146,13 @@ describe("ContentPage", () => {
         template={null}
       />,
     );
-    expect(screen.getAllByRole("button", { name: "Discard idea" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /^Discard idea: / })).toHaveLength(2);
     rerender(
       <ContentPage
         view={view({ defaultTab: "discarded", ideas: [idea({ tab: "discarded" })] })}
         template={null}
       />,
     );
-    expect(screen.queryByRole("button", { name: "Discard idea" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Discard idea/ })).toBeNull();
   });
 });

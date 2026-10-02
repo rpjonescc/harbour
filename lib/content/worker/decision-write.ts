@@ -73,13 +73,15 @@ export function applyChange(root: string, change: Change): { paths: string[]; un
     }
   };
   try {
-    for (const [path, text] of Object.entries(change.create)) {
-      createExclusive(join(root, path), text);
-      made.push(path);
-    }
+    // The piece first, then its export: a cut-off run leaves an approved piece to finish, never
+    // an export for a piece that was not approved (a leftover file only makes the next name -2).
     for (const [path, text] of Object.entries(change.write)) {
       if (!replaced.includes(path)) made.push(path);
       replaceAtomic(join(root, path), text);
+    }
+    for (const [path, text] of Object.entries(change.create)) {
+      createExclusive(join(root, path), text);
+      made.push(path);
     }
     for (const path of removals) rmSync(join(root, path), { force: true });
   } catch (error) {

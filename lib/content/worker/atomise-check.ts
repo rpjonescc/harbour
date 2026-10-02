@@ -99,7 +99,7 @@ export function makeOne(
   if (!piece)
     return {
       content: null,
-      stub: "This piece wasn't written. Discard this idea and write it again.",
+      stub: "This piece wasn't written. Discard it; the idea's other pieces are unaffected.",
       stripped: false,
     };
   if (piece.content === null || typeof piece.content !== "object" || Array.isArray(piece.content)) {

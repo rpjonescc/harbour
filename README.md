@@ -141,12 +141,11 @@ signed-in session:
   `HARBOUR_CONTENT=on` but no Claude token, because no model runs.
   `{"action": "approve", "pieceId": "<ideaId>.<platform>", "revision": 2, "checkedFlags": [], "confirmOpen": false}`
   must list every flag the piece carries and, for a piece that still needs you, set `confirmOpen`.
-  `{"action": "edit", ..., "body": "..."}` replaces the piece's main text (up to the platform's length
-  plus 10%) and re-checks only the numbers and the platform's limits, never the writing.
+  `{"action": "edit", ..., "body": "..."}` replaces the piece's main text (up to the platform's own limit) and re-checks only the numbers and the platform's limits, never the writing.
   `{"action": "discard", "pieceId": "...", "revision": 2}` or `{"action": "discard", "ideaId": "..."}`
   keeps the file, marked discarded. `revision` is the one the page showed: an older one is refused
   (`409 stale`). Other refusals: `400 flags_unchecked`, `400 confirm_needed`, `400 too_long`,
-  `404 not_found`, `409 not_approvable`, `409 not_editable`, `409 already_discarded`,
+  `404 not_found`, `409 not_approvable`, `409 not_editable`, `409 no_change` (an edit with the same words), `409 already_discarded`,
   `409 brain_unreadable`, `413 too_large` and `429 busy`. Approving writes
   `content/approved/<platform>/<date>-<slug>.md` in the brain (never over an existing file; a clash
   gets `-2` to `-9`); discarding an approved piece removes that file. Nothing is ever posted.

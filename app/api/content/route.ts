@@ -23,6 +23,9 @@ export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return jsonError(401, "unauthenticated");
   // The biggest request is an edit (20,000 characters); anything far past that is not parsed at all.
+  if (Number(request.headers.get("content-length") ?? 0) > MAX_REQUEST_CHARS * 4) {
+    return jsonError(413, "too_large");
+  }
   const text = await request.text().catch(() => "");
   if (text.length > MAX_REQUEST_CHARS) return jsonError(413, "too_large");
   const body = ContentBody.safeParse(parseJson(text));

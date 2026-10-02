@@ -11,7 +11,9 @@ describe("ContentExamples", () => {
     expect(screen.getByRole("button", { name: "Copy Post 2" })).toBeInTheDocument();
     expect(screen.getByText("Check before posting: 1 pricing claim")).toBeInTheDocument();
     expect(
-      screen.getByText("This piece wasn't written. Discard this idea and write it again."),
+      screen.getByText(
+        "This piece wasn't written. Discard it; the idea's other pieces are unaffected.",
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Ideas this week come from your notes only. Screenpipe wasn't reachable."),
@@ -26,7 +28,9 @@ describe("ContentExamples", () => {
       e.getAttribute("aria-label"),
     );
     expect(new Set(labels).size).toBe(labels.length);
-    const stub = screen.getByText(/Discard this idea and write it again/).closest("section");
+    const stub = screen
+      .getByText(/Discard it; the idea's other pieces are unaffected/)
+      .closest("section");
     const names = [...(stub?.querySelectorAll("button") ?? [])].map((b) => b.textContent);
     expect(names).toContain("Discard");
     expect(names).not.toContain("Try again");

@@ -1,13 +1,17 @@
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { commitChanges, ownerChanges, pushBrain } from "@/lib/agents/brain-git";
 import { approvedPillars } from "@/lib/agents/proposals";
 import { ideaIdSchema, pieceIdSchema, productForIdea, splitPieceId } from "@/lib/content/ids";
+import { contentPaths, isApprovedPath } from "@/lib/content/paths";
 import { readAllIdeas, TooManyIdeaFilesError } from "@/lib/content/read/ideas";
 import { readPieces } from "@/lib/content/read/pieces";
 import type { Db } from "@/lib/db/client";
+import { jobs } from "@/lib/db/schema";
 import { isoDateIn } from "@/lib/format/date";
 import { brainRootError, finish, recoveryBlock } from "@/lib/jobs/git-jobs";
-import { addEvent, type Job } from "@/lib/jobs/queue";
+import { CONTENT_AGENT_KINDS } from "@/lib/jobs/job-kinds";
+import { addEvent, type Job, requestCancel } from "@/lib/jobs/queue";
 import type { ContentProduct } from "@/lib/products/content";
 import { approve, discardIdea, discardPiece } from "./decision-actions";
 import { edit } from "./decision-edit";
@@ -20,6 +24,8 @@ import {
 import { applyChange } from "./decision-write";
 
 export type DecisionDeps = {
+  /** HARBOUR_CONTENT is on: off stops every content job, this one included. */
+  enabled: boolean;
   db: Db;
   root: string;
   quarantineRoot: string;
@@ -31,6 +37,7 @@ export type DecisionDeps = {
 const UNSAVED = "You have unsaved changes to this piece in your editor; Harbour saved nothing.";
 const NOT_SAVED =
   "Harbour couldn't save that. Check the brain repository, then try again. Nothing was changed.";
+const OFF = "Content is switched off, so Harbour saved nothing.";
 const NOT_FOUND = "Harbour couldn't find that idea or piece. Reload the page and try again.";
 
 // A decision job's params are strings (they are a jobs-table row), checked again here.
@@ -38,6 +45,8 @@ const Params = z.strictObject({
   action: z.enum(["approve", "edit", "discard"]),
   pieceId: pieceIdSchema.optional(),
   ideaId: ideaIdSchema.optional(),
+  // Only the page reads this (to tie a failure to the state it was asked in).
+  fromState: z.string().max(20).optional(),
   revision: z.coerce.number().int().min(1).max(100_000).optional(),
   flags: z.string().max(200).default(""),
   confirm: z.literal("1").optional(),
@@ -100,19 +109,17 @@ export function runContentDecision(deps: DecisionDeps, job: Job): { pushed: bool
     return { pushed: null };
   };
   try {
+    if (!deps.enabled) return fail(OFF);
     const blocked = brainRootError(root) ?? recoveryBlock(deps.quarantineRoot);
     if (blocked) return fail(blocked);
     const parsed = Params.safeParse(job.params);
     if (!parsed.success) return fail("That request wasn't valid, so Harbour saved nothing.");
-    const change = build(parsed.data, load(deps, parsed.data));
-    if (change === null) {
-      addEvent(db, job.id, "status", "Already saved. Nothing more to do.", deps.now());
-      finish(db, job.id, "ok", null, deps.now());
-      return { pushed: null };
-    }
+    const ctx = load(deps, parsed.data);
+    const change = build(parsed.data, ctx);
+    if (change === null) return settled(deps, job, parsed.data, ctx);
     const targets = [...Object.keys(change.write), ...Object.keys(change.create), ...change.remove];
     if (ownerChanges(root).some((c) => targets.includes(c.path))) return fail(UNSAVED);
-    return commit(deps, job, change);
+    return commit(deps, job, parsed.data, change);
   } catch (error) {
     if (error instanceof DecisionRefusal) return fail(error.message);
     // Only the error's kind is logged: its message could carry a path or a piece's own words.
@@ -121,9 +128,65 @@ export function runContentDecision(deps: DecisionDeps, job: Job): { pushed: bool
   }
 }
 
-function commit(deps: DecisionDeps, job: Job, change: Change): { pushed: boolean | null } {
+/** The files a decision is about: what an interrupted run may have written without committing. */
+function concerned(params: Params, ctx: DecisionContext): string[] {
+  const pieces = params.pieceId
+    ? ctx.pieces.filter((p) => p.platform === splitPieceId(params.pieceId ?? "")?.platform)
+    : ctx.pieces;
+  return [
+    contentPaths.idea(ctx.product.id, ctx.idea.id),
+    ...pieces.flatMap((p) => {
+      const exported = p.front.exportPath;
+      const path = contentPaths.piece(p.front.ideaId, p.platform);
+      return exported && isApprovedPath(p.platform, exported) ? [path, exported] : [path];
+    }),
+  ];
+}
+
+/**
+ * The decision is already in the files. If a run was cut off between writing and committing, the
+ * files it wrote are still uncommitted: commit those, and only those, now.
+ */
+function settled(
+  deps: DecisionDeps,
+  job: Job,
+  params: Params,
+  ctx: DecisionContext,
+): { pushed: boolean | null } {
+  const mine = concerned(params, ctx);
+  const left = ownerChanges(deps.root)
+    .map((c) => c.path)
+    .filter((path) => mine.includes(path));
+  if (left.length === 0) {
+    addEvent(deps.db, job.id, "status", "Already saved. Nothing more to do.", deps.now());
+    finish(deps.db, job.id, "ok", null, deps.now());
+    return { pushed: null };
+  }
+  const message = `content: ${params.action} ${params.pieceId ?? params.ideaId}`;
+  return commit(deps, job, params, { write: {}, create: {}, remove: [], message }, left);
+}
+
+/** A discarded idea's chain steps still waiting are cancelled, so no step runs against it. */
+function cancelQueuedSteps(deps: DecisionDeps, ideaId: string): void {
+  const queued = deps.db
+    .select({ id: jobs.id, params: jobs.params })
+    .from(jobs)
+    .where(and(eq(jobs.status, "queued"), inArray(jobs.kind, [...CONTENT_AGENT_KINDS])))
+    .all();
+  for (const row of queued.filter((j) => j.params.ideaId === ideaId)) {
+    requestCancel(deps.db, row.id, deps.now());
+  }
+}
+
+function commit(
+  deps: DecisionDeps,
+  job: Job,
+  params: Params,
+  change: Change,
+  already?: string[],
+): { pushed: boolean | null } {
   const { db, root } = deps;
-  const applied = applyChange(root, change);
+  const applied = already ? { paths: already, undo: () => undefined } : applyChange(root, change);
   try {
     commitChanges(root, applied.paths, change.message);
   } catch (error) {
@@ -144,6 +207,7 @@ function commit(deps: DecisionDeps, job: Job, change: Change): { pushed: boolean
       deps.now(),
     );
   }
+  if (params.action === "discard" && params.ideaId) cancelQueuedSteps(deps, params.ideaId);
   finish(db, job.id, "ok", null, deps.now());
   return { pushed: push.ok };
 }

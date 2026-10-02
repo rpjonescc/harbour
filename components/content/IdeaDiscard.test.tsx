@@ -14,15 +14,23 @@ afterEach(() => {
 describe("IdeaDiscard", () => {
   it("does not take focus when the page loads", () => {
     render(<IdeaDiscard idea={idea()} />);
-    expect(screen.getByRole("button", { name: "Discard idea" })).not.toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "Discard idea: Five minutes to a first deploy" }),
+    ).not.toHaveFocus();
   });
 
   it("asks first, then posts the idea id and nothing else", async () => {
     mocks.postJson.mockResolvedValue({ ok: true, data: { jobIds: [1] } });
     render(<IdeaDiscard idea={idea()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Discard idea" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Discard idea: Five minutes to a first deploy" }),
+    );
     expect(mocks.postJson).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Confirm discard of idea" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Confirm discard of idea: Five minutes to a first deploy",
+      }),
+    );
     await act(async () => {});
     expect(mocks.postJson).toHaveBeenCalledWith("/api/content", {
       action: "discard",
@@ -33,7 +41,9 @@ describe("IdeaDiscard", () => {
 
   it("says the exports of approved pieces go too, when there are any", () => {
     render(<IdeaDiscard idea={idea({ pieces: [piece({ tab: "approved" })] })} />);
-    fireEvent.click(screen.getByRole("button", { name: "Discard idea" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Discard idea: Five minutes to a first deploy" }),
+    );
     expect(screen.getByText(/exported files of approved pieces are removed/)).toBeVisible();
   });
 
@@ -44,9 +54,15 @@ describe("IdeaDiscard", () => {
       message: "That idea is already discarded.",
     });
     render(<IdeaDiscard idea={idea()} />);
-    const open = screen.getByRole("button", { name: "Discard idea" });
+    const open = screen.getByRole("button", {
+      name: "Discard idea: Five minutes to a first deploy",
+    });
     fireEvent.click(open);
-    fireEvent.click(screen.getByRole("button", { name: "Confirm discard of idea" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Confirm discard of idea: Five minutes to a first deploy",
+      }),
+    );
     await screen.findByText("That idea is already discarded.");
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(open).toHaveFocus();
@@ -54,7 +70,9 @@ describe("IdeaDiscard", () => {
 
   it("is disabled and says Saving… while the decision is waiting", () => {
     render(<IdeaDiscard idea={idea({ saving: true })} />);
-    expect(screen.getByRole("button", { name: "Discard idea" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Discard idea: Five minutes to a first deploy" }),
+    ).toBeDisabled();
     expect(screen.getByRole("status")).toHaveTextContent("Saving…");
   });
 });

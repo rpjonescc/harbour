@@ -77,7 +77,8 @@ export function ContentExamples() {
             tab: "needs-you",
             empty: true,
             copy: [],
-            needsYou: "This piece wasn't written. Discard this idea and write it again.",
+            needsYou:
+              "This piece wasn't written. Discard it; the idea's other pieces are unaffected.",
           })}
         />
       </Example>

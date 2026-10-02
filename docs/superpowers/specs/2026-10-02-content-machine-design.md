@@ -1126,3 +1126,15 @@ Each step is its own reviewed change, with tests and README updates in the same 
   never replaces anything, including a file the owner has not committed.
 - **Failed decisions are shown.** The newest decision job per piece or idea, when it failed at the
   revision the page shows, appears under the buttons with its own sentence.
+- **Review fixes.** An edit cannot exceed the platform's own hard cap (the spec's "plus 10%" was
+  dead room: anything past the cap cannot be stored), and an edit with the same words is refused,
+  so it can never clear Needs you. The worker also refuses when `HARBOUR_CONTENT` is off. A run
+  cut off before its commit is finished by the same job run again (the files it wrote are
+  committed). The piece is written before its export, so a cut-off run never leaves an export for a
+  piece that was not approved; a leftover export only makes the next export name `-2`. Discarding
+  an idea cancels its chain steps still waiting. There is no way to reopen a discarded idea: the
+  stub wording says to discard the piece, and a failed step to discard the idea and find new ones.
+- **Approve exports the validated content.** The export is made from the piece's validated
+  frontmatter `content`, not from a hand-edited body (Decision 5): text the owner changes in the
+  markdown file by hand is not what an approval exports.
+

@@ -16,6 +16,12 @@ const DIGEST_FRESH_DAYS = 3;
 
 type Activity = { active: boolean; failed: FailedStep | null };
 
+/** An idea has no revision: a failed decision shows only while the idea is still in the state it was asked in. */
+function ideaDecisionError(decisions: DecisionStatus, id: string, state: string): string | null {
+  const failed = decisions.failed.get(id);
+  return failed && failed.fromState === state ? failed.error : null;
+}
+
 function ideaView(
   entry: IdeaEntry,
   pieces: PieceView[],
@@ -54,7 +60,7 @@ function ideaView(
     tab,
     retry: failed !== null,
     saving: decisions.saving.has(idea.id),
-    decisionError: decisions.failed.get(idea.id)?.error ?? null,
+    decisionError: ideaDecisionError(decisions, idea.id, front.state),
     pieces,
     rollup: rollup(pieces),
     note: front.needsYou ?? (failed ? stepSentence(failed.kind, failed.params) : null),

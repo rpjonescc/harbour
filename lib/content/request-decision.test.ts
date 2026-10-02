@@ -104,10 +104,17 @@ describe("requestContent: decisions", () => {
     ],
     [
       "an edit that is too long",
-      { action: "edit", pieceId: PIECE, revision: 1, body: "a".repeat(3301) },
+      { action: "edit", pieceId: PIECE, revision: 1, body: "a".repeat(3001) },
       {},
       400,
       "too_long",
+    ],
+    [
+      "an edit that changes nothing",
+      { action: "edit", pieceId: PIECE, revision: 1, body: "Docs that ship in five minutes." },
+      {},
+      409,
+      "no_change",
     ],
     [
       "an edit of an approved piece",
@@ -181,7 +188,11 @@ describe("requestContent: decisions", () => {
     try {
       const c = ctx(b.root);
       expect(requestContent(c, { action: "discard", ideaId: IDEA })).toMatchObject({ ok: true });
-      expect(listJobs(c.db)[0]?.params).toEqual({ action: "discard", ideaId: IDEA });
+      expect(listJobs(c.db)[0]?.params).toEqual({
+        action: "discard",
+        ideaId: IDEA,
+        fromState: "drafted",
+      });
     } finally {
       b.cleanup();
     }

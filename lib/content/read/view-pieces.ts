@@ -1,6 +1,7 @@
 import { PLATFORM_NAMES, pieceId } from "@/lib/content/ids";
 import { contentPaths } from "@/lib/content/paths";
 import { copyParts, primaryText, renderPiece } from "@/lib/content/render";
+import { FLAG_WORDS } from "@/lib/explain/content";
 import { type FailedStep, stepSentence } from "./chain-status";
 import type { DecisionStatus } from "./decisions";
 import type { ReadPiece } from "./pieces";
@@ -19,7 +20,7 @@ const pieceTab = (state: string, derivedFailure: boolean): TabId =>
 function flagLines(piece: ReadPiece): string[] {
   const counts = piece.front.flags.map((flag) => {
     const n = piece.front.claims.filter((c) => c.flag === flag).length || 1;
-    return `${n} ${flag} claim${n === 1 ? "" : "s"}`;
+    return `${n} ${FLAG_WORDS[flag]} claim${n === 1 ? "" : "s"}`;
   });
   return counts.length > 0 ? [`Check before posting: ${counts.join(", ")}`] : [];
 }

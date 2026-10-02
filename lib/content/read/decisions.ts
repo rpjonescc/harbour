@@ -6,7 +6,7 @@ import { jobs } from "@/lib/db/schema";
 export type DecisionStatus = {
   saving: ReadonlySet<string>;
   /** The newest decision per target, when it failed: the sentence, and the revision it was asked at. */
-  failed: ReadonlyMap<string, { error: string; revision: string | null }>;
+  failed: ReadonlyMap<string, { error: string; revision: string | null; fromState: string | null }>;
 };
 
 /** Only the newest jobs are looked at: a decision no longer among them has long been settled. */
@@ -25,7 +25,10 @@ export function decisionStatus(db: Db): DecisionStatus {
     .limit(RECENT_DECISIONS)
     .all();
   const saving = new Set<string>();
-  const failed = new Map<string, { error: string; revision: string | null }>();
+  const failed = new Map<
+    string,
+    { error: string; revision: string | null; fromState: string | null }
+  >();
   const seen = new Set<string>();
   for (const { params, status, error } of rows) {
     const target = params.pieceId ?? params.ideaId;
@@ -34,7 +37,11 @@ export function decisionStatus(db: Db): DecisionStatus {
     if (seen.has(target)) continue;
     seen.add(target);
     if (status === "failed" && error) {
-      failed.set(target, { error, revision: params.revision ?? null });
+      failed.set(target, {
+        error,
+        revision: params.revision ?? null,
+        fromState: params.fromState ?? null,
+      });
     }
   }
   return { saving, failed };

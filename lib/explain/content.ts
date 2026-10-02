@@ -40,8 +40,19 @@ export const CAP_NOTES = {
 export const FOLDER_ERROR =
   "Harbour couldn't read the content folder in your Second Brain, so some ideas and drafts may be missing from this page. Nothing was lost. Check that the folder can be read, then reload.";
 
+/** The words for each flag in "Check before posting" and at approval (never the raw key). */
+export const FLAG_WORDS = {
+  health: "health",
+  legal: "legal",
+  curriculum: "curriculum or education",
+  pricing: "pricing",
+  testimonial: "testimonial or quote",
+  comparative: "comparison",
+} as const;
+
 /** The piece line when a stub carries no reason of its own. */
-export const STUB_FALLBACK = "This piece wasn't written. Discard this idea and write it again.";
+export const STUB_FALLBACK =
+  "This piece wasn't written. Discard it; the idea's other pieces are unaffected.";
 
 /** What an empty tab will show, when, and why it is empty now (plain words, no codes). */
 export const EMPTY_TABS: Record<

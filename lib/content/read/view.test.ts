@@ -288,4 +288,22 @@ describe("contentView", () => {
       false,
     ]);
   });
+
+  it("shows why an idea's decision failed only while the idea is in the state it was asked in", () => {
+    const db = openTestDb();
+    enqueueJob(
+      db,
+      "content-decision",
+      { action: "discard", ideaId: IDEA, fromState: "drafted" },
+      "owner@example.com",
+    );
+    finishJob(db, claimNextJob(db)?.id ?? 0, "failed", "Harbour couldn't save that.", new Date());
+    expect(view({ ...base, ...pieces(2, 0) }, db).ideas[0]?.decisionError).toBe(
+      "Harbour couldn't save that.",
+    );
+    const drafting = { ...pieces(2, 0) };
+    const path = `content/ideas/acme-docs/${IDEA}.md`;
+    drafting[path] = ideaFile({ state: "drafting" });
+    expect(view({ ...base, ...drafting }, db).ideas[0]?.decisionError).toBeNull();
+  });
 });

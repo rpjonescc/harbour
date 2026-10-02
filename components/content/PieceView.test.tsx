@@ -84,7 +84,9 @@ describe("PieceView", () => {
   it("says a stub was not written, once, when it carries no reason of its own", () => {
     render(<PieceView piece={piece({ empty: true, copy: [], needsYou: null })} />);
     expect(
-      screen.getByText("This piece wasn't written. Discard this idea and write it again."),
+      screen.getByText(
+        "This piece wasn't written. Discard it; the idea's other pieces are unaffected.",
+      ),
     ).toBeVisible();
   });
 });

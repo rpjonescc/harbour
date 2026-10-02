@@ -38,6 +38,7 @@ export function resumeContentChains(w: Wiring): number {
 
 /** What the decision job needs: the brain, where interrupted runs wait, and the products with content on. */
 export const decisionDeps = (w: Wiring & { quarantineRoot: string }): DecisionDeps => ({
+  enabled: w.config.HARBOUR_CONTENT === "on",
   db: w.db,
   root: w.root,
   quarantineRoot: w.quarantineRoot,

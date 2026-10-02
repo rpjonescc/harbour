@@ -104,7 +104,7 @@ function planNext(deps: RunDeps, job: Job, event: CommitInput["event"]) {
   } catch {
     event(
       "error",
-      "The next step didn't start. It will start the next time the worker restarts, or discard the idea and write it again.",
+      "The next step didn't start. It will start the next time the worker restarts, or discard the idea and find new ones.",
     );
     return null;
   }

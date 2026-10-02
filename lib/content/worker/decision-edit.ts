@@ -1,6 +1,5 @@
 import { checkClaims } from "@/lib/content/claims-check";
-import { editedOutcome, MAX_EDIT_CHARS } from "@/lib/content/decision";
-import { describeIssues } from "@/lib/content/files";
+import { editedOutcome, MAX_EDIT_CHARS, NO_CHANGE, tooLongMessage } from "@/lib/content/decision";
 import { PLATFORM_NAMES } from "@/lib/content/ids";
 import { contentPaths } from "@/lib/content/paths";
 import { allText } from "@/lib/content/piece-text";
@@ -29,7 +28,7 @@ const NOT_SAVED = "This piece wasn't saved:";
 function shaped(ctx: DecisionContext, piece: ReadPiece, body: string): PieceContent {
   const { platform } = piece.front;
   if (body.length > MAX_EDIT_CHARS[platform]) {
-    throw new DecisionRefusal("That is longer than this platform allows.");
+    throw new DecisionRefusal(tooLongMessage(platform));
   }
   const withText = withPrimaryText(platform, piece.content as PieceContent, body);
   const clean = sanitiseContent(platform, withText, ownHosts(ctx.product.url));
@@ -39,7 +38,7 @@ function shaped(ctx: DecisionContext, piece: ReadPiece, body: string): PieceCont
   if (!fit.success) {
     const name = PLATFORM_NAMES[platform];
     throw new DecisionRefusal(
-      `${NOT_SAVED} it doesn't fit ${name}'s limits (${describeIssues(fit.error)}).`,
+      `${NOT_SAVED} it doesn't fit ${name}'s limits. Check its length, the number of posts and the hashtags.`,
     );
   }
   return fit.data as PieceContent;
@@ -92,7 +91,11 @@ export function edit(ctx: DecisionContext, piece: ReadPiece, d: Decision): Chang
   if (piece.content === null) throw new DecisionRefusal("This piece can't be edited now.");
   const content = shaped(ctx, piece, d.body ?? "");
   const same = primaryText(platform, content) === primaryText(platform, piece.content);
-  if (settle(piece, d, piece.front.edited && same) === "done") return null;
+  const open = transition(piece.front.state, "edit") !== null;
+  // "Already saved" only for a piece that is still editable: a discarded one is stale, not done.
+  if (settle(piece, d, piece.front.edited && same && open) === "done") return null;
+  // Saving the same words would clear a Needs you without a single change.
+  if (same) throw new DecisionRefusal(NO_CHANGE);
   const { claims, platform: platformFindings } = checks(ctx, piece, content);
   const outcome = editedOutcome(
     piece.front.gates,

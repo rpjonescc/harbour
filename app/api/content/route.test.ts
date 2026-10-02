@@ -83,6 +83,7 @@ describe("POST /api/content", () => {
       body: "a".repeat(200_000),
     });
     expect((await ask(huge)).status).toBe(413);
+    expect((await ask("{}", { "content-length": "900000" })).status).toBe(413);
     const deep = `${"[".repeat(5000)}${"]".repeat(5000)}`;
     expect((await ask(deep)).status).toBe(400);
     const piece = "acme-docs-20261001-five-minutes.linkedin";

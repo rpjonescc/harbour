@@ -1,4 +1,10 @@
-import { approveProblem, DecisionBody, editedOutcome, MAX_EDIT_CHARS } from "./decision";
+import {
+  approveProblem,
+  DecisionBody,
+  editedOutcome,
+  MAX_EDIT_CHARS,
+  tooLongMessage,
+} from "./decision";
 
 const PIECE = "acme-docs-20261002-x.linkedin";
 
@@ -113,8 +119,11 @@ describe("editedOutcome", () => {
     });
   });
 
-  it("caps an edit at the platform's length plus 10%", () => {
-    expect(MAX_EDIT_CHARS.linkedin).toBe(3300);
-    expect(MAX_EDIT_CHARS.facebook).toBe(1650);
+  it("caps an edit at each platform's own hard limit, in plain words", () => {
+    expect(MAX_EDIT_CHARS.linkedin).toBe(3000);
+    expect(MAX_EDIT_CHARS.facebook).toBe(1500);
+    expect(tooLongMessage("linkedin")).toBe(
+      "That is longer than LinkedIn allows (3,000 characters). Shorten it and try again.",
+    );
   });
 });

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { finalPiece } from "./chain";
-import { ideaIdSchema, type Platform, pieceIdSchema } from "./ids";
+import { ideaIdSchema, PLATFORM_NAMES, type Platform, pieceIdSchema } from "./ids";
 import { type Finding, FLAGS, type Flag, type GateEntry, type PieceFront } from "./schema";
 import type { PieceState } from "./state";
 
@@ -27,15 +27,21 @@ export const DecisionBody = z.union([
 ]);
 export type DecisionBody = z.infer<typeof DecisionBody>;
 
-/** An edit may run 10% over the platform's own length (spec §10.3); the checks then say what to trim. */
+/** The most text an edit may hold: each platform's own hard cap (X: five posts and the separators between them). */
 export const MAX_EDIT_CHARS: Record<Platform, number> = {
-  linkedin: 3300,
-  x: 1700,
-  instagram: 2420,
-  facebook: 1650,
-  blog: 13_200,
-  website: 1320,
+  linkedin: 3000,
+  x: 1480,
+  instagram: 2200,
+  facebook: 1500,
+  blog: 20_000,
+  website: 1200,
 };
+
+/** The refusal for an edit over the cap, in plain words naming the platform and its limit. */
+export const tooLongMessage = (platform: Platform): string =>
+  `That is longer than ${PLATFORM_NAMES[platform]} allows (${MAX_EDIT_CHARS[platform].toLocaleString("en-GB")} characters). Shorten it and try again.`;
+
+export const NO_CHANGE = "Nothing changed, so Harbour saved nothing.";
 
 type Approvable = {
   state: PieceState;

@@ -2,10 +2,17 @@ import { and, count, eq, inArray } from "drizzle-orm";
 import { audit } from "@/lib/audit";
 import { jobs } from "@/lib/db/schema";
 import { enqueueJobIn, findActiveJob } from "@/lib/jobs/queue";
-import { approveProblem, type DecisionBody, MAX_EDIT_CHARS } from "./decision";
+import {
+  approveProblem,
+  type DecisionBody,
+  MAX_EDIT_CHARS,
+  NO_CHANGE,
+  tooLongMessage,
+} from "./decision";
 import { productForIdea, splitPieceId } from "./ids";
 import { readAllIdeas, TooManyIdeaFilesError } from "./read/ideas";
 import { type ReadPiece, readPieces } from "./read/pieces";
+import { primaryText } from "./render";
 import { BRAIN_UNREADABLE, type RequestContext, type RequestResult, refuse } from "./request-types";
 import { revisionMatches, transition } from "./state";
 
@@ -54,8 +61,12 @@ function editRefusal(
   if (transition(piece.front.state, "edit") === null || piece.content === null) {
     return refuse(409, "not_editable", "This piece can't be edited now.");
   }
-  return body.body.length > MAX_EDIT_CHARS[piece.platform]
-    ? refuse(400, "too_long", "That is longer than this platform allows.")
+  if (body.body.length > MAX_EDIT_CHARS[piece.platform]) {
+    return refuse(400, "too_long", tooLongMessage(piece.platform));
+  }
+  // The same words as stored: saving them would clear a Needs you without a single change.
+  return body.body.trim() === primaryText(piece.platform, piece.content)
+    ? refuse(409, "no_change", NO_CHANGE)
     : null;
 }
 
@@ -101,7 +112,7 @@ function decideIdea(ctx: RequestContext, ideaId: string): RequestResult {
   }
   return queue(
     ctx,
-    { action: "discard", ideaId },
+    { action: "discard", ideaId, fromState: idea.front.state },
     { action: "discard", pieceId: null, fromState: idea.front.state, flagsChecked: [] },
   );
 }

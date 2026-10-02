@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import type { PieceView } from "@/lib/content/read/view-types";
 import type { Flag } from "@/lib/content/schema";
+import { FLAG_WORDS } from "@/lib/explain/content";
 
 /** Approve: every flag ticked, and for a Needs you piece a second confirmation naming what is open. */
 export function ApprovePanel({
@@ -29,7 +30,7 @@ export function ApprovePanel({
             checked={checked.includes(flag)}
             onChange={(event) => toggle(flag, event.target.checked)}
           />
-          I've checked the {flag} claim
+          I've checked the {FLAG_WORDS[flag]} claim
         </label>
       ))}
       <div className="flex gap-2">
