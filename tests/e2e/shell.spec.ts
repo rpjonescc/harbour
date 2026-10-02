@@ -133,6 +133,10 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(SAMPLE_BRIEFING);
       await expect(page.getByText("2 things worth doing · nothing is broken")).toBeVisible();
       await expect(page.getByRole("note")).toContainText("Sample data");
+      // The sample Today shows the fixed, labelled sample note: never agent output, no button.
+      const note = page.getByRole("region", { name: "A note from Harbour" });
+      await expect(note).toContainText("Sample note");
+      await expect(note.getByRole("button")).toHaveCount(0);
       const table = page.getByRole("table", { name: "Scores by product" });
       await expect(table.getByRole("rowheader", { name: "Fern & Field" })).toBeVisible();
       const products = page.getByRole("region", { name: "Products" });
@@ -154,6 +158,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         "Components",
         "Plain-language examples",
         "Today examples",
+        "The wave",
       ]) {
         await expect(page.getByRole("heading", { name })).toBeVisible();
       }
