@@ -23,6 +23,7 @@ function sampleScores(productId: ProductId): ProductScores {
   return {
     productId,
     scanned: true,
+    lastCheckFailed: false,
     totals: { seo, geo: byte(1) % 30, aeo: 5 + (byte(2) % 35) },
     complete: { seo: true, geo: true, aeo: true },
     deltas: { seo: (byte(3) % 5) - 1, geo: (byte(1) % 3) - 1, aeo: byte(2) % 2 },

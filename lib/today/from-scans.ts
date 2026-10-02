@@ -18,10 +18,12 @@ type ProductToday = {
 function productToday(db: Db, productId: string, now: Date): ProductToday {
   const { latest, deltas, trend } = productScoreTrend(db, productId, now);
   const scan = scanState(db, productId);
+  const failed = scan.last?.status === "failed";
   return {
     row: {
       productId,
       scanned: latest !== null,
+      lastCheckFailed: failed,
       totals: latest?.totals ?? { seo: null, geo: null, aeo: null },
       complete: latest?.complete ?? { seo: false, geo: false, aeo: false },
       deltas,

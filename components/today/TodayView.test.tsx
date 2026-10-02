@@ -36,6 +36,7 @@ const real: TodaySummary = {
     {
       productId: "acme-docs",
       scanned: true,
+      lastCheckFailed: false,
       totals: { seo: 61, geo: 40, aeo: 22 },
       complete: { seo: true, geo: true, aeo: true },
       deltas: { seo: 2, geo: null, aeo: null },

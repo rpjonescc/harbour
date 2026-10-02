@@ -9,6 +9,8 @@ export type ProductScores = {
   productId: ProductId;
   /** Whether the product has a scored scan: a missing score then means its data didn't arrive. */
   scanned: boolean;
+  /** The product's newest check failed outright (older scores, if any, still show). */
+  lastCheckFailed: boolean;
   totals: AreaValues<number | null>;
   complete: AreaValues<boolean>;
   deltas: AreaValues<number | null>;

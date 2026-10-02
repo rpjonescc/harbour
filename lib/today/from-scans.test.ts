@@ -101,6 +101,7 @@ describe("todaySummary", () => {
       {
         productId: "acme-docs",
         scanned: true,
+        lastCheckFailed: false,
         totals: { seo: 52, geo: 40, aeo: null },
         complete: { seo: true, geo: true, aeo: false },
         deltas: { seo: 2, geo: 0, aeo: null },
@@ -109,6 +110,7 @@ describe("todaySummary", () => {
       {
         productId: "fern-and-field",
         scanned: false,
+        lastCheckFailed: false,
         totals: { seo: null, geo: null, aeo: null },
         complete: { seo: false, geo: false, aeo: false },
         deltas: { seo: null, geo: null, aeo: null },
@@ -123,6 +125,23 @@ describe("todaySummary", () => {
     });
     expect(today.actions).toEqual([]);
     expect(today.moreActions).toBe(0);
+  });
+
+  it("tells a product whose only check failed from one never checked", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: T0, totals: { seo: 90, geo: 90, aeo: 90 } });
+    seedScan(db, {
+      productId: "fern-and-field",
+      at: T0,
+      status: "failed",
+      scored: false,
+      runs: [],
+    });
+    const rows = todaySummary(db, products, T0).scores;
+    expect(rows.map((r) => [r.productId, r.scanned, r.lastCheckFailed])).toEqual([
+      ["acme-docs", true, false],
+      ["fern-and-field", false, true],
+    ]);
   });
 
   it("briefs on the active actions and shows the top three", () => {

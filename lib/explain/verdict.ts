@@ -30,6 +30,7 @@ export const VERDICT_BANDS: readonly [Band, Band, Band, Band] = [
 /** Plain reasons for a missing score that Today can give without reading the breakdown. */
 export const GAP_REASONS = {
   notChecked: "Not checked yet.",
+  checkFailed: "The last check didn't finish.",
   dataMissing: "The data for this didn't arrive.",
 } as const;
 

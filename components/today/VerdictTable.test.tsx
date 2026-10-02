@@ -7,6 +7,7 @@ const none = { seo: null, geo: null, aeo: null };
 const row = (over: Partial<ProductScores> = {}): ProductScores => ({
   productId: "acme-docs",
   scanned: true,
+  lastCheckFailed: false,
   totals: { seo: 78, geo: 46, aeo: null },
   complete: { seo: true, geo: false, aeo: false },
   deltas: { seo: 2, geo: null, aeo: null },
@@ -57,6 +58,26 @@ describe("VerdictTable", () => {
       expect(cell).toHaveTextContent("No score yet Not checked yet.");
     }
     expect(screen.queryByText(/Some data was missing/)).toBeNull();
+  });
+
+  it("says when a product's only check didn't finish, rather than not checked yet", () => {
+    render(
+      <VerdictTable
+        scores={[
+          row({
+            productId: "fern-and-field",
+            scanned: false,
+            lastCheckFailed: true,
+            totals: none,
+            deltas: none,
+            trend: [],
+          }),
+        ]}
+      />,
+    );
+    for (const cell of cellsOf(/Fern & Field/)) {
+      expect(cell).toHaveTextContent("No score yet The last check didn't finish.");
+    }
   });
 
   // Review Focus 2: every collector failed, so the product was scanned but has no scores.

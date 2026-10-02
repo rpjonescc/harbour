@@ -15,6 +15,7 @@ export function exampleToday(product: Pick<Product, "id" | "name">): ExampleToda
     {
       productId: product.id,
       scanned: true,
+      lastCheckFailed: false,
       totals: { seo: 78, geo: 46, aeo: null },
       complete: { seo: true, geo: false, aeo: false },
       deltas: { seo: 2, geo: -1, aeo: null },
