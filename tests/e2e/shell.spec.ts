@@ -6,6 +6,7 @@ import { auditLog } from "@/lib/db/schema";
 import { AREAS } from "@/lib/explain/areas";
 import { E2E_DB, E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
 import { hydrated } from "./hydration";
+import { expectPlainLanguage } from "./plain-language";
 import { sessionStorageState } from "./session-state";
 
 /** The sample Today's briefing for the E2E products (lib/today/sample.ts is deterministic). */
@@ -126,7 +127,7 @@ for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`${colorScheme} mode`, () => {
     test.use({ colorScheme });
 
-    test("Today renders scores and actions", async ({ page }) => {
+    test("Today renders the briefing, verdicts and what's worth doing", async ({ page }) => {
       const cspErrors = watchCspErrors(page);
       await page.goto("/");
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(SAMPLE_BRIEFING);
@@ -139,6 +140,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         page.getByRole("heading", { name: "Worth doing next", exact: true }),
       ).toBeVisible();
+      await expectPlainLanguage(page);
       await page.waitForLoadState("networkidle");
       expect(cspErrors).toEqual([]);
     });
@@ -146,7 +148,13 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("design system page renders every section", async ({ page }) => {
       const cspErrors = watchCspErrors(page);
       await page.goto("/design");
-      for (const name of ["Colour tokens", "Type", "Components", "Plain-language examples"]) {
+      for (const name of [
+        "Colour tokens",
+        "Type",
+        "Components",
+        "Plain-language examples",
+        "Today examples",
+      ]) {
         await expect(page.getByRole("heading", { name })).toBeVisible();
       }
       const whatsThis = page.getByRole("button", {

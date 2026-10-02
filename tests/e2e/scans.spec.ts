@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { E2E_SITE_PORT } from "../../playwright.config";
+import { expectPlainLanguage } from "./plain-language";
 
 // The worker scans the fictional Acme Docs site served by tests/e2e/fixture-site.ts
 // (tests/fixtures/sites/acme-docs): /about has no title, / and /about link to a missing page.
@@ -135,6 +136,11 @@ test("Today shows the real verdicts instead of the sample, with the numbers a cl
   await page.goto("/");
   await expect(page.getByText(/· last checked /)).toBeVisible();
   await expect(page.getByText("Sample data")).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    /^Your sites (are in (strong|good|fair) shape|need some work)\. Biggest opportunity: (Found on Google|Recommended by AI assistants|Answer-ready) for Acme Docs \((strong|good|fair|needs work)\)\.$/,
+  );
+  await expect(page.getByText(/^\d+ things? worth doing · nothing is broken$/)).toBeVisible();
+  await expectPlainLanguage(page);
   const table = page.getByRole("table", { name: "Scores by product" });
   for (const cell of await table
     .getByRole("row", { name: /Acme Docs/ })

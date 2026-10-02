@@ -182,4 +182,18 @@ describe("TodayView", () => {
       screen.getByRole("table", { name: "Visibility scores by product", hidden: true }),
     ).not.toBeVisible();
   });
+
+  it.each([
+    ["real", real],
+    ["sample", sampleToday(getProducts())],
+  ])("speaks plainly on the %s Today: no codes outside Technical details", (_label, today) => {
+    const { container } = renderToday(today, EXAMPLE_BACKUPS.failed);
+    const copy = container.cloneNode(true);
+    if (!(copy instanceof HTMLElement)) throw new Error("not an element");
+    for (const details of copy.querySelectorAll("details")) details.remove();
+    const text = copy.textContent ?? "";
+    expect(text).not.toMatch(/\b(?:SEO|GEO|AEO)\b/);
+    expect(text).not.toMatch(/HARBOUR_[A-Z_]+/);
+    expect(text).not.toMatch(/\b(?:seo|geo|aeo)\.[a-zA-Z]/);
+  });
 });

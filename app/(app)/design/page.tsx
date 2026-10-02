@@ -6,6 +6,7 @@ import { ExplainExamples } from "@/components/design/ExplainExamples";
 import { OpsExamples } from "@/components/design/OpsExamples";
 import { ScanExamples } from "@/components/design/ScanExamples";
 import { SourcesExamples } from "@/components/design/SourcesExamples";
+import { TodayExamples } from "@/components/design/TodayExamples";
 import { TokenSwatches } from "@/components/design/TokenSwatches";
 import { Button } from "@/components/ui/Button";
 import { Delta } from "@/components/ui/Delta";
@@ -28,6 +29,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export default async function DesignPage() {
   // Layouts do not re-run on client navigation, so every page checks the session itself.
   await requireSession();
+  const [firstProduct] = getProducts();
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8">
       <header>
@@ -83,6 +85,9 @@ export default async function DesignPage() {
       </Section>
       <Section title="Plain-language examples">
         <ExplainExamples />
+      </Section>
+      <Section title="Today examples">
+        {firstProduct && <TodayExamples product={firstProduct} />}
       </Section>
       <Section title="Second Brain examples">
         <BrainExamples />

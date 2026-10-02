@@ -829,6 +829,10 @@ the scan specs choose **Scan now** and check the product page, Sources and Today
 results. Only this environment may scan a loopback address (`HARBOUR_TEST_MODE` and
 `HARBOUR_SCAN_ALLOW_LOOPBACK`, both refused outside tests).
 
+The shell and scans specs also check that Today speaks plainly: no SEO, GEO or AEO heading, and
+no `HARBOUR_*` setting name or sub-score key outside **Technical details**
+(`tests/e2e/plain-language.ts`).
+
 The Playwright projects run in order — the shell and brain specs, then agents, scans, actions,
 the weekly analyst and finally operations (Settings) — because each later one changes what the
 earlier ones check. The actions specs seed a scored scan of the fictional Lighthouse Café and
