@@ -85,11 +85,14 @@ yet") instead of implying a worse score. Missing data is a gap, never a zero (AG
 
 Status values in the data model are unchanged.
 
-**Who's on it** (derived from the latest event and the PR link):
-- "Claude is on it"
-- "Pull request waiting for your OK"
-- "Waiting for you"
-- "New idea, not decided yet"
+**Who's on it** (derived from the status, the PR link and who made the latest *status-changing*
+event — its creation counts; a PR-link event, which keeps the status, does not):
+- "New idea, not decided yet": the action is suggested.
+- "Pull request waiting for your OK": it is in progress and has a PR link (whoever started it).
+- "Claude is on it": it is in progress, with no PR link, and Claude moved it there.
+- "Waiting for you": it is open, or in progress and moved there by anyone else (or by someone
+  Harbour no longer knows, after old history was pruned).
+- Done, snoozed and dismissed actions show no "who's on it".
 
 ## 4. Architecture
 
