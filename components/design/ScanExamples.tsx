@@ -10,6 +10,7 @@ import { SearchConsolePanel } from "@/components/products/SearchConsolePanel";
 import { ScoreBar } from "@/components/ui/ScoreBar";
 import { ScoreValue } from "@/components/ui/ScoreValue";
 import { Tabs } from "@/components/ui/Tabs";
+import type { RuleActionStatus } from "@/lib/actions/views";
 import { AREAS } from "@/lib/explain/areas";
 import {
   EXAMPLE_ISSUE,
@@ -19,6 +20,18 @@ import {
 } from "./scan-example-data";
 
 const ZONE = { timeZone: "Europe/London", locale: "en-GB" };
+
+/** Every state an issue card's action chip can show. */
+const ISSUE_STATES: { label: string; action: RuleActionStatus | null }[] = [
+  {
+    label: "Claude is on it",
+    action: { id: 1, status: "in_progress", snoozedUntil: null, who: "claude" },
+  },
+  { label: "Open", action: { id: 2, status: "open", snoozedUntil: null, who: "you" } },
+  { label: "Done, still found", action: { id: 3, status: "done", snoozedUntil: null, who: null } },
+  { label: "Snoozed", action: { id: 4, status: "snoozed", snoozedUntil: "2026-10-20", who: null } },
+  { label: "Not tracked yet", action: null },
+];
 
 /** Fictional product-page states for checking the scan components in both themes. */
 export function ScanExamples() {
@@ -69,12 +82,17 @@ export function ScanExamples() {
           },
         ]}
       />
-      <IssueItem
-        issue={EXAMPLE_ISSUE}
-        action={{ id: 1, status: "in_progress", snoozedUntil: null, who: "claude" }}
-        product={EXAMPLE_PRODUCT}
-        locale={ZONE.locale}
-      />
+      {ISSUE_STATES.map(({ label, action }) => (
+        <div key={label} className="flex flex-col gap-1">
+          <p className="text-2xs uppercase tracking-widest text-ink-muted">Issue · {label}</p>
+          <IssueItem
+            issue={{ ...EXAMPLE_ISSUE, id: `${EXAMPLE_ISSUE.id}-${action?.id ?? "none"}` }}
+            action={action}
+            product={EXAMPLE_PRODUCT}
+            locale={ZONE.locale}
+          />
+        </div>
+      ))}
       <PagesTable
         total={2}
         rows={[

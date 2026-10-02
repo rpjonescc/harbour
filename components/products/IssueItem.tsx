@@ -8,24 +8,13 @@ import {
   IMPACT_PHRASE,
   impactTone,
   STATUS_COLUMN,
-  WHO_PHRASE,
+  statusChip,
 } from "@/lib/explain/actions";
 import { AREAS, areaKeyOf } from "@/lib/explain/areas";
 import { formatIsoDay } from "@/lib/format/date";
 import type { Product } from "@/lib/products/catalog";
 import { handoffPrompt } from "@/lib/scan/handoff";
 import type { Issue } from "@/lib/scan/issues";
-
-/** Where the issue's action stands; the issue is on the page, so a done action is still found. */
-function actionStatusText(action: RuleActionStatus | null, locale: string): string {
-  if (action?.who) return WHO_PHRASE[action.who];
-  if (action === null) return "Tracking starts with the next check";
-  if (action.status === "done") return "Done — still found in the last check";
-  if (action.status === "snoozed" && action.snoozedUntil) {
-    return `Snoozed until ${formatIsoDay(action.snoozedUntil, locale)}`;
-  }
-  return STATUS_COLUMN[action.status];
-}
 
 /**
  * One issue: a plain title, one line on why it matters and its size of win; the area, where, the
@@ -45,13 +34,13 @@ export function IssueItem({
 }) {
   const headingId = `issue-${issue.id}`;
   const more = issue.total - issue.locations.length;
+  // The issue is on the page, so a done action is still found.
+  const chip = statusChip(action, (day) => formatIsoDay(day, locale), true);
   return (
     <article aria-labelledby={headingId} className="flex flex-col gap-2 py-4">
       <div className="flex flex-wrap gap-1.5">
         <Tag tone={impactTone(issue.impact)}>{IMPACT_PHRASE[issue.impact]}</Tag>
-        <Tag tone={action?.who ? "accent" : action?.status === "done" ? "warn" : "neutral"}>
-          {actionStatusText(action, locale)}
-        </Tag>
+        <Tag tone={chip.tone}>{chip.text}</Tag>
       </div>
       <h3 id={headingId} className="text-base font-medium text-ink">
         {issue.title}

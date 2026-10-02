@@ -19,7 +19,7 @@ export const EXAMPLE_SCORES: ScoreTrend = {
   latest: {
     scanId: 1,
     computedAt: AT,
-    formulaVersion: "v1",
+    formulaVersion: "v2",
     totals: { seo: 78, geo: 46, aeo: null },
     complete: { seo: true, geo: false, aeo: false },
     breakdown: [
