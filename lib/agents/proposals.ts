@@ -24,20 +24,45 @@ const competitor = z.object({
   why,
 });
 
+// Single-line plain text: control and invisible format characters (newlines, zero-width, bidi
+// overrides) are refused so a pillar can't smuggle structure into a later prompt or label.
+const plainLine = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(max)
+    .refine((v) => !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(v), "must be plain text on one line");
+const pillar = z.object({
+  key: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .max(40),
+  name: plainLine(60),
+  description: plainLine(300),
+  why,
+});
+/** Most pillars a product may have approved at once: the owner rejects one to make room. */
+export const MAX_APPROVED_PILLARS = 6;
+export type Pillar = { key: string; name: string; description: string };
+
 export const proposalsSchema = z.object({
   keywords: z.array(keyword).max(60),
   questions: z.array(question).max(30),
   competitors: z.array(competitor).max(10),
+  pillars: z.array(pillar).max(5).default([]),
 });
 
 export type Proposals = z.infer<typeof proposalsSchema>;
-export type ProposalType = "keyword" | "question" | "competitor";
+export type ProposalType = "keyword" | "question" | "competitor" | "pillar";
 export type ProposalRow = typeof proposals.$inferSelect;
 
 const VALUE_SCHEMAS = {
   keyword: keyword.omit({ why: true }),
   question: question.omit({ why: true }),
   competitor: competitor.omit({ why: true }),
+  pillar: pillar.omit({ why: true }),
 } as const;
 
 /** "✖ msg\n  → at field" blocks from z.prettifyError become "field: msg" lines. */
@@ -61,6 +86,7 @@ function keyFor(type: ProposalType, value: Record<string, string | undefined>): 
   if (type === "keyword")
     return JSON.stringify(["kw", norm(value.term ?? ""), norm(value.location ?? "")]);
   if (type === "question") return JSON.stringify(["q", norm(value.text ?? "")]);
+  if (type === "pillar") return JSON.stringify(["p", norm(value.key ?? "")]);
   if (URL.canParse(value.url ?? "")) {
     const u = new URL(value.url ?? "");
     return JSON.stringify([
@@ -106,6 +132,7 @@ export function importProposals(
       value,
       why: w,
     })),
+    ...data.pillars.map(({ why: w, ...value }) => ({ type: "pillar" as const, value, why: w })),
   ];
   let added = 0;
   db.transaction((tx) => {
@@ -142,7 +169,47 @@ export function listProposals(db: Db, productId: string): Record<ProposalType, P
     keyword: all.filter((p) => p.type === "keyword"),
     question: all.filter((p) => p.type === "question"),
     competitor: all.filter((p) => p.type === "competitor"),
+    pillar: all.filter((p) => p.type === "pillar"),
   };
+}
+
+/** The pillars the owner approved, oldest first: what ideas are shaped by. */
+export function approvedPillars(db: Db, productId: string): Pillar[] {
+  return db
+    .select()
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.productId, productId),
+        eq(proposals.type, "pillar"),
+        eq(proposals.status, "approved"),
+      ),
+    )
+    .orderBy(asc(proposals.id))
+    .all()
+    .map(({ value }) => ({
+      key: value.key ?? "",
+      name: value.name ?? "",
+      description: value.description ?? "",
+    }));
+}
+
+/** Whether approving would take a product past six approved pillars (the owner must reject one first). */
+export function pillarLimitReached(
+  db: Db,
+  productId: string,
+  action: { action: string; type?: string; proposalId?: number },
+): boolean {
+  const approved = approvedPillars(db, productId).length;
+  if (action.action === "approve-all" && action.type === "pillar") {
+    const proposed = listProposals(db, productId).pillar.filter(
+      (p) => p.status === "proposed",
+    ).length;
+    return approved + proposed > MAX_APPROVED_PILLARS;
+  }
+  if (action.action !== "approve" || action.proposalId === undefined) return false;
+  const row = listProposals(db, productId).pillar.find((p) => p.id === action.proposalId);
+  return row?.status === "proposed" && approved >= MAX_APPROVED_PILLARS;
 }
 
 export function decideProposal(

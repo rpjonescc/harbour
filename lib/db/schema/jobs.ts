@@ -78,7 +78,7 @@ export const proposals = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     productId: text("product_id").notNull(),
-    type: text("type", { enum: ["keyword", "question", "competitor"] }).notNull(),
+    type: text("type", { enum: ["keyword", "question", "competitor", "pillar"] }).notNull(),
     value: text("value", { mode: "json" }).$type<Record<string, string>>().notNull(),
     // Normalised identity (e.g. lower-cased term) so re-runs don't duplicate items.
     key: text("key").notNull(),

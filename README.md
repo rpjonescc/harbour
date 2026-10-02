@@ -93,7 +93,7 @@ explainable breakdowns. The roadmap continues with:
 | `/products/<id>` | A product's scores, issues, pages and sources |
 | `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`; the status values are the stored ones, which the board shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed) |
 | `/settings` | Settings overview: products, schedules, connections, budget and backups |
-| `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors) |
+| `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors, content pillars) |
 | `/settings/sources` | Check schedule, connections and each source's last run |
 | `/brain` | Second Brain |
 | `/agents` | Agent runs |
@@ -192,6 +192,10 @@ Discovery results are proposals, not commitments. Open a product in the sidebar 
 competitors, each with the agent's reason. **Approve**, **Reject** or **Edit** each one, or
 **Approve all proposed** per list. Re-running discovery never overwrites items you've already
 decided on.
+
+For a product with content turned on, discovery also proposes three to five **content
+pillars** (recurring themes to write about), approved the same way. Harbour keeps at most six
+approved pillars; to approve another, reject one first.
 
 Saving and syncing need no action. The Agents page and the Second Brain say "Saved · synced",
 or show note files that "will be saved automatically soon" and saved changes "waiting to reach

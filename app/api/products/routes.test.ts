@@ -43,6 +43,7 @@ function seed() {
       ],
       questions: [],
       competitors: [],
+      pillars: [],
     },
     null,
   );
@@ -151,5 +152,58 @@ describe("POST /api/products/[id]/proposals", () => {
     const { message } = (await response.json()) as { message: string };
     expect(message).toMatch(/^term: /);
     expect(message).not.toContain("✖");
+  });
+
+  describe("pillar limit", () => {
+    const pillar = (key: string) => ({
+      key,
+      name: key,
+      description: "A recurring theme.",
+      why: "It comes up often.",
+    });
+    const seedPillars = (keys: string[]) => {
+      importProposals(
+        db(),
+        "acme-docs",
+        { keywords: [], questions: [], competitors: [], pillars: keys.map(pillar) },
+        null,
+      );
+      return rows().map((r) => r.id);
+    };
+
+    it("refuses a seventh approved pillar and leaves it proposed", async () => {
+      const ids = seedPillars(["a", "b", "c", "d", "e", "f", "g"]);
+      for (const id of ids.slice(0, 6)) {
+        expect((await POST(post({ action: "approve", proposalId: id }), params())).status).toBe(
+          200,
+        );
+      }
+      const seventh = ids[6];
+      const response = await POST(post({ action: "approve", proposalId: seventh }), params());
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({ error: "pillar_limit" });
+      expect(rows().find((r) => r.id === seventh)?.status).toBe("proposed");
+    });
+
+    it("refuses approve-all for pillars when it would pass six", async () => {
+      seedPillars(["a", "b", "c", "d", "e", "f", "g"]);
+      const first = rows()[0];
+      await POST(post({ action: "approve", proposalId: first?.id }), params());
+      const response = await POST(post({ action: "approve-all", type: "pillar" }), params());
+      expect(response.status).toBe(409);
+      expect(await response.json()).toEqual({ error: "pillar_limit" });
+      expect(rows().filter((r) => r.status === "approved")).toHaveLength(1);
+    });
+
+    it("lets approve-all through up to six, and re-approving an approved one", async () => {
+      const [first] = seedPillars(["a", "b", "c"]);
+      await POST(post({ action: "approve", proposalId: first }), params());
+      expect((await POST(post({ action: "approve-all", type: "pillar" }), params())).status).toBe(
+        200,
+      );
+      expect((await POST(post({ action: "approve", proposalId: first }), params())).status).toBe(
+        200,
+      );
+    });
   });
 });

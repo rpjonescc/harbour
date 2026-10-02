@@ -93,6 +93,20 @@ describe("specForJob", () => {
     });
   });
 
+  it("asks discovery for pillars, and versions the prompt, only when content is on", () => {
+    const content = {
+      root: "/tmp/brain",
+      skillsDir: "/tmp/skills",
+      products: products.map((p) => ({ ...p, terms: ["docs"], platforms: ["blog" as const] })),
+      excludeApps: [],
+    };
+    const on = specForJob("discovery", { productId: "acme-docs" }, { ...context, content });
+    expect(on.prompt).toContain('"pillars"');
+    expect(on.promptVersion).toBe("2b-v1-pillars");
+    const off = specForJob("discovery", { productId: "acme-docs" }, context);
+    expect(off.prompt).not.toContain('"pillars"');
+  });
+
   it("rejects unknown topics and products", () => {
     expect(() => specForJob("research", { topic: "nope" }, context)).toThrow(
       /unknown research topic/i,

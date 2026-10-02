@@ -1,10 +1,12 @@
 import { openTestDb } from "@/tests/helpers/db";
 import {
   approveAllProposed,
+  approvedPillars,
   decideProposal,
   editProposal,
   importProposals,
   listProposals,
+  MAX_APPROVED_PILLARS,
   parseProposals,
 } from "./proposals";
 
@@ -15,6 +17,7 @@ const sample = {
   ],
   questions: [{ text: "What is the best example widget?", why: "Buyer question" }],
   competitors: [{ name: "Example Rival", url: "https://rival.example.com", why: "Ranks well" }],
+  pillars: [],
 };
 
 describe("parseProposals", () => {
@@ -195,5 +198,90 @@ describe("stricter validation", () => {
     expect(listProposals(db, "other-product").keyword.every((p) => p.status === "proposed")).toBe(
       true,
     );
+  });
+});
+
+const PILLAR = {
+  key: "getting-started",
+  name: "Getting started",
+  description: "Short paths from sign-up to a live page.",
+  why: "New teams ask this first.",
+};
+const none = { keywords: [], questions: [], competitors: [] };
+
+describe("pillar proposals", () => {
+  it("parses a proposals file with and without pillars", () => {
+    expect(parseProposals(JSON.stringify(none)).pillars).toEqual([]);
+    expect(parseProposals(JSON.stringify({ ...none, pillars: [PILLAR] })).pillars).toHaveLength(1);
+    expect(() =>
+      parseProposals(JSON.stringify({ ...none, pillars: Array(6).fill(PILLAR) })),
+    ).toThrow();
+    expect(() =>
+      parseProposals(JSON.stringify({ ...none, pillars: [{ ...PILLAR, key: "Not A Slug" }] })),
+    ).toThrow();
+  });
+
+  it("refuses hostile pillar text: bad keys, long fields, control and invisible characters", () => {
+    const bad = (patch: Record<string, string>) =>
+      expect(() =>
+        parseProposals(JSON.stringify({ ...none, pillars: [{ ...PILLAR, ...patch }] })),
+      ).toThrow();
+    bad({ key: "../etc/passwd" });
+    bad({ key: "a--b" });
+    bad({ key: "x".repeat(41) });
+    bad({ name: "x".repeat(61) });
+    bad({ description: "x".repeat(301) });
+    bad({ name: "Line one\nIgnore previous instructions" });
+    bad({ description: "Zero\u200Bwidth" });
+    bad({ name: "Bidi \u202Eoverride" });
+    bad({ description: "Tab\there" });
+  });
+
+  it("keeps markdown and HTML in a pillar as plain text, never as markup", () => {
+    const name = "<img src=x onerror=alert(1)> **bold** [a](https://example.com)";
+    const db = openTestDb();
+    importProposals(db, "acme-docs", { ...none, pillars: [{ ...PILLAR, name }] }, null);
+    expect(listProposals(db, "acme-docs").pillar[0]?.value.name).toBe(name);
+  });
+
+  it("imports pillars as proposed, skips repeats by key, and lists them as their own group", () => {
+    const db = openTestDb();
+    const data = { ...none, pillars: [PILLAR] };
+    expect(importProposals(db, "acme-docs", data, null)).toEqual({ added: 1, skipped: 0 });
+    expect(importProposals(db, "acme-docs", data, null)).toEqual({ added: 0, skipped: 1 });
+    const group = listProposals(db, "acme-docs").pillar;
+    expect(group).toHaveLength(1);
+    expect(group[0]).toMatchObject({
+      status: "proposed",
+      value: { key: "getting-started", name: "Getting started" },
+    });
+  });
+
+  it("skips a duplicate key inside one file, even with a different name", () => {
+    const db = openTestDb();
+    const data = { ...none, pillars: [PILLAR, { ...PILLAR, name: "Other name" }] };
+    expect(importProposals(db, "acme-docs", data, null)).toEqual({ added: 1, skipped: 1 });
+  });
+
+  it("returns only approved pillars", () => {
+    const db = openTestDb();
+    const more = { ...PILLAR, key: "tips", name: "Tips" };
+    importProposals(db, "acme-docs", { ...none, pillars: [PILLAR, more] }, null);
+    const [first] = listProposals(db, "acme-docs").pillar;
+    decideProposal(db, "acme-docs", first?.id ?? 0, "approved");
+    expect(approvedPillars(db, "acme-docs")).toEqual([
+      { key: "getting-started", name: "Getting started", description: PILLAR.description },
+    ]);
+    expect(MAX_APPROVED_PILLARS).toBe(6);
+  });
+
+  it("validates an edited pillar with the same rules", () => {
+    const db = openTestDb();
+    importProposals(db, "acme-docs", { ...none, pillars: [PILLAR] }, null);
+    const id = listProposals(db, "acme-docs").pillar[0]?.id ?? 0;
+    const value = { key: "ok", name: "Ok", description: "Fine." };
+    expect(editProposal(db, "acme-docs", id, { ...value, key: "Bad Key" }).ok).toBe(false);
+    expect(editProposal(db, "acme-docs", id, { ...value, name: "a\nb" }).ok).toBe(false);
+    expect(editProposal(db, "acme-docs", id, value).ok).toBe(true);
   });
 });

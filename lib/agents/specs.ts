@@ -133,16 +133,18 @@ function discoverySpec(params: Record<string, string>, context: SpecContext): Ag
   const proposals = `${dir}/proposals.json`;
   const targets = [`${dir}/discovery.md`, proposals];
   const output = outputForJob("discovery", { productId: product.id });
+  // Pillars are proposed only for products with content on (they shape content ideas).
+  const withPillars = Boolean(context.content?.products.some((p) => p.id === product.id));
   return {
     kind: "discovery",
     label: `Discovery: ${product.name}`,
-    prompt: discoveryPrompt(product, context.today),
+    prompt: discoveryPrompt(product, context.today, withPillars),
     allowed: { prefixes: [], exact: [...targets] },
     targets,
     output,
     requiredFiles: [`${dir}/notes.md`],
     requiredOutputs: [proposals],
-    promptVersion: PROMPT_VERSION,
+    promptVersion: withPillars ? `${PROMPT_VERSION}-pillars` : PROMPT_VERSION,
   };
 }
 
