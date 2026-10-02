@@ -358,6 +358,17 @@ runs set to 90 days).
   fenced too and labelled "check it before acting".
 - The owner's "reject" of a suggestion is the `dismissed` status. Effort is
   `small | medium | large`.
+- **Who changes status by hand**: the owner on the board, and Claude through
+  `pnpm actions` — an operator CLI run on the host from a Claude Code session, not a worker
+  agent (worker-run agents still only propose). Claude's changes use the same transition and
+  snooze rules, the same `from` stale-state guard and the same single IMMEDIATE transaction
+  (`applyStatusChange`, parameterised by actor), require a written reason (stored as the history
+  note, never in the audit detail), and appear in the history as actor `claude`. The owner
+  reviews them afterwards and can reopen anything.
+- **Pull request link**: an action may carry the GitHub pull request of its fix (`pr_url`,
+  `https://github.com/<owner>/<repo>/pull/<number>` only), set or cleared with
+  `pnpm actions link`; linking adds a history entry that keeps the status and an
+  `action_pr_linked` audit entry. The card links it in a new tab; Hand to Claude is unchanged.
 - Done actions are re-verified by the next scan where a rule exists; if the
   condition persists the action reopens with a note.
 
@@ -405,7 +416,8 @@ runs set to 90 days).
 - Secrets in `.env` (mode 600), read only by server code and the worker; never
   serialised to the client. Settings shows key status, not values.
 - Rendered markdown sanitised; agent-produced content treated as untrusted data.
-- Audit log table: logins, passkey changes, manual runs, settings changes.
+- Audit log table: logins, passkey changes, manual runs, settings changes, action status
+  changes and pull request links (by the owner or Claude).
 - Agent runs have no shell tool and cannot write outside the brain directory.
 
 ## 11. Reliability and error handling

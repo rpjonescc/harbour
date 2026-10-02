@@ -26,7 +26,9 @@ continues with:
   with why it matters, the fix, how to tell it is done, effort, evidence, related Second Brain
   docs and its history. Filter by product, area and status (a plain, bookmarkable form); move
   an action through suggested → open → in progress → done, snooze it until a date or dismiss
-  it; **Hand to Claude** copies a ready prompt for it. The sidebar shows how many are open.
+  it; **Hand to Claude** copies a ready prompt for it, and a linked pull request shows on the
+  card. The sidebar shows how many are open. Claude can triage the board for you with
+  `pnpm actions`, every change recorded with its reason.
 - **Sources** — whether the daily scan is on, which data sources are connected (never their
   secrets), and each source's last run, status and reason per product.
 - **Products from config** — list your products in `harbour.config.json`; each gets a
@@ -284,6 +286,7 @@ pnpm analyst:now    # queues the weekly analyst report for the current week now
 pnpm backup:now     # queues a backup of the database now (see "Backups and restore")
 pnpm retention:check  # read-only: what the next retention run would delete (see "Data kept")
 pnpm gsc:connect    # signs in with Google to connect Search Console (see "Connect Search Console")
+pnpm actions list   # lists and triages actions from a terminal (see "Let Claude triage the board")
 ```
 
 A deployed install runs the worker as the `harbour-worker` systemd user service (see
@@ -600,12 +603,48 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   of the rest. Each card offers only the moves its status allows (for example **Start**,
   **Mark done**, **Snooze…** with a date from tomorrow to a year ahead, **Dismiss**;
   suggestions from the weekly analyst are **Accept**ed or **Reject**ed). Its **History** lists
-  every change with who made it, and **Hand to Claude** copies a prompt with the problem,
+  every change with who made it (**You**, **Claude**, **Scan**…) and its note; a card whose fix
+  has a pull request links to it (**Pull request owner/repo#42**, in a new tab). **Hand to
+  Claude** copies a prompt with the problem,
   evidence (fenced as data), fix and acceptance check. When agents have proposed research
   targets, a link per product leads to its settings page to approve them.
 - **Sources** (`/settings/sources`) shows each collector's latest run per product (ok, failed,
   not connected or skipped) with its reason, and whether PageSpeed and Search Console are
   connected — as connected or not, never the key or the credentials.
+
+## Let Claude triage the board
+
+`pnpm actions` lets Claude, running in a Claude Code session on the Harbour host, work the
+Actions board as your expert: accept or dismiss suggestions, start, finish or snooze actions,
+and link the pull request that fixes each one. Every change goes through the same rules as the
+board's buttons and lands in the action's history as **Claude**, with the reason Claude gave, and
+in the audit log (without the reason). You review the decisions on the board afterwards and can
+reopen or move anything back. It is a tool run on the host, not a worker agent: the worker's
+agents still only suggest.
+
+```bash
+pnpm actions list [--product <id>] [--status open,in_progress] [--json]
+pnpm actions show 12
+pnpm actions set 12 in_progress --from open --note "Fixing the page titles in acme/widget#42"
+pnpm actions set 12 snoozed --from open --note "Wait for the redesign" --until 2026-11-01
+pnpm actions link 12 https://github.com/acme/widget/pull/42
+pnpm actions link 12 --clear
+```
+
+- **list** shows suggested, open, in-progress and snoozed actions by default (at most 500), one
+  per line: `#id  product  area  status  impact/effort  title  [PR]`. `--status` takes one or more
+  statuses (`suggested`, `open`, `in_progress`, `done`, `snoozed`, `dismissed`); `--json` prints
+  the full actions.
+- **show** prints every field, the evidence, the history and the **Hand to Claude** prompt.
+- **set** needs `--from`, the status Claude last saw: if the action changed since, it is
+  refused instead of overwritten, as on the board. `--note` (up to 1,000 characters) is
+  required: Claude must say why. Snoozing needs `--until`, a date after today in
+  `HARBOUR_TIMEZONE` and at most a year ahead.
+- **link** stores a GitHub pull request URL (`https://github.com/<owner>/<repo>/pull/<number>`,
+  nothing else) on the action, or clears it with `--clear`, and notes it in the history.
+
+Only actions of products in `harbour.config.json` are found. Errors print one line and exit
+non-zero. The output is the actions' own content, never settings or secrets.
 
 ## Connecting Google data
 
@@ -800,7 +839,7 @@ lib/          auth, agents, brain, config, costs (ledger, budget), db, jobs, ops
 worker/       the job worker (`pnpm worker`): agent runs, scans, backups, autosave and push retries
 deploy/       systemd unit template, install script, deployment guide
 drizzle/      SQL migrations
-scripts/      repo checks and the setup-token, initial-run, scan-now, analyst-now, backup-now and retention-check CLIs
+scripts/      repo checks and the setup-token, initial-run, scan-now, analyst-now, backup-now, retention-check, gsc-connect and actions CLIs
 tests/        e2e specs and test helpers
 docs/         design spec and implementation plans
 ```
