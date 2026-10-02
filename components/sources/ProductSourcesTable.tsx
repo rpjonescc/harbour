@@ -20,7 +20,7 @@ const NEXT: Record<NextDailyScan, string> = {
   off: "Next check: only when you choose Check now",
   today: "Next check: today at 06:00",
   tomorrow: "Next check: tomorrow at 06:00",
-  due: "Next check: due now — queued at the worker's next check",
+  due: "Next check: due now — queued for the worker's next run",
 };
 
 /** One product's scan times and each source's latest run, with its error or reason. */
