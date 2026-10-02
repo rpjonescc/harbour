@@ -70,14 +70,15 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
   ).toBeVisible();
   await expect(pages.getByRole("row", { name: /\/guides\/faq\b/ })).toBeVisible();
 
-  const searchConsole = page.getByRole("region", { name: "Search Console" });
-  await expect(searchConsole.getByText("Not connected", { exact: true })).toBeVisible();
+  const searchConsole = page.getByRole("region", { name: "Google Search Console" });
+  await expect(searchConsole.getByText("Not connected yet", { exact: true })).toBeVisible();
   await expect(
-    searchConsole.getByRole("link", { name: /How to connect Search Console/ }),
+    searchConsole.getByRole("link", { name: /How to connect Google Search Console/ }),
   ).toHaveAttribute("href", /#connect-search-console$/);
-  for (const name of ["AI engines", "Rankings"]) {
+  for (const name of ["What AI assistants say about you", "Where you rank on Google"]) {
     const panel = page.getByRole("region", { name });
-    await expect(panel.getByText("Not connected", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Not available yet", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("link", { name: /What the scores use today/ })).toBeVisible();
     await expect(panel.getByRole("link", { name: /What the scores use today/ })).toBeVisible();
   }
 });

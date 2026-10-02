@@ -3,22 +3,21 @@ import { Tag } from "@/components/ui/Tag";
 
 export type SourceStatus = "connected" | "not-connected" | "failed";
 
-const TAG = {
-  connected: { tone: "accent", text: "Connected" },
-  "not-connected": { tone: "neutral", text: "Not connected" },
-  failed: { tone: "warn", text: "Failed" },
-} as const;
+const TONE = { connected: "accent", "not-connected": "neutral", failed: "warn" } as const;
 
 /** A data source's panel: heading, connection state and what it shows (or how to connect it). */
 export function SourcePanel({
   id,
   title,
   status,
+  statusLabel,
   children,
 }: {
   id: string;
   title: string;
   status: SourceStatus;
+  /** The tag text; `status` only picks its tone. */
+  statusLabel: string;
   children: ReactNode;
 }) {
   return (
@@ -30,7 +29,7 @@ export function SourcePanel({
         <h2 id={`${id}-heading`} className="font-serif text-lg">
           {title}
         </h2>
-        <Tag tone={TAG[status].tone}>{TAG[status].text}</Tag>
+        <Tag tone={TONE[status]}>{statusLabel}</Tag>
       </div>
       {children}
     </section>

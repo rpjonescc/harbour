@@ -203,76 +203,13 @@ describe("ProductOverview", () => {
     }
   });
 
-  it("shows Search Console's setup link and the paid sources as not connected", () => {
+  it("shows the paid data as not available yet, in plain words", () => {
     renderPage(scanned);
-    const gsc = screen.getByRole("region", { name: "Search Console" });
-    expect(gsc).toHaveTextContent("HARBOUR_GSC_CREDENTIALS is not set");
-    expect(
-      within(gsc).getByRole("link", { name: /How to connect Search Console/ }),
-    ).toHaveAttribute("href", "https://github.com/rpjonescc/harbour#connect-search-console");
-    for (const name of ["AI engines", "Rankings"]) {
-      expect(screen.getByRole("region", { name })).toHaveTextContent(
-        "Not connected (needs API keys)",
-      );
+    for (const name of ["What AI assistants say about you", "Where you rank on Google"]) {
+      const region = screen.getByRole("region", { name });
+      expect(region).toHaveTextContent("Not available yet");
+      expect(region).toHaveTextContent("Harbour doesn't collect this data yet.");
+      expect(within(region).getByRole("link", { name: /What the scores use today/ })).toBeVisible();
     }
-  });
-
-  it("shows Search Console data when connected", () => {
-    renderPage({
-      ...scanned,
-      search: {
-        state: "ok",
-        summary: {
-          startDate: "2026-09-01",
-          endDate: "2026-09-28",
-          days: [
-            { date: "2026-09-01", clicks: 4, impressions: 100 },
-            { date: "2026-09-02", clicks: 6, impressions: 140 },
-          ],
-          clicks: 10,
-          impressions: 240,
-          topQueries: [{ query: "acme docs install", clicks: 7, impressions: 90, position: 3.4 }],
-        },
-      },
-    });
-    const gsc = screen.getByRole("region", { name: "Search Console" });
-    expect(within(gsc).getByText("Connected")).toBeInTheDocument();
-    expect(within(gsc).getByRole("img", { name: /Daily clicks/ })).toBeInTheDocument();
-    expect(within(gsc).getByRole("rowheader", { name: "acme docs install" })).toBeInTheDocument();
-    // Numbers and dates follow HARBOUR_LOCALE (en-GB here).
-    expect(gsc).toHaveTextContent("1 Sept 2026 to 28 Sept 2026");
-    expect(within(gsc).queryByRole("link", { name: /How to connect/ })).toBeNull();
-  });
-
-  it("formats Search Console numbers in the configured locale", () => {
-    render(
-      <ProductOverview
-        product={product}
-        view={{
-          ...scanned,
-          search: {
-            state: "ok",
-            summary: {
-              startDate: "2026-09-01",
-              endDate: "2026-09-28",
-              days: [],
-              clicks: 1234,
-              impressions: 56789,
-              topQueries: [],
-            },
-          },
-        }}
-        timeZone="UTC"
-        locale="de-DE"
-      />,
-    );
-    expect(screen.getByRole("region", { name: "Search Console" })).toHaveTextContent("56.789");
-  });
-
-  it("does not offer setup steps when Search Console ran but stored no summary", () => {
-    renderPage({ ...scanned, search: { state: "ok", summary: null } });
-    const gsc = screen.getByRole("region", { name: "Search Console" });
-    expect(gsc).toHaveTextContent("No Search Console data in this scan.");
-    expect(within(gsc).queryByRole("link", { name: /How to connect/ })).toBeNull();
   });
 });

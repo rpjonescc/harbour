@@ -155,6 +155,11 @@ export function sourceName(id: string): string {
   return BY_ID.get(id)?.name ?? collectorLabel(id);
 }
 
+/** A data source's explanation by id; null for an id Harbour doesn't know. */
+export function sourceExplanation(id: string): SourceExplanation | null {
+  return BY_ID.get(id) ?? null;
+}
+
 /** How a source stands after its latest run (null: it has not run yet), in plain words. */
 export function sourceStatusPhrase(id: string, status: CollectorStatus | null): string {
   const state = status === null ? "waiting" : STATE_OF[status];
