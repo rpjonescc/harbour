@@ -13,21 +13,23 @@ export function activeScanSentence(status: "queued" | "running", started: string
 
 /**
  * How the last scan ended. `showing` is when the scores on screen come from (a failed scan
- * never hides the last good results); null when there are none.
+ * never hides the last good results); null when there are none. While a scan is `active` the
+ * Scan now button is disabled, so the sentence leaves out "Try Scan now."
  */
 export function lastScanSentence(input: {
   status: "ok" | "partial" | "failed";
   when: string;
   showing: string | null;
+  active?: boolean;
 }): string {
-  const { status, when, showing } = input;
+  const { status, when, showing, active = false } = input;
+  const retry = active ? "" : " Try Scan now.";
   if (status === "ok") return `Last scan ${when}.`;
   if (status === "partial") {
-    return `Last scan ${when} had a data source problem, so some scores may be missing. Try Scan now.`;
+    return `Last scan ${when} had a data source problem, so some scores may be missing.${retry}`;
   }
-  if (showing === null)
-    return "The last scan didn't finish and there are no results yet. Try Scan now.";
-  return `The last scan didn't finish, so you're seeing the ${showing} results. Try Scan now.`;
+  if (showing === null) return `The last scan didn't finish and there are no results yet.${retry}`;
+  return `The last scan didn't finish, so you're seeing the ${showing} results.${retry}`;
 }
 
 /** What Scan now says back: what happened, and what to do when it didn't work. */

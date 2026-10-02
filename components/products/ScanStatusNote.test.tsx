@@ -69,6 +69,15 @@ describe("ScanStatusNote", () => {
     expect(screen.queryByText(/Technical details/)).toBeNull();
   });
 
+  it("does not say Try Scan now while a scan runs after a failed one", () => {
+    note({ ...last({ error: "boom" }), active: { jobId: 4, status: "running", since: AT } });
+    expect(screen.getByRole("status")).toHaveTextContent("Scanning now");
+    expect(
+      screen.getByText("The last scan didn't finish and there are no results yet."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Try Scan now/)).toBeNull();
+  });
+
   it("says what to do before the first scan, and while one runs", () => {
     const { unmount } = note({ active: null, last: null });
     expect(screen.getByText(/hasn't scanned this site yet/)).toBeInTheDocument();

@@ -52,16 +52,19 @@ function RawErrors({ last }: { last: NonNullable<ScanState["last"]> }) {
 function LastScanNote({
   last,
   latest,
+  active,
   at,
 }: {
   last: NonNullable<ScanState["last"]>;
   latest: ScoreSnapshot | null;
+  active: boolean;
   at: (d: Date) => string;
 }) {
   const sentence = lastScanSentence({
     status: last.status,
     when: at(last.finishedAt ?? last.startedAt),
     showing: latest ? at(latest.computedAt) : null,
+    active,
   });
   return (
     <div
@@ -82,7 +85,9 @@ export function ScanStatusNote({ scan, latest, timeZone, locale }: Props) {
   return (
     <div className="flex flex-col gap-2">
       {scan.active && <ActiveNote active={scan.active} at={at} />}
-      {scan.last && <LastScanNote last={scan.last} latest={latest} at={at} />}
+      {scan.last && (
+        <LastScanNote last={scan.last} latest={latest} active={scan.active !== null} at={at} />
+      )}
     </div>
   );
 }
