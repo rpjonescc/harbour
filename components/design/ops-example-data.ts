@@ -189,7 +189,8 @@ export const EXAMPLE_SETTINGS: SettingsView = {
       label: "Claude token",
       settings: ["HARBOUR_CLAUDE_OAUTH_TOKEN"],
       status: "present",
-      usedFor: "Agents: research, discovery, the weekly analyst and research refreshes",
+      usedFor:
+        "Agents: research, discovery, the weekly analyst, research refreshes and the morning note",
       inUse: true,
       paid: false,
     },

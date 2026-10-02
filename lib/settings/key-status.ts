@@ -48,7 +48,7 @@ export function keyStatusRows(
       settings: ["HARBOUR_CLAUDE_OAUTH_TOKEN"],
       status: presence(config, ["HARBOUR_CLAUDE_OAUTH_TOKEN"]),
       usedFor:
-        "Agents: research, discovery, the weekly analyst and research refreshes and the morning note",
+        "Agents: research, discovery, the weekly analyst, research refreshes and the morning note",
       inUse: true,
       paid: false,
     },

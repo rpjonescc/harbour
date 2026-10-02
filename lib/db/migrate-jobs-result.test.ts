@@ -17,7 +17,7 @@ describe("the jobs.result migration", () => {
       const journal = JSON.parse(readFileSync(journalFile, "utf8")) as {
         entries: { tag: string }[];
       };
-      expect(journal.entries.pop()?.tag).toMatch(/_loose_punisher$|^0012_/);
+      expect(journal.entries.pop()?.tag).toBe("0012_jobs_result");
       writeFileSync(journalFile, JSON.stringify(journal));
 
       const db = openDb(join(dir, "old.db"));

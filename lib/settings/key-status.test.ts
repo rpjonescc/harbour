@@ -1,3 +1,4 @@
+import { EXAMPLE_SETTINGS } from "@/components/design/ops-example-data";
 import { type Config, parseConfig } from "@/lib/config";
 import { keyStatusRows } from "./key-status";
 
@@ -36,6 +37,14 @@ describe("keyStatusRows", () => {
     ]);
     expect(rows.every((row) => row.status === "missing")).toBe(true);
     expect(rows.every((row) => row.label.length > 0 && row.usedFor.length > 0)).toBe(true);
+  });
+
+  it("words the Claude token's uses as one list, and the /design example says the same", () => {
+    const claude = keyStatusRows(config(), () => true).find((row) => row.id === "claude");
+    expect(claude?.usedFor).toBe(
+      "Agents: research, discovery, the weekly analyst, research refreshes and the morning note",
+    );
+    expect(EXAMPLE_SETTINGS.keys.find((row) => row.id === "claude")?.usedFor).toBe(claude?.usedFor);
   });
 
   it("marks set keys present and never exposes a value or path", () => {
