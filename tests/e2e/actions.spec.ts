@@ -39,14 +39,16 @@ async function openTechnical(page: Page, title: string) {
 }
 
 /** Clicks a status button once the card is hydrated, then waits for the card's new tag. */
-async function changeStatus(page: Page, title: string, button: string, tag: string) {
+async function changeStatus(page: Page, title: string, button: string, tag: string | RegExp) {
   const target = card(page, title).getByRole("button", {
     name: `${button}: ${title}`,
     exact: true,
   });
   await hydrated(target);
   await target.click();
-  await expect(card(page, title).getByText(tag, { exact: true })).toBeVisible();
+  await expect(
+    card(page, title).getByText(tag, typeof tag === "string" ? { exact: true } : {}),
+  ).toBeVisible();
 }
 
 test("the sidebar counts open actions and the board groups them, biggest wins first", async ({
@@ -119,11 +121,11 @@ test("filters narrow the board, live in the URL, and clear", async ({ page }) =>
 
 test("accept, start and mark done move an action through the board", async ({ page }) => {
   await page.goto(`${CAFE_BOARD}&status=all`);
-  await changeStatus(page, SUGGESTED.aeo, "Accept", "To do");
+  await changeStatus(page, SUGGESTED.aeo, "Accept", "Waiting for you");
   const history = card(page, SUGGESTED.aeo).locator("details");
   await card(page, SUGGESTED.aeo).getByText("History").click();
   await expect(history.getByRole("listitem").last()).toContainText("You · New ideas → To do");
-  await changeStatus(page, SUGGESTED.aeo, "Start", "In progress");
+  await changeStatus(page, SUGGESTED.aeo, "Start", /· In progress$/);
   await changeStatus(page, SUGGESTED.aeo, "Mark done", "Done");
 
   await page.goto(CAFE_BOARD);
@@ -163,7 +165,7 @@ test("snooze hides an action until its date; Bring back now brings it back", asy
   await wake.click();
   await expect(page.getByText("Nothing is snoozed.")).toBeVisible();
   await page.goto(CAFE_BOARD);
-  await expect(card(page, title).getByText("To do", { exact: true })).toBeVisible();
+  await expect(card(page, title).getByText("Waiting for you", { exact: true })).toBeVisible();
 });
 
 test("Hand to Claude copies a prompt with the product, fenced evidence and the check", async ({

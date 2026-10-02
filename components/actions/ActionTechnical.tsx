@@ -33,7 +33,7 @@ function DocLinks({ action }: { action: ActionView }) {
 }
 
 /**
- * What the owner rarely needs but Claude and the curious do: the exact fix and check, where the
+ * What the owner rarely needs but Claude and the curious do: the full reason, the exact fix and check, where the
  * action came from, its rule, the evidence, related docs and the "Hand to Claude" prompt.
  */
 export function ActionTechnical({ action, product }: { action: ActionView; product: Product }) {
@@ -44,6 +44,12 @@ export function ActionTechnical({ action, product }: { action: ActionView; produ
     >
       <div className="flex flex-col gap-3">
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+          {action.why.trim() && (
+            <>
+              <dt className="text-ink-muted">Full reason</dt>
+              <dd>{action.why}</dd>
+            </>
+          )}
           <dt className="text-ink-muted">Fix</dt>
           <dd>{action.fix}</dd>
           <dt className="text-ink-muted">Done when</dt>

@@ -36,11 +36,12 @@ continues with:
   a **Hand to Claude** button that copies a ready prompt, the crawled pages and their problems,
   and Search Console clicks, impressions and top queries.
 - **Actions board** — every issue the scan finds becomes a tracked action, grouped as Big wins,
-  Worth doing and Small wins. Each card says what to do in plain words, why it matters, how big
-  a job it is (a quick job, an afternoon or a project), who's on it (a new idea not decided yet,
-  Claude is on it, a pull request waiting for your OK, or waiting for you) and links its pull
-  request. Evidence, where it came from, the exact fix and check, and **Hand to Claude** (a
-  ready prompt) sit under **Technical details**. Filter by product, area and status (a plain,
+  Worth doing and Small wins. Each card is a headline, one line on why it matters, a chip for how big a win it is
+  (Big win, Worth doing, Small win) and a chip for who's on it (a new idea not decided yet,
+  Claude is on it, a pull request waiting for your OK, or waiting for you), with the area, how big
+  a job it is (a quick job, an afternoon or a project) and the product in one small line, and
+  a link to its pull request. The full reason, evidence, where it came from, the exact fix and
+  check, and **Hand to Claude** (a ready prompt) sit under **Technical details**. Filter by product, area and status (a plain,
   bookmarkable form); move an action through New ideas → To do → In progress → Done, snooze it
   until a date or dismiss it. The sidebar shows how many are open. Claude can triage the board
   for you with `pnpm actions`, every change recorded with its reason.
