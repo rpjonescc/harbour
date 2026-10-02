@@ -20,6 +20,10 @@ export type AgentOutput = { kind: "discovery" | "weekly"; path: string } | null;
 export type SpecReview = {
   check: (root: string) => string | null;
   retryPrompt: (reason: string) => string;
+  /** Removes the rejected output before the retry (the agent cannot overwrite it). */
+  reset: (root: string) => void;
+  /** Moves the accepted output to where it is committed and shown, just before the commit. */
+  publish: (root: string) => void;
 };
 
 export type AgentSpec = {
@@ -41,6 +45,8 @@ export type AgentSpec = {
   timeoutMs?: number;
   /** Checks what the run wrote before it is committed; one rejection earns one retry. */
   review?: SpecReview;
+  /** Keep the agent's own words (stream text, output tails) out of the run record. */
+  quiet?: boolean;
 };
 
 export type SpecContext = {

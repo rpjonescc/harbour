@@ -1,5 +1,6 @@
 import {
   describeStamp,
+  draftPath,
   isNoteStamp,
   noteMinute,
   notePath,
@@ -13,6 +14,7 @@ describe("note stamps", () => {
     expect(noteStamp({ day: "2026-10-02", minute: 6 * 60 + 30 })).toBe("2026-10-02-0630");
     expect(noteStamp({ day: "2026-10-02", minute: 0 })).toBe("2026-10-02-0000");
     expect(notePath("2026-10-02-0630")).toBe("notes/daily/2026-10-02-0630.md");
+    expect(draftPath("2026-10-02-0630")).toBe("notes/daily/2026-10-02-0630.draft.md");
     expect(describeStamp("2026-10-02-0630")).toBe("2026-10-02 06:30");
   });
 
@@ -28,6 +30,7 @@ describe("note stamps", () => {
   ])("refuse %j", (stamp) => {
     expect(isNoteStamp(stamp)).toBe(false);
     expect(() => notePath(stamp)).toThrow(/Invalid note stamp/);
+    expect(() => draftPath(stamp)).toThrow(/Invalid note stamp/);
   });
 
   it("turn back into the instant, in the owner's zone", () => {

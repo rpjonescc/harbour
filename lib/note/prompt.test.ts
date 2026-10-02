@@ -8,7 +8,7 @@ const prompt = (facts = FACTS) => dailyNotePrompt({ stamp: STAMP, facts });
 
 describe("dailyNotePrompt", () => {
   it("names the one file the agent may write, on the first line", () => {
-    expect(prompt().split("\n")[0]).toBe("TARGET_FILES: notes/daily/2026-10-02-0630.md");
+    expect(prompt().split("\n")[0]).toBe("TARGET_FILES: notes/daily/2026-10-02-0630.draft.md");
   });
 
   it("holds the persona, every rule, the schema and the banned words", () => {
@@ -32,7 +32,7 @@ describe("dailyNotePrompt", () => {
     for (const word of BANNED_WORDS) expect(text).toContain(word);
     for (const phrase of NEXT_STEP_PHRASES) expect(text).toContain(phrase);
     expect(text).not.toMatch(/\{\{|\}\}/);
-    expect(text).toContain("notes/daily/2026-10-02-0630.md");
+    expect(text).toContain("notes/daily/2026-10-02-0630.draft.md");
   });
 
   it("puts the facts in a fenced JSON block after the rules, and repeats the data warning after it", () => {

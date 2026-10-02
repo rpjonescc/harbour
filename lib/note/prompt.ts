@@ -3,7 +3,7 @@ import { BANNED_WORDS, NEXT_STEP_PHRASES } from "@/lib/explain/voice/check";
 import type { Facts } from "@/lib/explain/voice/facts";
 import { ASKED_BODY_CHARS, NOTE_LIMITS } from "@/lib/explain/voice/note";
 import { fenceFor } from "@/lib/text/fence";
-import { notePath } from "./stamp";
+import { draftPath } from "./stamp";
 
 /** Recorded with each run, so a note can be traced to the persona that wrote it. */
 export const NOTE_PROMPT_VERSION = "warm-v1";
@@ -34,7 +34,7 @@ function persona(path: string): string {
  * environment goes in.
  */
 export function dailyNotePrompt(input: { stamp: string; facts: Facts }): string {
-  const path = notePath(input.stamp);
+  const path = draftPath(input.stamp);
   const json = JSON.stringify(input.facts, null, 2);
   const fence = fenceFor(json);
   return `TARGET_FILES: ${path}

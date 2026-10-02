@@ -1,4 +1,4 @@
-import { mkdirSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { makeBrain } from "@/tests/helpers/brain";
 import { FACTS, GOOD_NOTE, noteFileText } from "@/tests/helpers/note";
@@ -6,6 +6,7 @@ import { dailyNoteSpec, NOTE_TIMEOUT_MS, reviewNote } from "./spec";
 
 const STAMP = "2026-10-02-0630";
 const PATH = `notes/daily/${STAMP}.md`;
+const DRAFT = `notes/daily/${STAMP}.draft.md`;
 const context = { products: [], today: "2026-10-02", noteFacts: () => FACTS };
 
 describe("dailyNoteSpec", () => {
@@ -15,7 +16,7 @@ describe("dailyNoteSpec", () => {
       kind: "daily-note",
       label: "Daily note: 2026-10-02 06:30",
       allowed: { prefixes: [], exact: [PATH] },
-      targets: [PATH],
+      targets: [DRAFT],
       requiredOutputs: [PATH],
       requiredFiles: [],
       output: null,
@@ -49,14 +50,14 @@ describe("reviewNote", () => {
     const brain = makeBrain(files);
     try {
       after?.(brain.root);
-      return reviewNote(brain.root, PATH, FACTS);
+      return reviewNote(brain.root, DRAFT, FACTS);
     } finally {
       brain.cleanup();
     }
   };
 
   it("accepts a good note", () => {
-    expect(review({ [PATH]: noteFileText(GOOD_NOTE) })).toBeNull();
+    expect(review({ [DRAFT]: noteFileText(GOOD_NOTE) })).toBeNull();
   });
 
   it("says when the file was not written", () => {
@@ -64,12 +65,12 @@ describe("reviewNote", () => {
   });
 
   it("gives the parser's reason for a file that is not a note", () => {
-    expect(review({ [PATH]: "hello" })).toMatch(/frontmatter/);
+    expect(review({ [DRAFT]: "hello" })).toMatch(/frontmatter/);
   });
 
   it("gives the checker's reason for a note that is not honest", () => {
     expect(
-      review({ [PATH]: noteFileText({ ...GOOD_NOTE, body: "Acme Docs jumped 93 points." }) }),
+      review({ [DRAFT]: noteFileText({ ...GOOD_NOTE, body: "Acme Docs jumped 93 points." }) }),
     ).toMatch(/figure 93/);
   });
 
@@ -77,16 +78,42 @@ describe("reviewNote", () => {
     expect(
       review({ "elsewhere.md": noteFileText(GOOD_NOTE) }, (root) => {
         mkdirSync(join(root, "notes/daily"), { recursive: true });
-        symlinkSync(join(root, "elsewhere.md"), join(root, PATH));
+        symlinkSync(join(root, "elsewhere.md"), join(root, DRAFT));
       }),
     ).toBe("The note file must be a regular file.");
-    expect(review({ [PATH]: "a".repeat(9000) })).toBe("The note file is too large.");
+    expect(review({ [DRAFT]: "a".repeat(9000) })).toBe("The note file is too large.");
   });
 
   it("propagates a real read error", () => {
     const brain = makeBrain({ "notes/daily": "a file where the folder should be" });
     try {
-      expect(() => reviewNote(brain.root, PATH, FACTS)).toThrow();
+      expect(() => reviewNote(brain.root, DRAFT, FACTS)).toThrow();
+    } finally {
+      brain.cleanup();
+    }
+  });
+});
+
+describe("the draft and the published note", () => {
+  const spec = () => dailyNoteSpec({ stamp: STAMP }, context).review;
+
+  it("publish moves the draft to the final path, leaving no draft behind", () => {
+    const brain = makeBrain({ [DRAFT]: noteFileText(GOOD_NOTE) });
+    try {
+      spec()?.publish(brain.root);
+      expect(existsSync(join(brain.root, DRAFT))).toBe(false);
+      expect(readFileSync(join(brain.root, PATH), "utf8")).toBe(noteFileText(GOOD_NOTE));
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("reset removes a rejected draft, and is fine when there is none", () => {
+    const brain = makeBrain({ [DRAFT]: "rejected" });
+    try {
+      spec()?.reset(brain.root);
+      spec()?.reset(brain.root);
+      expect(existsSync(join(brain.root, DRAFT))).toBe(false);
     } finally {
       brain.cleanup();
     }

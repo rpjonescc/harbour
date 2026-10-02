@@ -35,6 +35,14 @@ export function notePath(stamp: string): string {
   return `${NOTE_DIR}/${stamp}.md`;
 }
 
+/**
+ * Where the agent writes a note before Harbour has checked it. The ".draft" suffix is not a
+ * stamp, so the web process never lists it: only a published note is ever shown.
+ */
+export function draftPath(stamp: string): string {
+  return notePath(stamp).replace(/\.md$/, ".draft.md");
+}
+
 /** The instant a stamp names, in the owner's time zone. */
 export function stampInstant(stamp: string, timeZone: string): Date {
   notePath(stamp); // validates

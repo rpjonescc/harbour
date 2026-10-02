@@ -19,6 +19,8 @@ import { brainRootError, finish, recoveryBlock, saveOwnerNotes } from "./git-job
 import { newestOwnerChange } from "./housekeeping";
 import { addEvent, deferJob, type EventKind, isCancelRequested, type Job } from "./queue";
 import { freshQuarantineDir, removeRunMarker, writeRunMarker } from "./run-marker";
+import { runReviewed } from "./run-reviewed";
+import { cliAttempt, commitAndPush, publishReviewed, QUIET_TAIL } from "./run-steps";
 import { type TouchedLog, touchedLog } from "./touched-log";
 
 export type RunDeps = {
@@ -155,47 +157,29 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     writeRunMarker(deps.quarantineRoot, job.id, snapshot);
     const log = touchedLog(deps.quarantineRoot, job.id);
     touched = log;
+    // A reviewed run is published by the worker, not written by the agent: if it is discarded
+    // after publishing, the published file must count as the run's own.
+    if (spec.review) for (const path of spec.requiredOutputs) log.record(path);
 
     db.insert(agentRuns).values({ jobId: job.id, promptVersion: spec.promptVersion }).run();
     event("status", `Started ${spec.label}`);
-    let result: StreamResult | undefined;
-    const timeoutMs = Math.min(deps.timeoutMs, spec.timeoutMs ?? deps.timeoutMs);
-    const runCli = (prompt: string) => {
-      result = undefined; // each attempt reports its own result
-      return deps.run({
-        bin: deps.bin,
-        args: claudeArgs(prompt, deps.model, spec.tools),
-        cwd: root,
-        env: agentEnv(token, deps.home, deps.path),
-        timeoutMs,
-        onLine: (line) => {
-          const summary = summariseLine(line, root);
-          for (const raw of summary.touched)
-            recordTouched(root, log, raw, (text) => event("error", text));
-          for (const e of summary.events) event(e.kind, e.text);
-          if (summary.result) result = summary.result;
-        },
-        shouldCancel: () => deps.stopping() || isCancelRequested(db, job.id),
-      });
-    };
-    let outcome = await runCli(spec.prompt);
-    // A run that exited cleanly but wrote something the checker rejects gets exactly one more try,
-    // with the reason fed back. A CLI failure, timeout or cancel is not a rejection: no retry.
-    const review = spec.review;
-    const clean = () =>
-      outcome.exitCode === 0 && !outcome.timedOut && !outcome.cancelled && !result?.isError;
-    if (review && clean() && !deps.stopping()) {
-      const reason = review.check(root);
-      if (reason !== null) {
-        event("status", `The checker rejected the output (${reason}); asking the agent once more`);
-        outcome = await runCli(review.retryPrompt(reason));
-      }
-    }
+    const totalMs = Math.min(deps.timeoutMs, spec.timeoutMs ?? deps.timeoutMs);
+    const attempt = cliAttempt({ deps, job, spec, token, log, event });
+    const last = await runReviewed({
+      spec,
+      root,
+      totalMs,
+      now: deps.now,
+      stopping: deps.stopping,
+      event: (kind, text) => event(kind, text),
+      attempt,
+    });
+    const { outcome, result } = last;
     log.seal(); // every output line has been read: the touched list is complete
     setRun({
       exitCode: outcome.exitCode,
-      stdoutTail: outcome.stdoutTail,
-      stderrTail: outcome.stderrTail,
+      stdoutTail: spec.quiet ? QUIET_TAIL : outcome.stdoutTail,
+      stderrTail: spec.quiet ? QUIET_TAIL : outcome.stderrTail,
     });
     // A stopping worker's agent may die of the group SIGTERM before the cancel poll sees it;
     // an agent that finished cleanly is still committed.
@@ -211,32 +195,15 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
       finish(db, job.id, "cancelled", stopped ? STOPPED : null, deps.now());
       return { pushed: null };
     }
-    checkOutcome(timeoutMs, outcome, result);
+    checkOutcome(totalMs, outcome, result);
 
+    publishReviewed(spec, root);
     const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
     checkRequiredOutputs(spec, paths); // a half-done run is discarded, never committed
-    // The final word: still rejected after the retry means nothing is committed.
-    const rejected = spec.review?.check(root) ?? null;
-    if (rejected !== null) throw new JobFailure(`The agent's output was rejected: ${rejected}`);
-    // Validated before the commit: invalid output is discarded with the run, never imported.
-    const output = readAgentOutput(root, spec, deps.products);
-    const message = `agent(${spec.kind}): ${spec.label.replace(/^[^:]+:\s*/, "")}`;
-    const sha = commitChanges(root, paths, message);
-    snapshot = undefined; // committed: nothing left to discard
-    // Recorded first: a run with a commit and no import is what the import retry looks for.
-    setRun({ filesChanged: paths, commitSha: sha });
-    removeRunMarker(deps.quarantineRoot, job.id);
-    event("status", `Committed ${paths.length} file(s)`);
-
-    if (output) importAfterCommit(db, output, job, deps.now(), event);
-
-    const push = pushBrain(root);
-    setRun({ pushed: push.ok });
-    if (push.ok) event("status", "Pushed to the brain repository");
-    else
-      event("error", `Push failed — commit kept locally, will retry automatically: ${push.error}`);
-    finish(db, job.id, "ok", null, deps.now());
-    return { pushed: push.ok };
+    const { pushed } = commitAndPush({ deps, job, spec, paths, event, setRun }, () => {
+      snapshot = undefined; // committed: nothing left to discard
+    });
+    return { pushed };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!(error instanceof JobFailure)) console.error(`job ${job.id} crashed`, error);

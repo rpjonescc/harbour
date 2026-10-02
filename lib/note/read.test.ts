@@ -56,6 +56,20 @@ describe("readNotes", () => {
     }
   });
 
+  it("ignores a draft, even one holding a valid note: only a published note is shown", () => {
+    const brain = makeBrain({
+      ...Object.fromEntries([file("2026-10-02-0630", "Published")]),
+      "notes/daily/2026-10-02-0645.draft.md": noteFileText({ ...GOOD_NOTE, headline: "Draft" }),
+    });
+    try {
+      expect(readNotes(brain.root, ZONE, NOW, 10).map((n) => n.note.headline)).toEqual([
+        "Published",
+      ]);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
   it("looks at only the newest files, however many pile up", () => {
     const brain = makeBrain({});
     try {

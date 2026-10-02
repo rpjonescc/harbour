@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Fake `claude -p` for tests and E2E. Behaviour chosen by FAKE_CLAUDE_SCENARIO.
 import { spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const scenario = process.env.FAKE_CLAUDE_SCENARIO ?? "success";
@@ -76,8 +76,14 @@ const noteText = (facts, bad) => {
   return [...lines, "---", body, ""].join("\n");
 };
 
+// Like Claude Code's Write tool: an existing file the session has not Read is not overwritten
+// (the daily-note run has no Read tool, so a second attempt must write a fresh path).
 function write(rel, content) {
   const abs = join(process.cwd(), rel);
+  if (rel.startsWith("notes/daily/") && existsSync(abs)) {
+    tool("Write", { file_path: abs });
+    return;
+  }
   mkdirSync(dirname(abs), { recursive: true });
   writeFileSync(abs, content);
   tool("Write", { file_path: abs });
@@ -107,7 +113,10 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
       if (/^notes\/daily\/.+\.md$/.test(rel)) {
         const retried = prompt.includes("was rejected by Harbour's checker");
         const bad = scenario === "note-bad" || (scenario === "note-retry" && !retried);
-        write(rel, noteText(noteFacts(), bad));
+        const text = noteText(noteFacts(), bad);
+        // The agent's own words stream too: a run record must not keep them for a note.
+        out({ type: "assistant", message: { content: [{ type: "text", text }] } });
+        write(rel, text);
       } else if (/^reports\/weekly\/.+\.proposals\.json$/.test(rel)) {
         const productId = scenario === "bad-weekly" ? "ghost-product" : "acme-docs";
         write(rel, JSON.stringify(weeklyProposals(productId), null, 2));

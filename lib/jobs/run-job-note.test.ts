@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { agentRuns, costs } from "@/lib/db/schema";
 import { checkNote } from "@/lib/explain/voice/check";
@@ -10,21 +10,26 @@ import { eventsSince } from "./queue";
 
 const STAMP = "2026-10-02-0630";
 const PATH = `notes/daily/${STAMP}.md`;
+const DRAFT = `notes/daily/${STAMP}.draft.md`;
 const PARAMS = { stamp: STAMP };
 
 /** The fake CLI with the daily-note facts wired in; records every prompt and tool list it is run with. */
 function noteSetup(scenario: string, facts: typeof FACTS | null = FACTS) {
   const s = setup(scenario, {}, facts ? { noteFacts: () => facts } : {});
   const calls: { prompt: string; tools: string }[] = [];
+  /** Whether the final note path existed after each attempt: it must never exist mid-job. */
+  const publishedDuringRun: boolean[] = [];
   const run = s.deps.run;
-  s.deps.run = (options) => {
+  s.deps.run = async (options) => {
     calls.push({
       prompt: options.args[options.args.indexOf("-p") + 1] ?? "",
       tools: options.args[options.args.indexOf("--tools") + 1] ?? "",
     });
-    return run(options);
+    const outcome = await run(options);
+    publishedDuringRun.push(existsSync(join(s.brain.root, PATH)));
+    return outcome;
   };
-  return { ...s, calls };
+  return { ...s, calls, publishedDuringRun };
 }
 
 describe("runAgentJob for the daily note", () => {
@@ -37,6 +42,7 @@ describe("runAgentJob for the daily note", () => {
         "agent(daily-note): 2026-10-02 06:30",
       );
       expect(brain.git("show", "--name-only", "--format=", "HEAD").trim()).toBe(PATH);
+      expect(existsSync(join(brain.root, DRAFT))).toBe(false);
       expect(db.select().from(agentRuns).get()).toMatchObject({
         promptVersion: NOTE_PROMPT_VERSION,
       });
@@ -44,7 +50,7 @@ describe("runAgentJob for the daily note", () => {
       expect(db.select().from(costs).all()).toEqual([]);
       expect(calls).toHaveLength(1);
       expect(calls[0]?.tools).toBe("Write");
-      expect(calls[0]?.prompt.split("\n")[0]).toBe(`TARGET_FILES: ${PATH}`);
+      expect(calls[0]?.prompt.split("\n")[0]).toBe(`TARGET_FILES: ${DRAFT}`);
       // The committed file is what the web process will read, and it passes the real checker.
       const parsed = parseNoteFile(readFileSync(join(brain.root, PATH), "utf8"));
       expect(parsed.ok && checkNote(parsed.note, FACTS)).toBeNull();
@@ -82,13 +88,15 @@ describe("runAgentJob for the daily note", () => {
         true,
       );
       expect(brain.git("log", "--oneline").trim().split("\n")).toHaveLength(2);
+      // The corrected note replaced the rejected draft: the committed text has no invented figure.
+      expect(readFileSync(join(brain.root, PATH), "utf8")).not.toContain("93");
     } finally {
       brain.cleanup();
     }
   });
 
   it("fails after the second rejection, with the reason, committing and showing nothing", async () => {
-    const { brain, deps, calls } = noteSetup("note-bad");
+    const { brain, deps, calls, publishedDuringRun } = noteSetup("note-bad");
     try {
       const job = await runOne(deps, "daily-note", PARAMS);
       expect(calls).toHaveLength(2); // never a third try
@@ -96,6 +104,10 @@ describe("runAgentJob for the daily note", () => {
       expect(job.error).toMatch(/output was rejected: The note uses the figure 93/);
       expect(brain.git("log", "--oneline").trim().split("\n")).toHaveLength(1);
       expect(brain.git("status", "--porcelain")).toBe("");
+      // The rejected note was never at the path the web process reads, and nothing is left.
+      expect(publishedDuringRun).toEqual([false, false]);
+      expect(existsSync(join(brain.root, DRAFT))).toBe(false);
+      expect(existsSync(join(brain.root, PATH))).toBe(false);
     } finally {
       brain.cleanup();
     }
@@ -107,6 +119,8 @@ describe("runAgentJob for the daily note", () => {
       const job = await runOne(deps, "daily-note", PARAMS);
       expect(job).toMatchObject({ status: "failed", error: "Agent failed: Not logged in" });
       expect(calls).toHaveLength(1);
+      expect(existsSync(join(brain.root, DRAFT))).toBe(false);
+      expect(existsSync(join(brain.root, PATH))).toBe(false);
     } finally {
       brain.cleanup();
     }
@@ -128,6 +142,23 @@ describe("runAgentJob for the daily note", () => {
       expect(bad.calls).toHaveLength(0);
     } finally {
       bad.brain.cleanup();
+    }
+  });
+
+  it("keeps the note's words and the first name out of the run record", async () => {
+    const { brain, db, deps } = noteSetup("note-ok");
+    try {
+      const job = await runOne(deps, "daily-note", PARAMS);
+      expect(job.status).toBe("ok");
+      const run = db.select().from(agentRuns).get();
+      expect(run?.stdoutTail).toBe("(not recorded for the daily note)");
+      expect(run?.stderrTail).toBe("(not recorded for the daily note)");
+      const events = eventsSince(db, job.id, 0);
+      expect(events.some((e) => e.kind === "text")).toBe(false);
+      expect(JSON.stringify([run, events])).not.toContain("Sam");
+      expect(events.map((e) => e.text)).toContain("Started Daily note: 2026-10-02 06:30");
+    } finally {
+      brain.cleanup();
     }
   });
 });
