@@ -11,6 +11,7 @@ const product: Product = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber",
+  kind: "product" as const,
 };
 // The real rules over Acme Docs' crawl: the first issue is the broken link.
 const [broken] = deriveIssues([...ACME_CRAWL, readiness()], ALL_OK);

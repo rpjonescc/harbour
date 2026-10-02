@@ -17,18 +17,21 @@ const acme = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber" as const,
+  kind: "product" as const,
 };
 const beta = {
   id: "beta-shop",
   name: "Beta Shop",
   url: "https://shop.example.com",
   hue: "blue" as const,
+  kind: "product" as const,
 };
 const quiet = {
   id: "quiet-blog",
   name: "Quiet Blog",
   url: "https://blog.example.com",
   hue: "teal" as const,
+  kind: "product" as const,
 };
 const at = (iso: string) => new Date(iso);
 

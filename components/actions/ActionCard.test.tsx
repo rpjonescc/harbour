@@ -12,6 +12,7 @@ const PRODUCT: Product = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber",
+  kind: "product" as const,
 };
 
 /** The card's one Technical details section; everything else is the card's surface. */

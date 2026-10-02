@@ -211,7 +211,15 @@ describe("pagespeed in a scan", () => {
     const { db, scan, advance } = setup([pagespeed], {
       fetch,
       config: { ...getConfig(), HARBOUR_PAGESPEED_API_KEY: KEY },
-      products: [{ id: "acme-docs", name: "Acme Docs", url: PRODUCT, hue: "amber" }],
+      products: [
+        {
+          id: "acme-docs",
+          name: "Acme Docs",
+          url: PRODUCT,
+          hue: "amber",
+          kind: "product" as const,
+        },
+      ],
     });
     await scan();
     advance(3 * DAY);

@@ -16,7 +16,13 @@ export const html = (body: string, headers: Record<string, string> = {}) =>
 
 /** A crawl of a product at `url` on a local test site: loopback allowed, 1 ms spacing. */
 export function crawlContext(url: string, overrides: Partial<CollectContext> = {}, maxPages = 200) {
-  const product: Product = { id: "acme-docs", name: "Acme Docs", url, hue: "amber" };
+  const product: Product = {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url,
+    hue: "amber",
+    kind: "product" as const,
+  };
   const free = noSpend("crawler");
   const ctx: CollectContext = {
     product,

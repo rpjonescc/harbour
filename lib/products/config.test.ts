@@ -84,7 +84,10 @@ describe("loadProductConfig", () => {
 
   it("uses the explicit file and is not demo", () => {
     const path = writeTemp(JSON.stringify({ products: [product] }));
-    expect(loadProductConfig(path, EXAMPLE)).toEqual({ demo: false, products: [product] });
+    expect(loadProductConfig(path, EXAMPLE)).toEqual({
+      demo: false,
+      products: [{ ...product, kind: "product" }],
+    });
   });
 
   it("flags demo when the explicit path is the example file", () => {
@@ -101,7 +104,7 @@ describe("loadProductConfig", () => {
     const path = writeTemp(JSON.stringify({ products: [product] }));
     expect(loadProductConfig(undefined, EXAMPLE, path)).toEqual({
       demo: false,
-      products: [product],
+      products: [{ ...product, kind: "product" }],
     });
   });
 
@@ -162,5 +165,29 @@ describe("ownerFirstName", () => {
     expect(ownerFirstName("Sam Example")).toBe("Sam");
     expect(ownerFirstName("Anne-Marie  O'Neil")).toBe("Anne-Marie");
     expect(ownerFirstName(undefined)).toBeNull();
+  });
+});
+
+describe("product kind", () => {
+  const base = {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url: "https://docs.example.com",
+    hue: "amber",
+  };
+
+  it("defaults to product, so a config with no kind scores as a product site", () => {
+    expect(parseProductConfig({ products: [base] }).products[0]?.kind).toBe("product");
+  });
+
+  it("accepts news", () => {
+    const parsed = parseProductConfig({ products: [{ ...base, kind: "news" }] });
+    expect(parsed.products[0]?.kind).toBe("news");
+  });
+
+  it("refuses anything else with a message naming the allowed values", () => {
+    expect(() => parseProductConfig({ products: [{ ...base, kind: "blog" }] })).toThrow(
+      /kind must be one of: news, product/,
+    );
   });
 });

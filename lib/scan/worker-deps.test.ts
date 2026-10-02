@@ -9,7 +9,7 @@ const deps = (config: Config = getConfig(), url = "https://example.com/") =>
   workerScanDeps({
     db: openTestDb(),
     config,
-    products: [{ id: "acme", name: "Acme Docs", url, hue: "teal" }],
+    products: [{ id: "acme", name: "Acme Docs", url, hue: "teal", kind: "product" as const }],
     now: () => new Date(),
     stopping: () => false,
   });
@@ -27,7 +27,7 @@ const e2eConfig = () =>
 afterEach(closeSites);
 
 describe("workerScanDeps", () => {
-  it("runs the registered collectors and scores with formula v1", () => {
+  it("runs the registered collectors and scores with formula v2", () => {
     expect(deps().collectors).toBe(COLLECTORS);
     expect(deps().scoreScan).toBe(scoreScan);
   });

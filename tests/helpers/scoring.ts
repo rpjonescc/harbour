@@ -247,9 +247,9 @@ export const ALL_OK: Record<string, CollectorStatus> = {
   "search-console": "ok",
 };
 
-export const CONTEXT: ScoreContext = { now: NOW, previousPagespeed: null };
+export const CONTEXT: ScoreContext = { now: NOW, productKind: "product", previousPagespeed: null };
 
-/** Scores observations with the real v1 scorer; every collector ok unless `statuses` says. */
+/** Scores observations with the real scorer; every collector ok unless `statuses` says. */
 export const scoreOf = (
   observations: ScanObservation[],
   statuses: Record<string, CollectorStatus> = ALL_OK,

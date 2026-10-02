@@ -3,7 +3,13 @@ import { isAllowedChange } from "./brain-git";
 import { specForJob } from "./specs";
 
 const products = [
-  { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" as const },
+  {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url: "https://docs.example.com",
+    hue: "amber" as const,
+    kind: "product" as const,
+  },
 ];
 const context = {
   products,

@@ -7,6 +7,7 @@ const acme = {
   name: "Acme Docs",
   url: "https://docs.example.com",
   hue: "amber" as const,
+  kind: "product" as const,
 };
 const products = [acme];
 const exportJson = JSON.stringify({ week: "2026-W40", products: [] });

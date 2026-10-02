@@ -17,9 +17,16 @@ const PRODUCTS: Product[] = [
     name: "Acme Docs",
     url: "https://docs.example.com",
     hue: "amber",
+    kind: "product" as const,
     searchConsoleProperty: "sc-domain:example.com",
   },
-  { id: "acme-blog", name: "Acme Blog", url: "https://blog.example.com", hue: "teal" },
+  {
+    id: "acme-blog",
+    name: "Acme Blog",
+    url: "https://blog.example.com",
+    hue: "teal",
+    kind: "product" as const,
+  },
 ];
 let dir: string;
 let db: Db;

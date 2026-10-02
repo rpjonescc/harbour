@@ -393,11 +393,17 @@ All settings are environment variables, validated at startup.
       "name": "Acme Docs",
       "url": "https://docs.example.com",
       "hue": "amber",
+      "kind": "product",
       "searchConsoleProperty": "sc-domain:docs.example.com"
     }
   ]
 }
 ```
+
+`kind` is optional: `"product"` (the default) or `"news"`. Google's Preferred Sources is a Top
+Stories feature, so it only counts toward a news site's Answer-ready score; for every other site
+the "Fresh pages" part of Answer-ready counts fresh content alone. Scoring formula v2 (from this
+change) is the first to use it; earlier scores are kept as they were.
 
 `id` is a unique lowercase slug, `url` is http(s), and `hue` is one of `amber`, `violet`,
 `blue`, `green`, `rose` or `teal`. An invalid file stops Harbour with a readable error.
@@ -878,7 +884,7 @@ evidence behind its number, so the product page can explain it.
 |---|---|
 | SEO | Technical health (35%), indexability (25%), Core Web Vitals (20%), search impressions trend (20%) |
 | GEO | AI crawler access (30%; AI search and answer agents count three times as much as training-only crawlers), llms.txt (15%), entity structured data (25%), citation-ready content (30%) |
-| AEO | FAQ, HowTo and Q&A coverage (40%), concise answer blocks (35%), Preferred Sources readiness (25%) |
+| AEO | FAQ, HowTo and Q&A coverage (40%), concise answer blocks (35%), fresh pages (25%: 3 or more URLs updated in the last 30 days score 100; news sites instead get 50 points for a Preferred Sources button and 50 for fresh content, as in formula v1) |
 
 - **Missing data is a gap, never a zero.** When a source is not connected, failed, or returned
   data Harbour could not read, its sub-scores are left out, the rest are re-weighted, and the
@@ -891,8 +897,9 @@ evidence behind its number, so the product page can explain it.
 - **PageSpeed runs weekly.** On the days in between, Core Web Vitals use the last result while it
   is at most 14 days old, and say which day it is from.
 - **AI engine mentions and featured snippets** are listed as not connected: they need paid APIs.
-- **Scores never change after they are stored.** Each row records its formula version (`v1`);
-  a formula change gets a new version rather than rewriting history.
+- **Scores never change after they are stored.** Each row records its formula version (`v2` now);
+  a formula change gets a new version rather than rewriting history, so older scores are never
+  silently mixed with newer ones.
 
 The exact formulas, thresholds and rounding are in the Phase 3 plan's "As built — scoring" notes
 ([docs/superpowers/plans](docs/superpowers/plans/2026-10-02-phase-3-visibility.md)).

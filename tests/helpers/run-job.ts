@@ -7,7 +7,13 @@ import { makeGitBrain } from "./git-brain";
 
 const FAKE = join(process.cwd(), "tests/fixtures/fake-claude.mjs");
 const products = [
-  { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" as const },
+  {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url: "https://docs.example.com",
+    hue: "amber" as const,
+    kind: "product" as const,
+  },
 ];
 
 /** A git brain, in-memory DB and RunDeps driving the fake CLI with `scenario`. */

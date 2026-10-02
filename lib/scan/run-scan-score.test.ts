@@ -22,7 +22,7 @@ describe("runScan scoring", () => {
     const { scorer, contexts } = recordingScorer();
     const { scan } = setup([ok("crawler"), ok("pagespeed", 1, "weekly")], { scoreScan: scorer });
     await scan();
-    expect(contexts).toEqual([{ now: t0, previousPagespeed: null }]);
+    expect(contexts).toEqual([{ now: t0, productKind: "product", previousPagespeed: null }]);
   });
 
   it("hands the scorer PageSpeed's last ok result when this scan skipped it", async () => {
@@ -36,18 +36,19 @@ describe("runScan scoring", () => {
     expect(pagespeed.calls).toBe(1);
     expect(contexts[1]).toEqual({
       now: new Date(t0.getTime() + 2 * DAY),
+      productKind: "product",
       previousPagespeed: { observations: [measured], finishedAt: t0 },
     });
   });
 
-  it("stores a v1 score row from the real scorer", async () => {
+  it("stores a v2 score row from the real scorer", async () => {
     const crawler = returns("crawler", { status: "ok", observations: ACME_CRAWL.map(strip) });
     const ready = returns("readiness", { status: "ok", observations: [strip(readiness())] });
     const { db, scan } = setup([crawler, ready], { scoreScan });
     await scan();
     expect(db.select().from(scores).all()).toEqual([
       expect.objectContaining({
-        formulaVersion: "v1",
+        formulaVersion: "v2",
         seo: 80,
         geo: 92,
         aeo: 88,

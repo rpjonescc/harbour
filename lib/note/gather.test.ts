@@ -9,12 +9,19 @@ import { gatherFacts } from "./gather";
 // Friday 2 October 2026, 06:30 in London (BST).
 const NOW = new Date("2026-10-02T05:30:00Z");
 const PRODUCTS = [
-  { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" as const },
+  {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url: "https://docs.example.com",
+    hue: "amber" as const,
+    kind: "product" as const,
+  },
   {
     id: "fern-and-field",
     name: "Fern & Field",
     url: "https://fern.example.com",
     hue: "green" as const,
+    kind: "product" as const,
   },
 ];
 

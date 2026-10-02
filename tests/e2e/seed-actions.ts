@@ -23,7 +23,7 @@ import type { CollectorStatus, Observation, ScanObservation } from "@/lib/scan/t
 import { crawlSite, htmlPage, ORIGIN, readiness } from "@/tests/helpers/scoring";
 import { E2E_DB } from "../../playwright.config";
 
-export const CAFE = { id: "lighthouse-cafe", name: "Lighthouse Café" };
+export const CAFE = { id: "lighthouse-cafe", name: "Lighthouse Café", kind: "product" as const };
 const CAFE_URL = "https://lighthouse-cafe.example.com";
 
 /** The two analyst suggestions the specs find by title. */
@@ -105,7 +105,7 @@ function seedScan(db: Db, now: Date) {
   run("search-console", "not_configured");
   finishScan(db, scanId, "ok", now);
   const observations = scanObservations(db, scanId);
-  const scores = scoreScan(observations, statuses, scoreContext(db, CAFE.id, statuses, now));
+  const scores = scoreScan(observations, statuses, scoreContext(db, CAFE, statuses, now));
   if (scores) storeScores(db, scanId, CAFE.id, scores, now);
   syncRuleActions(db, {
     productId: CAFE.id,

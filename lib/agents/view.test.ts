@@ -1,7 +1,13 @@
 import { formatDuration, isActive, jobLabel } from "./view";
 
 const products = [
-  { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" as const },
+  {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url: "https://docs.example.com",
+    hue: "amber" as const,
+    kind: "product" as const,
+  },
 ];
 
 describe("jobLabel", () => {

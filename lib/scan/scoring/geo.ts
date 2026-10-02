@@ -110,7 +110,7 @@ export function citationReady(crawl: Crawl): SubScore {
   return measured(100 * Math.min(1, ready / html.length / CITATION_TARGET), evidence);
 }
 
-/** GEO sub-scores of formula v1; scored weights sum to 1. */
+/** GEO sub-scores of formula v2; scored weights sum to 1. */
 export const GEO_SUB_SCORES: readonly SubScoreSpec[] = [
   {
     key: "geo.aiCrawlers",

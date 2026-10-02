@@ -8,7 +8,13 @@ import { checkRequiredOutputs, importAgentOutput, readAgentOutput } from "./agen
 import { claimNextJob, enqueueJob, type Job } from "./queue";
 
 const products = [
-  { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" as const },
+  {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url: "https://docs.example.com",
+    hue: "amber" as const,
+    kind: "product" as const,
+  },
 ];
 const context = { products, today: "2026-10-04", weeklyExport: () => "{}" };
 const NOW = new Date("2026-10-04T19:05:00Z");

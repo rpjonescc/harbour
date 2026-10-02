@@ -234,7 +234,13 @@ describe("SettingsOverview", () => {
         HARBOUR_GEMINI_API_KEY: "SENTINEL-gemini",
       });
       const products = [
-        { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" },
+        {
+          id: "acme-docs",
+          name: "Acme Docs",
+          url: "https://docs.example.com",
+          hue: "amber",
+          kind: "product" as const,
+        },
       ] as const;
       const view = settingsView(openTestDb(), products, config, EXAMPLE_ZONE.now, false);
       const { container } = renderView(view);

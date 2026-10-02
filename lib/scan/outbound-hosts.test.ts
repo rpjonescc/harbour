@@ -1,6 +1,12 @@
 import { GOOGLE_API_HOSTS, outboundHosts } from "./outbound-hosts";
 
-const product = (url: string) => ({ id: "acme", name: "Acme Docs", url, hue: "teal" as const });
+const product = (url: string) => ({
+  id: "acme",
+  name: "Acme Docs",
+  url,
+  hue: "teal" as const,
+  kind: "product" as const,
+});
 
 describe("outboundHosts", () => {
   it("allows each product's apex and www host plus the Google API hosts", () => {

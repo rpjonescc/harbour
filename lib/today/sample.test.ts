@@ -2,9 +2,27 @@ import type { Product } from "@/lib/products/catalog";
 import { sampleToday } from "./sample";
 
 const products: Product[] = [
-  { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" },
-  { id: "lighthouse-cafe", name: "Lighthouse Café", url: "https://l.example.com", hue: "blue" },
-  { id: "fern-and-field", name: "Fern & Field", url: "https://f.example.com", hue: "green" },
+  {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url: "https://docs.example.com",
+    hue: "amber",
+    kind: "product" as const,
+  },
+  {
+    id: "lighthouse-cafe",
+    name: "Lighthouse Café",
+    url: "https://l.example.com",
+    hue: "blue",
+    kind: "product" as const,
+  },
+  {
+    id: "fern-and-field",
+    name: "Fern & Field",
+    url: "https://f.example.com",
+    hue: "green",
+    kind: "product" as const,
+  },
 ];
 
 describe("sampleToday", () => {

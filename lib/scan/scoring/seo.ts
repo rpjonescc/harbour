@@ -41,7 +41,7 @@ export function coreWebVitals(vitals: Vitals): SubScore {
   return measured(mean(parts), `${from}: ${notes.join(", ")}.`);
 }
 
-/** SEO sub-scores of formula v1; weights sum to 1. */
+/** SEO sub-scores of formula v2; weights sum to 1. */
 export const SEO_SUB_SCORES: readonly SubScoreSpec[] = [
   {
     key: "seo.technical",

@@ -2,6 +2,8 @@ import { AEO_SUB_SCORES } from "@/lib/scan/scoring/aeo";
 import type { ScanObservation } from "@/lib/scan/types";
 import {
   ACME_SCAN,
+  ALL_OK,
+  CONTEXT,
   crawlSite,
   entryOf,
   htmlPage,
@@ -35,10 +37,7 @@ describe("AEO explanations", () => {
       "aeo.conciseAnswers",
       "4 of 6 question headings get a short, direct answer straight underneath.",
     ],
-    [
-      "aeo.preferredSources",
-      "There's a Preferred Sources button, and 4 pages changed in the last 30 days.",
-    ],
+    ["aeo.preferredSources", "4 pages changed in the last 30 days."],
   ])("read %s's real evidence in plain words", (key, line) => {
     expect(lineOf(ACME_SCAN, key)).toBe(line);
   });
@@ -61,8 +60,17 @@ describe("AEO explanations", () => {
         preferredSources: { button: false, buttonPages: [], freshUrls: 1, freshContent: false },
       }),
     ];
-    expect(lineOf(scan, "aeo.preferredSources")).toBe(
+    const news = scoreOf(scan, ALL_OK, { ...CONTEXT, productKind: "news" });
+    const evidence = entryOf(news, "aeo.preferredSources")?.evidence ?? "";
+    expect(explanation("aeo.preferredSources").summarise(evidence)).toBe(
       "There's no Preferred Sources button yet, and 1 page changed in the last 30 days.",
+    );
+  });
+
+  it("reads the freshness-only evidence of a product site", () => {
+    const evidence = "3 URLs updated in the last 30 days (fresh content).";
+    expect(explanation("aeo.preferredSources").summarise(evidence)).toBe(
+      "3 pages changed in the last 30 days.",
     );
   });
 

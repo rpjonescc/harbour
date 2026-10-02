@@ -131,7 +131,12 @@ describe("applyRetention", () => {
     addScans(db, "acme-docs", 1, { pagespeed: true });
     addScans(db, "acme-docs", 34);
     await apply(db);
-    const context = scoreContext(db, "acme-docs", { pagespeed: "skipped" }, new Date());
+    const context = scoreContext(
+      db,
+      { id: "acme-docs", kind: "product" },
+      { pagespeed: "skipped" },
+      new Date(),
+    );
     expect(context.previousPagespeed?.observations).toHaveLength(2);
   });
 

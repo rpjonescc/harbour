@@ -9,7 +9,13 @@ import {
 import { RESEARCH_TOPICS } from "./topics";
 
 const products = [
-  { id: "acme-docs", name: "Acme Docs", url: "https://docs.example.com", hue: "amber" as const },
+  {
+    id: "acme-docs",
+    name: "Acme Docs",
+    url: "https://docs.example.com",
+    hue: "amber" as const,
+    kind: "product" as const,
+  },
 ];
 const product = products[0];
 const topic = RESEARCH_TOPICS.find((t) => t.id === "how-ai-engines-pick-sources");
