@@ -1,4 +1,4 @@
-import type { Pillar } from "@/lib/agents/proposals";
+import type { Pillar } from "@/lib/agents/pillars";
 import type { ContentProduct } from "@/lib/products/content";
 
 /** What the digest agent is given: filtered snippets per product (worker memory only, never stored). */

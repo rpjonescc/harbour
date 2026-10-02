@@ -1,4 +1,4 @@
-import { approvedPillars } from "@/lib/agents/proposals";
+import { approvedPillars } from "@/lib/agents/pillars";
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
 import type { RunDeps } from "@/lib/jobs/run-job";

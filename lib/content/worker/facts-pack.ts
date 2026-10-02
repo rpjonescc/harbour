@@ -1,6 +1,6 @@
 import { lstatSync } from "node:fs";
 import { join } from "node:path";
-import type { Pillar } from "@/lib/agents/proposals";
+import type { Pillar } from "@/lib/agents/pillars";
 import { redactSensitive } from "@/lib/analyst/scrub";
 import { resolveBrainPath } from "@/lib/brain/paths";
 import { parseFile } from "@/lib/content/files";

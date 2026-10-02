@@ -1,4 +1,4 @@
-import type { Pillar } from "@/lib/agents/proposals";
+import type { Pillar } from "@/lib/agents/pillars";
 import type { ReadIdea } from "@/lib/content/read/ideas";
 import type { ReadPiece } from "@/lib/content/read/pieces";
 import type { ContentProduct } from "@/lib/products/content";

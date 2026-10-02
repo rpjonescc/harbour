@@ -1,6 +1,6 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { Pillar } from "@/lib/agents/proposals";
+import type { Pillar } from "@/lib/agents/pillars";
 import { parseFile } from "@/lib/content/files";
 import { contentPaths } from "@/lib/content/paths";
 import { ideaFileIds, readAllIdeas } from "@/lib/content/read/ideas";

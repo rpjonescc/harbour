@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { commitChanges, ownerChanges, pushBrain } from "@/lib/agents/brain-git";
-import { approvedPillars } from "@/lib/agents/proposals";
+import { approvedPillars } from "@/lib/agents/pillars";
 import { ideaIdSchema, pieceIdSchema, productForIdea, splitPieceId } from "@/lib/content/ids";
 import { contentPaths, isApprovedPath } from "@/lib/content/paths";
 import { readAllIdeas, TooManyIdeaFilesError } from "@/lib/content/read/ideas";

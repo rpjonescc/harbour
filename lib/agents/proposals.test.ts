@@ -1,12 +1,10 @@
 import { openTestDb } from "@/tests/helpers/db";
 import {
   approveAllProposed,
-  approvedPillars,
   decideProposal,
   editProposal,
   importProposals,
   listProposals,
-  MAX_APPROVED_PILLARS,
   parseProposals,
 } from "./proposals";
 
@@ -288,18 +286,6 @@ describe("pillar proposals", () => {
       skipped: 1,
       droppedPillars: 0,
     });
-  });
-
-  it("returns only approved pillars", () => {
-    const db = openTestDb();
-    const more = { ...PILLAR, key: "tips", name: "Tips" };
-    importProposals(db, "acme-docs", { ...none, pillars: [PILLAR, more] }, null);
-    const [first] = listProposals(db, "acme-docs").pillar;
-    decideProposal(db, "acme-docs", first?.id ?? 0, "approved");
-    expect(approvedPillars(db, "acme-docs")).toEqual([
-      { key: "getting-started", name: "Getting started", description: PILLAR.description },
-    ]);
-    expect(MAX_APPROVED_PILLARS).toBe(6);
   });
 
   it("validates an edited pillar with the same rules", () => {

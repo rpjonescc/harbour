@@ -1,10 +1,6 @@
 import { z } from "zod";
-import {
-  approveAllProposed,
-  decideProposal,
-  editProposal,
-  pillarLimitReached,
-} from "@/lib/agents/proposals";
+import { pillarLimitReached } from "@/lib/agents/pillars";
+import { approveAllProposed, decideProposal, editProposal } from "@/lib/agents/proposals";
 import { audit } from "@/lib/audit";
 import { getSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
