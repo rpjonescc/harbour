@@ -1,7 +1,7 @@
 import { factsInput } from "@/tests/helpers/note";
 import { checkNote, toneProblem } from "./check";
 import { buildFacts } from "./facts";
-import { gapLine, NOTE_MESSAGES, SAMPLE_NOTE } from "./fallback";
+import { gapLine, NOTE_MESSAGES, NOTE_RUN_FAILED_LINE, SAMPLE_NOTE } from "./fallback";
 import { noteSchema } from "./note";
 
 describe("the fixed texts", () => {
@@ -29,6 +29,7 @@ describe("the fixed texts", () => {
       NOTE_MESSAGES.rateLimited(null),
       NOTE_MESSAGES.rejected,
       NOTE_MESSAGES.starting,
+      NOTE_RUN_FAILED_LINE,
       gapLine(null),
       SAMPLE_NOTE.greeting,
       SAMPLE_NOTE.headline,

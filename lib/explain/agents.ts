@@ -1,5 +1,8 @@
 import type { JobStatus } from "@/lib/jobs/queue";
 
+// A fixed note text: it lives with the note texts so their tone rules cover it.
+export { NOTE_RUN_FAILED_LINE } from "./voice/fallback";
+
 export const AGENTS_INTRO =
   "Claude's background work, saved to your Second Brain. One job runs at a time.";
 
@@ -31,10 +34,6 @@ export const RUN_HEADLINE: Readonly<Record<JobStatus, string>> = {
 
 export const RUN_FAILED_LINE =
   "This run didn't finish. You can start it again from the Agents page.";
-
-/** A daily note is asked for on Today, not on the Agents page. */
-export const NOTE_RUN_FAILED_LINE =
-  "This note didn't get written. You can ask for a fresh one on Today.";
 
 /** Names the log's Technical details for screen readers. */
 export const RUN_LOG_TOPIC = "step-by-step log of the run";

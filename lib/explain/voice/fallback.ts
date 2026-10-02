@@ -36,3 +36,7 @@ export const NOTE_MESSAGES = {
       ? "That's plenty of notes for one day. You can ask again tomorrow."
       : `That's plenty of notes for one day. Tomorrow's is written at ${noteTime}.`,
 } as const;
+
+/** A daily note is asked for on Today, not on the Agents page. */
+export const NOTE_RUN_FAILED_LINE =
+  "This note didn't get written. You can ask for a fresh one on Today.";

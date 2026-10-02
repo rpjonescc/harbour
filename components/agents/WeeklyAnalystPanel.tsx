@@ -10,7 +10,7 @@ import { postJson } from "@/lib/auth/client-api";
 import { AGENT_PURPOSE } from "@/lib/explain/agents";
 import { CLAUDE_OFF_HERE } from "@/lib/explain/claude";
 
-/** The weekly report: when it next runs, the latest one, and Run now. */
+/** The weekly report: when it next runs, the latest one, and Write this week's report now. */
 export function WeeklyAnalystPanel({ view }: { view: WeeklyPanelView }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
