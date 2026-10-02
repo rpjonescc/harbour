@@ -36,7 +36,7 @@ export const EMPTY_STATE: Record<
   active: {
     what: "Nothing to do right now.",
     when: "New things show up after each scan and each weekly report.",
-    why: "Until then nothing is waiting on you.",
+    why: "New ideas you haven't decided on yet are under the New ideas filter.",
   },
   suggested: {
     what: "No new ideas waiting.",
