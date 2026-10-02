@@ -185,7 +185,7 @@ describe("settingsView", () => {
     );
     expect(view.isDemoConfig).toBe(true);
     expect(view.backupDirSet).toBe(true);
-    expect(view.keys).toHaveLength(7);
+    expect(view.keys).toHaveLength(8);
     expect(view.budget).toMatchObject({ state: "no-paid-sources", capMicro: 60_000_000 });
   });
 

@@ -11,6 +11,7 @@ const config = (env: Record<string, string> = {}): Config => parseConfig({ ...BA
 // Sentinels: none of these may appear anywhere in the rows.
 const SECRETS = {
   HARBOUR_CLAUDE_OAUTH_TOKEN: "SENTINEL-claude-token",
+  HARBOUR_SCREENPIPE_API_KEY: "SENTINEL-screenpipe",
   HARBOUR_PAGESPEED_API_KEY: "SENTINEL-pagespeed",
   HARBOUR_GSC_CREDENTIALS: "/srv/harbour-example/SENTINEL-gsc.json",
   HARBOUR_DATAFORSEO_LOGIN: "SENTINEL-dfs-login",
@@ -27,6 +28,7 @@ describe("keyStatusRows", () => {
     const rows = keyStatusRows(config(), () => true);
     expect(rows.map((row) => [row.id, row.inUse, row.paid])).toEqual([
       ["claude", true, false],
+      ["screenpipe", true, false],
       ["pagespeed", true, false],
       ["search-console", true, false],
       ["dataforseo", false, true],
@@ -40,7 +42,7 @@ describe("keyStatusRows", () => {
 
   it("marks set keys present and never exposes a value or path", () => {
     const rows = keyStatusRows(config(SECRETS), () => true);
-    expect(Object.values(status(rows))).toEqual(Array(7).fill("present"));
+    expect(Object.values(status(rows))).toEqual(Array(8).fill("present"));
     const text = JSON.stringify(rows);
     expect(text).not.toContain("SENTINEL");
     expect(text).not.toContain("/srv/harbour-example");
@@ -59,5 +61,14 @@ describe("keyStatusRows", () => {
   it("needs both DataForSEO settings to call it present", () => {
     const rows = keyStatusRows(config({ HARBOUR_DATAFORSEO_LOGIN: "SENTINEL-dfs-login" }));
     expect(status(rows).dataforseo).toBe("missing");
+  });
+
+  it("reports Screenpipe as connected or not connected yet, never the key", () => {
+    const row = (env: Record<string, string>) =>
+      keyStatusRows(config(env)).find((r) => r.id === "screenpipe");
+    const connected = row({ HARBOUR_SCREENPIPE_API_KEY: "sp-test-key" });
+    expect(connected).toMatchObject({ status: "present", inUse: true, paid: false });
+    expect(row({})?.status).toBe("missing");
+    expect(JSON.stringify(connected)).not.toContain("sp-test-key");
   });
 });

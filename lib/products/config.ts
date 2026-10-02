@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
+import { PLATFORMS, platformSchema, productIdSchema } from "@/lib/content/ids";
 
 export const HUES = ["amber", "violet", "blue", "green", "rose", "teal"] as const;
 export type Hue = (typeof HUES)[number];
@@ -47,22 +48,55 @@ const ownerNameSchema = z
     "ownerName may only use letters, spaces, apostrophes, dots and hyphens",
   );
 
-const configSchema = z.object({
-  ownerName: ownerNameSchema.optional(),
-  products: z
-    .array(productSchema)
-    .min(1, "list at least one product")
-    .max(12, "list at most 12 products")
-    .superRefine((products, ctx) => {
-      const seen = new Set<string>();
-      for (const [index, { id }] of products.entries()) {
-        if (seen.has(id)) {
-          ctx.addIssue({ code: "custom", message: `Duplicate product id "${id}"`, path: [index] });
-        }
-        seen.add(id);
-      }
-    }),
+const contentProductSchema = z.strictObject({
+  terms: z.array(z.string().trim().min(2).max(40)).min(1).max(10),
+  platforms: z
+    .array(platformSchema)
+    .min(1)
+    .refine((list) => new Set(list).size === list.length, "list each platform once")
+    .default([...PLATFORMS]),
 });
+
+// Postiz settings are not part of this version: an unknown key is an error, not ignored.
+const contentSchema = z.strictObject({
+  excludeApps: z.array(z.string().trim().min(1).max(60)).max(50).default([]),
+  products: z.record(productIdSchema, contentProductSchema).default({}),
+});
+
+const configSchema = z
+  .object({
+    ownerName: ownerNameSchema.optional(),
+    content: contentSchema.optional(),
+    products: z
+      .array(productSchema)
+      .min(1, "list at least one product")
+      .max(12, "list at most 12 products")
+      .superRefine((products, ctx) => {
+        const seen = new Set<string>();
+        for (const [index, { id }] of products.entries()) {
+          if (seen.has(id)) {
+            ctx.addIssue({
+              code: "custom",
+              message: `Duplicate product id "${id}"`,
+              path: [index],
+            });
+          }
+          seen.add(id);
+        }
+      }),
+  })
+  .superRefine((config, ctx) => {
+    const ids = new Set(config.products.map((p) => p.id));
+    for (const id of Object.keys(config.content?.products ?? {})) {
+      if (!ids.has(id)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `content.products lists "${id}", which is not in products`,
+          path: ["content", "products", id],
+        });
+      }
+    }
+  });
 
 const DEFAULT_CONFIG_PATH = "./harbour.config.json";
 

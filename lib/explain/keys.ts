@@ -1,5 +1,6 @@
 import type { KeyRow } from "@/lib/settings/key-status";
 import { CLAUDE_CONNECT_STEPS, CLAUDE_PURPOSE } from "./claude";
+import { SCREENPIPE_CONNECT_STEPS, SCREENPIPE_PURPOSE } from "./screenpipe";
 import { sourceExplanation } from "./sources";
 
 export type KeyPhrase = {
@@ -29,10 +30,14 @@ export function keyPhrase(row: Pick<KeyRow, "status" | "inUse">): KeyPhrase {
 
 /** What the key gives Harbour, in one sentence. */
 export function keyPurpose(id: string): string {
-  return id === "claude" ? CLAUDE_PURPOSE : sourceExplanation(id).gives;
+  if (id === "claude") return CLAUDE_PURPOSE;
+  if (id === "screenpipe") return SCREENPIPE_PURPOSE;
+  return sourceExplanation(id).gives;
 }
 
 /** How to connect it; the setting names live only in these steps. */
 export function keySteps(id: string): readonly string[] {
-  return id === "claude" ? CLAUDE_CONNECT_STEPS : sourceExplanation(id).connect;
+  if (id === "claude") return CLAUDE_CONNECT_STEPS;
+  if (id === "screenpipe") return SCREENPIPE_CONNECT_STEPS;
+  return sourceExplanation(id).connect;
 }

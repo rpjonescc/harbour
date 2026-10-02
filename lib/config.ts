@@ -18,6 +18,11 @@ function isLoopbackOrigin(origin: string): boolean {
   return protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(hostname);
 }
 
+/** An http origin on this machine only, with no path: the Screenpipe key must never cross a network. */
+function isLoopbackHttpOrigin(value: string): boolean {
+  return isLoopbackOrigin(value) && new URL(value).origin === value;
+}
+
 /** `path` absolute with symlinks resolved, through its nearest existing ancestor if it does not exist yet. */
 function realPath(path: string): string {
   let existing = resolve(path);
@@ -123,6 +128,35 @@ const schema = z
       .default("06:30"),
     // "off" stops the worker queueing the daily note (Write me a fresh one still works).
     HARBOUR_SCHEDULED_NOTE: z.enum(["on", "off"]).default("on"),
+    // "on" turns on the content machine (Content page, digest, ideas, drafting). Off by default:
+    // reading Screenpipe is sensitive, so it is opted into deliberately.
+    HARBOUR_CONTENT: z.enum(["on", "off"]).default("off"),
+    // Screenpipe's local API. Loopback only, so its bearer key never leaves this machine.
+    HARBOUR_SCREENPIPE_URL: z
+      .string()
+      .default("http://127.0.0.1:3030")
+      .refine(isLoopbackHttpOrigin, {
+        message:
+          "HARBOUR_SCREENPIPE_URL must be an http origin on 127.0.0.1, [::1] or localhost, like http://127.0.0.1:3030",
+      }),
+    // Secret: from `screenpipe auth token`. Worker only. Unset means no activity digest (a gap).
+    HARBOUR_SCREENPIPE_API_KEY: z.string().min(1).optional(),
+    // "off" stops the worker queueing the daily activity digest ("Make today's digest now" still works).
+    HARBOUR_SCHEDULED_DIGEST: z.enum(["on", "off"]).default("on"),
+    // Local time (HARBOUR_TIMEZONE) the worker makes the digest of the day before.
+    HARBOUR_DIGEST_TIME: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "HARBOUR_DIGEST_TIME must be HH:MM, 24-hour, like 05:45")
+      .default("05:45"),
+    // "off" stops the worker queueing Monday's idea run ("Find new ideas" still works).
+    HARBOUR_SCHEDULED_IDEAS: z.enum(["on", "off"]).default("on"),
+    // Content agent runs per local day, scheduled and manual together.
+    HARBOUR_CONTENT_DAILY_RUNS: z.coerce.number().int().min(1).max(100).default(24),
+    // The folder holding the installed skills (no-ai-slop, humanizer, atomizer).
+    HARBOUR_SKILLS_DIR: z
+      .string()
+      .min(1)
+      .default(() => join(homedir(), ".claude", "skills")),
     // Where nightly backups go; default `<folder of HARBOUR_DB_PATH>/backups`. Never in the brain.
     HARBOUR_BACKUP_DIR: z.string().min(1).optional(),
     // "off" stops the worker queueing the nightly backup (`pnpm backup:now` still works).
@@ -173,6 +207,11 @@ const schema = z
     message:
       "HARBOUR_BACKUP_DIR must not be inside HARBOUR_BRAIN_DIR (the brain is pushed to a remote)",
     path: ["HARBOUR_BACKUP_DIR"],
+  })
+  .refine((c) => !isInside(c.HARBOUR_SKILLS_DIR, c.HARBOUR_BRAIN_DIR), {
+    message:
+      "HARBOUR_SKILLS_DIR must not be inside HARBOUR_BRAIN_DIR (the brain is pushed to a remote)",
+    path: ["HARBOUR_SKILLS_DIR"],
   })
   .refine((c) => !(c.NODE_ENV === "production" && c.HARBOUR_DEV_IDENTITY), {
     message: "HARBOUR_DEV_IDENTITY must not be set in production",

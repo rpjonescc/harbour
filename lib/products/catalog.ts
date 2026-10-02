@@ -6,6 +6,7 @@ import {
   ownerFirstName,
   type ProductKind,
 } from "./config";
+import { type ContentProduct, contentProducts } from "./content";
 
 export type { Hue, ProductKind } from "./config";
 
@@ -47,4 +48,14 @@ export function productById(id: ProductId): Product {
   const product = getProducts().find((p) => p.id === id);
   if (!product) throw new Error(`Unknown product: ${id}`);
   return product;
+}
+
+/** Products with content enabled in `harbour.config.json` (an entry under `content.products`). */
+export function getContentProducts(): readonly ContentProduct[] {
+  return contentProducts(getProductConfig());
+}
+
+/** Extra apps whose screen text is never read (`content.excludeApps`). */
+export function getExcludeApps(): readonly string[] {
+  return getProductConfig().content?.excludeApps ?? [];
 }

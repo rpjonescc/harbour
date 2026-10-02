@@ -1,5 +1,14 @@
 {
   "ownerName": "Sam Example",
+  "content": {
+    "excludeApps": ["Example Chat"],
+    "products": {
+      "acme-docs": {
+        "terms": ["acme docs", "acme-docs"],
+        "platforms": ["linkedin", "x", "instagram", "facebook", "blog", "website"]
+      }
+    }
+  },
   "products": [
     {
       "id": "acme-docs",

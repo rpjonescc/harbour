@@ -15,7 +15,9 @@ export type AuditEvent =
   | "scan_requested"
   | "action_status_changed"
   | "action_pr_linked"
-  | "backup_requested";
+  | "backup_requested"
+  | "content_run_requested"
+  | "content_decided";
 
 /** Appends a security-relevant event to the audit log. */
 export function audit(

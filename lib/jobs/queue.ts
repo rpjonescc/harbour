@@ -27,7 +27,13 @@ export type JobKind =
   | "weekly-analyst"
   | "daily-note"
   | "backup"
-  | "retention";
+  | "retention"
+  | "content-digest"
+  | "content-ideas"
+  | "content-draft"
+  | "content-atomise"
+  | "content-gate"
+  | "content-decision";
 export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";
 export type Job = typeof jobs.$inferSelect;
 export type EventKind = "status" | "tool" | "text" | "error";

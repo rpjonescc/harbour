@@ -380,6 +380,14 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_PERSONALITY` | no | `warm` | `warm` or `quiet`. `quiet` turns off the daily note (its job, its card on Today) and the wave behind the app. See [Daily note](#daily-note). Restart both services after changing it. |
 | `HARBOUR_NOTE_TIME` | no | `06:30` | The local time, `HH:MM` in `HARBOUR_TIMEZONE`, the worker writes the daily note each day (and catches up on start). Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_NOTE` | no | `on` | `off` stops the worker queueing the daily note by itself; **Write me a fresh one** on Today still queues it. Restart the worker after changing it. |
+| `HARBOUR_CONTENT` | no | `off` | `on` turns on the content machine: the Content page, the daily activity digest, ideas and drafting. Off hides the page and stops every content job. Restart both services after changing it. |
+| `HARBOUR_SCREENPIPE_URL` | no | `http://127.0.0.1:3030` | Screenpipe's local API. Must be an `http` origin on `127.0.0.1`, `[::1]` or `localhost`, so its key never leaves this machine. |
+| `HARBOUR_SCREENPIPE_API_KEY` | no | unset | Secret. From `screenpipe auth token`. Unset means no activity digest; Settings shows "Not connected yet". |
+| `HARBOUR_SCHEDULED_DIGEST` | no | `on` | `off` stops the worker queueing the daily digest; **Make today's digest now** on Content still works. |
+| `HARBOUR_DIGEST_TIME` | no | `05:45` | Local time, `HH:MM` in `HARBOUR_TIMEZONE`, the digest of the day before is made. |
+| `HARBOUR_SCHEDULED_IDEAS` | no | `on` | `off` stops Monday 07:00 idea runs; **Find new ideas** on Content still works. |
+| `HARBOUR_CONTENT_DAILY_RUNS` | no | `24` | Content agent runs allowed per local day (1 to 100), scheduled and manual together. |
+| `HARBOUR_SKILLS_DIR` | no | `~/.claude/skills` | Where the `no-ai-slop`, `humanizer` and `atomizer` skills are installed. Must be outside the brain. |
 | `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_RESEARCH` | no | `on` | `off` stops the worker queueing the monthly research refresh by itself (the first Sunday of each month at 21:00 and the catch-up on start); **Update old research** on **Agents** still queues it by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
@@ -429,6 +437,8 @@ product shows as not connected; see [Connect Search Console](#connect-search-con
 Optionally, `ownerName` (at most 40 characters: letters, spaces, apostrophes, dots and hyphens) is
 used only as a first name in the daily note's greeting; it stays in this gitignored file and is
 never logged.
+
+Optionally `content` (see Content machine below) turns the content machine on per product with its `terms`.
 
 Your product config and Second Brain are personal data: both are gitignored, and the brain
 belongs in its own private repository.
