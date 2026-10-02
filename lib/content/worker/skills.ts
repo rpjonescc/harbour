@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
 import { join } from "node:path";
+import { hasControlChars, hasInvisible } from "@/lib/text/hidden-chars";
 
 /** The instruction files each skill contributes to a run. */
 export const SKILL_FILES = {
@@ -17,11 +18,6 @@ export type LoadedSkill = { name: SkillName; source: string; sha256: string; fil
 export class SkillError extends Error {}
 
 const MAX_BYTES = 64 * 1024;
-// C0 (except tab, newline, carriage return), DEL and C1 controls.
-// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point.
-const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
-// Zero-width, bidi, word-joiner, BOM and Unicode tag characters hide text from the owner.
-const INVISIBLE = /[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]|[\u{e0000}-\u{e007f}]/u;
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 
 /** Reads a regular file of at most MAX_BYTES, never following a link; size is checked before reading. */
@@ -56,10 +52,10 @@ function readFile(dir: string, skill: SkillName, name: string): SkillFile {
   } catch {
     throw new SkillError(`The ${skill} skill file ${name} is not UTF-8 text.`);
   }
-  if (CONTROL.test(text)) {
+  if (hasControlChars(text, { tab: true, carriageReturn: true })) {
     throw new SkillError(`The ${skill} skill file ${name} contains a control character.`);
   }
-  if (INVISIBLE.test(text)) {
+  if (hasInvisible(text)) {
     throw new SkillError(`The ${skill} skill file ${name} contains an invisible character.`);
   }
   return { name, text, sha256: hash(text) };
@@ -73,7 +69,12 @@ function sourceOf(dir: string, skill: SkillName): string {
       .decode(bytes)
       .split("\n")[0]
       ?.trim();
-    if (!line || line.length > 300 || CONTROL.test(line) || INVISIBLE.test(line))
+    if (
+      !line ||
+      line.length > 300 ||
+      hasControlChars(line, { tab: true, carriageReturn: true }) ||
+      hasInvisible(line)
+    )
       return "unknown source";
     return line;
   } catch {

@@ -5,10 +5,10 @@ import { redactSensitive } from "@/lib/analyst/scrub";
 import { resolveBrainPath } from "@/lib/brain/paths";
 import { parseFile } from "@/lib/content/files";
 import { contentPaths } from "@/lib/content/paths";
-import { INVISIBLE_CHARS } from "@/lib/content/sanitise";
 import { digestFrontmatter, type IdeaFront } from "@/lib/content/schema";
 import { readBoundedBytes, readPrefixBytes } from "@/lib/note/bounded-read";
 import type { ContentProduct } from "@/lib/products/content";
+import { hasControlChars, stripInvisible } from "@/lib/text/hidden-chars";
 
 export const FACTS_PACK_BYTES = 48 * 1024;
 const DOC_BYTES = 6 * 1024;
@@ -20,9 +20,6 @@ export class FactsPackError extends Error {}
 const UNREADABLE =
   "A note or activity theme this idea rests on can't be read as plain text, so nothing was written. Check the notes folder, then try again.";
 
-// C0 controls except tab, newline and carriage return; DEL and C1 controls.
-// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point.
-const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
 const gap = (error: unknown) =>
   ["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "");
 
@@ -41,8 +38,8 @@ function decode(bytes: Buffer, truncated: boolean): string {
 
 /** Hidden characters out first (they could split an email or a number), then a control character is a refusal. */
 function plain(text: string): string {
-  const visible = text.replace(INVISIBLE_CHARS, "").replace(/\r\n?/g, "\n");
-  if (CONTROL.test(visible)) throw new FactsPackError(UNREADABLE);
+  const visible = stripInvisible(text).replace(/\r\n?/g, "\n");
+  if (hasControlChars(visible, { tab: true })) throw new FactsPackError(UNREADABLE);
   return visible.normalize("NFC");
 }
 

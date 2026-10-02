@@ -73,6 +73,14 @@ describe("extractNumbers", () => {
   });
 });
 
+describe("hidden characters inside a number", () => {
+  it("cannot split it: a digit run broken by a variation selector or a braille blank is still one number", () => {
+    expect(extractNumbers("It cut time by 4\u{e0101}0 percent")).toEqual(["40"]);
+    expect(extractNumbers("It cost 1\u28002\u3164 dollars")).toEqual(["12"]);
+    expect(unknownNumbers("Cut by 4\u{e0101}0%", "no figures here")).toEqual(["40"]);
+  });
+});
+
 describe("unknownNumbers", () => {
   it("lists the numbers in the text that no source holds", () => {
     expect(

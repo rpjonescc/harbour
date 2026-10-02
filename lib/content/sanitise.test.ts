@@ -72,6 +72,13 @@ describe("sanitiseText hostile input", () => {
     });
   });
 
+  it("strips the invisible characters a hand list missed: variation-selector supplement, braille blank, Hangul fillers", () => {
+    for (const hidden of ["\u{e0101}", "\u2800", "\u3164", "\uffa0", "\ufff9", "\u180b"]) {
+      const result = sanitiseText(`Docs${hidden} that ship.`, "social");
+      expect(result).toEqual({ ok: true, text: "Docs that ship.", stripped: true });
+    }
+  });
+
   it("rejects a C1 control character", () => {
     expect(sanitiseText("a\u0085b", "social").ok).toBe(false);
   });

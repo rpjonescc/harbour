@@ -1,18 +1,10 @@
+import { hasControlChars, stripInvisible } from "@/lib/text/hidden-chars";
 import type { Platform } from "./ids";
 
 export type SanitiseResult =
   | { ok: true; text: string; stripped: boolean }
   | { ok: false; reason: string };
 
-// Zero-width, bidi, joiner, BOM, soft-hyphen, variation-selector, line-separator and Unicode tag
-// characters hide or reorder text. They are stripped before normalising so they cannot split a
-// character sequence and survive as a different one.
-export const INVISIBLE_CHARS =
-  // biome-ignore lint/suspicious/noMisleadingCharacterClass: stripping combining and joining characters individually is the point.
-  /[\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\u00ad\u061c\u180e\u034f\ufe00-\ufe0f]|[\u{e0000}-\u{e007f}]/gu;
-// C0 and C1 controls and DEL; newline is the one allowed. Shared with the ideas inputs.
-// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point.
-export const CONTROL_CHARS = /[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/;
 // A "<" that opens a tag, closing tag, comment, doctype or processing instruction, closed or not.
 const HTML = /<[a-z/!?]/i;
 const IMAGE = /!\[/;
@@ -91,9 +83,10 @@ export function sanitiseText(
   options: { allowedHosts?: readonly string[] } = {},
 ): SanitiseResult {
   const crlf = input.replace(/\r\n/g, "\n");
-  const cleaned = crlf.replace(INVISIBLE_CHARS, "");
+  // Stripped before normalising, so hidden characters cannot split a sequence into another one.
+  const cleaned = stripInvisible(crlf);
   const text = cleaned.normalize("NFC");
-  if (CONTROL_CHARS.test(text)) return reject("It contains a control character.");
+  if (hasControlChars(text)) return reject("It contains a control character.");
   if (HTML.test(text)) return reject("It contains HTML.");
   if (IMAGE.test(text)) return reject("It contains an image.");
   if (LINK_TITLE.test(text)) return reject("It contains a link title.");

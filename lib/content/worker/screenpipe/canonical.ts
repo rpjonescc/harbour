@@ -1,3 +1,5 @@
+import { INVISIBLE_CHARS } from "@/lib/text/hidden-chars";
+
 // Screen text and agent output are hostile: before anything is matched they are brought to one
 // canonical form, so an invisible character, a full-width letter, a stacked accent or a lookalike
 // letter cannot hide a secret or a forbidden term from a rule.
@@ -6,9 +8,6 @@
 // (zero-width, bidi, soft hyphen, tags), private-use, lone surrogates, variation selectors and
 // blank-looking letters vanish. Written as escapes: a literal invisible character cannot be reviewed.
 const SEPARATORS = /[\p{Cc}\p{Zl}\p{Zp}]/gu;
-const INVISIBLE =
-  // biome-ignore lint/suspicious/noMisleadingCharacterClass: stripping each combining or joining character individually is the point.
-  /[\p{Cf}\p{Co}\p{Cs}\p{Variation_Selector}\u034f\u115f\u1160\u180e\u2800\u3164]/gu;
 const MARKS = /\p{M}/gu;
 
 /** Lookalike letters from Cyrillic and Greek, mapped to the Latin letter they imitate. */
@@ -83,7 +82,7 @@ export function canonicalise(text: string): string {
   return (
     text
       .replace(SEPARATORS, " ")
-      .replace(INVISIBLE, "")
+      .replace(INVISIBLE_CHARS, "")
       .normalize("NFKC")
       // Full stops NFKC leaves alone: "attacker\u3002com" is a domain to a reader.
       .replace(/[\u3002\uff61]/g, ".")
@@ -91,7 +90,7 @@ export function canonicalise(text: string): string {
       .replace(MARKS, "")
       .normalize("NFC")
       .replace(SEPARATORS, " ")
-      .replace(INVISIBLE, "")
+      .replace(INVISIBLE_CHARS, "")
       .replace(/\s+/g, " ")
       .trim()
   );

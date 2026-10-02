@@ -4,11 +4,11 @@ import type { Pillar } from "@/lib/agents/pillars";
 import { parseFile } from "@/lib/content/files";
 import { contentPaths } from "@/lib/content/paths";
 import { ideaFileIds, readAllIdeas } from "@/lib/content/read/ideas";
-import { CONTROL_CHARS, INVISIBLE_CHARS } from "@/lib/content/sanitise";
 import { digestFrontmatter } from "@/lib/content/schema";
 import { addDays } from "@/lib/format/zoned-time";
 import { readBoundedBytes, readPrefixBytes } from "@/lib/note/bounded-read";
 import type { ContentProduct } from "@/lib/products/content";
+import { hasControlChars, stripInvisible } from "@/lib/text/hidden-chars";
 
 const EXCERPT_BYTES = 6 * 1024;
 const DIGEST_DAYS = 7;
@@ -38,12 +38,11 @@ export class IdeasInputError extends Error {}
 /** Text the agent may be shown: invisible characters stripped, NFC; null when it holds a control character. */
 function cleanText(text: string): string | null {
   // Tabs and Windows line ends are ordinary in notes; the shared control check allows only "\n".
-  const stripped = text
-    .replace(INVISIBLE_CHARS, "")
+  const stripped = stripInvisible(text)
     .replace(/\r\n?/g, "\n")
     .replace(/\t/g, " ")
     .normalize("NFC");
-  return CONTROL_CHARS.test(stripped) ? null : stripped;
+  return hasControlChars(stripped) ? null : stripped;
 }
 
 function themesSince(

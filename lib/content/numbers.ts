@@ -1,4 +1,4 @@
-import { INVISIBLE_CHARS } from "./sanitise";
+import { stripInvisible } from "@/lib/text/hidden-chars";
 
 const UNITS = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
 const TEENS = [
@@ -52,11 +52,7 @@ function asciiDigit(char: string): string {
 
 /** What a reader sees: compatibility forms folded (full-width digits), hidden characters gone, any script's digits as 0-9. */
 const readable = (text: string): string =>
-  text
-    .normalize("NFKC")
-    .replace(INVISIBLE_CHARS, "")
-    .normalize("NFKC")
-    .replace(DECIMAL_DIGIT, asciiDigit);
+  stripInvisible(text.normalize("NFKC")).normalize("NFKC").replace(DECIMAL_DIGIT, asciiDigit);
 
 /** Digits as one canonical string without Number(), so long figures never collide: "012.50" is "12.5". */
 function normal(raw: string): string {
