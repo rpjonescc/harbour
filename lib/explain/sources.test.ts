@@ -73,7 +73,7 @@ describe("source phrases", () => {
 
 describe("sourceExplanation", () => {
   it("finds a source by id and knows when it doesn't", () => {
-    expect(sourceExplanation("search-console")?.name).toBe("Google Search Console");
-    expect(sourceExplanation("nope")).toBeNull();
+    expect(sourceExplanation("search-console").name).toBe("Google Search Console");
+    expect(() => sourceExplanation("nope")).toThrow(/nope/);
   });
 });

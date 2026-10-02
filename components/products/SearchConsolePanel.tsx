@@ -13,6 +13,12 @@ const ID = "search-console";
 const TITLE = sourceName(ID);
 const MISSING_NOT_ZERO = "Until then, these numbers are missing, not zero.";
 
+/**
+ * The Product page speaks of "scans" throughout (spec Decision 7), while Today's shared phrase
+ * says "check". Reword it here so this panel uses one word.
+ */
+const LAST_SCAN = (phrase: string) => phrase.replace("last check", "last scan");
+
 /** The raw reason Harbour recorded (setting names, API errors): only under Technical details. */
 function Raw({ reason }: { reason: string | null }) {
   if (!reason) return null;
@@ -71,7 +77,7 @@ export function SearchConsolePanel({ search, locale }: { search: SearchState; lo
         statusLabel={sourceStatusPhrase(ID, "ok")}
       >
         <p className="text-sm text-ink-muted">
-          Connected, but Google sent no search data for this scan. That is normal for a new site.
+          Connected, but Google sent no search data for this scan.
         </p>
       </SourcePanel>
     );
@@ -80,7 +86,7 @@ export function SearchConsolePanel({ search, locale }: { search: SearchState; lo
     return (
       <SourcePanel id={ID} title={TITLE} status="failed" statusLabel="Needs a look">
         <p className="text-sm text-ink">
-          {sourceStatusPhrase(ID, "failed")}, so these numbers are missing, not zero.
+          {LAST_SCAN(sourceStatusPhrase(ID, "failed"))}, so these numbers are missing, not zero.
         </p>
         <ConnectLink lead="Harbour will try again with the next scan." />
         <Raw reason={search.reason} />
@@ -95,7 +101,7 @@ export function SearchConsolePanel({ search, locale }: { search: SearchState; lo
       status="not-connected"
       statusLabel={sourceStatusPhrase(ID, "not_configured")}
     >
-      <p className="text-sm text-ink-muted">{sourceExplanation(ID)?.gives}</p>
+      <p className="text-sm text-ink-muted">{sourceExplanation(ID).gives}</p>
       <ConnectLink lead={MISSING_NOT_ZERO} />
       <Raw reason={search.state === "none" ? null : search.reason} />
     </SourcePanel>

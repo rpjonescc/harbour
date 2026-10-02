@@ -1,9 +1,7 @@
 import { DocsLink } from "@/components/ui/DocsLink";
 import { DOCS_LINKS } from "@/lib/docs-links";
-import { sourceExplanation, sourceStatusPhrase } from "@/lib/explain/sources";
+import { NOT_COLLECTED_YET, sourceStatusPhrase } from "@/lib/explain/sources";
 import { SourcePanel } from "./SourcePanel";
-
-const NOT_COLLECTED = "Harbour doesn't collect this data yet.";
 
 const PANELS = [
   {
@@ -34,7 +32,7 @@ export function PaidSourcePanels() {
         >
           <p className="text-sm text-ink-muted">{panel.body}</p>
           <p className="text-xs text-ink-muted">
-            {sourceExplanation(panel.sourceId)?.connect[0] ?? NOT_COLLECTED}{" "}
+            {NOT_COLLECTED_YET}{" "}
             <DocsLink href={DOCS_LINKS.scores}>
               What the scores use today<span className="sr-only"> ({panel.title})</span>
             </DocsLink>
