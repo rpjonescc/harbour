@@ -9,11 +9,17 @@ const SETTINGS = (text: string) => (
     {text}
   </Link>
 );
-/** Does it matter: the live database is untouched; only the spare copy is behind. */
+/** Does it matter: the live database is untouched; only the spare copies are behind. */
 const STILL_SAFE = "Your live data is fine, but your newest spare copy is older than it should be.";
+/** No spare copy at all yet makes it matter more. */
+const NO_COPY_YET =
+  "Your live data is fine, but you don't have a spare copy yet, so getting this working matters.";
+/** The folder can't be read, so whether a spare copy exists is unknown (a gap, not "none"). */
+const CANT_CHECK =
+  "Your live data is fine, but Harbour can't open the backup folder to check your spare copies.";
 
 type Props = {
-  backup: Pick<BackupStatus, "health" | "lastFailure" | "enabled" | "next">;
+  backup: Pick<BackupStatus, "health" | "lastFailure" | "enabled" | "next" | "latest" | "count">;
   timeZone: string;
   locale: string;
   /** Names the Technical details for screen readers when several notices share a page (/design). */
@@ -25,18 +31,19 @@ function failedMessage({ backup, timeZone, locale }: Props): ReactNode {
   const what = lastFailure
     ? `The backup on ${formatShortDateTime(lastFailure.at, timeZone, locale)} didn't finish.`
     : "The last backup didn't finish.";
+  const matters = backup.latest ? STILL_SAFE : backup.count === null ? CANT_CHECK : NO_COPY_YET;
   // Only the schedule retries; with it off, nothing runs until the owner chooses Back up now.
   if (backup.enabled && next) {
     return (
       <>
-        {what} {STILL_SAFE} Harbour tries again at {formatWeekdayTime(next, timeZone, locale)} —{" "}
+        {what} {matters} Harbour tries again at {formatWeekdayTime(next, timeZone, locale)} —{" "}
         {SETTINGS("details in Settings")}.
       </>
     );
   }
   return (
     <>
-      {what} {STILL_SAFE} Nightly backups are off, so run {SETTINGS("Back up now in Settings")}.
+      {what} {matters} Nightly backups are off, so run {SETTINGS("Back up now in Settings")}.
     </>
   );
 }

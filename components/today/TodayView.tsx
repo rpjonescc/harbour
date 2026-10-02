@@ -26,7 +26,7 @@ export function TodayView({
   /** Real spend even on the sample Today: the ledger is never sample data. */
   costMeter: CostMeterView;
   /** Real backup health even on the sample Today: shown only when it needs a look. */
-  backup: Pick<BackupStatus, "health" | "lastFailure" | "enabled" | "next">;
+  backup: Pick<BackupStatus, "health" | "lastFailure" | "enabled" | "next" | "latest" | "count">;
   now: Date;
   timeZone: string;
   locale: string;

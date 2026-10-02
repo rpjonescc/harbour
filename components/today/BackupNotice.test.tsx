@@ -32,6 +32,21 @@ describe("BackupNotice", () => {
     );
   });
 
+  it("says plainly when there's no spare copy at all yet", () => {
+    show({ ...EXAMPLE_BACKUPS.failed, latest: null, count: 0 });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "The backup on 2 Oct, 04:10 didn't finish. Your live data is fine, but you don't have a spare copy yet, so getting this working matters. Harbour tries again at Saturday 3 Oct, 03:15 — details in Settings.",
+    );
+    expect(screen.queryByText(/older than it should be/)).toBeNull();
+  });
+
+  it("doesn't claim there's no spare copy when the backup folder can't be read", () => {
+    show({ ...EXAMPLE_BACKUPS.failed, latest: null, count: null });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "The backup on 2 Oct, 04:10 didn't finish. Your live data is fine, but Harbour can't open the backup folder to check your spare copies.",
+    );
+  });
+
   it("says when there has been no backup for two days", () => {
     show(EXAMPLE_BACKUPS.stale);
     expect(screen.getByRole("status")).toHaveTextContent(
