@@ -6,7 +6,7 @@ import { FACTS_GATE_PROMPT_VERSION, factsGatePrompt } from "@/lib/content/prompt
 import { claimSchema } from "@/lib/content/schema";
 import { DraftStartError, labelOf, readIdeaFile } from "./draft";
 import { type FactsRun, factsChange } from "./facts-gate-change";
-import { buildFactsPack, factsPackText } from "./facts-pack";
+import { buildFactsPack, factsCheckText, factsPackText } from "./facts-pack";
 import { gateInputs } from "./gate-inputs";
 import { type PieceChange, pieceGuard, writeUpdates } from "./gate-write";
 import { requireContent } from "./run-context";
@@ -87,7 +87,7 @@ export function factsGateSpec(
     hosts,
     voice,
     // Numbers are checked against what the sources say, never against their `[ref]` labels.
-    factsText: pack.map((f) => f.text).join("\n"),
+    factsText: factsCheckText(pack),
     sourceText: source.paragraphs.map((p) => p.text).join("\n"),
     paragraphIds: source.paragraphs.map((p) => p.id),
     factRefs: pack.map((f) => f.ref),

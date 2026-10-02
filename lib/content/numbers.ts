@@ -20,12 +20,14 @@ const BIG: [string, number][] = [
   ["million", 1e6],
   ["billion", 1e9],
 ];
+const MAGNITUDES = BIG.map(([word]) => word);
 // "one" alone is a pronoun and is not counted; it only counts inside "twenty-one" and the like.
 const WORDS: Record<string, number> = Object.fromEntries([
   ...UNITS.slice(1).map((w, i) => [w, i + 2]),
   ...TEENS.map((w, i) => [w, i + 10]),
   ...TENS.map((w, i) => [w, (i + 2) * 10]),
   ...BIG,
+  ["zero", 0],
 ]);
 const DASH = "[-\\u2010-\\u2013]";
 const WORD_LIST = Object.keys(WORDS).join("|");
@@ -33,7 +35,7 @@ const NOT_IN_WORD = String.raw`(?<![\p{L}\p{N}])`;
 const NOT_BEFORE_LETTER = String.raw`(?![\p{L}\p{N}])`;
 // Longest reading first: "twenty-five", then "tenfold" or "twelve-fold", then a plain word.
 const SPELLED = new RegExp(
-  `${NOT_IN_WORD}(?:(?<tens>${TENS.join("|")})${DASH}(?<unit>${UNITS.join("|")})|(?<fold>${WORD_LIST})${DASH}?fold|(?<word>${WORD_LIST}))${NOT_BEFORE_LETTER}`,
+  `${NOT_IN_WORD}(?:(?<tens>${TENS.join("|")})${DASH}(?<unit>${UNITS.join("|")})|(?<fold>${WORD_LIST})${DASH}?fold|(?<word>(?:${WORD_LIST})(?:(?<=${MAGNITUDES.join("|")})s)?))${NOT_BEFORE_LETTER}`,
   "giu",
 );
 // A digit run, not glued to digits before it. Names that merely contain digits are blanked first.
@@ -50,9 +52,18 @@ function asciiDigit(char: string): string {
   return String((code - zero) % 10);
 }
 
-/** What a reader sees: compatibility forms folded (full-width digits), hidden characters gone, any script's digits as 0-9. */
+// "10k", "2.5m", "3b": a magnitude letter glued to a figure, not part of a word ("b2b", "5mb").
+const SUFFIXED = /(?<![\p{L}\p{N}])(\d+(?:\.\d+)?)([kmb])(?![\p{L}\p{N}])/giu;
+const SUFFIX: Record<string, number> = { k: 1e3, m: 1e6, b: 1e9 };
+
+/** What a reader sees: compatibility forms folded (full-width digits), hidden characters gone, any script's digits as 0-9, "10k" as 10000. */
 const readable = (text: string): string =>
-  stripInvisible(text.normalize("NFKC")).normalize("NFKC").replace(DECIMAL_DIGIT, asciiDigit);
+  stripInvisible(text.normalize("NFKC"))
+    .normalize("NFKC")
+    .replace(DECIMAL_DIGIT, asciiDigit)
+    .replace(SUFFIXED, (_, figure: string, letter: string) =>
+      String(Math.round(Number(figure) * (SUFFIX[letter.toLowerCase()] ?? 1))),
+    );
 
 /** Digits as one canonical string without Number(), so long figures never collide: "012.50" is "12.5". */
 function normal(raw: string): string {
@@ -67,12 +78,14 @@ function spelled(match: RegExpMatchArray): string {
   if (tens && unit) {
     return String((WORDS[tens.toLowerCase()] ?? 0) + UNITS.indexOf(unit.toLowerCase()) + 1);
   }
-  return String(WORDS[(fold ?? word ?? "").toLowerCase()] ?? "");
+  const name = (fold ?? word ?? "").toLowerCase();
+  // "thousands of" and "hundreds of" are plural magnitudes: the same figure for this check.
+  return String(WORDS[name] ?? WORDS[name.replace(/s$/, "")] ?? "");
 }
 
 /**
  * The numbers a reader would take for facts: digits (with commas, decimals, `$` and `%`), years,
- * and spelled-out numbers: two to twenty, the tens (thirty to ninety), "twenty-one" to "ninety-nine", hundred, thousand, million, billion and "-fold" forms. "one" alone is not counted (a pronoun). Digits glued to letters ("Top10", "Q4") are read, except a short list of names (p3, v2, x86, h1, b2b, 3d, 2fa, i18n, a11y). Normalised and de-duplicated.
+ * and spelled-out numbers: zero, two to twenty, the tens (thirty to ninety), "twenty-one" to "ninety-nine", hundred, thousand, million, billion and "-fold" forms. "one" alone is not counted (a pronoun). Digits glued to letters ("Top10", "Q4") are read, except a short list of names (p3, v2, x86, h1, b2b, 3d, 2fa, i18n, a11y). Normalised and de-duplicated.
  * Full-width and other scripts' digits count as digits, and hidden characters inside a number do
  * not split it, so formatting cannot hide a figure.
  */

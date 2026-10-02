@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { eventsSince } from "@/lib/jobs/queue";
-import { pieceFile, words } from "@/tests/helpers/content";
+import { digestFile, ideaFile, pieceFile, words } from "@/tests/helpers/content";
 import {
   brainFiles,
   decisionSetup,
@@ -39,6 +39,33 @@ describe("edit", () => {
       );
       expect(s.brain.git("log", "-1", "--format=%s").trim()).toBe(`content: edit ${IDEA}.linkedin`);
       expect(s.brain.git("show", "--name-only", "--format=", "HEAD").trim()).toBe(PIECE_PATH);
+    } finally {
+      s.brain.cleanup();
+    }
+  });
+
+  it("does not take the digits of a source label or an ISO date for known figures", () => {
+    const s = decisionSetup(
+      brainFiles({
+        [`content/ideas/acme-docs/${IDEA}.md`]: ideaFile({
+          state: "drafted",
+          sources: ["digest:2026-09-28#t1", "brain:products/acme-docs/notes.md"],
+        }),
+        "content/digests/2026-09-28.md": digestFile("2026-09-28", [
+          ["acme-docs", "Rewrote the getting-started guide around a short first deploy."],
+        ]),
+        "products/acme-docs/notes.md":
+          "---\nupdated: 2026-03-14\nowner: someone\n---\nA first deploy takes about five minutes.\n",
+      }),
+    );
+    try {
+      for (const body of ["Cut build time by 28% in 2026.", "Updated on 14 March, 2026-03-14."]) {
+        s.decide({ ...edit, body });
+        const { front } = readPieceAt(s.brain.root);
+        expect(front).toMatchObject({ state: "needs-you", gates: { facts: "fail" } });
+        s.brain.git("checkout", "--", ".");
+        s.brain.git("reset", "-q", "--hard", "HEAD~1");
+      }
     } finally {
       s.brain.cleanup();
     }

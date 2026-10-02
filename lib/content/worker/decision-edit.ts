@@ -20,7 +20,7 @@ import {
   DecisionRefusal,
 } from "./decision-types";
 import { ownHosts } from "./draft-check";
-import { buildFactsPack, FactsPackError, factsPackText } from "./facts-pack";
+import { buildFactsPack, FactsPackError, factsCheckText } from "./facts-pack";
 
 const NOT_SAVED = "This piece wasn't saved:";
 
@@ -66,7 +66,8 @@ function checks(ctx: DecisionContext, piece: ReadPiece, content: PieceContent) {
     );
   }
   const source = readSource(ctx.root, piece.front.ideaId);
-  const factsText = factsPackText(pack);
+  // Label-free: a date in a `[digest:2026-09-28#t1]` label must not make 28 or 2026 a known figure.
+  const factsText = factsCheckText(pack);
   const claims = checkClaims({
     text: allText(content),
     sourceText: (source?.paragraphs ?? []).map((p) => p.text).join("\n"),

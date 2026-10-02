@@ -147,3 +147,16 @@ function capPack(items: FactItem[]): FactItem[] {
 /** The pack as one labelled text for a prompt. Number checks use each item's `text`, never these labels. */
 export const factsPackText = (pack: readonly FactItem[]): string =>
   pack.map((f) => `[${f.ref}]\n${f.text}${f.truncated ? "\n(cut short)" : ""}`).join("\n\n");
+
+// A leading YAML block (notes often carry one) and ISO dates are bookkeeping, not claims the
+// owner made: their digits would otherwise make a year or a day count as "known" in a piece.
+const FRONTMATTER = /^\uFEFF?---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/;
+const ISO_DATE = /\b\d{4}-\d{2}-\d{2}\b/g;
+
+/**
+ * What the numbers check compares a piece with: each item's own words, never its `[ref]` label,
+ * without frontmatter or ISO dates. The one place that builds it, for the facts gate and for an
+ * owner's edit.
+ */
+export const factsCheckText = (pack: readonly FactItem[]): string =>
+  pack.map((f) => f.text.replace(FRONTMATTER, "").replace(ISO_DATE, " ")).join("\n");

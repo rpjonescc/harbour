@@ -54,9 +54,7 @@ describe("extractNumbers", () => {
   );
 
   it("does not count 'one', or number words inside longer words", () => {
-    expect(extractNumbers("One in 2026, someone's anyone, a hundredth, thousands")).toEqual([
-      "2026",
-    ]);
+    expect(extractNumbers("One in 2026, someone's anyone, a hundredth")).toEqual(["2026"]);
   });
 
   it.each([
@@ -70,6 +68,28 @@ describe("extractNumbers", () => {
   it("copes with very long text without hanging", () => {
     const long = `${"9".repeat(50_000)} ${"word ".repeat(50_000)}`;
     expect(extractNumbers(long)).toHaveLength(1);
+  });
+});
+
+describe("zero, plural magnitudes and k, m, b suffixes", () => {
+  it("reads them as figures, so a piece cannot slip one past the sources", () => {
+    expect(extractNumbers("Zero setup and thousands of teams")).toEqual(["0", "1000"]);
+    expect(extractNumbers("Hundreds of pages, millions of views")).toEqual(["100", "1000000"]);
+    expect(extractNumbers("10k users, 2.5m views, 3B rows")).toEqual([
+      "10000",
+      "2500000",
+      "3000000000",
+    ]);
+  });
+
+  it("matches the spelled-out or comma form the sources hold", () => {
+    expect(unknownNumbers("10k users", "We have 10,000 users")).toEqual([]);
+    expect(unknownNumbers("thousands of teams", "one thousand teams")).toEqual([]);
+    expect(unknownNumbers("20k users", "We have 10,000 users")).toEqual(["20000"]);
+  });
+
+  it("leaves names and unit suffixes alone", () => {
+    expect(extractNumbers("A b2b tool with a 5mb limit")).toEqual(["5"]);
   });
 });
 
