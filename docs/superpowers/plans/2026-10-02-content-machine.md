@@ -11206,7 +11206,7 @@ source ~/.nvm/nvm.sh && pnpm fix && pnpm check
 source ~/.nvm/nvm.sh && pnpm db:generate     # expect: no schema changes
 source ~/.nvm/nvm.sh && pnpm test:e2e         # the whole suite, once
 git status --short                            # only the files this plan names
-git diff --cached | grep -inE "ryan|rpjonescc|/home/|@ugly|hostname" || echo "no private terms"
+git diff --cached | grep -inE "<owner-terms-from-.private-terms>|\/home\/|hostname" || echo "no private terms"
 ```
 
 `pnpm check` includes the size check (every file under its hard limit; if a file you touched is over its soft limit, split it by responsibility as AGENTS.md says). `tests/helpers/content.ts` accumulates fixtures across the tasks and is the likeliest to pass 300 lines: split it into `content-fixtures.ts` (ACME, VOICE_ACME, PIECES, CHAIN_WORKS, ideaFile, pieceFile, digestFile, seedPieces, seedAfterAB) and `content-run.ts` (makeSkillsDir, contentSetup, runChain, searchEverywhere, dumpDb) and update the imports; do it in this task if it is needed, the private-terms scan and the test suite, which now holds the canary and adversarial tests. Then, by hand, once (this is the one place a real agent and real Screenpipe may be used, by the owner and never in a test): set `HARBOUR_CONTENT=on` in `.env` for a dev copy, add a content block for one product, write its voice profile, press **Make today's digest now**, read the digest file in the Second Brain viewer before leaving the schedule on, press **Find new ideas**, then **Write this** on one idea, and read the six pieces. Record anything surprising (especially how many pieces land on Needs you) in the final report.
