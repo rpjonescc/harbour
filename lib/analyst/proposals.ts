@@ -39,7 +39,7 @@ export type WeeklyProposals = z.infer<typeof weeklyProposalsSchema>;
 export function parseWeeklyProposals(text: string, productIds: readonly string[]): WeeklyProposals {
   let raw: unknown;
   try {
-    raw = JSON.parse(text.replace(/^﻿/, ""));
+    raw = JSON.parse(text.replace(/^\ufeff/, ""));
   } catch {
     throw new Error("The weekly proposals file is not valid JSON");
   }

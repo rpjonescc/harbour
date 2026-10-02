@@ -45,7 +45,7 @@ function weeklyJob(db: ReturnType<typeof openTestDb>): number {
 
 describe("parseWeeklyProposals", () => {
   it("accepts a valid file", () => {
-    expect(parseWeeklyProposals(`﻿${file([proposed()])}`, IDS)).toEqual({
+    expect(parseWeeklyProposals(`\ufeff${file([proposed()])}`, IDS)).toEqual({
       actions: [proposed()],
     });
     expect(
