@@ -18,6 +18,11 @@ export type WorkPlan<Out> = {
   parse: (text: string) => Parse<Out>;
   /** Every canonical file the worker writes for `value`, path to content. Pure. */
   files: (value: Out, note: (text: string) => void) => Record<string, string>;
+  /**
+   * Every planned file is a new one: created exclusively, so a file that appears between the
+   * plan and the write is never overwritten. The failure is this fixed sentence.
+   */
+  createOnly?: { inTheWay: string };
 };
 
 /** Parses a work file's text as strict JSON; the reason never repeats the agent's own values. */
@@ -96,9 +101,17 @@ export function workReview<Out>(input: {
       for (const path of Object.keys(files)) {
         if (!input.allowed.exact.includes(path)) input.allowed.exact.push(path);
       }
+      const created = input.plan.createOnly;
       for (const [path, text] of Object.entries(files)) {
         mkdirSync(dirname(join(root, path)), { recursive: true });
-        writeFileSync(join(root, path), text);
+        try {
+          writeFileSync(join(root, path), text, created ? { flag: "wx" } : undefined);
+        } catch (error) {
+          if (created && (error as NodeJS.ErrnoException).code === "EEXIST") {
+            throw new Error(created.inTheWay);
+          }
+          throw error;
+        }
       }
       rmSync(join(root, rel), { force: true });
       return checked.digest;

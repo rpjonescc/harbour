@@ -107,7 +107,11 @@ describe("requestContent: find-ideas", () => {
       ok: false,
       status: 404,
     });
-    expect(ask({}).result).toMatchObject({ ok: false, error: "voice_missing" });
+    expect(ask({}).result).toMatchObject({
+      ok: false,
+      error: "voice_missing",
+      message: "Write Acme Docs's voice profile first. The template is on the Content page.",
+    });
   });
 
   it("leaves an unusable voice profile to the job, which says why", () => {

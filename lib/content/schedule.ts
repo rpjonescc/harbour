@@ -110,8 +110,10 @@ export type IdeasScheduleDeps = {
   tokenSet: boolean;
   dailyRuns: number;
   clock: () => number;
-  /** Ids of the content products with a valid voice profile and fewer than 12 ideas waiting. */
-  readyProducts: () => string[];
+  /** Ids of every content product. */
+  productIds: () => string[];
+  /** A valid voice profile and fewer than 12 ideas waiting; reads the brain, so called last. */
+  isReady: (productId: string) => boolean;
 };
 
 /**
@@ -135,8 +137,10 @@ export function makeIdeasSchedule(deps: IdeasScheduleDeps) {
       const done = new Set(
         jobsCreatedSince(deps.db, "content-ideas", since).map((j) => j.params.productId),
       );
+      // Products with this week's run already queued are settled: the brain is not read for them.
       const queued: { jobId: number; productId: string }[] = [];
-      for (const productId of deps.readyProducts().filter((id) => !done.has(id))) {
+      for (const productId of deps.productIds().filter((id) => !done.has(id))) {
+        if (!deps.isReady(productId)) continue;
         const result = enqueueContent(deps.db, {
           kind: "content-ideas",
           params: { productId },

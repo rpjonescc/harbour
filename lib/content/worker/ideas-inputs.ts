@@ -3,7 +3,8 @@ import { join } from "node:path";
 import type { Pillar } from "@/lib/agents/proposals";
 import { parseFile } from "@/lib/content/files";
 import { contentPaths } from "@/lib/content/paths";
-import { ideaFileIds, readIdeas } from "@/lib/content/read/ideas";
+import { ideaFileIds, readAllIdeas } from "@/lib/content/read/ideas";
+import { CONTROL_CHARS, INVISIBLE_CHARS } from "@/lib/content/sanitise";
 import { digestFrontmatter } from "@/lib/content/schema";
 import { addDays } from "@/lib/format/zoned-time";
 import { readBoundedBytes, readPrefixBytes } from "@/lib/note/bounded-read";
@@ -25,35 +26,37 @@ export type IdeasInputs = {
   existingIds: Set<string>;
   /** Ideas still waiting for the owner: the backlog cap leaves room for 12 minus this. */
   waiting: number;
-  /** No digest in the last 7 days: ideas then come from the notes alone. */
+  /** No themes for this product in the last 7 days: ideas then come from the notes alone. */
   digestGap: boolean;
+  /** A digest exists in the last 7 days (for any product), so a gap means "nothing on topic". */
+  digestExists: boolean;
 };
 
 /** Thrown for an input the job cannot trust; the message is a fixed sentence the owner can act on. */
 export class IdeasInputError extends Error {}
 
-// Zero-width, bidi, joiner, BOM, soft-hyphen, variation-selector and tag characters hide text from
-// a reader but not from a model. Keep these as \u escapes: `pnpm fix` would turn them into the
-// invisible characters themselves.
-const INVISIBLE =
-  // biome-ignore lint/suspicious/noMisleadingCharacterClass: stripping joining characters individually is the point.
-  /[\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\u00ad\u061c\u180e\u034f\ufe00-\ufe0f]|[\u{e0000}-\u{e007f}]/gu;
-// C0 and C1 controls and DEL; tab, newline and carriage return are allowed.
-// biome-ignore lint/suspicious/noControlCharactersInRegex: matching control characters is the point.
-const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/;
-
 /** Text the agent may be shown: invisible characters stripped, NFC; null when it holds a control character. */
 function cleanText(text: string): string | null {
-  const stripped = text.replace(INVISIBLE, "").normalize("NFC");
-  return CONTROL.test(stripped) ? null : stripped;
+  // Tabs and Windows line ends are ordinary in notes; the shared control check allows only "\n".
+  const stripped = text
+    .replace(INVISIBLE_CHARS, "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\t/g, " ")
+    .normalize("NFC");
+  return CONTROL_CHARS.test(stripped) ? null : stripped;
 }
 
-function themesSince(root: string, productId: string, since: string): SourceText[] {
+function themesSince(
+  root: string,
+  productId: string,
+  since: string,
+): { themes: SourceText[]; digestExists: boolean } {
   let names: string[];
   try {
     names = readdirSync(join(root, contentPaths.digestDir));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    if ((error as NodeJS.ErrnoException).code === "ENOENT")
+      return { themes: [], digestExists: false };
     throw error;
   }
   const days = names
@@ -61,7 +64,7 @@ function themesSince(root: string, productId: string, since: string): SourceText
     .map((n) => n.slice(0, 10))
     .filter((d) => d >= since)
     .sort();
-  return days.flatMap((day) => {
+  const themes = days.flatMap((day) => {
     const bytes = readBoundedBytes(join(root, contentPaths.digest(day)), MAX_DIGEST_BYTES);
     const parsed = bytes === null ? null : parseFile(bytes.toString("utf8"), digestFrontmatter);
     // Fail closed: a digest that cannot be read is not the same as a quiet week.
@@ -80,8 +83,11 @@ function themesSince(root: string, productId: string, since: string): SourceText
         return [{ ref: `digest:${day}#${t.id}`, text }];
       });
   });
+  return { themes, digestExists: days.length > 0 };
 }
 
+const UNREADABLE_TITLE =
+  "An idea title holds characters Harbour will not use. Fix or remove that idea file, then try again.";
 const UNREADABLE_NOTES =
   "A notes file for this product could not be read safely. Make sure it is a plain text file, then try again.";
 
@@ -120,8 +126,8 @@ export function gatherIdeasInputs(
   pillars: Pillar[],
   today: string,
 ): IdeasInputs {
-  const themes = themesSince(root, product.id, addDays(today, -DIGEST_DAYS));
-  const { ideas } = readIdeas(root, product.id);
+  const { themes, digestExists } = themesSince(root, product.id, addDays(today, -DIGEST_DAYS));
+  const { ideas } = readAllIdeas(root, product.id);
   return {
     product,
     pillars,
@@ -129,9 +135,14 @@ export function gatherIdeasInputs(
     notes: [`products/${product.id}/notes.md`, `products/${product.id}/discovery.md`].flatMap(
       (rel) => excerpt(root, rel) ?? [],
     ),
-    recentTitles: ideas.slice(0, TITLES).map((i) => i.front.title),
+    recentTitles: ideas.slice(0, TITLES).map((i) => {
+      const title = cleanText(i.front.title);
+      if (title === null) throw new IdeasInputError(UNREADABLE_TITLE);
+      return title;
+    }),
     existingIds: ideaFileIds(root, product.id),
     waiting: ideas.filter((i) => i.front.state === "idea").length,
     digestGap: themes.length === 0,
+    digestExists,
   };
 }

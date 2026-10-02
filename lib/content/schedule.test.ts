@@ -134,7 +134,8 @@ describe("the ideas schedule", () => {
       tokenSet: over.tokenSet ?? true,
       dailyRuns: over.dailyRuns ?? 24,
       clock,
-      readyProducts: () => over.ready ?? ["acme-docs", "lighthouse-cafe"],
+      productIds: () => ["acme-docs", "lighthouse-cafe"],
+      isReady: (id) => (over.ready ?? ["acme-docs", "lighthouse-cafe"]).includes(id),
     });
   const harness = (over: Parameters<typeof make>[2] = {}) => {
     const db = openTestDb();

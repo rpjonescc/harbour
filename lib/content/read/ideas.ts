@@ -7,7 +7,18 @@ import { type IdeaFront, ideaFrontmatter } from "@/lib/content/schema";
 import { readBoundedBytes } from "@/lib/note/bounded-read";
 
 export const MAX_WAITING_IDEAS = 12;
+/** Idea files counted for the backlog; past this the job and the request stop with a plain reason. */
+export const MAX_IDEA_FILES = 1000;
 const MAX_IDEA_BYTES = 32 * 1024;
+
+/** Thrown when a product has more idea files than Harbour will scan; the message is for the owner. */
+export class TooManyIdeaFilesError extends Error {
+  constructor() {
+    super(
+      `There are more than ${MAX_IDEA_FILES} idea files for this product, so Harbour can't tell how many are waiting. Move the old ones out of the ideas folder, then try again.`,
+    );
+  }
+}
 
 export type ReadIdea = { id: string; front: IdeaFront; body: string };
 
@@ -59,7 +70,13 @@ export function readIdeas(
   return { ideas, unreadable };
 }
 
-/** Ideas in `idea` state: the backlog the job and the schedule respect. */
+/** Every idea file, newest first, for the backlog count; throws past MAX_IDEA_FILES files. */
+export function readAllIdeas(root: string, productId: string) {
+  if (ideaFileNames(root, productId).length > MAX_IDEA_FILES) throw new TooManyIdeaFilesError();
+  return readIdeas(root, productId, MAX_IDEA_FILES);
+}
+
+/** Ideas in `idea` state across all idea files: the backlog the job and the schedule respect. */
 export function countWaitingIdeas(root: string, productId: string): number {
-  return readIdeas(root, productId).ideas.filter((i) => i.front.state === "idea").length;
+  return readAllIdeas(root, productId).ideas.filter((i) => i.front.state === "idea").length;
 }

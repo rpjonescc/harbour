@@ -68,6 +68,12 @@ describe("gatherIdeasInputs", () => {
     expect(() => gather({ [NOTES_PATH]: "Docs \u0007 beep" })).toThrow(IdeasInputError);
   });
 
+  it("accepts tabs and Windows line ends in notes", () => {
+    expect(gather({ [NOTES_PATH]: "# Acme\r\n\tSmall teams.\r\n" }).notes[0]?.text).toBe(
+      "# Acme\n Small teams.\n",
+    );
+  });
+
   it("fails closed, in a fixed sentence, on notes that are a symlink, a FIFO or not UTF-8", () => {
     const sentence = /could not be read safely/;
     expect(() =>
@@ -109,6 +115,35 @@ describe("gatherIdeasInputs", () => {
     });
     expect(inputs.existingIds.has("acme-docs-20261001-mine")).toBe(true);
     expect(inputs.recentTitles).toEqual([]);
+  });
+
+  it("counts waiting ideas across every file, not only the newest 200", () => {
+    const files: Record<string, string> = { [NOTES_PATH]: notes };
+    for (let i = 0; i < 250; i++) {
+      files[`content/ideas/acme-docs/acme-docs-2026${String(1000 + (i % 9000))}-n${i}.md`] =
+        ideaFile({ title: `Idea ${i}`, created: "2026-09-01" });
+    }
+    expect(gather(files).waiting).toBe(250);
+  });
+
+  it("fails closed on an idea title with a control character, and strips hidden ones", () => {
+    const idea = (title: string) => ({
+      [NOTES_PATH]: notes,
+      "content/ideas/acme-docs/acme-docs-20261001-a.md": ideaFile({ title }),
+    });
+    expect(gather(idea("Five\u200b minutes")).recentTitles).toEqual(["Five minutes"]);
+    expect(() => gather(idea("Five \u0007 minutes"))).toThrow(IdeasInputError);
+  });
+
+  it("tells a digest with nothing on this product from no digest at all", () => {
+    expect(gather({ [NOTES_PATH]: notes }).digestExists).toBe(false);
+    const other = gather({
+      [NOTES_PATH]: notes,
+      "content/digests/2026-10-01.md": digestFile("2026-10-01", [
+        ["lighthouse-cafe", "Changed the menu page layout for lunch."],
+      ]),
+    });
+    expect(other).toMatchObject({ digestGap: true, digestExists: true });
   });
 
   it("keeps only the 30 newest titles", () => {

@@ -799,7 +799,7 @@ version during planning.
 | What | When | Catch-up |
 |---|---|---|
 | Activity digest | Daily at `HARBOUR_DIGEST_TIME` (default 05:45), for yesterday | None (§5.6) |
-| Ideas | Mondays 07:00, every content-enabled product, after the digest | Latest missed Monday, once |
+| Ideas | Mondays 07:00, every content-enabled product, after the digest | This week's Monday, once (never an earlier week; §18) |
 | Pillars | Manual only | — |
 | Draft, atomise, gates | Only when the owner picks an idea | — |
 | Digest and discarded pruning | With the nightly housekeeping | — |

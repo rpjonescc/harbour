@@ -3,7 +3,13 @@ import { mkdirSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { makeBrain } from "@/tests/helpers/brain";
 import { ideaFile } from "@/tests/helpers/content";
-import { countWaitingIdeas, ideaFileIds, readIdeas } from "./ideas";
+import {
+  countWaitingIdeas,
+  ideaFileIds,
+  MAX_IDEA_FILES,
+  readIdeas,
+  TooManyIdeaFilesError,
+} from "./ideas";
 
 const DIR = "content/ideas/acme-docs";
 
@@ -68,6 +74,23 @@ describe("readIdeas", () => {
       expect(ideaFileIds(root, "lighthouse-cafe").size).toBe(0);
     } finally {
       cleanup();
+    }
+  });
+
+  it("counts waiting ideas past the first 200 files, and refuses past the file cap in plain words", () => {
+    const many = (n: number) =>
+      Object.fromEntries(
+        Array.from({ length: n }, (_, i) => [`${DIR}/acme-docs-20261001-i${i}.md`, ideaFile()]),
+      );
+    const small = makeBrain(many(250));
+    const big = makeBrain(many(MAX_IDEA_FILES + 1));
+    try {
+      expect(countWaitingIdeas(small.root, "acme-docs")).toBe(250);
+      expect(() => countWaitingIdeas(big.root, "acme-docs")).toThrow(TooManyIdeaFilesError);
+      expect(() => countWaitingIdeas(big.root, "acme-docs")).toThrow(/more than 1000 idea files/);
+    } finally {
+      small.cleanup();
+      big.cleanup();
     }
   });
 

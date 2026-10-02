@@ -54,15 +54,22 @@ const logQueued = (why: string, scans: readonly QueuedScan[]) => {
   for (const s of scans) console.log(`${why}: queued scan #${s.jobId} for ${s.productId}`);
 };
 
+const warnedIdeas = new Set<string>();
+
 /** A product with a usable voice profile and room in its backlog; an unreadable brain queues nothing. */
 function readyForIdeas(root: string, productId: string): boolean {
   try {
-    return (
+    const ready =
       readVoice(root, productId).state === "ok" &&
-      countWaitingIdeas(root, productId) < MAX_WAITING_IDEAS
-    );
+      countWaitingIdeas(root, productId) < MAX_WAITING_IDEAS;
+    warnedIdeas.delete(productId);
+    return ready;
   } catch {
-    console.warn(`ideas: could not read the brain for ${productId}; skipped`);
+    // Once per product until it reads again, not every 30 seconds.
+    if (!warnedIdeas.has(productId)) {
+      warnedIdeas.add(productId);
+      console.warn(`ideas: could not read the brain for ${productId}; skipped`);
+    }
     return false;
   }
 }
@@ -119,10 +126,8 @@ async function main() {
     tokenSet: Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN),
     dailyRuns: config.HARBOUR_CONTENT_DAILY_RUNS,
     clock: Date.now,
-    readyProducts: () =>
-      getContentProducts()
-        .filter((p) => readyForIdeas(root, p.id))
-        .map((p) => p.id),
+    productIds: () => getContentProducts().map((p) => p.id),
+    isReady: (id) => readyForIdeas(root, id),
   });
   const logIdeas = (why: string, queued: readonly { jobId: number; productId: string }[]) => {
     for (const q of queued)

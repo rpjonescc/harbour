@@ -6,10 +6,11 @@ import { renderFile } from "@/lib/content/files";
 import { makeIdeaId, productIdSchema } from "@/lib/content/ids";
 import { contentPaths } from "@/lib/content/paths";
 import { IDEAS_PROMPT_VERSION, ideasPrompt } from "@/lib/content/prompts/ideas";
-import { MAX_WAITING_IDEAS } from "@/lib/content/read/ideas";
+import { MAX_WAITING_IDEAS, TooManyIdeaFilesError } from "@/lib/content/read/ideas";
 import { readVoice } from "@/lib/content/read/voice";
 import { sanitiseText } from "@/lib/content/sanitise";
 import { refSchema } from "@/lib/content/schema";
+import { IDEA_FILE_IN_THE_WAY, voiceMissingMessage } from "@/lib/explain/content";
 import { gatherIdeasInputs, IdeasInputError, type IdeasInputs } from "./ideas-inputs";
 import { requireContent } from "./run-context";
 import { parseWorkJson, workReview } from "./work-review";
@@ -81,7 +82,8 @@ const exists = (root: string, path: string): boolean => {
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
-    throw error;
+    // The system's own message holds a path; the owner gets a sentence instead.
+    throw new Error(IDEA_FILE_IN_THE_WAY);
   }
 };
 
@@ -92,9 +94,7 @@ function startProblem(content: ReturnType<typeof requireContent>, productId: unk
   if (!product) return { error: "This product is not set up for content." } as const;
   const voice = readVoice(content.root, product.id);
   if (voice.state === "missing") {
-    return {
-      error: `Write ${product.name}'s voice profile first. The template is on the Content page.`,
-    } as const;
+    return { error: voiceMissingMessage(product.name) } as const;
   }
   if (voice.state === "invalid") {
     return { error: `${product.name}'s voice profile can't be used: ${voice.reason}` } as const;
@@ -117,7 +117,13 @@ export function ideasSpec(params: Record<string, string>, context: SpecContext):
       context.today,
     );
   } catch (error) {
-    if (error instanceof IdeasInputError) throw new Error(error.message);
+    if (error instanceof IdeasInputError || error instanceof TooManyIdeaFilesError) {
+      throw new Error(error.message);
+    }
+    // Only the errno code is logged: a path or file name has no place in a log line.
+    console.error(
+      `ideas: could not read the brain (${(error as NodeJS.ErrnoException).code ?? "unknown"})`,
+    );
     throw new Error(
       "Harbour couldn't read the files it needs for ideas. Check the brain folder, then try again.",
     );
@@ -146,6 +152,7 @@ export function ideasSpec(params: Record<string, string>, context: SpecContext):
       prompt,
       allowed,
       plan: {
+        createOnly: { inTheWay: IDEA_FILE_IN_THE_WAY },
         parse: (raw) => {
           const parsed = parseWorkJson(raw, workSchema);
           if (!parsed.ok) return parsed;

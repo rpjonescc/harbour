@@ -127,7 +127,7 @@ signed-in session:
   Claude token and a voice profile for that product, and refuses with `404 not_found`,
   `409 voice_missing`, `409 backlog` ("12 ideas are waiting; skipped"), `409 brain_unreadable`,
   `429 daily_cap` or `429 rate_limited`. The same Monday 07:00 run is queued by the worker for
-  every product with a voice profile (`HARBOUR_SCHEDULED_IDEAS`); it reads only the last 7 days of
+  every product with a voice profile (`HARBOUR_SCHEDULED_IDEAS`); it uses whatever digest exists at that moment, so a `HARBOUR_DIGEST_TIME` later than 07:00 means the Monday run may go before that day's digest; it reads only the last 7 days of
   activity themes, your approved pillars, the product's notes and the titles you already have.
 - `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
   moves an action to a new status. `from` is the status your page showed: if the action changed

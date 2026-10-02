@@ -2,12 +2,13 @@ import { z } from "zod";
 import { audit } from "@/lib/audit";
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
+import { voiceMissingMessage } from "@/lib/explain/content";
 import { isoDateIn } from "@/lib/format/date";
 import { addDays } from "@/lib/format/zoned-time";
 import type { ContentProduct } from "@/lib/products/content";
 import { productIdSchema } from "./ids";
 import { DAILY_CAP_MESSAGE, enqueueContent } from "./limits";
-import { countWaitingIdeas, MAX_WAITING_IDEAS } from "./read/ideas";
+import { countWaitingIdeas, MAX_WAITING_IDEAS, TooManyIdeaFilesError } from "./read/ideas";
 import { readVoice } from "./read/voice";
 
 /** Every action the Content page can request; later tasks add their own. */
@@ -79,14 +80,18 @@ function enqueueAndAudit(
 }
 
 function findIdeas(ctx: RequestContext, productId: string): RequestResult {
-  if (!ctx.products.some((p) => p.id === productId)) return refuse(404, "not_found");
+  const product = ctx.products.find((p) => p.id === productId);
+  if (!product) return refuse(404, "not_found");
   try {
     // An unusable profile is not refused here: the job fails with the reason and the page shows it.
-    if (readVoice(ctx.root, productId).state === "missing") return refuse(409, "voice_missing");
+    if (readVoice(ctx.root, productId).state === "missing") {
+      return refuse(409, "voice_missing", voiceMissingMessage(product.name));
+    }
     if (countWaitingIdeas(ctx.root, productId) >= MAX_WAITING_IDEAS) {
       return refuse(409, "backlog", `${MAX_WAITING_IDEAS} ideas are waiting; skipped`);
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof TooManyIdeaFilesError) return refuse(409, "too_many_ideas", error.message);
     return refuse(
       409,
       "brain_unreadable",

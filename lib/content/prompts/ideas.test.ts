@@ -20,6 +20,7 @@ const base: IdeasInputs = {
   existingIds: new Set(),
   waiting: 0,
   digestGap: false,
+  digestExists: true,
 };
 const prompt = (inputs: Partial<IdeasInputs> = {}) => {
   if (!voice) throw new Error("fixture voice must parse");
@@ -49,9 +50,27 @@ describe("ideasPrompt", () => {
   });
 
   it("says so when there are no pillars and no digest", () => {
-    const text = prompt({ pillars: [], themes: [], digestGap: true, recentTitles: [] });
+    const text = prompt({
+      pillars: [],
+      themes: [],
+      digestGap: true,
+      digestExists: false,
+      recentTitles: [],
+    });
     expect(text).toContain("There are no approved pillars yet: use null for every pillar.");
     expect(text).toContain("No activity digest for the last 7 days.");
     expect(text).toContain("(none)");
+  });
+
+  it("says a digest had nothing on this product's topics when one exists", () => {
+    const text = prompt({ themes: [], digestGap: true, digestExists: true });
+    expect(text).toContain("was about this product's topics");
+    expect(text).not.toContain("No activity digest for the last 7 days.");
+  });
+
+  it("passes the owner's never list and topics to avoid as fenced rules", () => {
+    const text = prompt();
+    expect(text).toContain("Never: Promise a feature that is not shipped.");
+    expect(text).toContain("Topic to avoid: competitor names");
   });
 });
