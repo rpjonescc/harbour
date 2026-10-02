@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, within } from "@testing-library/react";
 import { EXAMPLE_BACKUPS } from "@/components/design/ops-example-data";
+import type { NoteSlot } from "@/lib/note/view";
 import type { BackupStatus } from "@/lib/ops/backup-status";
 import { getProducts } from "@/lib/products/catalog";
 import { sampleToday } from "@/lib/today/sample";
@@ -10,10 +11,15 @@ import { TodayView } from "./TodayView";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const NOW = new Date("2026-10-01T09:00:00Z");
-const renderToday = (today: TodaySummary, backup: BackupStatus = EXAMPLE_BACKUPS.ok) =>
+const renderToday = (
+  today: TodaySummary,
+  backup: BackupStatus = EXAMPLE_BACKUPS.ok,
+  note: NoteSlot | null = null,
+) =>
   render(
     <TodayView
       today={today}
+      note={note}
       backup={backup}
       costMeter={{ state: "no-paid-sources", spentMicro: 0, unconfirmedMicro: 0 }}
       now={NOW}
@@ -196,5 +202,23 @@ describe("TodayView", () => {
     expect(text).not.toMatch(/\b(?:SEO|GEO|AEO)\b/);
     expect(text).not.toMatch(/HARBOUR_[A-Z_]+/);
     expect(text).not.toMatch(/\b(?:seo|geo|aeo)\.[a-zA-Z]/);
+  });
+
+  it("puts the note card above the briefing, which stays the only h1", () => {
+    renderToday(real, EXAMPLE_BACKUPS.ok, {
+      view: { kind: "gap", line: "No note yet today. The next one is written at 06:30." },
+      noteTime: "06:30",
+      tokenSet: true,
+    });
+    const card = screen.getByRole("region", { name: "A note from Harbour" });
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1).toHaveTextContent(real.briefing.sentence);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(card.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("shows no card when the personality is quiet", () => {
+    renderToday(real);
+    expect(screen.queryByRole("region", { name: "A note from Harbour" })).toBeNull();
   });
 });

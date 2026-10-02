@@ -1,10 +1,11 @@
 import { ActionCard } from "@/components/today/ActionCard";
 import { BriefingText } from "@/components/today/BriefingText";
+import { NoteCard } from "@/components/today/note/NoteCard";
 import { VerdictTable } from "@/components/today/VerdictTable";
 import { WHO_PHRASE } from "@/lib/explain/actions";
 import type { Product } from "@/lib/products/catalog";
 import { Example } from "./Example";
-import { exampleToday } from "./today-example-data";
+import { EXAMPLE_NOTES, exampleToday } from "./today-example-data";
 
 /** Fictional Today pieces: the briefing, the verdict table and a card for each "who's on it". */
 export function TodayExamples({ product }: { product: Pick<Product, "id" | "name"> }) {
@@ -12,6 +13,11 @@ export function TodayExamples({ product }: { product: Pick<Product, "id" | "name
   return (
     <div className="flex flex-col gap-6">
       <p className="text-xs text-ink-muted">Illustrative briefing, verdicts and actions.</p>
+      {EXAMPLE_NOTES.map(({ label, slot }) => (
+        <Example key={label} label={label}>
+          <NoteCard slot={slot} timeZone="UTC" locale="en-GB" demo />
+        </Example>
+      ))}
       <Example label="Briefing">
         <BriefingText briefing={today.briefing} isSample={false} level={3} />
       </Example>
