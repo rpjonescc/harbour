@@ -97,7 +97,7 @@ describe("fetchActivity", () => {
     ["unknown-status", "bad-response"],
     ["hang", "not-running"],
     ["stall", "not-running"],
-    ["redirect", "not-running"],
+    ["redirect", "redirected"],
   ] as const)("a %s Screenpipe fails as %s", async (mode, kind) => {
     await withServer({ mode }, async (url) => {
       expect(await kindOf(fetchActivity(settings(url, { timeoutMs: 200 }), RANGE, ["acme"]))).toBe(
@@ -111,7 +111,7 @@ describe("fetchActivity", () => {
     await withServer({}, async (url) => {
       await fetchActivity(settings(url, { fetchFn }), RANGE, ["acme"]).catch(() => null);
     });
-    expect(fetchFn.mock.calls[0]?.[1]?.redirect).toBe("error");
+    expect(fetchFn.mock.calls[0]?.[1]?.redirect).toBe("manual");
   });
 
   it("stops reading once the body passes the cap", async () => {
@@ -133,6 +133,8 @@ describe("fetchActivity", () => {
     "http://localhost.example.com:3030",
     "http://127.0.0.1:3030/",
     "http://127.0.0.1:3030/path",
+    "http://owner:secret@127.0.0.1:3030",
+    "http://127.0.0.1:80",
     "not a url",
   ])("refuses %s before sending anything, so the key never crosses a network", async (baseUrl) => {
     const fetchFn = vi.fn();

@@ -10,6 +10,7 @@ export type FailureKind =
   | "not-recording"
   | "no-capture"
   | "too-large"
+  | "redirected"
   | "bad-response";
 
 /** A Screenpipe problem with a kind the digest job turns into a plain sentence. */
@@ -35,6 +36,8 @@ const SENTENCE: Record<FailureKind, (day: string) => string> = {
   "no-capture": (day) => `Screenpipe captured nothing on ${day}, so there is no activity digest.`,
   "too-large": (day) =>
     `Screenpipe's answer was too large to read safely, so there is no activity digest for ${day}.`,
+  redirected: (day) =>
+    `Screenpipe tried to send Harbour somewhere else, so there is no activity digest for ${day}.`,
   "bad-response": (day) =>
     `Screenpipe's answer wasn't in the expected shape, so there is no activity digest for ${day}.`,
 };
@@ -48,26 +51,37 @@ async function get(
   settings: ScreenpipeSettings,
   path: string,
   query: URLSearchParams,
-  key: boolean,
+  sendKey: boolean,
 ) {
   // Defence in depth beside the config check: the bearer key must never leave this machine.
   if (!isLoopbackHttpOrigin(settings.baseUrl))
     throw new Error("Screenpipe must be on this machine");
+  // A key that is not a valid header value is a configuration mistake, not a Screenpipe outage.
+  if (sendKey && !/^[\u0021-\u007e]+$/.test(settings.apiKey)) {
+    throw new Error("The Screenpipe key is empty or has characters a header cannot hold");
+  }
   const url = new URL(path, settings.baseUrl);
   url.search = query.toString();
   const headers: Record<string, string> = {
     "X-Screenpipe-Client": "api",
     "X-Screenpipe-Agent": "harbour",
-    ...(key ? { Authorization: `Bearer ${settings.apiKey}` } : {}),
+    ...(sendKey ? { Authorization: `Bearer ${settings.apiKey}` } : {}),
   };
   try {
-    // No redirects (they could carry the key elsewhere), no retries, one timeout for the whole read.
-    return await (settings.fetchFn ?? fetch)(url, {
+    // Redirects are never followed (they could carry the key elsewhere): "manual" hands back the
+    // 3xx itself, which is told apart from a dead server. No retries, one timeout for the whole read.
+    const response = await (settings.fetchFn ?? fetch)(url, {
       headers,
-      redirect: "error",
+      redirect: "manual",
       signal: AbortSignal.timeout(settings.timeoutMs ?? TIMEOUT_MS),
     });
-  } catch {
+    if (response.status >= 300 && response.status < 400) {
+      await response.body?.cancel();
+      throw new ScreenpipeError("redirected");
+    }
+    return response;
+  } catch (error) {
+    if (error instanceof ScreenpipeError) throw error;
     throw new ScreenpipeError("not-running");
   }
 }
@@ -113,7 +127,10 @@ async function readJson<T>(response: Response, parse: (raw: unknown) => T | null
 export async function checkHealth(settings: ScreenpipeSettings): Promise<void> {
   const response = await get(settings, "/health", new URLSearchParams(), false);
   // /health answers 503 with a body when unhealthy, so the status line is the whole verdict.
-  if (!response.ok) throw new ScreenpipeError("not-running");
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new ScreenpipeError("not-running");
+  }
   const health = await readJson(response, (raw) => {
     const parsed = healthSchema.safeParse(raw);
     return parsed.success ? parsed.data : null;
@@ -127,10 +144,13 @@ export async function fetchActivity(
   range: { start: Date; end: Date },
   terms: readonly string[],
 ): Promise<Activity> {
+  // An empty `q` could return unfiltered screen text, so no terms means no request.
+  const usable = terms.map((term) => term.trim()).filter((term) => term !== "");
+  if (usable.length === 0) throw new Error("Screenpipe needs at least one content term");
   const query = new URLSearchParams({
     start_time: range.start.toISOString(),
     end_time: range.end.toISOString(),
-    q: terms.join(" "),
+    q: usable.join(" "),
     include_memories: "false",
     include_key_texts: "false",
     include_recording: "false",
@@ -140,8 +160,12 @@ export async function fetchActivity(
     max_snippet_chars: "240",
   });
   const response = await get(settings, "/activity-summary", query, true);
-  if (response.status === 401 || response.status === 403) throw new ScreenpipeError("key-refused");
-  if (!response.ok) throw new ScreenpipeError("bad-response");
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new ScreenpipeError(
+      response.status === 401 || response.status === 403 ? "key-refused" : "bad-response",
+    );
+  }
   const parsed = await readJson(response, (raw) => {
     const result = activitySchema.safeParse(raw);
     return result.success ? result.data : null;
