@@ -20,7 +20,7 @@ const areaCard = (page: Page, name: string) =>
 test("Scan now runs a scan and the product page shows its results", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto("/products/acme-docs");
-  await expect(page.getByText("Not scanned yet")).toBeVisible();
+  await expect(page.getByText(/hasn't scanned this site yet/)).toBeVisible();
   const scanNow = page.getByRole("button", { name: "Scan now" });
   // A click before hydration is lost; a repeat click is harmless (one scan per product queues).
   await expect(async () => {

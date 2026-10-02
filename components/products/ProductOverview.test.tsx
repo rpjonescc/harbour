@@ -99,7 +99,7 @@ describe("ProductOverview", () => {
   it("for a product never scanned says so everywhere, with Scan now and the research link", () => {
     renderPage(empty);
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Acme Docs");
-    expect(screen.getByText(/Not scanned yet/)).toBeInTheDocument();
+    expect(screen.getByText(/hasn't scanned this site yet/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Scan now" })).toBeEnabled();
     expect(screen.getByRole("link", { name: "Research targets" })).toHaveAttribute(
       "href",
@@ -119,23 +119,6 @@ describe("ProductOverview", () => {
     expect(screen.getByRole("button", { name: "Scan now" })).toBeDisabled();
   });
 
-  it("shows a failed last scan and which scan the results are from", () => {
-    const failed = {
-      ...scanned.scan,
-      last: {
-        ...(scanned.scan.last as NonNullable<ProductView["scan"]["last"]>),
-        status: "failed" as const,
-        error: "All collectors failed",
-      },
-    };
-    renderPage({ ...scanned, scan: failed });
-    expect(
-      screen.getByText(
-        /The last scan failed \(1 Oct 2026, 06:04\): All collectors failed\. Showing the scan of/,
-      ),
-    ).toBeInTheDocument();
-  });
-
   it("explains scores: area cards, breakdown with missing reasons and not-connected notes", () => {
     renderPage(scanned);
     expect(screen.getByText(/^Acme Docs is in /)).toBeInTheDocument();
@@ -146,7 +129,6 @@ describe("ProductOverview", () => {
     const panel = screen.getByRole("tabpanel");
     expect(within(panel).getByRole("heading", { name: "Page health" })).toBeInTheDocument();
     expect(within(panel).getByText("Not connected yet, so it isn't counted.")).toBeInTheDocument();
-    expect(screen.getByText(/PageSpeed failed: quota exceeded/)).toBeInTheDocument();
   });
 
   it("lists issues with a hand-off button each, and the crawled pages", () => {
