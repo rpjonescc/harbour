@@ -27,7 +27,11 @@ const real: TodaySummary = {
   scannedAt: new Date("2026-10-01T06:04:00Z"),
   scanning: false,
   lastFailedAt: null,
-  headline: "One thing worth your attention.",
+  briefing: {
+    sentence:
+      "Your site is in fair shape. Biggest opportunity: Found on Google for Acme Docs (fair).",
+    subLine: "1 thing worth doing · Google speed test (PageSpeed) had a problem in the last check",
+  },
   scores: [
     {
       productId: "acme-docs",
@@ -54,9 +58,12 @@ const real: TodaySummary = {
 
 describe("TodayView", () => {
   it("before any scan shows the sample, flagged, with unlinked sample actions", () => {
-    renderToday(sampleToday(getProducts()));
+    const sample = sampleToday(getProducts());
+    renderToday(sample);
     expect(screen.getByRole("note")).toHaveTextContent(/Sample data/);
-    expect(screen.getByText(/no scan yet/)).toBeInTheDocument();
+    expect(screen.getByText("Sample", { exact: true })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(sample.briefing.sentence);
+    expect(screen.getByText(/not checked yet/)).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: /competitor for one of your target questions/ }),
     ).toBeNull();
@@ -68,22 +75,24 @@ describe("TodayView", () => {
       lastFailedAt: new Date("2026-10-01T06:02:00Z"),
       failures: [{ productId: "acme-docs", collector: "crawler", error: "Could not crawl" }],
     });
-    expect(screen.getByText(/last scan failed 1 Oct 2026, 06:02/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/the last check didn't finish \(1 Oct 2026, 06:02\)/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Crawler · Acme Docs/)).toHaveTextContent("Could not crawl");
   });
 
   it("says when the first scan is running", () => {
     renderToday({ ...sampleToday(getProducts()), scanning: true });
-    expect(screen.getByText(/scan running/)).toBeInTheDocument();
+    expect(screen.getByText(/checking your sites now/)).toBeInTheDocument();
   });
 
   it("with scans shows real scores, linked actions and failing sources, without the banner", () => {
     renderToday(real);
     expect(screen.queryByText(/Sample data/)).toBeNull();
-    expect(screen.getByText(/last scan 1 Oct 2026, 06:04/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "One thing worth your attention.",
-    );
+    expect(screen.getByText(/last checked 1 Oct 2026, 06:04/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(real.briefing.sentence);
+    expect(screen.getByText(real.briefing.subLine)).toBeInTheDocument();
+    expect(screen.queryByText("Sample", { exact: true })).toBeNull();
     expect(screen.getByRole("link", { name: "2 pages have no title" })).toHaveAttribute(
       "href",
       "/actions#action-7",

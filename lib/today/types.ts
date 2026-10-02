@@ -1,3 +1,4 @@
+import type { Briefing } from "@/lib/explain/briefing";
 import type { ProductId } from "@/lib/products/catalog";
 import type { Impact, IssueArea } from "@/lib/scan/issues";
 import type { AreaValues } from "@/lib/scan/views";
@@ -39,9 +40,10 @@ export type TodaySummary = {
   lastFailedAt: Date | null;
   /** A scan is queued or running for some product. */
   scanning: boolean;
-  headline: string;
+  /** One plain sentence on overall health and the biggest opportunity, with the counts under it. */
+  briefing: Briefing;
   scores: ProductScores[];
-  /** The top active actions; the headline counts them all. */
+  /** The top active actions; the briefing counts them all. */
   actions: ActionPreview[];
   /** Active actions beyond `actions`, left for the Actions board. */
   moreActions: number;

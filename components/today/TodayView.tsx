@@ -11,7 +11,7 @@ import { ScoreTable } from "./ScoreTable";
 import { SourceFailures } from "./SourceFailures";
 import { TodayHeader } from "./TodayHeader";
 
-/** Today: scan status, headline, paid spend, backup warnings, scores per product and the open actions worth a look. */
+/** Today: scan status, briefing, paid spend, backup warnings, scores per product and the open actions worth a look. */
 export function TodayView({
   today,
   costMeter,
@@ -39,7 +39,8 @@ export function TodayView({
         scannedAt={today.scannedAt}
         scanning={today.scanning}
         lastFailedAt={today.lastFailedAt}
-        headline={today.headline}
+        briefing={today.briefing}
+        isSample={today.isSample}
       />
       <CostMeter view={costMeter} now={now} timeZone={timeZone} locale={locale} />
       <BackupNotice backup={backup} timeZone={timeZone} locale={locale} />

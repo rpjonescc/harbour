@@ -6,7 +6,7 @@ import { ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { daysAfter, seedScan, T0 } from "@/tests/helpers/scan-views";
 import { htmlPage } from "@/tests/helpers/scoring";
-import { headlineFor, todaySummary } from "./from-scans";
+import { todaySummary } from "./from-scans";
 import { sampleToday } from "./sample";
 
 const products: Product[] = [
@@ -36,7 +36,7 @@ describe("todaySummary", () => {
     insertAction(db, ruleAction({ impact: "high" }), "scan", null, T0);
     const today = todaySummary(db, products, T0);
     const sample = sampleToday(products);
-    expect(today.headline).toBe(sample.headline);
+    expect(today.briefing).toEqual(sample.briefing);
     expect(today.actions).toEqual(sample.actions);
     expect(today.moreActions).toBe(0);
   });
@@ -56,6 +56,9 @@ describe("todaySummary", () => {
       lastFailedAt: daysAfter(-1),
       failures: [{ productId: "acme-docs", collector: "crawler", error: "Could not crawl" }],
     });
+    expect(todaySummary(db, products, T0).briefing.subLine).toBe(
+      "2 things worth doing · Page check had a problem in the last check",
+    );
   });
 
   it("summarises real scores, the top active actions and failing sources", () => {
@@ -111,12 +114,16 @@ describe("todaySummary", () => {
       },
     ]);
     // The scan found issues, but Today reads actions: none exist yet.
-    expect(today.headline).toBe("Calm waters. Nothing needs your attention.");
+    expect(today.briefing).toEqual({
+      sentence: "Your sites need some work.",
+      subLine:
+        "Nothing on the to-do list · Google speed test (PageSpeed) had a problem in the last check",
+    });
     expect(today.actions).toEqual([]);
     expect(today.moreActions).toBe(0);
   });
 
-  it("counts active actions in the headline and shows the top three", () => {
+  it("briefs on the active actions and shows the top three", () => {
     const db = openTestDb();
     seedScan(db, { productId: "acme-docs", at: T0, totals: { seo: 52, geo: 40, aeo: 30 } });
     const add = (title: string, over: Parameters<typeof ruleAction>[0]) =>
@@ -127,7 +134,11 @@ describe("todaySummary", () => {
     add("Publish llms.txt", { impact: "low", area: "GEO", productId: "fern-and-field" });
     add("Snoozed", { impact: "high", status: "snoozed", snoozedUntil: "2026-10-12" });
     const today = todaySummary(db, products, T0);
-    expect(today.headline).toBe("Four things worth your attention.");
+    expect(today.briefing).toEqual({
+      sentence:
+        "Your sites need some work. Biggest opportunity: Recommended by AI assistants for Acme Docs (needs work).",
+      subLine: "4 things worth doing · nothing is broken",
+    });
     expect(today.actions.map((a) => [a.title, a.impact])).toEqual([
       ["Pages have no title", "high"],
       ["Add meta descriptions", "medium"],
@@ -136,18 +147,24 @@ describe("todaySummary", () => {
     expect(today.actions[0]?.href).toBe(`/actions#action-${top}`);
     expect(today.moreActions).toBe(1);
   });
-});
 
-describe("headlineFor", () => {
-  it("is calm without issues or without high-impact ones", () => {
-    expect(headlineFor([])).toBe("Calm waters. Nothing needs your attention.");
-    expect(headlineFor(["low"])).toBe("Calm waters. One thing worth your attention.");
-    expect(headlineFor(["high", "low"])).toBe("Two things worth your attention.");
-  });
-
-  it("uses digits past ten", () => {
-    expect(headlineFor(Array.from({ length: 12 }, () => "high" as const))).toBe(
-      "12 things worth your attention.",
-    );
+  it("briefs only on configured products' scores and actions", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: T0, totals: { seo: 52, geo: 40, aeo: 30 } });
+    insertAction(db, ruleAction({ area: "SEO" }), "scan", null, T0);
+    const before = todaySummary(db, products, T0).briefing;
+    // A strong, busy product that is no longer configured would lift health to "good".
+    seedScan(db, {
+      productId: "retired-product",
+      at: T0,
+      totals: { seo: 100, geo: 100, aeo: 100 },
+    });
+    insertAction(db, ruleAction({ productId: "retired-product", area: "GEO" }), "scan", null, T0);
+    expect(todaySummary(db, products, T0).briefing).toEqual(before);
+    expect(before).toEqual({
+      sentence:
+        "Your sites need some work. Biggest opportunity: Found on Google for Acme Docs (fair).",
+      subLine: "1 thing worth doing · nothing is broken",
+    });
   });
 });

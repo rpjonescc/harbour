@@ -8,6 +8,10 @@ import { E2E_DB, E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
 import { hydrated } from "./hydration";
 import { sessionStorageState } from "./session-state";
 
+/** The sample Today's briefing for the E2E products (lib/today/sample.ts is deterministic). */
+const SAMPLE_BRIEFING =
+  "Your sites need some work. Biggest opportunity: Recommended by AI assistants for Acme Docs (needs work).";
+
 /** Collects CSP violations reported to the console; assert the list is empty after the page settles. */
 function watchCspErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -111,7 +115,7 @@ test("client navigation re-checks the session on every page", async ({ browser }
   const context = await browser.newContext({ storageState: sessionStorageState(token) });
   const page = await context.newPage();
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Calm waters");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(SAMPLE_BRIEFING);
   revokeSession(db, token);
   await page.getByRole("link", { name: "Design system" }).click();
   await expect(page).toHaveURL(/\/login$/);
@@ -125,7 +129,8 @@ for (const colorScheme of ["light", "dark"] as const) {
     test("Today renders scores and actions", async ({ page }) => {
       const cspErrors = watchCspErrors(page);
       await page.goto("/");
-      await expect(page.getByRole("heading", { level: 1 })).toContainText("Calm waters");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(SAMPLE_BRIEFING);
+      await expect(page.getByText("2 things worth doing · nothing is broken")).toBeVisible();
       await expect(page.getByRole("note")).toContainText("Sample data");
       const table = page.getByRole("table", { name: "Visibility scores by product" });
       await expect(table.getByRole("rowheader", { name: "Fern & Field" })).toBeVisible();

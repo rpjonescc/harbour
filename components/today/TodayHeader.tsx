@@ -1,36 +1,36 @@
+import type { Briefing } from "@/lib/explain/briefing";
 import { formatDateTime, formatLongDate } from "@/lib/format/date";
+import { BriefingText } from "./BriefingText";
 
-/** Date, scan status and the one-line headline. */
-export function TodayHeader({
-  now,
-  timeZone,
-  locale,
-  scannedAt,
-  scanning,
-  lastFailedAt,
-  headline,
-}: {
+type Props = {
   now: Date;
   timeZone: string;
   locale: string;
   scannedAt: Date | null;
   scanning: boolean;
   lastFailedAt: Date | null;
-  headline: string;
-}) {
-  const status = scanning
-    ? "scan running"
-    : scannedAt
-      ? `last scan ${formatDateTime(scannedAt, timeZone, locale)}`
-      : lastFailedAt
-        ? `last scan failed ${formatDateTime(lastFailedAt, timeZone, locale)}`
-        : "no scan yet";
+  briefing: Briefing;
+  isSample: boolean;
+};
+
+/** When the sites were last checked, in plain words. */
+function checkStatus({ scanning, scannedAt, lastFailedAt, timeZone, locale }: Props): string {
+  if (scanning) return "checking your sites now";
+  if (scannedAt) return `last checked ${formatDateTime(scannedAt, timeZone, locale)}`;
+  if (lastFailedAt) {
+    return `the last check didn't finish (${formatDateTime(lastFailedAt, timeZone, locale)})`;
+  }
+  return "not checked yet";
+}
+
+/** The date, when the sites were last checked, and the briefing. */
+export function TodayHeader(props: Props) {
   return (
-    <header>
+    <header className="flex flex-col gap-2">
       <p className="text-sm text-ink-muted">
-        {formatLongDate(now, timeZone, locale)} · {status}
+        {formatLongDate(props.now, props.timeZone, props.locale)} · {checkStatus(props)}
       </p>
-      <h1 className="mt-1 font-serif text-3xl leading-tight">{headline}</h1>
+      <BriefingText briefing={props.briefing} isSample={props.isSample} />
     </header>
   );
 }

@@ -19,10 +19,12 @@ continues with:
 
 ## Features
 
-- **Today** — date, scan status, a one-line summary, a score table per product (SEO, GEO, AEO
-  with the change since the last scan and a 30-day SEO trend), the three issues most worth
-  your attention, and a banner when a source failed in the last scan. Until the first scan
-  finishes it shows clearly labelled sample data.
+- **Today** — date, when your sites were last checked, a one-sentence briefing (overall health
+  and the biggest opportunity, then how many things are worth doing, how many Claude is
+  handling and whether anything is broken), a score table per product (SEO, GEO, AEO with the
+  change since the last scan and a 30-day SEO trend), the three issues most worth your
+  attention, and a banner when a source failed in the last scan. Until the first scan finishes
+  it shows clearly labelled sample data.
 - **Product pages** — per product: the three scores, **Scan now**, SEO/GEO/AEO tabs explaining
   every sub-score (its weight, evidence, or why it is missing), the issues the scan found with
   a **Hand to Claude** button that copies a ready prompt, the crawled pages and their problems,
@@ -572,9 +574,9 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   asterisk marks an incomplete score, where a source was not connected or failed. Each product
   name opens its page. While a scan is queued or running, the page refreshes itself. **Worth
   your attention** shows the top three open or in-progress actions (in the Actions board's
-  order), each linked to its card, and the headline counts every one of them; the rest are a
-  link away on the Actions board. Before the first scan is scored, Today shows clearly flagged
-  sample data instead.
+  order), each linked to its card, and the briefing's second line counts every one of them;
+  the rest are a link away on the Actions board. Before the first scan is scored, Today shows
+  clearly flagged sample data instead.
 - **Product page** (`/products/<id>`) shows where scanning stands (never scanned, queued,
   running, or how the last scan ended — a failed scan never hides the last good results) and
   explains each score in its tab. **Issues** come from the scan's raw observations: pages

@@ -1,11 +1,12 @@
+import { activeWork } from "@/lib/actions/active-work";
 import type { ActionRow } from "@/lib/actions/types";
-import { activeImpactCounts, topActiveActions } from "@/lib/actions/views";
+import { topActiveActions } from "@/lib/actions/views";
 import type { Db } from "@/lib/db/client";
-import type { Impact } from "@/lib/scan/issues";
+import { whoIsOnIt } from "@/lib/explain/actions";
+import type { BriefingWork } from "@/lib/explain/briefing";
 import type { ActionPreview } from "./types";
 
 const TOP_ACTIONS = 3;
-const IMPACTS: readonly Impact[] = ["high", "medium", "low"];
 
 const toPreview = (action: ActionRow): ActionPreview => ({
   id: action.id,
@@ -17,24 +18,23 @@ const toPreview = (action: ActionRow): ActionPreview => ({
   href: `/actions#action-${action.id}`,
 });
 
-/** The impact of every active action (high first), so the headline counts them all. */
-function activeImpacts(db: Db, productIds: readonly string[]): Impact[] {
-  const counts = activeImpactCounts(db, productIds);
-  return IMPACTS.flatMap((impact) => Array<Impact>(counts[impact]).fill(impact));
-}
-
 /**
- * Today's "Worth your attention": the top active actions (open and in progress, board order) of
- * the configured products, how many more the Actions board holds, and every active impact.
+ * Today's actions: the top active ones (open and in progress, board order) of the configured
+ * products, how many more the Actions board holds, and every active action's area and who's on
+ * it, for the briefing.
  */
 export function attentionFromActions(
   db: Db,
   productIds: readonly string[],
-): { actions: ActionPreview[]; more: number; headlineImpacts: Impact[] } {
+): { actions: ActionPreview[]; more: number; work: BriefingWork[] } {
   const top = topActiveActions(db, productIds, TOP_ACTIONS);
   return {
     actions: top.actions.map(toPreview),
     more: top.more,
-    headlineImpacts: activeImpacts(db, productIds),
+    work: activeWork(db, productIds).map((a) => ({
+      productId: a.productId,
+      area: a.area,
+      who: whoIsOnIt(a),
+    })),
   };
 }

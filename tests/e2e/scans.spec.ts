@@ -131,7 +131,7 @@ test("Sources lists each source's last run and how to connect the missing ones",
 
 test("Today shows the real scores instead of the sample", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText(/· last scan /)).toBeVisible();
+  await expect(page.getByText(/· last checked /)).toBeVisible();
   await expect(page.getByText("Sample data")).toHaveCount(0);
   const table = page.getByRole("table", { name: "Visibility scores by product" });
   const acme = table.getByRole("row", { name: /Acme Docs/ });

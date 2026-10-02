@@ -1,5 +1,6 @@
+import { buildBriefing } from "@/lib/explain/briefing";
 import type { Product, ProductId } from "@/lib/products/catalog";
-import type { ProductScores, TodaySummary } from "./types";
+import type { ActionPreview, ProductScores, SourceFailure, TodaySummary } from "./types";
 
 /** Stable 32-bit FNV-1a hash, so sample numbers never change between runs. */
 function stableHash(text: string): number {
@@ -28,39 +29,49 @@ function sampleScores(productId: ProductId): ProductScores {
   };
 }
 
-/** Placeholder data for the configured products until a first scan is scored. Always flagged `isSample`. */
-export function sampleToday(products: readonly Product[]): TodaySummary {
+/**
+ * Placeholder data for the configured products until a first scan is scored. Always flagged
+ * `isSample`; real source failures still show, and the briefing reads the sample's own data.
+ */
+export function sampleToday(
+  products: readonly Product[],
+  failures: readonly SourceFailure[] = [],
+): TodaySummary {
   const first = products[0];
   if (!first) throw new Error("sampleToday needs at least one product");
   const second = products[1] ?? first;
+  const scores = products.map((p) => sampleScores(p.id));
+  const actions: ActionPreview[] = [
+    {
+      id: "sample-1",
+      productId: first.id,
+      area: "GEO",
+      impact: "high",
+      title: "An AI assistant cites a competitor for one of your target questions",
+      detail: "~1 hr",
+      href: null,
+    },
+    {
+      id: "sample-2",
+      productId: second.id,
+      area: "AEO",
+      impact: "medium",
+      title: "Add FAQ structured data to your most-visited page",
+      detail: "~30 min",
+      href: null,
+    },
+  ];
+  // Nothing real has started on the sample's actions: they wait for the owner.
+  const work = actions.map((a) => ({ productId: a.productId, area: a.area, who: "you" as const }));
   return {
     isSample: true,
     scannedAt: null,
     scanning: false,
     lastFailedAt: null,
-    failures: [],
+    failures: [...failures],
     moreActions: 0,
-    headline: "Calm waters. Two things worth your attention.",
-    scores: products.map((p) => sampleScores(p.id)),
-    actions: [
-      {
-        id: "sample-1",
-        productId: first.id,
-        area: "GEO",
-        impact: "high",
-        title: "An AI assistant cites a competitor for one of your target questions",
-        detail: "~1 hr",
-        href: null,
-      },
-      {
-        id: "sample-2",
-        productId: second.id,
-        area: "AEO",
-        impact: "medium",
-        title: "Add FAQ structured data to your most-visited page",
-        detail: "~30 min",
-        href: null,
-      },
-    ],
+    briefing: buildBriefing({ products, scores, work, failures }),
+    scores,
+    actions,
   };
 }

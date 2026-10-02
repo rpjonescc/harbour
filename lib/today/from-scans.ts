@@ -1,32 +1,10 @@
 import type { Db } from "@/lib/db/client";
+import { buildBriefing } from "@/lib/explain/briefing";
 import type { Product } from "@/lib/products/catalog";
-import type { Impact } from "@/lib/scan/issues";
 import { productScoreTrend, scanState } from "@/lib/scan/views";
 import { attentionFromActions } from "./from-actions";
 import { sampleToday } from "./sample";
 import type { ProductScores, SourceFailure, TodaySummary } from "./types";
-
-const WORDS = [
-  "Zero",
-  "One",
-  "Two",
-  "Three",
-  "Four",
-  "Five",
-  "Six",
-  "Seven",
-  "Eight",
-  "Nine",
-  "Ten",
-];
-
-/** The one-line summary: how many actions are worth a look, calm unless one is high impact. */
-export function headlineFor(impacts: readonly Impact[]): string {
-  const n = impacts.length;
-  if (n === 0) return "Calm waters. Nothing needs your attention.";
-  const phrase = `${WORDS[n] ?? n} ${n === 1 ? "thing" : "things"} worth your attention.`;
-  return impacts.includes("high") ? phrase : `Calm waters. ${phrase}`;
-}
 
 type ProductToday = {
   row: ProductScores;
@@ -67,20 +45,21 @@ export function todaySummary(db: Db, products: readonly Product[], now: Date): T
   if (scanned.length === 0) {
     const failed = perProduct.flatMap((p) => (p.failedAt ? [p.failedAt.getTime()] : []));
     const lastFailedAt = failed.length > 0 ? new Date(Math.max(...failed)) : null;
-    return { ...sampleToday(products), scanning, lastFailedAt, failures };
+    return { ...sampleToday(products, failures), scanning, lastFailedAt };
   }
   // Actions are current here because the scan job runs the rule sync in the same job as scoring.
   const attention = attentionFromActions(
     db,
     products.map((p) => p.id),
   );
+  const scores = perProduct.map((p) => p.row);
   return {
     isSample: false,
     scannedAt: new Date(Math.max(...scanned.map((d) => d.getTime()))),
     scanning,
     lastFailedAt: null,
-    headline: headlineFor(attention.headlineImpacts),
-    scores: perProduct.map((p) => p.row),
+    briefing: buildBriefing({ products, scores, work: attention.work, failures }),
+    scores,
     actions: attention.actions,
     moreActions: attention.more,
     failures,
