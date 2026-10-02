@@ -24,17 +24,27 @@ describe("readNeverMention", () => {
     }
   });
 
-  it("keeps at most 200 terms and ignores terms over 60 characters", () => {
-    const lines = Array.from({ length: 250 }, (_, i) => `term number ${i}`);
-    const { root, cleanup } = makeBrain({
-      "content/never-mention.md": `${"y".repeat(61)}\n${lines.join("\n")}\n`,
-    });
+  it("fails, with a fixed sentence, on a term over 60 characters", () => {
+    const secret = `Project ${"Zephyr".repeat(11)}`;
+    const { root, cleanup } = makeBrain({ "content/never-mention.md": `${secret}\nOld Client\n` });
     try {
-      const terms = readNeverMention(root);
-      expect(terms).toHaveLength(200);
-      expect(terms[0]).toBe("term number 0");
+      expect(() => readNeverMention(root)).toThrow(/over 60 characters, so no digest was made/);
+      expect(() => readNeverMention(root)).not.toThrow(/Zephyr/);
     } finally {
       cleanup();
+    }
+  });
+
+  it("fails on more than 200 terms, and accepts exactly 200", () => {
+    const list = (n: number) => Array.from({ length: n }, (_, i) => `term number ${i}`).join("\n");
+    const over = makeBrain({ "content/never-mention.md": list(201) });
+    const exact = makeBrain({ "content/never-mention.md": list(200) });
+    try {
+      expect(() => readNeverMention(over.root)).toThrow(/more than 200 terms/);
+      expect(readNeverMention(exact.root)).toHaveLength(200);
+    } finally {
+      over.cleanup();
+      exact.cleanup();
     }
   });
 

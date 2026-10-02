@@ -100,7 +100,7 @@ explainable breakdowns. The roadmap continues with:
 | `/settings/devices` | Passkeys and devices |
 | `/design` | Design system reference |
 
-Four JSON endpoints change things; like every mutating route they take same-origin JSON from a
+Five JSON endpoints change things; like every mutating route they take same-origin JSON from a
 signed-in session:
 
 - `POST /api/scans` with `{"productId": "<id>"}` queues a check for the worker (as **Check now**
@@ -117,6 +117,11 @@ signed-in session:
   a fresh one** on Today does), stamped with the server's local time: one at a time and at most
   5 requests a day. It answers `{"jobIds": [12]}`, or refuses with `409 token_missing`,
   `409 personality_quiet` or `429 rate_limited`.
+- `POST /api/content` with `{"action": "make-digest"}` queues the activity digest for yesterday (as
+  **Make today's digest now** will), when `HARBOUR_CONTENT=on` and both `HARBOUR_CLAUDE_OAUTH_TOKEN`
+  and `HARBOUR_SCREENPIPE_API_KEY` are set. It answers `{"jobIds": [12]}` (the same job on a second
+  click) and refuses with `409 content_off`, `409 token_missing`, `409 screenpipe_missing` or
+  `429 daily_cap` / `429 rate_limited`.
 - `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
   moves an action to a new status. `from` is the status your page showed: if the action changed
   since, the request is refused (`409 stale`) instead of overwriting it. `to` is `open`,

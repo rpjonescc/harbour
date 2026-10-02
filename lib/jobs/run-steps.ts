@@ -52,7 +52,7 @@ export function cliAttempt({ deps, job, spec, token, log, event }: AttemptInput)
       onLine: (line) => {
         const summary = summariseLine(line, root);
         for (const raw of summary.touched)
-          recordTouched(root, log, raw, (text) => event("error", text));
+          recordTouched(root, log, raw, (text) => event("error", text), spec.quiet === true);
         for (const e of summary.events) quietly(spec, e, event);
         if (summary.result) result = summary.result;
       },

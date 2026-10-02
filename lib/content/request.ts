@@ -54,11 +54,14 @@ export function requestContent(ctx: RequestContext, body: ContentBody): RequestR
       dailyRuns: ctx.config.HARBOUR_CONTENT_DAILY_RUNS,
     });
     if (!queued.ok) return limitRefusal(queued.reason);
-    audit(
-      ctx.db,
-      { login: ctx.login, event: "content_run_requested", detail: { kind: "content-digest" } },
-      ctx.now,
-    );
+    // A second click while the job waits returns the same job: one request, one audit row.
+    if (queued.created) {
+      audit(
+        ctx.db,
+        { login: ctx.login, event: "content_run_requested", detail: { kind: "content-digest" } },
+        ctx.now,
+      );
+    }
     return { ok: true, jobIds: [queued.id] };
   }
   return refuse(400, "invalid_request");

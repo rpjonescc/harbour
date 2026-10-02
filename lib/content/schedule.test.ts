@@ -1,5 +1,5 @@
 import { jobs as jobsTable } from "@/lib/db/schema";
-import { listJobs } from "@/lib/jobs/queue";
+import { enqueueJob, listJobs } from "@/lib/jobs/queue";
 import { openTestDb } from "@/tests/helpers/db";
 import { makeDigestSchedule, nextDigestRun } from "./schedule";
 
@@ -32,19 +32,31 @@ function harness(
 describe("the digest schedule", () => {
   it("queues one digest for yesterday after the slot, and not again", () => {
     const h = harness();
+    expect(h.at("2026-10-01T19:00:00Z")).toBeNull(); // 05:00 on 2 October: before the slot
     expect(h.at("2026-10-01T20:00:00Z")).toMatchObject({ day: "2026-10-01" }); // 06:00 local
     expect(h.at("2026-10-01T21:00:00Z")).toBeNull();
-    expect(h.at("2026-10-02T19:00:00Z")).toBeNull(); // 05:00 on 3 October: before the next slot
     expect(listJobs(h.db).map((j) => [j.kind, j.params])).toEqual([
       ["content-digest", { day: "2026-10-01" }],
     ]);
   });
 
-  it("on a first start before the slot, queues one digest for the day before the latest slot", () => {
+  it("queues nothing for an earlier day on a first start before the slot", () => {
     const h = harness();
-    expect(h.at("2026-10-01T19:00:00Z")).toMatchObject({ day: "2026-09-30" }); // 05:00 on 2 October
-    expect(h.at("2026-10-01T19:30:00Z")).toBeNull();
-    expect(h.at("2026-10-01T20:00:00Z")).toMatchObject({ day: "2026-10-01" }); // the 2 October slot
+    expect(h.at("2026-10-01T19:00:00Z")).toBeNull();
+    expect(listJobs(h.db)).toEqual([]);
+  });
+
+  it("does not queue the same day twice when the owner already asked for it", () => {
+    const h = harness();
+    enqueueJob(
+      h.db,
+      "content-digest",
+      { day: "2026-10-01" },
+      "owner@example.com",
+      new Date("2026-10-01T18:00:00Z"),
+    );
+    expect(h.at("2026-10-01T20:00:00Z")).toBeNull();
+    expect(listJobs(h.db)).toHaveLength(1);
   });
 
   it("does not backfill earlier days after a long outage: one digest, for the day before the latest slot", () => {
@@ -70,7 +82,7 @@ describe("the digest schedule", () => {
     expect(listJobs(h.db)).toHaveLength(1);
   });
 
-  it("does not retry a digest that failed, and a manual one since the slot counts", () => {
+  it("does not retry a digest that failed", () => {
     const h = harness();
     h.at("2026-10-01T20:00:00Z");
     h.db.update(jobsTable).set({ status: "failed" }).run();

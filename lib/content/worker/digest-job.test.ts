@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseFile } from "@/lib/content/files";
 import { digestFrontmatter } from "@/lib/content/schema";
@@ -269,6 +269,56 @@ describe("runDigestJob", () => {
       expect(r.calls[0]?.args.join("\n")).not.toContain("Acme Docs");
     } finally {
       await r.cleanup();
+    }
+  });
+
+  it("drops a theme that repeats the screen text word for word, and marks the digest partial", async () => {
+    const quote = {
+      productId: "acme-docs",
+      text: "Noticed that the sidebar collapses whenever a title is longer than the column",
+      kind: "learned",
+    };
+    const r = await digest({
+      works: { themes: [...GOOD, quote] },
+      snippets: [
+        {
+          text: "Acme Docs: the sidebar collapses whenever a title is longer than the column",
+          app_name: "Editor",
+          window_name: "guide.md",
+        },
+      ],
+    });
+    try {
+      const text = readFileSync(join(r.brain.root, FILE), "utf8");
+      expect(text).toContain("status: partial");
+      expect(text).not.toContain("collapses");
+      expect(text).toContain("id: t2");
+      expect(text).not.toContain("id: t3");
+    } finally {
+      await r.cleanup();
+    }
+  });
+
+  it("waits for the owner before reading the screen, and reads once when it runs", async () => {
+    const fake = await startFakeScreenpipe({
+      snippets: [{ text: "Acme Docs guide", app_name: "Editor", window_name: "guide.md" }],
+    });
+    const s = contentSetup({ digest: { themes: GOOD } });
+    try {
+      writeFileSync(join(s.brain.root, "notes.md"), "# being edited\n"); // uncommitted, just now
+      enqueueJob(s.deps.db, "content-digest", { day: DAY }, null);
+      const job = claim(s.deps);
+      await runDigestJob({ ...s.deps, screenpipe: { baseUrl: fake.url, apiKey: "k" } }, job);
+      expect(reload(s.deps, job.id).status).toBe("queued");
+      expect(fake.requests).toEqual([]);
+      expect(
+        eventsSince(s.deps.db, job.id, 0)
+          .map((e) => e.text)
+          .join("\n"),
+      ).not.toMatch(/Read \d/);
+    } finally {
+      await fake.close();
+      s.cleanup();
     }
   });
 });

@@ -134,14 +134,35 @@ if (scenario === "spawn-grandchild" || scenario === "spawn-grandchild-ignore") {
   const works = JSON.parse(process.env.FAKE_CLAUDE_WORKS ?? "{}");
   const strays = JSON.parse(process.env.FAKE_CLAUDE_STRAYS ?? "{}");
   out({ type: "assistant", message: { content: [{ type: "text", text: `Working on ${step}` }] } });
+  // FAKE_CLAUDE_ECHO: a run that repeats a string through every channel it has (the privacy test's
+  // canary): assistant text, a tool call's input, stderr, the result; the hostile variant adds a write outside the brain
+  // and a JSON key in the work file.
+  const echo = process.env.FAKE_CLAUDE_ECHO;
+  if (echo) {
+    out({ type: "assistant", message: { content: [{ type: "text", text: `I saw ${echo}` }] } });
+    tool("Grep", { pattern: echo, path: `${echo}/dir` });
+    // The hostile variant also tries a write outside the brain, named after the string.
+    if (process.env.FAKE_CLAUDE_ECHO_HOSTILE)
+      tool("Write", { file_path: `/tmp/${echo}.md`, content: echo });
+    process.stderr.write(`stderr ${echo}\n`);
+  }
   if (!(step in works)) {
-    out({ type: "result", subtype: "success", is_error: true, result: `no fixture for ${step}` });
+    const why = echo ? `no fixture for ${step}: ${echo}` : `no fixture for ${step}`;
+    out({ type: "result", subtype: "success", is_error: true, result: why });
     process.exit(1);
   }
-  const work = works[step];
+  let work = works[step];
+  if (echo && process.env.FAKE_CLAUDE_ECHO_HOSTILE && typeof work === "object") {
+    work = { ...work, [echo]: echo }; // a JSON key in the work file: strict validation refuses it
+  }
   for (const rel of targets) write(rel, typeof work === "string" ? work : JSON.stringify(work));
   for (const [rel, text] of Object.entries(strays)) write(rel, text);
-  out({ type: "result", subtype: "success", is_error: false, result: "done" });
+  out({
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    result: echo ? `done ${echo}` : "done",
+  });
 } else if (scenario === "fail") {
   out({ type: "result", subtype: "success", is_error: true, result: "Not logged in" });
 } else {

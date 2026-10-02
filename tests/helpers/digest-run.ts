@@ -1,7 +1,7 @@
 import { runDigestJob } from "@/lib/content/worker/digest-job";
 import { enqueueJob } from "@/lib/jobs/queue";
 import { HOSTILE_SNIPPETS } from "@/tests/fixtures/content/hostile-snippets";
-import { contentSetup } from "./content";
+import { ACME, contentSetup } from "./content";
 import { type FakeMode, type FakeSnippet, startFakeScreenpipe } from "./fake-screenpipe";
 import { claim, reload } from "./run-job";
 
@@ -33,6 +33,9 @@ export async function digest(
     snippets?: FakeSnippet[];
     files?: Record<string, string>;
     day?: string;
+    /** Content on for a second product, so the job makes two activity requests. */
+    twoProducts?: boolean;
+    echo?: { text: string; hostile?: boolean };
   } = {},
 ) {
   const fake = await startFakeScreenpipe({
@@ -48,8 +51,14 @@ export async function digest(
   const s = contentSetup(
     options.fixtures ?? { digest: options.works ?? { themes: GOOD_THEMES } },
     options.files,
-    { strays: options.strays },
+    { strays: options.strays, echo: options.echo },
   );
+  if (options.twoProducts && s.deps.content) {
+    s.deps.content.products = [
+      ACME,
+      { ...ACME, id: "acme-blog", name: "Acme Blog", terms: ["acme blog"] },
+    ];
+  }
   const deps = {
     ...s.deps,
     timeZone: "Europe/London",

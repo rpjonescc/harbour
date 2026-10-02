@@ -7,6 +7,7 @@ import { DIGEST_PROMPT_VERSION, digestPrompt } from "@/lib/content/prompts/diges
 import { parseDay } from "@/lib/format/zoned-time";
 import { readNeverMention } from "./never-mention";
 import { requireContent } from "./run-context";
+import { quotesSnippets } from "./screenpipe/overlap";
 import { THEME_KINDS, validateThemes } from "./screenpipe/themes";
 import { parseWorkJson, workReview } from "./work-review";
 
@@ -38,6 +39,9 @@ export function digestSpec(params: Record<string, string>, context: SpecContext)
     products: content.products.map((p) => ({ id: p.id, name: p.name })),
     neverMention: readNeverMention(content.root),
   };
+  const snippetsOf = (id: string) =>
+    inputs.products.find((p) => p.productId === id)?.snippets ?? [];
+  const termsOf = (id: string) => content.products.find((p) => p.id === id)?.terms ?? [];
   const prompt = digestPrompt({ jobId: context.jobId, digest: inputs, products: rules.products });
   return {
     kind: "content-digest",
@@ -61,7 +65,12 @@ export function digestSpec(params: Record<string, string>, context: SpecContext)
       plan: {
         parse: (text) => parseWorkJson(text, workSchema),
         files: (value, note) => {
-          const { themes, dropped } = validateThemes(value.themes, rules);
+          const valid = validateThemes(value.themes, rules);
+          // A theme that repeats the screen text word for word is the snippet, not a summary.
+          const themes = valid.themes
+            .filter((t) => !quotesSnippets(t.text, snippetsOf(t.productId), termsOf(t.productId)))
+            .map((t, i) => ({ ...t, id: `t${i + 1}` }));
+          const dropped = value.themes.length - themes.length;
           for (const product of rules.products) {
             const raw = value.themes.filter((t) => t.productId === product.id).length;
             const kept = themes.filter((t) => t.productId === product.id).length;

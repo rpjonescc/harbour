@@ -1038,3 +1038,30 @@ Each step is its own reviewed change, with tests and README updates in the same 
 - **`/health` includes the hostname**, so Harbour never stores the health payload.
 - **Retention is Screenpipe's.** Frames are pruned on Screenpipe's schedule, so a digest for an
   old day may be thin. Harbour only ever asks about yesterday.
+
+## 17. As built: the activity digest (Task 7)
+
+- **Schedule.** The digest is queued once per local day after `HARBOUR_DIGEST_TIME`, for the day
+  before, and only when the worker is running after that slot the same local day (a worker that
+  starts before the slot, or after an outage that spans a whole day, queues nothing for an earlier
+  day: §12.1 "Catch-up: None"). Any digest job for that day, scheduled, manual or failed, settles
+  it, so "Make today's digest now" followed by the slot does not queue it twice and a failed run
+  is not retried. Only a first, real request is audited (`content_run_requested`); a second click
+  that returns the waiting job is not.
+- **Reading the screen.** The job checks that the owner is not editing the brain before it reads
+  Screenpipe, so a deferred job never reads twice.
+- **Never-mention list.** An unreadable or oversize list, a term over 60 characters or more than
+  200 terms fail the digest with a fixed sentence (no term in it): a term is never silently dropped.
+- **Quiet runs carry counts, not names.** The agent chooses file names, and a name can hold screen
+  text. For a quiet run (`AgentSpec.quiet`) the git gate and the touched-path recorder report
+  counts only ("1 file(s) outside its area"), in job errors, events and logs.
+- **`AgentSpec.noQuarantine`.** A failed digest run deletes the files the agent itself wrote (and
+  the quarantine manifest) instead of keeping them in quarantine, because they may echo screen
+  text. Anything not known to be the agent's is still quarantined. After a worker crash, startup
+  recovery has no spec and quarantines (keeps) those files outside the brain; the owner can delete
+  the quarantine folder.
+- **Residual: a plain word in a valid theme.** A theme is the model's own sentence; if it repeats
+  a plain word from the screen with no digit, link or name, the validator cannot tell it from its
+  own vocabulary. Mitigation: a theme sharing a verbatim run of 20 or more characters with the
+  filtered snippets (product terms excepted) is dropped and counted.
+- **Not built:** digest pruning and `HARBOUR_DIGEST_KEEP_DAYS` (Decision 8).

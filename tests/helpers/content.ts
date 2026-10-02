@@ -100,7 +100,12 @@ export function makeSkillsDir(overrides: Record<string, string | null> = {}) {
 export function contentSetup(
   works: Record<string, unknown>,
   files: Record<string, string> = {},
-  options: { strays?: Record<string, string>; skills?: Record<string, string | null> } = {},
+  options: {
+    strays?: Record<string, string>;
+    skills?: Record<string, string | null>;
+    /** The fake CLI repeats this string through every channel; `hostile` also writes outside the brain and puts it in the work file as a JSON key. */
+    echo?: { text: string; hostile?: boolean };
+  } = {},
 ) {
   const skills = makeSkillsDir(options.skills);
   const s = setup("content-work", files);
@@ -117,6 +122,12 @@ export function contentSetup(
       ...o.env,
       FAKE_CLAUDE_WORKS: JSON.stringify(works),
       FAKE_CLAUDE_STRAYS: JSON.stringify(options.strays ?? {}),
+      ...(options.echo
+        ? {
+            FAKE_CLAUDE_ECHO: options.echo.text,
+            ...(options.echo.hostile ? { FAKE_CLAUDE_ECHO_HOSTILE: "1" } : {}),
+          }
+        : {}),
     };
     return run({ ...o, env });
   };

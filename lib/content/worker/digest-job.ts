@@ -1,8 +1,8 @@
 import { addDays, parseDay, zonedInstant } from "@/lib/format/zoned-time";
 import { finish } from "@/lib/jobs/git-jobs";
 import { addEvent, type Job } from "@/lib/jobs/queue";
-import { type RunDeps, runAgentJob } from "@/lib/jobs/run-job";
-import { readNeverMention } from "./never-mention";
+import { deferWhileEditing, type RunDeps, runAgentJob } from "@/lib/jobs/run-job";
+import { NeverMentionError, readNeverMention } from "./never-mention";
 import { type DigestInputs, requireContent } from "./run-context";
 import {
   checkHealth,
@@ -57,7 +57,17 @@ async function gather(
  */
 function gatherFailure(error: unknown, day: string): string {
   if (error instanceof ScreenpipeError) return describeFailure(error.kind, dayLabel(day));
+  if (error instanceof NeverMentionError) return error.message;
   return `Harbour couldn't read Screenpipe, so there is no activity digest for ${dayLabel(day)}.`;
+}
+
+/** True when the owner is still editing the brain and the job was put back; a failed check is not one. */
+function waitsForOwner(deps: DigestJobDeps, job: Job): boolean {
+  try {
+    return deferWhileEditing(deps, job);
+  } catch {
+    return false; // the runner reports an unusable brain in its own words
+  }
 }
 
 /**
@@ -86,6 +96,8 @@ export async function runDigestJob(
   if (!deps.screenpipe) {
     return fail("Connect Screenpipe first: set HARBOUR_SCREENPIPE_API_KEY (Settings shows how).");
   }
+  // Before reading the screen: a deferred job is claimed again and must not read it twice.
+  if (waitsForOwner(deps, job)) return { pushed: null };
   let inputs: DigestInputs;
   try {
     inputs = await gather(deps, deps.screenpipe, day);

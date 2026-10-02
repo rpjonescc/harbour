@@ -14,7 +14,8 @@ export type FakeMode =
   | "garbage"
   | "bad-json"
   | "unknown-status"
-  | "redirect";
+  | "redirect"
+  | "second-forbidden";
 export type FakeSnippet = { text: string; app_name: string; window_name?: string | null };
 export type FakeRequest = {
   path: string;
@@ -38,6 +39,7 @@ export async function startFakeScreenpipe(
 ) {
   const { mode = "ok", snippets = [], key = "sp-test-key" } = options;
   const requests: FakeRequest[] = [];
+  let activityCalls = 0;
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
     requests.push({
@@ -63,7 +65,10 @@ export async function startFakeScreenpipe(
             extra: 1,
           });
     }
-    if (req.headers.authorization !== `Bearer ${key}` || mode === "forbidden") {
+    activityCalls += 1;
+    // Answers the first activity request, then refuses: a failure after text was already read.
+    const refuseNow = mode === "forbidden" || (mode === "second-forbidden" && activityCalls > 1);
+    if (req.headers.authorization !== `Bearer ${key}` || refuseNow) {
       return json(403, { error: "forbidden" });
     }
     if (mode === "hang") return; // never answers
@@ -89,7 +94,10 @@ export async function startFakeScreenpipe(
     return json(200, {
       data_status: STATUS_BY_MODE[mode] ?? "ok",
       query_status: "matched",
-      snippets: mode === "ok" ? snippets.map((s) => ({ ...s, frame_id: 1 })) : [],
+      snippets:
+        mode === "ok" || mode === "second-forbidden"
+          ? snippets.map((s) => ({ ...s, frame_id: 1 }))
+          : [],
       apps: [{ name: "Ignored", minutes: 3 }],
       key_texts: ["ignored"],
     });

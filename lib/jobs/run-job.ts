@@ -95,7 +95,7 @@ function checkPreconditions(deps: RunDeps, spec: AgentSpec): string {
  * Puts the job back in the queue while the brain changed in the last QUIET_MS (the owner is
  * still editing): an agent run would commit their half-written notes. Returns true if deferred.
  */
-function deferWhileEditing(deps: RunDeps, job: Job): boolean {
+export function deferWhileEditing(deps: RunDeps, job: Job): boolean {
   const now = deps.now();
   const newest = newestOwnerChange(deps.root, now);
   if (newest === null || now.getTime() - newest >= QUIET_MS) return false;
@@ -145,8 +145,9 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     const { quarantined } = discardRun(root, snapshot, dir, wrote);
     snapshot = undefined;
     removeRunMarker(deps.quarantineRoot, job.id);
-    // Only when every file in it is known to be the agent's own: a file the owner changed in the
-    // meantime is never deleted here.
+    // Only for a run whose files may hold screen text, and only when every file moved was written
+    // by the agent (a path the worker publishes counts as the agent's). The manifest goes with
+    // them. A crash never reaches here: startup recovery quarantines, and keeps, those files.
     if (noQuarantine && wrote !== "all" && quarantined.every((path) => wrote.has(path))) {
       rmSync(dir, { recursive: true, force: true });
       if (quarantined.length > 0)
@@ -218,7 +219,14 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     checkOutcome(spec, totalMs, outcome, result);
 
     const digest = publishReviewed(spec, root, log, (text) => event("status", text));
-    const paths = gatedPaths(root, snapshot, spec, log.touched(), (text) => event("status", text));
+    const paths = gatedPaths(
+      root,
+      snapshot,
+      spec,
+      log.touched(),
+      (text) => event("status", text),
+      spec.quiet === true,
+    );
     checkRequiredOutputs(spec, paths); // a half-done run is discarded, never committed
     const { pushed } = commitAndPush(
       { deps, job, spec, paths, event, setRun, result: digest },

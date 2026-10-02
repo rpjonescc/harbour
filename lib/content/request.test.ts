@@ -19,7 +19,7 @@ const ctx = (over: Record<string, unknown> = {}) => ({
 });
 
 describe("requestContent: make-digest", () => {
-  it("queues yesterday's digest, audits it, and a second click returns the same job", () => {
+  it("queues yesterday's digest, audits it, and a second click returns the same job and is not audited again", () => {
     const c = ctx();
     const a = requestContent(c, { action: "make-digest" });
     const b = requestContent(c, { action: "make-digest" });
@@ -32,10 +32,7 @@ describe("requestContent: make-digest", () => {
         .from(auditLog)
         .all()
         .map((e) => [e.event, e.detail]),
-    ).toEqual([
-      ["content_run_requested", { kind: "content-digest" }],
-      ["content_run_requested", { kind: "content-digest" }],
-    ]);
+    ).toEqual([["content_run_requested", { kind: "content-digest" }]]);
   });
 
   it.each([
