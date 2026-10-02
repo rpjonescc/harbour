@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
+import { expectPlainLanguage } from "./plain-language";
 import { openRunLog } from "./run-log";
 
 // The worker runs tests/fixtures/fake-claude.mjs instead of the real CLI; the brain is the
@@ -40,6 +41,18 @@ test("discovery proposals can be approved", async ({ page }) => {
   await keywords.getByRole("button", { name: 'Approve keyword "example widgets"' }).click();
   await expect(keywords.getByRole("status")).toHaveText('Approved keyword "example widgets"');
   await expect(keywords.getByText("0 proposed · 1 approved · 0 rejected")).toBeVisible();
+});
+
+test("the Agents page and a run page speak plainly", async ({ page }) => {
+  await page.goto("/agents");
+  await expect(page.getByRole("heading", { level: 1, name: "Agents" })).toBeVisible();
+  await expectPlainLanguage(page);
+  await expect(page.getByRole("button", { name: "Find ideas for Acme Docs" })).toBeVisible();
+  // The earlier tests queued runs, so the table has rows.
+  await page.getByRole("table", { name: "Recent runs" }).getByRole("link").first().click();
+  await expect(page).toHaveURL(/\/agents\/\d+$/);
+  await expectPlainLanguage(page);
+  await expect(page.getByText(/Technical details \(step-by-step log of the run\)/)).toBeVisible();
 });
 
 test("agent API requires a session", async ({ playwright }) => {

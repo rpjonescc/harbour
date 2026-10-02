@@ -85,6 +85,9 @@ yet") instead of implying a worse score. Missing data is a gap, never a zero (AG
 
 Status values in the data model are unchanged.
 
+The owner-facing word for a visibility check is **check** (button: Check now); command names, API
+routes and settings keep *scan*.
+
 **Who's on it** (derived from the status, the PR link and who made the latest *status-changing*
 event — its creation counts; a PR-link event, which keeps the status, does not):
 - "New idea, not decided yet": the action is suggested.
@@ -196,6 +199,22 @@ As built:
 - Key and source status reads "Connected" or "Not connected yet", followed by how to connect
   it. Variable names appear only inside the setup steps.
 
+As built:
+
+- Settings has six sections, each with a one-line purpose (`lib/explain/settings.ts`): Products,
+  Schedules, Connections, Budget, Backups and More settings. "API keys" is now **Connections**.
+  Agents' panels (research, Find ideas, weekly report, research refresh, recent runs) have theirs
+  in `lib/explain/agents.ts`.
+- A connected key reads "Connected", a missing one "Not connected yet"; a paid source that cannot
+  be connected yet reads "Not available yet" and has no setup steps.
+- Setting names (`HARBOUR_*`, `.env`) appear only inside Technical details; the Connections
+  table and the schedules read in words.
+- "Discovery" is **Find ideas**. A run's page headline is plain (Waiting for its turn, Running now,
+  Done, Didn't finish, Stopped); its step-by-step log sits under Technical details.
+- Sources and Devices follow the same rules: a one-line intro, plain statuses, and connection steps
+  under Technical details.
+- The sidebar badge on Actions reads "N things worth doing", the same words as Today's sub-line.
+
 ### 5.5 Messages
 
 Every user-facing error, notice and empty state is rewritten per principle 4. Messages live
@@ -216,6 +235,16 @@ Google Preferred Sources is a Top Stories (news) feature, so it should not weigh
     updated: Preferred Sources now only counts for news sites."
 - **Rule:** the `no-preferred-sources` rule only fires for `news` products. Existing open
   rule actions close through the normal rule-sync path, since the rule no longer applies.
+
+As built:
+
+- `Product.kind` (`"product"` by default, validated by zod) feeds `ScoreContext.productKind`;
+  `FORMULA_VERSION` is `"v2"`. `aeo.preferredSources` is shown as "Fresh pages" for product sites.
+- `no-preferred-sources` returns `clear` for product sites, so the rule sync resolves an old open
+  action with its ordinary "Resolved" note rather than a special path.
+- Score changes are shown only between two scores of the same formula version. The Product page
+  shows the history note (`formulaChange`, `lib/explain/scoring-notes.ts`) for product sites while
+  the change is within the 30-day trend window.
 
 ## 7. Testing
 
@@ -244,8 +273,8 @@ Each step is its own reviewed change.
 3. Actions (done). This waited for the `pnpm actions` / PR-link change, since it touches the same
    components.
 4. Product page.
-5. Settings, Agents and messages.
-6. Scoring v2 (Preferred Sources).
+5. Settings, Agents and messages (done).
+6. Scoring v2 (Preferred Sources) (done).
 
 AGENTS.md gains a short "Plain language" rule under Design system pointing to this spec and
 `lib/explain`, so new UI follows the same pattern.

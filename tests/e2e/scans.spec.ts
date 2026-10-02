@@ -61,7 +61,7 @@ test("Check now runs a scan and the product page shows its results", async ({ pa
   await broken.getByText("Technical details").click();
   await expect(broken.getByText(`${SITE}/missing (HTTP 404)`, { exact: false })).toBeVisible();
   // The scan's rule sync opened an action for each issue; the issue links to it on the board.
-  await expect(noTitle.getByText("To do", { exact: true })).toBeVisible();
+  await expect(noTitle.getByText("Waiting for you", { exact: true })).toBeVisible();
   await expect(noTitle.getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
     "href",
     /^\/actions\?product=acme-docs&status=all#action-\d+$/,
@@ -148,6 +148,7 @@ test("Sources lists each source's last run and how to connect the missing ones",
   page,
 }) => {
   await page.goto("/settings/sources");
+  await expectPlainLanguage(page);
   await expect(page.getByText(/Daily checks are off/)).toBeVisible();
 
   const connections = page.getByRole("list", { name: "Connections" });

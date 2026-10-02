@@ -127,6 +127,8 @@ Pure `scoreScan(observations, collectorStatuses): { seo, geo, aeo, complete, bre
 - **AEO:** FAQ/HowTo/Q&A coverage, concise answer blocks (paragraph ≤ 60 words directly under a question heading), Preferred Sources readiness (button/deeplink + fresh content), featured-snippet data not connected.
 Breakdown entries `{ key, label, score, weight, evidence: string, status: "ok"|"missing" }` so the UI can explain every number. Tests: fixture observation sets → exact scores; incomplete paths; weights sum; idempotent.
 
+**Updated by scoring v2** (`FORMULA_VERSION = "v2"`): these notes describe formula v1, where `aeo.preferredSources` was 50% Preferred Sources button and 50% fresh pages for every site. Since v2 that holds only for `kind: "news"` products; every other site scores fresh pages alone (see the plain-language spec §6). Everything else below is unchanged.
+
 **As built — scoring** (`lib/scan/score.ts` entry, sub-scores in `lib/scan/scoring/{inputs,pages,sub-score,seo,seo-technical,seo-indexability,seo-trend,geo,aeo}.ts`; `formulaVersion: "v1"`): `scoreScan(observations, statuses, context)`, where `context = {now, previousPagespeed}` is gathered by runScan (`scoreContext` in `store.ts`: PageSpeed's latest ok run when this scan skipped it). Each collector's observations are validated with zod (only the fields read); a collector that did not end ok, or whose data does not parse, makes every sub-score that needs it `missing` with the reason ("PageSpeed is not connected", "Crawler failed in this scan", "Readiness data has an unexpected shape (robotsTxt: …)"). Pages count once by final URL; "HTML pages" are distinct 2xx pages with HTML facts.
 
 | Key | Weight | Needs | Formula |

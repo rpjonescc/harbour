@@ -215,7 +215,7 @@ test("Today lists the top three actions in board order; issues link to their act
     "No guide to your site for AI assistants",
   ]) {
     const issue = issues.getByRole("article", { name: title });
-    await expect(issue.getByText("To do", { exact: true })).toBeVisible();
+    await expect(issue.getByText("Waiting for you", { exact: true })).toBeVisible();
     await expect(issue.getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
       "href",
       /^\/actions\?product=lighthouse-cafe&status=all#action-\d+$/,

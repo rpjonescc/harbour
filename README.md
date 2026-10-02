@@ -10,9 +10,9 @@ in classic search (SEO), in AI assistants (GEO) and as direct answers (AEO), sco
 explainable breakdowns. The roadmap continues with:
 
 - **Paid sources** — AI engine mentions and citations, keyword rankings and featured snippets
-  (they need API keys, so they show as "not connected" for now).
-- **Plain-language UX** (in progress) — every screen says what something is, why it matters
-  and what to do, in plain words; technical detail stays one click away
+  (they need paid API keys, so they read "Not available yet" for now).
+- **Plain-language UX** (built for every screen) — every screen says what something is, why it
+  matters and what to do, in plain words; technical detail stays one click away
   ([spec](docs/superpowers/specs/2026-10-02-plain-language-ux-design.md)).
 - **Content machine** (idea) — content pillars, drafts, atomising and quality passes before
   anything is published ([idea note](docs/superpowers/ideas/2026-10-02-content-machine.md)).
@@ -25,8 +25,7 @@ explainable breakdowns. The roadmap continues with:
   that needs a look), a plain verdict per product and area (Found on Google, Recommended by
   AI assistants, Answer-ready: Strong 85+, Good 70–84, Fair 50–69 or
   Needs work under 50, with the score and its change beside it; "What's this?" explains each
-  area, and the numbers with a 30-day SEO trend sit under Technical details), **Worth doing
-  next** (the top three actions as plain cards: why each matters, its area, how big a job it
+  area, and the numbers with a 30-day SEO trend sit under Technical details), **Next up** (the top three actions as plain cards: why each matters, its area, how big a job it
   is and who's on it), and **Behind the scenes**: paid spend, backup warnings and any data
   source that failed in the last check, each saying what happened, whether it matters and what
   to do (raw errors under Technical details). Until the first check finishes it shows clearly
@@ -45,18 +44,23 @@ explainable breakdowns. The roadmap continues with:
   line, and a link to its pull request. The full reason, evidence, where it came from, the exact fix
   and check, and **Hand to Claude** (a ready prompt) sit under **Technical details**. Filter by
   product, area and status (a plain, bookmarkable form); move an action through New ideas → To do →
-  In progress → Done, snooze it until a date or dismiss it. The sidebar shows how many are open.
+  In progress → Done, snooze it until a date or dismiss it. The sidebar badge reads "N things worth doing".
   Claude can triage the board for you with `pnpm actions`, every change recorded with its reason.
-- **Sources** — whether the daily check is on, which data sources are connected (never their
-  secrets), and each source's last run, status and reason per product.
+- **Sources** — where each score's data comes from and whether it is working: whether the daily
+  check is on and when the next one is, which data sources are connected (never their secrets;
+  the ones still to connect say how, under **Technical details**), and each source's last
+  run and outcome per product.
 - **Products from config** — list your products in `harbour.config.json`; each gets a
   colour from a six-hue palette. Without it, a clearly labelled demo config is shown.
-- **Devices** — add a passkey to a new device with a one-time link, see local sign-in times
-  and which device you are using, or remove a lost one. Reused device names get a number.
+- **Devices** — add a passkey to a new device with a one-time link, see when each device was
+  added and last used and which one you are using, or remove a lost one. Reused device names
+  get a number.
 - **Second Brain** — read Markdown notes with a document tree, frontmatter, links and backlinks.
-- **Agents** — research and discovery agents that write into the Second Brain, one at a time,
-  with live activity, cancel, and automatic save and sync; stale research is re-checked monthly
-  (see [Research refresh](#research-refresh)).
+- **Agents** — Claude's background work, saved to your Second Brain, one job at a time: research
+  on a topic, **Find ideas** for each site, the weekly report and the monthly research refresh.
+  Each run has a plain page (Waiting for its turn, Running now, Done, Didn't finish or
+  Stopped) with **Stop this run**, and its step-by-step log sits under **Technical details**.
+  Saving and syncing are automatic (see [Research refresh](#research-refresh)).
 - **A warm friend** — Today opens with a short note an agent writes fresh every morning, in
   the voice of a seasoned, warm, quick-witted friend: it celebrates real wins, is honest and
   kind about bad news and always gives a next step, and on a weekend or late at night says what
@@ -70,11 +74,14 @@ explainable breakdowns. The roadmap continues with:
 - **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14 kept,
   with retries and a catch-up after downtime (see [Backups and restore](#backups-and-restore)).
   Today warns when the last backup failed with no retry left, when there has been none for 2 days,
-  or when Harbour can't read the backup folder.
-- **Settings** — one read-only page showing what Harbour is set up to do: products, schedules
-  and their next runs, whether each API key is set (never its value), the budget and this
-  month's spend, backup health with **Back up now**, and links to the other settings pages.
-  Values are changed in `.env` and `harbour.config.json`.
+  or when Harbour can't open the backup folder.
+- **Settings** — one read-only page showing what Harbour is set up to do, in sections that
+  each open with one plain line on what they are for: **Products**, **Schedules** and their next
+  runs, **Connections** (each reads Connected, Not connected yet or Not available yet, never a
+  value), **Budget** and this month's spend, **Backups** with **Back up now**, and **More
+  settings** linking to Sources, Devices and each product's research targets. Setting names and
+  the steps to change one (edit `.env` and `harbour.config.json`, then restart) sit under
+  **Technical details**.
 - **Accessible by default** — keyboard paths, visible focus, accessible names, rem-based type.
 
 ### Pages
@@ -84,7 +91,7 @@ explainable breakdowns. The roadmap continues with:
 | `/` | Today |
 | `/products/<id>` | A product's scores, issues, pages and sources |
 | `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`; the status values are the stored ones, which the board shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed) |
-| `/settings` | Settings overview: products, schedules, key status, budget and backups |
+| `/settings` | Settings overview: products, schedules, connections, budget and backups |
 | `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors) |
 | `/settings/sources` | Check schedule, connections and each source's last run |
 | `/brain` | Second Brain |
@@ -155,7 +162,7 @@ your Second Brain:
   rationale), or **Run all research** to queue them all (a topic that already has a
   research run or refresh queued or running keeps that run). Each writes one document under
   `research/` (or `00-start-here.md`).
-- **Find ideas** — one run per product; it reads your `products/<id>/notes.md` and writes
+- **Find ideas** — one run per product (**Find ideas for Acme Docs**); it reads your `products/<id>/notes.md` and writes
   `products/<id>/discovery.md` and `products/<id>/proposals.json`.
 
 Agents run Claude Code on the Harbour PC with your Claude subscription. Run `claude setup-token`
@@ -184,10 +191,10 @@ competitors, each with the agent's reason. **Approve**, **Reject** or **Edit** e
 **Approve all proposed** per list. Re-running discovery never overwrites items you've already
 decided on.
 
-Saving and syncing need no action. The Agents page and the Second Brain show unsaved notes
-("saved automatically in about 2 minutes") and commits waiting to sync to GitHub ("retrying
-automatically"); **Save now** and **Retry now** are optional shortcuts. While an interrupted run
-is being recovered, a banner says so and autosave is paused.
+Saving and syncing need no action. The Agents page and the Second Brain say "Saved · synced",
+or show note files that "will be saved automatically soon" and saved changes "waiting to reach
+GitHub — Harbour keeps retrying"; **Save now** and **Retry now** are optional shortcuts. While an
+interrupted run is being recovered, a banner says so and saving is paused.
 
 ### Weekly analyst
 
@@ -210,15 +217,15 @@ git gate and Claude subscription as the other agents (no paid API calls).
   between), the worker imports them from that commit automatically, at most 3 attempts in all,
   and never twice; each failure is listed on the run's activity page.
 - **Where suggestions appear** — on the **Actions** board as **New ideas** (`/actions`), labelled
-  as coming from the weekly analyst; accept or dismiss each one. An action the product already
+  "Suggested by the weekly report"; accept or dismiss each one. An action the product already
   has (a new idea, to do, in progress, snoozed or dismissed) is not suggested again.
 - **When it runs** — every Sunday at 20:00 in `HARBOUR_TIMEZONE`, for that week (see [When things
   run](#when-things-run)). The **Weekly report** panel on **Agents** shows the next scheduled run
   (or that a run is queued or running, that a catch-up is due, or that scheduled runs are off or
   need a Claude token) and links the latest report; **Write this week's report now** (or
   `pnpm analyst:now`) queues a run for the current week straight away. A run whose suggestions could
-  not be imported after 3 attempts says "Suggestions not imported — run the agent again" in **Recent
-  runs**.
+  not be imported after 3 attempts says "Claude's ideas from this run weren't saved. Run it
+  again." under it in **Recent runs**.
 
 ### Research refresh
 
@@ -473,8 +480,8 @@ queues exactly one run, for that Sunday's week, when it starts. A run you start 
 only if you start it after Sunday's 20:00: one earlier in the week does not stop the full-week
 report. The worker skips the week, and says so in its log, when `HARBOUR_CLAUDE_OAUTH_TOKEN` is
 not set ("weekly analyst skipped: no Claude token") or when no product has a scored check in the
-last 7 days ("no scan data this week"). A failed run is not retried automatically: choose **Run
-weekly report now** on **Agents** or run `pnpm analyst:now`. Set `HARBOUR_SCHEDULED_ANALYST=off` to
+last 7 days ("no scan data this week"). A failed run is not retried automatically: choose **Write
+this week's report now** on **Agents** or run `pnpm analyst:now`. Set `HARBOUR_SCHEDULED_ANALYST=off` to
 run it only by hand. Like every agent run it waits for the brain to be quiet first.
 
 ### Daily note
@@ -591,7 +598,7 @@ thrown away and the job fails with the reason (see **Agents**). Details:
   (or it was a manual one): it names when it failed and either when Harbour tries again or, with
   nightly backups off, to run **Back up now**. It also warns when no backup is newer than 48
   hours (with none at all, once Harbour has been running for 48 hours; a failure that old means
-  the worker is not running), and when Harbour can't read the backup folder (check its
+  the worker is not running), and when Harbour can't open the backup folder (check its
   permissions; the count is then unknown, not zero). Paths are never shown: an error names "the
   backup folder" instead.
 - **Bounded:** a backup gives up after 10 minutes. **Stop this run** on **Agents** stops one in
@@ -888,7 +895,7 @@ evidence behind its number, so the product page can explain it.
 |---|---|
 | SEO | Technical health (35%), indexability (25%), Core Web Vitals (20%), search impressions trend (20%) |
 | GEO | AI crawler access (30%; AI search and answer agents count three times as much as training-only crawlers), llms.txt (15%), entity structured data (25%), citation-ready content (30%) |
-| AEO | FAQ, HowTo and Q&A coverage (40%), concise answer blocks (35%), fresh pages (25%: 3 or more URLs updated in the last 30 days score 100; news sites instead get 50 points for a Preferred Sources button and 50 for fresh content, as in formula v1) |
+| AEO | FAQ, HowTo and Q&A coverage (40%), concise answer blocks (35%), **Fresh pages** (25%: 3 or more URLs updated in the last 30 days score 100; a `news` site (see `kind` in [Configuration](#configuration)) instead gets 50 points for a Google Preferred Sources button and 50 for fresh content, as in formula v1) |
 
 - **Missing data is a gap, never a zero.** When a source is not connected, failed, or returned
   data Harbour could not read, its sub-scores are left out, the rest are re-weighted, and the
@@ -902,11 +909,20 @@ evidence behind its number, so the product page can explain it.
   is at most 14 days old, and say which day it is from.
 - **AI engine mentions and featured snippets** are listed as not connected: they need paid APIs.
 - **Scores never change after they are stored.** Each row records its formula version (`v2` now);
-  a formula change gets a new version rather than rewriting history, so older scores are never
-  silently mixed with newer ones.
+  a formula change gets a new version rather than rewriting history. A change in a score is
+  only shown between two scores of the same version, so the first check after a formula change
+  has no change beside it, and the 30-day SEO trend line keeps its older points as they were.
+- **Preferred Sources only counts for news sites.** It is a Top Stories feature, so the
+  "No favourite-source link for Google readers" action is raised only for `kind: "news"`
+  products; one still open on any other product moves to Done at its next check, with the
+  ordinary note "Resolved — not found in the check of <date>". For about 30 days after formula v2 first scores a
+  product site, its page says "Scoring updated: Preferred Sources now only counts for news
+  sites." so a move in the score is not mistaken for a change in the site.
 
 The exact formulas, thresholds and rounding are in the Phase 3 plan's "As built — scoring" notes
-([docs/superpowers/plans](docs/superpowers/plans/2026-10-02-phase-3-visibility.md)).
+([docs/superpowers/plans](docs/superpowers/plans/2026-10-02-phase-3-visibility.md)), which
+describe formula v1; the AEO change in v2 is in
+[the plain-language spec](docs/superpowers/specs/2026-10-02-plain-language-ux-design.md) §6.
 
 ## Deployment
 
@@ -950,9 +966,10 @@ scan specs choose **Check now** and check the product page, Sources and Today on
 Only this environment may check a loopback address (`HARBOUR_TEST_MODE` and
 `HARBOUR_SCAN_ALLOW_LOOPBACK`, both refused outside tests).
 
-The shell and scans specs also check that Today speaks plainly: no SEO, GEO or AEO heading, and
-no `HARBOUR_*` setting name or sub-score key outside **Technical details**
-(`tests/e2e/plain-language.ts`).
+The shell, scans, actions, note, agents and settings specs also check that the pages they visit
+(Today, product pages, Actions, Settings, Agents and a run page, Sources) speak plainly: no SEO,
+GEO or AEO heading, no `HARBOUR_*` setting name or sub-score key, and not the word "scan" outside
+**Technical details** (`tests/e2e/plain-language.ts`).
 
 The note specs choose **Write me a fresh one** against the fake CLI, which reads the fenced facts
 out of its prompt and writes an honest note, and the wave specs check that the wave is hidden from

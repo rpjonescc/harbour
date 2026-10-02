@@ -5,6 +5,7 @@ import { PaidSourcePanels } from "@/components/products/PaidSourcePanels";
 import { ScanNowButton } from "@/components/products/ScanNowButton";
 import { ScanStatusNote } from "@/components/products/ScanStatusNote";
 import { ScoreBreakdown } from "@/components/products/ScoreBreakdown";
+import { ScoringNote } from "@/components/products/ScoringNote";
 import { SearchConsolePanel } from "@/components/products/SearchConsolePanel";
 import { ScoreBar } from "@/components/ui/ScoreBar";
 import { ScoreValue } from "@/components/ui/ScoreValue";
@@ -37,6 +38,7 @@ export function ScanExamples() {
         </div>
         <ScanNowButton productId={EXAMPLE_PRODUCT.id} active={null} demo />
       </div>
+      <ScoringNote change={{ from: "v1", to: "v2", at: new Date("2026-09-28T06:00:00Z") }} />
       <AreaCards
         scores={EXAMPLE_SCORES}
         scan={EXAMPLE_SCAN_STATES[0]?.scan ?? { active: null, last: null }}

@@ -7,6 +7,7 @@ import { auditLog } from "@/lib/db/schema";
 import { isoDateIn } from "@/lib/format/date";
 import { E2E_DB, E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
 import { hydrated } from "./hydration";
+import { expectPlainLanguage } from "./plain-language";
 import { openRunLog } from "./run-log";
 
 // Runs last: Back up now and the research refresh share the worker's queue with every earlier
@@ -37,6 +38,40 @@ test("the sidebar marks Settings, then only Devices on the devices page", async 
   await page.goto("/settings/devices");
   await expect(current).toHaveCount(1);
   await expect(current).toHaveText("Devices");
+});
+
+test("Settings speaks plainly: one line per section, no setting names outside Technical details", async ({
+  page,
+}) => {
+  await page.goto("/settings");
+  await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
+  await expectPlainLanguage(page);
+  for (const name of [
+    "Products",
+    "Schedules",
+    "Connections",
+    "Budget",
+    "Backups",
+    "More settings",
+  ]) {
+    await expect(settingsRegion(page, name)).toHaveAccessibleDescription(/\S/);
+  }
+  // The sidebar says "things worth doing", beside the Actions link.
+  await expect(
+    page.locator("aside").getByRole("link", { name: /\d+ things? worth doing/ }),
+  ).toBeVisible();
+  // The setup steps are one click away, from the keyboard.
+  const summary = page
+    .locator("summary", { hasText: /Technical details \(how to connect/ })
+    .first();
+  await summary.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    summary
+      .locator("xpath=..")
+      .getByText(/HARBOUR_[A-Z_]+/)
+      .first(),
+  ).toBeVisible();
 });
 
 test("Products lists the three products and their research approvals", async ({ page }) => {
@@ -82,7 +117,7 @@ test("every schedule is off in the E2E environment", async ({ page }) => {
   for (const [label] of rows) {
     const row = table.getByRole("row", { name: new RegExp(`^${label}`) });
     await expect(row.getByRole("cell").nth(1)).toHaveText("Off");
-    await expect(row.getByRole("cell").nth(2)).toHaveText("Off");
+    await expect(row.getByRole("cell").nth(2)).toHaveText(/^Off/);
   }
   await page.getByText(/Technical details \(how to turn a schedule on or off\)/).click();
   for (const [, setting] of rows) await expect(page.getByText(setting ?? "").first()).toBeVisible();
