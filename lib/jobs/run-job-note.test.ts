@@ -187,6 +187,21 @@ describe("runAgentJob for the daily note", () => {
     }
   });
 
+  it("reports a stray write, and a failed discard's cleanup, by count only (a quiet run's file names are the agent's)", async () => {
+    const { brain, deps } = noteSetup("escape");
+    try {
+      const job = await runOne(deps, "daily-note", PARAMS);
+      expect(job.status).toBe("failed");
+      expect(job.error).toMatch(/outside its area: 1 file\(s\)$/);
+      const record = [job.error ?? "", ...eventsSince(deps.db, job.id, 0).map((e) => e.text)].join(
+        "\n",
+      );
+      expect(record).not.toContain("outside.md");
+    } finally {
+      brain.cleanup();
+    }
+  });
+
   it("leaves no draft and no final note when the agent writes the draft and then fails", async () => {
     const { brain, deps } = noteSetup("note-write-then-fail");
     try {

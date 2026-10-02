@@ -73,7 +73,7 @@ describe("dailyNotePrompt", () => {
   });
 
   it("has a version the run records", () => {
-    expect(NOTE_PROMPT_VERSION).toBe("warm-v2");
+    expect(NOTE_PROMPT_VERSION).toBe("warm-v3");
   });
 });
 
