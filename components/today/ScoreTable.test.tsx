@@ -7,6 +7,7 @@ import { ScoreTable } from "./ScoreTable";
 
 const row = (over: Partial<ProductScores>): ProductScores => ({
   productId: "acme-docs",
+  scanned: true,
   totals: { seo: 61, geo: 40, aeo: 22 },
   complete: { seo: true, geo: true, aeo: true },
   deltas: { seo: 2, geo: null, aeo: null },

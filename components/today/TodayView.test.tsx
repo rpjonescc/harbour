@@ -35,6 +35,7 @@ const real: TodaySummary = {
   scores: [
     {
       productId: "acme-docs",
+      scanned: true,
       totals: { seo: 61, geo: 40, aeo: 22 },
       complete: { seo: true, geo: true, aeo: true },
       deltas: { seo: 2, geo: null, aeo: null },
@@ -153,5 +154,18 @@ describe("TodayView", () => {
     unreadable.unmount();
     renderToday(real);
     expect(screen.queryByText(/backup/i)).toBeNull();
+  });
+
+  it("shows plain verdicts per product, with the numbers under Technical details", () => {
+    renderToday(real);
+    const table = screen.getByRole("table", { name: "Scores by product" });
+    const [seo, geo] = within(within(table).getByRole("row", { name: /Acme Docs/ })).getAllByRole(
+      "cell",
+    );
+    expect(seo).toHaveTextContent("Fair 61 out of 100 up 2 since the last check");
+    expect(geo).toHaveTextContent("Needs work 40 out of 100");
+    expect(
+      screen.getByRole("table", { name: "Visibility scores by product", hidden: true }),
+    ).not.toBeVisible();
   });
 });

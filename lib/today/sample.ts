@@ -22,6 +22,7 @@ function sampleScores(productId: ProductId): ProductScores {
   const trend = Array.from({ length: 6 }, (_, i) => clamp(seo - (5 - i) * (byte(3) % 3)));
   return {
     productId,
+    scanned: true,
     totals: { seo, geo: byte(1) % 30, aeo: 5 + (byte(2) % 35) },
     complete: { seo: true, geo: true, aeo: true },
     deltas: { seo: (byte(3) % 5) - 1, geo: (byte(1) % 3) - 1, aeo: byte(2) % 2 },

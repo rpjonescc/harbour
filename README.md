@@ -21,11 +21,13 @@ continues with:
 
 - **Today** — date, when your sites were last checked, a one-sentence briefing (overall health
   and the biggest opportunity, then how many things are worth doing, how many Claude is
-  handling and whether anything is broken), a score table per product (SEO, GEO, AEO with the
-  change since the last scan and a 30-day SEO trend), **Worth doing next** (the top three
-  actions as plain cards: why each matters, its area, how big a job it is and who's on it),
-  and a banner when a source failed in the last scan. Until the first scan finishes it shows
-  clearly labelled sample data.
+  handling and whether anything is broken), a plain verdict per product and area (Found on
+  Google, Recommended by AI assistants, Answer-ready: Strong 85+, Good 70–84, Fair 50–69 or
+  Needs work under 50, with the score and its change beside it; "What's this?" explains each
+  area, and the numbers with a 30-day SEO trend sit under Technical details), **Worth doing
+  next** (the top three actions as plain cards: why each matters, its area, how big a job it
+  is and who's on it), and a banner when a source failed in the last scan. Until the first
+  scan finishes it shows clearly labelled sample data.
 - **Product pages** — per product: the three scores, **Scan now**, SEO/GEO/AEO tabs explaining
   every sub-score (its weight, evidence, or why it is missing), the issues the scan found with
   a **Hand to Claude** button that copies a ready prompt, the crawled pages and their problems,
@@ -571,14 +573,15 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
 
 ## Reading the results
 
-- **Today** (`/`) lists every product's scores. A dash is a gap (no data), never a zero; an
-  asterisk marks an incomplete score, where a source was not connected or failed. Each product
-  name opens its page. While a scan is queued or running, the page refreshes itself. **Worth
-  doing next** shows the top three open or in-progress actions (in the Actions board's order),
-  each linked to its card and saying who's on it (Claude is on it, Pull request waiting for
-  your OK, or Waiting for you), and the briefing's second line counts every one of them; the
-  rest are a link away on the Actions board. Before the first scan is scored, Today shows
-  clearly flagged sample data instead.
+- **Today** (`/`) gives every product a verdict per area. A missing score reads "No score yet"
+  with the reason (a gap, never a zero); an asterisk marks a verdict where some data was
+  missing because a source was not connected or failed, and the numbers are under **Technical
+  details**. Each product name opens its page. While a scan is queued or running, the page
+  refreshes itself. **Worth doing next** shows the top three open or in-progress actions (in
+  the Actions board's order), each linked to its card and saying who's on it (Claude is on it,
+  Pull request waiting for your OK, or Waiting for you), and the briefing's second line counts
+  every one of them; the rest are a link away on the Actions board. Before the first scan is
+  scored, Today shows clearly flagged sample data instead.
 - **Product page** (`/products/<id>`) shows where scanning stands (never scanned, queued,
   running, or how the last scan ended — a failed scan never hides the last good results) and
   explains each score in its tab. **Issues** come from the scan's raw observations: pages

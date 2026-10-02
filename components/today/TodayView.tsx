@@ -5,7 +5,7 @@ import type { TodaySummary } from "@/lib/today/types";
 import { BackupNotice } from "./BackupNotice";
 import { CostMeter } from "./CostMeter";
 import { SampleBanner } from "./SampleBanner";
-import { ScoreTable } from "./ScoreTable";
+import { ScoresSection } from "./ScoresSection";
 import { SourceFailures } from "./SourceFailures";
 import { TodayHeader } from "./TodayHeader";
 import { WorthDoingNext } from "./WorthDoingNext";
@@ -45,7 +45,7 @@ export function TodayView({
       <BackupNotice backup={backup} timeZone={timeZone} locale={locale} />
       {today.isSample && <SampleBanner />}
       <SourceFailures failures={today.failures} />
-      <ScoreTable scores={today.scores} />
+      <ScoresSection scores={today.scores} />
       <WorthDoingNext actions={today.actions} more={today.moreActions} />
     </div>
   );

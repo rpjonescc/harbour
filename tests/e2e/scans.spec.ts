@@ -129,17 +129,18 @@ test("Sources lists each source's last run and how to connect the missing ones",
   await expect(page.getByRole("region", { name: "Fern & Field" })).toContainText("Never scanned");
 });
 
-test("Today shows the real scores instead of the sample", async ({ page }) => {
+test("Today shows the real verdicts instead of the sample, with the numbers a click away", async ({
+  page,
+}) => {
   await page.goto("/");
   await expect(page.getByText(/· last checked /)).toBeVisible();
   await expect(page.getByText("Sample data")).toHaveCount(0);
-  const table = page.getByRole("table", { name: "Visibility scores by product" });
-  const acme = table.getByRole("row", { name: /Acme Docs/ });
-  for (const cell of await acme
+  const table = page.getByRole("table", { name: "Scores by product" });
+  for (const cell of await table
+    .getByRole("row", { name: /Acme Docs/ })
     .getByRole("cell")
-    .all()
-    .then((cells) => cells.slice(0, 3))) {
-    await expect(cell).toHaveText(/^\d+/);
+    .all()) {
+    await expect(cell).toHaveText(/^(Strong|Good|Fair|Needs work) \d+ out of 100/);
   }
   // Products not scanned yet show a gap, never a zero.
   await expect(
@@ -147,7 +148,15 @@ test("Today shows the real scores instead of the sample", async ({ page }) => {
       .getByRole("row", { name: /Fern & Field/ })
       .getByRole("cell")
       .first(),
-  ).toHaveText(/no score/);
+  ).toHaveText(/No score yet/);
+  // The numbers stay one click away, under Technical details.
+  await page.getByText("Technical details (scores in numbers)").click();
+  const numbers = page.getByRole("table", { name: "Visibility scores by product" });
+  await expect(numbers).toBeVisible();
+  const acme = numbers.getByRole("row", { name: /Acme Docs/ });
+  for (const cell of (await acme.getByRole("cell").all()).slice(0, 3)) {
+    await expect(cell).toHaveText(/^\d+/);
+  }
   // Worth doing next lists the actions the scan opened, each linked to its board card.
   await expect(page.getByRole("link", { name: "1 page has no title" })).toHaveAttribute(
     "href",

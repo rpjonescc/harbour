@@ -7,6 +7,8 @@ import type { AreaValues } from "@/lib/scan/views";
 /** One row of Today's score table. Null scores and deltas are gaps, never zeros. */
 export type ProductScores = {
   productId: ProductId;
+  /** Whether the product has a scored scan: a missing score then means its data didn't arrive. */
+  scanned: boolean;
   totals: AreaValues<number | null>;
   complete: AreaValues<boolean>;
   deltas: AreaValues<number | null>;

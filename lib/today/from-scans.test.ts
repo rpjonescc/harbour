@@ -100,6 +100,7 @@ describe("todaySummary", () => {
     expect(today?.scores).toEqual([
       {
         productId: "acme-docs",
+        scanned: true,
         totals: { seo: 52, geo: 40, aeo: null },
         complete: { seo: true, geo: true, aeo: false },
         deltas: { seo: 2, geo: 0, aeo: null },
@@ -107,6 +108,7 @@ describe("todaySummary", () => {
       },
       {
         productId: "fern-and-field",
+        scanned: false,
         totals: { seo: null, geo: null, aeo: null },
         complete: { seo: false, geo: false, aeo: false },
         deltas: { seo: null, geo: null, aeo: null },

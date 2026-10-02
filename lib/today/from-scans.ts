@@ -21,6 +21,7 @@ function productToday(db: Db, productId: string, now: Date): ProductToday {
   return {
     row: {
       productId,
+      scanned: latest !== null,
       totals: latest?.totals ?? { seo: null, geo: null, aeo: null },
       complete: latest?.complete ?? { seo: false, geo: false, aeo: false },
       deltas,
