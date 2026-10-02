@@ -44,6 +44,15 @@ const RUN_FAILED_NEXT_STEP: Readonly<Partial<Record<JobKind, string>>> = {
   retention: "This tidy-up didn't finish. Harbour tries again at the next run.",
   "brain-push": "This sync didn't finish. Harbour tries again at the next run.",
   "notes-sync": "This sync didn't finish. Harbour tries again at the next run.",
+  // Content jobs are started from the Content page, not from Agents.
+  "content-digest":
+    "This digest didn't finish. Choose Make today's digest now on the Content page.",
+  "content-ideas": "This idea run didn't finish. Choose Find new ideas on the Content page.",
+  "content-draft": "This step didn't finish. Choose Try again on the Content page.",
+  "content-atomise": "This step didn't finish. Choose Try again on the Content page.",
+  "content-gate": "This step didn't finish. Choose Try again on the Content page.",
+  "content-decision":
+    "This decision didn't save. Choose Approve, Edit or Discard again on the Content page.",
 };
 
 /** The message under a failed run, with the right next step for its kind. */

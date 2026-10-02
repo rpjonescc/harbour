@@ -37,7 +37,7 @@ const MAX_DELAY_MS = 5 * 60_000;
 export const MAX_WAIT_MS = 6 * 60 * 60_000;
 export const WAITING_NOTE = "Waiting for another idea to finish being written";
 export const GAVE_UP_NOTE =
-  "Another idea was still being written after six hours, so this one didn't start. Try Write this again.";
+  "Another idea was still being written after six hours, so this one didn't start. Choose Try again.";
 
 /** Backs off as the wait grows: 30 seconds at first, never more than five minutes. */
 const delayAfter = (waitedMs: number) =>

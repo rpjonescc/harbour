@@ -34,8 +34,33 @@ describe("Agents words", () => {
       expect(runFailedLine(kind)).toMatch(/Harbour tries again at the next run\.$/);
   });
 
+  it("sends a content job that didn't finish to the Content page, never to Agents", () => {
+    for (const kind of ["content-draft", "content-atomise", "content-gate"] as const)
+      expect(runFailedLine(kind)).toMatch(/Choose Try again on the Content page\.$/);
+    expect(runFailedLine("content-digest")).toMatch(/Make today's digest now on the Content page/);
+    expect(runFailedLine("content-ideas")).toMatch(/Find new ideas on the Content page/);
+    expect(runFailedLine("content-decision")).toMatch(/Approve, Edit or Discard again/);
+    for (const kind of [
+      "content-digest",
+      "content-ideas",
+      "content-draft",
+      "content-decision",
+    ] as const)
+      expect(runFailedLine(kind)).not.toMatch(/Agents page/);
+  });
+
   it("keeps every line short and free of setting names", () => {
-    const kinds = ["scan", "backup", "retention", "brain-push", "notes-sync"] as const;
+    const kinds = [
+      "scan",
+      "backup",
+      "retention",
+      "brain-push",
+      "notes-sync",
+      "content-digest",
+      "content-ideas",
+      "content-draft",
+      "content-decision",
+    ] as const;
     const lines = [
       AGENTS_INTRO,
       ...Object.values(AGENT_PURPOSE),
