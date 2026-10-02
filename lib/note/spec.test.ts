@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { makeBrain } from "@/tests/helpers/brain";
 import { FACTS, GOOD_NOTE, noteFileText } from "@/tests/helpers/note";
@@ -101,10 +101,38 @@ describe("the draft and the published note", () => {
   it("publish moves the draft to the final path, leaving no draft behind", () => {
     const brain = makeBrain({ [DRAFT]: noteFileText(GOOD_NOTE) });
     try {
-      const digest = spec()?.publish(brain.root);
+      const review = spec();
+      expect(review?.check(brain.root)).toBeNull();
+      const digest = review?.publish(brain.root);
       expect(digest).toBe(noteDigest(noteFileText(GOOD_NOTE)));
       expect(existsSync(join(brain.root, DRAFT))).toBe(false);
       expect(readFileSync(join(brain.root, PATH), "utf8")).toBe(noteFileText(GOOD_NOTE));
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("publishes the bytes the checker accepted, and refuses a draft changed after the check", () => {
+    const brain = makeBrain({ [DRAFT]: noteFileText(GOOD_NOTE) });
+    try {
+      const review = spec();
+      expect(review?.check(brain.root)).toBeNull();
+      writeFileSync(join(brain.root, DRAFT), noteFileText({ ...GOOD_NOTE, headline: "Swapped." }));
+      expect(() => review?.publish(brain.root)).toThrow(/changed after/);
+      expect(existsSync(join(brain.root, PATH))).toBe(false); // nothing is left to be shown
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("refuses to publish a draft the checker never accepted", () => {
+    const brain = makeBrain({ [DRAFT]: noteFileText(GOOD_NOTE) });
+    try {
+      expect(() => spec()?.publish(brain.root)).toThrow(/not been checked/);
+      const review = spec();
+      writeFileSync(join(brain.root, DRAFT), "hello");
+      expect(review?.check(brain.root)).toMatch(/frontmatter/);
+      expect(() => review?.publish(brain.root)).toThrow(/not been checked/);
     } finally {
       brain.cleanup();
     }

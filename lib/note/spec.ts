@@ -1,34 +1,45 @@
-import { lstatSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { lstatSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type { AgentSpec, SpecContext } from "@/lib/agents/specs";
 import { checkNote } from "@/lib/explain/voice/check";
 import type { Facts } from "@/lib/explain/voice/facts";
+import { readNoteBytes } from "./bounded-read";
 import { noteDigest } from "./digest";
-import { MAX_NOTE_BYTES, parseNoteFile } from "./file";
+import { parseNoteFile } from "./file";
 import { dailyNotePrompt, NOTE_PROMPT_VERSION, retryPrompt } from "./prompt";
 import { describeStamp, draftPath, notePath } from "./stamp";
 
 /** A note is a few sentences: five minutes an attempt is generous (one retry at most). */
 export const NOTE_TIMEOUT_MS = 5 * 60_000;
 
+type Review = { reason: string } | { reason: null; digest: string };
+
 /**
- * Why the file at `path` is not an acceptable note, or null when it is. A missing, symlinked,
- * oversized or invalid file is a reason the agent can fix; any other read error is propagated.
+ * Checks the file at `path` and, when it is acceptable, returns the digest of the very bytes
+ * that were checked. A missing, symlinked, oversized or invalid file is a reason the agent can
+ * fix; any other read error is propagated.
  */
-export function reviewNote(root: string, path: string, facts: Facts): string | null {
+function inspectNote(root: string, path: string, facts: Facts): Review {
   const file = join(root, path);
-  let text: string;
+  let bytes: Buffer | null;
   try {
-    const stats = lstatSync(file); // a symlink is never followed
-    if (!stats.isFile()) return "The note file must be a regular file.";
-    if (stats.size > MAX_NOTE_BYTES) return "The note file is too large.";
-    text = readFileSync(file, "utf8");
+    if (!lstatSync(file).isFile()) return { reason: "The note file must be a regular file." };
+    bytes = readNoteBytes(file);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return "The note file was not written.";
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return { reason: "The note file was not written." };
+    }
     throw error;
   }
-  const parsed = parseNoteFile(text);
-  return parsed.ok ? checkNote(parsed.note, facts) : parsed.reason;
+  if (bytes === null) return { reason: "The note file is too large." };
+  const parsed = parseNoteFile(bytes.toString("utf8"));
+  const reason = parsed.ok ? checkNote(parsed.note, facts) : parsed.reason;
+  return reason === null ? { reason: null, digest: noteDigest(bytes) } : { reason };
+}
+
+/** Why the file at `path` is not an acceptable note, or null when it is. */
+export function reviewNote(root: string, path: string, facts: Facts): string | null {
+  return inspectNote(root, path, facts).reason;
 }
 
 /** The daily note: a draft, Write as the only tool, a short timeout and one reviewed retry. */
@@ -38,6 +49,8 @@ export function dailyNoteSpec(params: Record<string, string>, context: SpecConte
   const draft = draftPath(stamp);
   if (!context.noteFacts) throw new Error("The daily note's facts are not available");
   const facts = context.noteFacts();
+  // The digest of the bytes the last `check` accepted, or null when it rejected them.
+  let checked: string | null = null;
   const prompt = dailyNotePrompt({ stamp, facts });
   return {
     kind: "daily-note",
@@ -56,13 +69,24 @@ export function dailyNoteSpec(params: Record<string, string>, context: SpecConte
     tools: ["Write"],
     timeoutMs: NOTE_TIMEOUT_MS,
     review: {
-      check: (root) => reviewNote(root, draft, facts),
+      check: (root) => {
+        const review = inspectNote(root, draft, facts);
+        checked = review.reason === null ? review.digest : null;
+        return review.reason;
+      },
       // Claude Code's Write will not overwrite a file it has not Read, and this run has no Read:
       // the rejected draft is removed so the retry writes a fresh one.
       reset: (root) => rmSync(join(root, draft), { force: true }),
       publish: (root) => {
+        if (checked === null) throw new Error("The draft has not been checked and accepted");
         renameSync(join(root, draft), join(root, path));
-        return noteDigest(readFileSync(join(root, path))); // the bytes that passed the checker
+        // What was moved must be what the checker accepted: refuse (and unpublish) otherwise.
+        const bytes = readNoteBytes(join(root, path));
+        if (bytes === null || noteDigest(bytes) !== checked) {
+          rmSync(join(root, path), { force: true });
+          throw new Error("The draft changed after it was checked");
+        }
+        return checked;
       },
       retryPrompt: (reason) => retryPrompt(prompt, reason),
     },

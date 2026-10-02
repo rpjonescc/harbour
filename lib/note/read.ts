@@ -1,11 +1,12 @@
-import { lstatSync, readdirSync, readFileSync } from "node:fs";
+import { lstatSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { and, desc, eq } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { jobs } from "@/lib/db/schema";
 import type { Note } from "@/lib/explain/voice/note";
+import { readNoteBytes } from "./bounded-read";
 import { noteDigest } from "./digest";
-import { MAX_NOTE_BYTES, parseNoteFile } from "./file";
+import { parseNoteFile } from "./file";
 import { isNoteStamp, NOTE_DIR, stampInstant } from "./stamp";
 
 export type ShownNote = { stamp: string; at: Date; note: Note };
@@ -20,7 +21,12 @@ const SKEW_MS = 5 * 60_000;
 
 const isMissing = (error: unknown) => (error as NodeJS.ErrnoException).code === "ENOENT";
 
-function stampsNewestFirst(root: string): string[] {
+/**
+ * The stamps of the note files that could be shown, newest first, at most SCAN_LIMIT. The cap
+ * applies after the cheap filters (a succeeded job vouches for the stamp, the stamp is not ahead
+ * of the clock), so stray or future-dated files cannot push real notes out of the window.
+ */
+function stampsNewestFirst(root: string, eligible: (stamp: string) => boolean): string[] {
   let names: string[];
   try {
     names = readdirSync(join(root, NOTE_DIR));
@@ -31,6 +37,7 @@ function stampsNewestFirst(root: string): string[] {
   return names
     .filter((name) => name.endsWith(".md") && isNoteStamp(name.slice(0, -3)))
     .map((name) => name.slice(0, -3))
+    .filter(eligible)
     .sort()
     .reverse()
     .slice(0, SCAN_LIMIT);
@@ -43,10 +50,10 @@ function stampsNewestFirst(root: string): string[] {
 function readOne(root: string, stamp: string, digests: ReadonlySet<string>): Note | null {
   const file = join(root, NOTE_DIR, `${stamp}.md`);
   try {
-    const stats = lstatSync(file); // lstat: a symlink is never followed
-    if (!stats.isFile() || stats.size > MAX_NOTE_BYTES) return null;
-    const bytes = readFileSync(file);
-    if (!digests.has(noteDigest(bytes))) return null;
+    // lstat keeps a symlink, a folder or a pipe from being opened; the read itself is capped.
+    if (!lstatSync(file).isFile()) return null;
+    const bytes = readNoteBytes(file);
+    if (bytes === null || !digests.has(noteDigest(bytes))) return null;
     const parsed = parseNoteFile(bytes.toString("utf8"));
     return parsed.ok ? parsed.note : null;
   } catch (error) {
@@ -83,7 +90,7 @@ function acceptedDigests(db: Db): Map<string, Set<string>> {
  * A file is shown only when a succeeded job vouches for its stamp and its bytes (so never a
  * stray file, a hand-written or edited one, or one whose job is still running or failed), and it
  * is still re-validated here: a file that is not a small regular file holding a valid note is
- * skipped.
+ * skipped. The scan looks at the newest SCAN_LIMIT eligible files.
  */
 export function readNotes(
   db: Db,
@@ -94,14 +101,12 @@ export function readNotes(
 ): ShownNote[] {
   const notes: ShownNote[] = [];
   const accepted = acceptedDigests(db);
-  for (const stamp of stampsNewestFirst(root)) {
+  const notAhead = (stamp: string) =>
+    stampInstant(stamp, timeZone).getTime() <= now.getTime() + SKEW_MS;
+  for (const stamp of stampsNewestFirst(root, (s) => accepted.has(s) && notAhead(s))) {
     if (notes.length >= limit) break;
-    const digests = accepted.get(stamp);
-    if (!digests) continue;
-    const at = stampInstant(stamp, timeZone);
-    if (at.getTime() > now.getTime() + SKEW_MS) continue;
-    const note = readOne(root, stamp, digests);
-    if (note) notes.push({ stamp, at, note });
+    const note = readOne(root, stamp, accepted.get(stamp) ?? new Set());
+    if (note) notes.push({ stamp, at: stampInstant(stamp, timeZone), note });
   }
   return notes;
 }

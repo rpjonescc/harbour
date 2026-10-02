@@ -100,6 +100,41 @@ describe("readNotes", () => {
     }
   });
 
+  describe("is not crowded out by files that sort above it but would never be shown", () => {
+    const REAL = file("2026-10-01-0630", "Real");
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const crowd = (root: string, stamp: (i: number) => string) => {
+      mkdirSync(join(root, "notes/daily"), { recursive: true });
+      for (let i = 0; i < 35; i++) {
+        writeFileSync(join(root, `notes/daily/${stamp(i)}.md`), noteFileText(GOOD_NOTE));
+      }
+    };
+    const headlines = (db: ReturnType<typeof openTestDb>, root: string) =>
+      readNotes(db, root, ZONE, NOW, 5).map((n) => n.note.headline);
+
+    it("dated ahead of the clock", () => {
+      const brain = makeBrain(Object.fromEntries([REAL]));
+      try {
+        crowd(brain.root, (i) => `2026-12-01-${pad(i % 24)}${i < 24 ? "00" : "30"}`);
+        expect(headlines(vouched(brain.root), brain.root)).toEqual(["Real"]);
+      } finally {
+        brain.cleanup();
+      }
+    });
+
+    it("that no succeeded job vouches for", () => {
+      const brain = makeBrain(Object.fromEntries([REAL]));
+      try {
+        crowd(brain.root, (i) => `2026-10-01-${pad(7 + (i % 17))}${i < 17 ? "00" : "30"}`);
+        const db = openTestDb();
+        seedNoteJob(db, "2026-10-01-0630", "ok", noteDigest(REAL[1]));
+        expect(headlines(db, brain.root)).toEqual(["Real"]);
+      } finally {
+        brain.cleanup();
+      }
+    });
+  });
+
   it("propagates a real read error instead of pretending there are no notes", () => {
     const brain = makeBrain({ "notes/daily": "this is a file, not a folder" });
     try {
