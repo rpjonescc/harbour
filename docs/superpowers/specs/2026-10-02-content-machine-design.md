@@ -225,7 +225,7 @@ Allowed transitions (enforced by the worker, `lib/content/state.ts`, pure):
 idea ──pick──► drafting ──gates done──► ready | needs-you
 ready | needs-you ──edit──► ready | needs-you      (owner text; deterministic checks re-run)
 ready | needs-you ──approve──► approved
-idea | ready | needs-you ──discard──► discarded
+idea | drafting | ready | needs-you ──discard──► discarded
 approved ──discard──► discarded                    (the exported file is removed too)
 ```
 

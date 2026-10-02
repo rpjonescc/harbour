@@ -4,7 +4,7 @@ import { safeReason } from "@/lib/explain/voice/note";
 
 export type Parsed<T> = { ok: true; value: T; body: string } | { ok: false; reason: string };
 
-const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
+const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n([\s\S]*))?$/;
 
 /** Frontmatter and body as one markdown file; `lineWidth: 0` keeps long strings on one line. */
 export function renderFile(front: Record<string, unknown>, body: string): string {
@@ -28,7 +28,7 @@ export function describeIssues(error: z.ZodError): string {
  * (expansion attacks). Never throws: an unreadable file is a reason.
  */
 export function parseFile<T>(text: string, schema: z.ZodType<T>): Parsed<T> {
-  const match = FRONTMATTER.exec(text.replace(/^﻿/, ""));
+  const match = FRONTMATTER.exec(text.replace(/^\ufeff/, ""));
   if (!match) return { ok: false, reason: "The file has no frontmatter between two --- lines." };
   let data: unknown;
   try {

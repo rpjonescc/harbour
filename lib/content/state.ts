@@ -14,11 +14,14 @@ export function transition(
   action: PieceAction,
   outcome: "ready" | "needs-you" = "ready",
 ): PieceState | null {
+  // Runtime guard: callers may pass values that were only typed, not checked.
+  if (outcome !== "ready" && outcome !== "needs-you") return null;
   const open = from === "ready" || from === "needs-you";
   if (action === "finish") return from === "drafting" ? outcome : null;
   if (action === "edit") return open ? outcome : null;
   if (action === "approve") return open ? "approved" : null;
-  return from === "discarded" ? null : "discarded";
+  if (action === "discard") return from === "discarded" ? null : "discarded";
+  return null;
 }
 
 /** The stale-state guard: the file must still be at the revision the owner was looking at. */

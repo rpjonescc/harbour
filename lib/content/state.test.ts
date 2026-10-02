@@ -27,4 +27,9 @@ describe("piece state machine", () => {
     expect(revisionMatches(3, 3)).toBe(true);
     expect(revisionMatches(4, 3)).toBe(false);
   });
+
+  it("returns null for an unknown action or an outcome that is not ready or needs-you", () => {
+    expect(transition("ready", "publish" as never)).toBeNull();
+    expect(transition("drafting", "finish", "approved" as never)).toBeNull();
+  });
 });

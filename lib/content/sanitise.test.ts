@@ -51,3 +51,50 @@ describe("sanitiseText", () => {
     expect(sanitiseText(text, "markdown", HOSTS).ok).toBe(false);
   });
 });
+
+describe("sanitiseText hostile input", () => {
+  it.each([
+    ["Unicode tag characters", "a\u{e0041}b"],
+    ["a line separator", "a\u2028b"],
+    ["an Arabic letter mark", "a\u061cb"],
+    ["a variation selector", "a\ufe0fb"],
+    ["a zero-width joiner", "a\u200db"],
+  ])("strips %s and says so", (_label, text) => {
+    expect(sanitiseText(text, "social")).toEqual({ ok: true, text: "ab", stripped: true });
+  });
+
+  it("strips before normalising, so a hidden character cannot split a sequence", () => {
+    expect(sanitiseText("e\u200b\u0301", "social")).toEqual({
+      ok: true,
+      text: "\u00e9",
+      stripped: true,
+    });
+  });
+
+  it("rejects a C1 control character", () => {
+    expect(sanitiseText("a\u0085b", "social").ok).toBe(false);
+  });
+
+  it.each([
+    ["an indented heading", "   # Title"],
+    ["a spaced link", "[x]( https://attacker.example/ )"],
+    ["an angle-bracket link", "[x](<https://attacker.example/>)"],
+    ["a reference link", "[x]: https://attacker.example/"],
+    ["a bare URL", "see https://attacker.example/ now"],
+    ["an unterminated tag", "<script src=x"],
+    ["a processing instruction", "<?php echo 1"],
+    ["a doctype", "<!DOCTYPE html"],
+  ])("rejects %s in markdown", (_label, text) => {
+    expect(sanitiseText(text, "markdown", HOSTS).ok).toBe(false);
+  });
+
+  it("rejects an unterminated tag in a social piece", () => {
+    expect(sanitiseText("<script src=x", "social").ok).toBe(false);
+  });
+
+  it("accepts spaced, reference and bare links to an allowed host", () => {
+    const text =
+      "[a]( https://docs.example.com/a )\n\n[b]: https://docs.example.com/b\n\nSee https://docs.example.com/c.";
+    expect(sanitiseText(text, "markdown", HOSTS).ok).toBe(true);
+  });
+});

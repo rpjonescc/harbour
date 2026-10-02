@@ -2,6 +2,7 @@ import { z } from "zod";
 import { type Parsed, parseFile } from "./files";
 import { ideaIdSchema, platformSchema, productIdSchema } from "./ids";
 import { contentSchemas, type PieceContent } from "./shapes";
+import { IDEA_STATES, PIECE_STATES } from "./state";
 
 export const FLAGS = [
   "health",
@@ -86,7 +87,7 @@ export const ideaFrontmatter = z.strictObject({
   title: text(90),
   kind: z.literal("content-idea"),
   productId: productIdSchema,
-  state: z.enum(["idea", "drafting", "drafted", "discarded"]),
+  state: z.enum(IDEA_STATES),
   pillar: text(60).nullable(),
   angle: text(240),
   audienceQuestion: text(160),
@@ -129,7 +130,7 @@ export const pieceFrontmatter = z.strictObject({
   ideaId: ideaIdSchema,
   productId: productIdSchema,
   platform: platformSchema,
-  state: z.enum(["drafting", "ready", "needs-you", "approved", "discarded"]),
+  state: z.enum(PIECE_STATES),
   revision: z.number().int().min(1).max(100_000),
   gates: z.strictObject({
     slop: summarySchema,
@@ -157,7 +158,7 @@ export function parsePieceFile(
 ): Parsed<{ front: PieceFront; content: PieceContent | null }> {
   const parsed = parseFile(text, pieceFrontmatter);
   if (!parsed.ok) return parsed;
-  const { front, body } = { front: parsed.value, body: parsed.body };
+  const { value: front, body } = parsed;
   if (front.content === null) return { ok: true, value: { front, content: null }, body };
   const content = contentSchemas[front.platform].safeParse(front.content);
   if (!content.success)
