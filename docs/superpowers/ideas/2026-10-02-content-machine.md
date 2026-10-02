@@ -35,7 +35,7 @@ machine turns Harbour's findings into a steady, owner-approved publishing flow.
 ## Open questions for the brainstorm
 
 - Where pillars, briefs and drafts live: brain docs, new tables, or both.
-- Which skills run the slop and humaniser passes, and how their output is checked.
+- The slop and humaniser passes use the `no-ai-slop` (petergyang/no-ai-slop) and `humanizer` (blader/humanizer) skills; decide how their output is checked and recorded.
 - Cost and budget limits for drafting runs.
 - How derivative pieces (social posts and so on) leave Harbour, since Harbour doesn't post anywhere.
 - How "atomised" pieces are tracked back to their source article.
