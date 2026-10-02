@@ -47,12 +47,12 @@ test("Scan now runs a scan and the product page shows its results", async ({ pag
     breakdown.getByText("Not connected yet, so it isn't counted.").first(),
   ).toBeVisible();
 
-  const issues = page.getByRole("region", { name: "Issues" });
+  const issues = page.getByRole("region", { name: "What to fix" });
   const noTitle = issues.getByRole("article", { name: "1 page is missing a title" });
-  await noTitle.getByText("Where").click();
+  await noTitle.getByText("Technical details").click();
   await expect(noTitle.getByText(`${SITE}/about`)).toBeVisible();
   const broken = issues.getByRole("article", { name: "1 page you link to can't be found" });
-  await broken.getByText("Where").click();
+  await broken.getByText("Technical details").click();
   await expect(broken.getByText(`${SITE}/missing (HTTP 404)`, { exact: false })).toBeVisible();
   // The scan's rule sync opened an action for each issue; the issue links to it on the board.
   await expect(noTitle.getByText("To do", { exact: true })).toBeVisible();

@@ -105,7 +105,7 @@ describe("ProductOverview", () => {
       "href",
       "/settings/products/acme-docs",
     );
-    expect(screen.getByText("Issues appear after the first scan.")).toBeInTheDocument();
+    expect(screen.getByText(/Problems Harbour finds will be listed here\./)).toBeInTheDocument();
     expect(screen.getByText("No crawled pages yet.")).toBeInTheDocument();
     expect(screen.getAllByText("No score yet")).toHaveLength(3);
   });
@@ -151,7 +151,7 @@ describe("ProductOverview", () => {
 
   it("lists issues with a hand-off button each, and the crawled pages", () => {
     renderPage(scanned);
-    const issues = screen.getByRole("region", { name: "Issues" });
+    const issues = screen.getByRole("region", { name: "What to fix" });
     expect(within(issues).getAllByRole("article")).toHaveLength(3);
     expect(
       within(issues).getByRole("button", {
@@ -169,16 +169,21 @@ describe("ProductOverview", () => {
       screen.getByRole("article", { name: new RegExp(name) }) as HTMLElement;
     const broken = issue("you link to can't be found");
     expect(within(broken).getByText("In progress")).toBeInTheDocument();
-    expect(within(broken).getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
-      "href",
-      "/actions?product=acme-docs&status=all#action-5",
-    );
+    expect(
+      within(broken).getByRole("link", {
+        name: "View on the Actions board: 1 page you link to can't be found",
+      }),
+    ).toHaveAttribute("href", "/actions?product=acme-docs&status=all#action-5");
     expect(
       within(issue("hidden from search")).getByText("Snoozed until 12 Oct 2026"),
     ).toBeInTheDocument();
     const untracked = issue("opts out of AI training");
     expect(within(untracked).getByText("Tracking starts with the next scan")).toBeInTheDocument();
-    expect(within(untracked).queryByRole("link", { name: "View on the Actions board" })).toBeNull();
+    expect(
+      within(untracked).queryByRole("link", {
+        name: /^View on the Actions board/,
+      }),
+    ).toBeNull();
   });
 
   it("names open, dismissed and done-but-still-found actions", () => {
