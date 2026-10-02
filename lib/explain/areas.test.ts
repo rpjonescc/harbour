@@ -1,6 +1,7 @@
 import { AREA_KEYS } from "@/lib/scan/views";
 import { AREA_ORDER, AREAS, areaKeyOf, areaNextStep } from "./areas";
 import { isComplete } from "./four-parts";
+import { SUB_SCORE_EXPLANATIONS } from "./subscores";
 
 describe("AREAS", () => {
   it("uses the spec's plain names and one-liners, in the scan's area order", () => {
@@ -44,5 +45,19 @@ describe("AREAS", () => {
       href: "/actions?area=GEO",
       label: "See what's worth doing for Recommended by AI assistants",
     });
+  });
+
+  // Today's top three cards won't always include an area's actions; the board always does.
+  it("sends the owner to the Actions board for an area's or sub-score's fixes", () => {
+    const todos = [
+      AREA_ORDER.map((key) => AREAS[key].parts.todo),
+      SUB_SCORE_EXPLANATIONS.map((e) => e.parts.todo),
+    ].flat();
+    for (const todo of todos) expect(todo).not.toMatch(/Worth doing next/);
+    expect(AREAS.seo.parts.todo).toMatch(/Actions board/);
+    expect(AREAS.geo.parts.todo).toMatch(/Actions board/);
+    expect(SUB_SCORE_EXPLANATIONS.find((e) => e.key === "seo.technical")?.parts.todo).toMatch(
+      /Actions board/,
+    );
   });
 });

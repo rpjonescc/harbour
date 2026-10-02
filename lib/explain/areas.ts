@@ -32,7 +32,7 @@ export const AREAS: Readonly<Record<AreaKey, AreaExplanation>> = {
         "Most people still start with a Google search. If Google can't reach or understand a " +
         "page, that page can't bring you visitors, however good it is.",
       todo:
-        "Start with the weakest check and the matching ideas under Worth doing next. Most fixes " +
+        "Start with the weakest check and what the Actions board suggests for it. Most fixes " +
         "are small edits to page titles, descriptions or links.",
       worth:
         "Every visitor from Google is free, and small fixes here keep paying off for as long as " +
@@ -54,8 +54,8 @@ export const AREAS: Readonly<Record<AreaKey, AreaExplanation>> = {
         "recommend sites they're allowed to read and can make sense of.",
       todo:
         "Let AI crawlers (the programs assistants send to read websites) in, add a short " +
-        "llms.txt guide, say clearly who runs the site, and answer questions plainly. Worth doing " +
-        "next lists the changes for each site.",
+        "llms.txt guide, say clearly who runs the site, and answer questions plainly. The Actions " +
+        "board lists the changes for each site.",
       worth:
         "When an assistant names you, it works like a personal recommendation, and it often comes " +
         "with a link people trust.",

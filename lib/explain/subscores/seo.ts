@@ -81,7 +81,7 @@ export const SEO_EXPLANATIONS: readonly SubScoreExplanation[] = [
         "Google reads these basics to understand each page and choose what to show in results. " +
         "Missing pieces make a page harder to rank, and links to missing pages waste visitors' time.",
       todo:
-        "Work through the matching ideas under Worth doing next: add missing titles and " +
+        "Work through the matching suggestions on the Actions board: add missing titles and " +
         "descriptions, fix or remove links to missing pages, and keep one main heading per page.",
       worth:
         "Each fix is usually a few minutes' work, and it helps every search that page could turn up in.",
