@@ -3,6 +3,9 @@ import type { Db } from "@/lib/db/client";
 import { actions, brainDocs } from "@/lib/db/schema";
 import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
+import { activeWork } from "./active-work";
+import { linkPullRequest } from "./pr-link";
+import { lastStatusActor } from "./status-actor";
 import { insertAction, MAX_ACTION_EVENTS, setStatus } from "./store";
 import type { ActionStatus, NewAction } from "./types";
 import {
@@ -247,5 +250,42 @@ describe("parseActionFilter", () => {
     expect(
       parseActionFilter({ product: ["acme-shop", "acme-docs"], area: ["GEO"] }, PRODUCTS),
     ).toEqual(ACTIVE_ALL);
+  });
+});
+
+describe("boardActions who's on it", () => {
+  beforeEach(() => {
+    minute = 0;
+  });
+
+  it("reads each card's history as Today does", () => {
+    const db = openTestDb();
+    const claudes = add(db, { title: "claude's" });
+    setStatus(db, claudes, "open", "in_progress", { actor: "claude", note: "On it", now: at(50) });
+    const waiting = add(db, { title: "owner's, with a PR" });
+    setStatus(db, waiting, "open", "in_progress", { actor: "owner", now: at(51) });
+    linkPullRequest(db, {
+      id: waiting,
+      url: "https://github.com/example/site/pull/7",
+      productIds: PRODUCTS,
+      now: at(52),
+    });
+    add(db, { title: "plain open" });
+    add(db, { title: "finished", status: "done" });
+
+    const cards = boardActions(db, { ...ACTIVE_ALL, status: "all" }, PRODUCTS).groups.flatMap(
+      (g) => g.actions,
+    );
+    expect(Object.fromEntries(cards.map((c) => [c.title, c.who]))).toEqual({
+      "claude's": "claude",
+      "owner's, with a PR": "pr_waiting",
+      "plain open": "you",
+      finished: null,
+    });
+    // The board's reading and activeWork's SQL agree for every active action.
+    for (const work of activeWork(db, PRODUCTS)) {
+      const card = cards.find((c) => c.id === work.id);
+      expect(work.statusActor).toBe(lastStatusActor(card?.events ?? []));
+    }
   });
 });

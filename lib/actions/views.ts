@@ -1,8 +1,10 @@
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { actionEvents, actions, brainDocs } from "@/lib/db/schema";
+import { type WhoOnIt, whoIsOnIt } from "@/lib/explain/actions";
 import type { Impact } from "@/lib/scan/issues";
 import { readDocs, readEvidence } from "./evidence";
+import { lastStatusActor } from "./status-actor";
 import { historyTruncated } from "./store";
 import { ACTION_STATUSES, ACTIVE, type ActionRow, type ActionStatus } from "./types";
 
@@ -32,6 +34,8 @@ export type ActionView = ActionRow & {
   docLinks: { path: string; exists: boolean }[];
   evidenceInvalid: boolean;
   docsInvalid: boolean;
+  /** Who's on it (spec §3); null for done, snoozed and dismissed. */
+  who: WhoOnIt | null;
 };
 export type ActionGroup = { impact: Impact; actions: ActionView[] };
 
@@ -136,6 +140,11 @@ function toViews(db: Db, rows: ActionRow[]): ActionView[] {
       docLinks: docs.docs.map((path) => ({ path, exists: existing.has(path) })),
       evidenceInvalid,
       docsInvalid: docs.invalid,
+      who: whoIsOnIt({
+        status: row.status,
+        prUrl: row.prUrl,
+        statusActor: lastStatusActor(history),
+      }),
     };
   });
 }

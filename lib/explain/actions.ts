@@ -51,3 +51,16 @@ export function whoIsOnIt({ status, prUrl, statusActor }: WhoInput): WhoOnIt | n
   if (prUrl !== null) return "pr_waiting";
   return statusActor === "claude" ? "claude" : "you";
 }
+
+/** The Actions board's group headings: a group holds many, so these are plural. */
+export const IMPACT_GROUP: Readonly<Record<Impact, string>> = {
+  high: "Big wins",
+  medium: "Worth doing",
+  low: "Small wins",
+};
+
+/** The board header's line: "3 to do · 1 in progress · 2 new ideas". */
+export function boardSummary(counts: { open: number; in_progress: number; suggested: number }) {
+  const ideas = counts.suggested === 1 ? "idea" : "ideas";
+  return `${counts.open} to do · ${counts.in_progress} in progress · ${counts.suggested} new ${ideas}`;
+}

@@ -41,6 +41,7 @@ export function exampleActionView(over: Partial<ActionView> = {}): ActionView {
     docLinks: [{ path: "research/acme-docs/seo.md", exists: true }],
     evidenceInvalid: false,
     docsInvalid: false,
+    who: "you",
     ...over,
   };
 }
@@ -69,6 +70,7 @@ export const EXAMPLE_ACTIONS: { status: ActionStatus; action: ActionView }[] = [
       ...ANALYST,
       id: 101,
       status: "suggested",
+      who: "undecided",
       events: [{ at: AT, actor: "agent", from: null, to: "suggested", note: null }],
     }),
   },
@@ -91,21 +93,28 @@ export const EXAMPLE_ACTIONS: { status: ActionStatus; action: ActionView }[] = [
         },
       ],
       prUrl: "https://github.com/acme/widget/pull/42",
+      who: "pr_waiting",
     }),
   },
   {
     status: "snoozed",
-    action: exampleActionView({ id: 104, status: "snoozed", snoozedUntil: "2026-10-12" }),
+    action: exampleActionView({
+      id: 104,
+      status: "snoozed",
+      snoozedUntil: "2026-10-12",
+      who: null,
+    }),
   },
   {
     status: "done",
-    action: exampleActionView({ ...ANALYST, id: 105, status: "done", impact: "low" }),
+    action: exampleActionView({ ...ANALYST, id: 105, status: "done", impact: "low", who: null }),
   },
   {
     status: "dismissed",
     action: exampleActionView({
       id: 106,
       status: "dismissed",
+      who: null,
       impact: "low",
       area: "AEO",
       evidenceInvalid: true,
