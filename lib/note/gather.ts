@@ -1,6 +1,6 @@
-import { and, desc, eq, gt, inArray, lte } from "drizzle-orm";
+import { and, desc, eq, exists, gt, inArray, lte } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
-import { actions } from "@/lib/db/schema";
+import { actionEvents, actions } from "@/lib/db/schema";
 import { troubleLines } from "@/lib/explain/briefing";
 import { buildFacts, FACT_CAPS, type Facts } from "@/lib/explain/voice/facts";
 import { localMoment } from "@/lib/format/zoned-time";
@@ -23,9 +23,13 @@ export type GatherDeps = {
   now: Date;
 };
 
-/** Actions finished in the last day, newest first. */
+/**
+ * Actions the owner or Claude finished in the last day, newest first. Work closed by a check or
+ * by the system (a rule that stopped applying) is not the owner's win, so it is never celebrated.
+ */
 function finishedSince(db: Db, productIds: string[], now: Date): string[] {
   if (productIds.length === 0) return [];
+  const since = new Date(now.getTime() - DAY_MS);
   return db
     .select({ title: actions.title })
     .from(actions)
@@ -33,8 +37,22 @@ function finishedSince(db: Db, productIds: string[], now: Date): string[] {
       and(
         inArray(actions.productId, productIds),
         eq(actions.status, "done"),
-        gt(actions.statusChangedAt, new Date(now.getTime() - DAY_MS)),
+        gt(actions.statusChangedAt, since),
         lte(actions.statusChangedAt, now),
+        exists(
+          db
+            .select({ one: actionEvents.id })
+            .from(actionEvents)
+            .where(
+              and(
+                eq(actionEvents.actionId, actions.id),
+                eq(actionEvents.to, "done"),
+                inArray(actionEvents.actor, ["owner", "claude"]),
+                gt(actionEvents.at, since),
+                lte(actionEvents.at, now),
+              ),
+            ),
+        ),
       ),
     )
     .orderBy(desc(actions.statusChangedAt), desc(actions.id))

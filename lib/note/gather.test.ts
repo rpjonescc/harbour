@@ -136,6 +136,33 @@ describe("gatherFacts", () => {
     }
   });
 
+  it("counts only work the owner or Claude finished, not an action a check or the system closed", () => {
+    const { brain, db, gather } = setup();
+    try {
+      const at = new Date("2026-10-02T03:00:00Z");
+      const job = analystJob(db);
+      insertAction(
+        db,
+        agentAction(job, "Fix the footer links", { status: "done" }),
+        "claude",
+        null,
+        at,
+      );
+      insertAction(db, agentAction(job, "Closed by a check", { status: "done" }), "scan", null, at);
+      insertAction(
+        db,
+        agentAction(job, "Closed by the system", { status: "done" }),
+        "system",
+        null,
+        at,
+      );
+      insertAction(db, agentAction(job, "Owner did this", { status: "done" }), "owner", null, at);
+      expect(gather().wins).toEqual(["Finished: Owner did this", "Finished: Fix the footer links"]);
+    } finally {
+      brain.cleanup();
+    }
+  });
+
   it("does not count a score rise from a scan older than a day as a win", () => {
     const { brain, db, gather } = setup();
     try {
