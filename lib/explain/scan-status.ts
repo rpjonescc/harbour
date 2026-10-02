@@ -1,14 +1,14 @@
 /** What the Product page says about scanning, in the owner's words (spec §5.5). */
 export const NEVER_SCANNED =
-  "Harbour hasn't scanned this site yet. Choose Scan now to run the first scan; the scores appear when it finishes.";
+  "Harbour hasn't scanned this site yet; choose Scan now and the scores appear when it finishes.";
 
-const WHEN_DONE = "This page updates when it finishes.";
+const WHEN_DONE = "this page updates when it finishes";
 
 /** A scan that is queued or running. `started` is the formatted start time. */
 export function activeScanSentence(status: "queued" | "running", started: string): string {
   return status === "running"
-    ? `Scanning now (started ${started}). ${WHEN_DONE}`
-    : `A scan is waiting to start. It begins as soon as Harbour is free. ${WHEN_DONE}`;
+    ? `Scanning now (started ${started}); ${WHEN_DONE}.`
+    : `A scan is waiting to start; ${WHEN_DONE}.`;
 }
 
 /**
@@ -23,17 +23,16 @@ export function lastScanSentence(input: {
   const { status, when, showing } = input;
   if (status === "ok") return `Last scan ${when}.`;
   if (status === "partial") {
-    return `Last scan ${when}. Some data sources had a problem, so some scores may be missing for now.`;
+    return `Last scan ${when} had a data source problem, so some scores may be missing. Try Scan now.`;
   }
-  const seeing = showing
-    ? `You're seeing the results of the scan from ${showing}.`
-    : "There are no results yet.";
-  return `The last scan didn't finish (${when}). ${seeing} Try Scan now again.`;
+  if (showing === null)
+    return "The last scan didn't finish and there are no results yet. Try Scan now.";
+  return `The last scan didn't finish, so you're seeing the ${showing} results. Try Scan now.`;
 }
 
 /** What Scan now says back: what happened, and what to do when it didn't work. */
 export const SCAN_NOW = {
   queued: "Scan queued. It starts shortly.",
   already: "A scan is already waiting to run.",
-  failed: "Harbour couldn't start the scan. Nothing changed, so try again in a moment.",
+  failed: "Harbour couldn't start the scan. Try again in a moment.",
 } as const;

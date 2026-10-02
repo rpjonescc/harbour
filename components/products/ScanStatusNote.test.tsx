@@ -23,9 +23,7 @@ describe("ScanStatusNote", () => {
   it("explains a failed scan in words and keeps the raw error under Technical details", () => {
     note(last({ error: "All collectors failed" }));
     expect(
-      screen.getByText(
-        "The last scan didn't finish (1 Oct 2026, 06:04). There are no results yet. Try Scan now again.",
-      ),
+      screen.getByText("The last scan didn't finish and there are no results yet. Try Scan now."),
     ).toBeInTheDocument();
     const details = screen.getByText(/Technical details/).closest("details") as HTMLElement;
     expect(within(details).getByText("All collectors failed")).toBeInTheDocument();
@@ -45,6 +43,26 @@ describe("ScanStatusNote", () => {
     expect(screen.queryByText(/PageSpeed failed/)).toBeNull();
   });
 
+  it("says which scan the results on screen are from, taken from the latest scores", () => {
+    const latest = { computedAt: new Date("2026-09-30T06:00:00Z") } as ScoreSnapshot;
+    note(last({}), latest);
+    expect(
+      screen.getByText(
+        "The last scan didn't finish, so you're seeing the 30 Sept 2026, 06:00 results. Try Scan now.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps a partial scan to one sentence with what to do", () => {
+    note(last({ status: "partial", failedCollectors: [{ collector: "pagespeed", error: null }] }));
+    expect(
+      screen.getByText(
+        "Last scan 1 Oct 2026, 06:04 had a data source problem, so some scores may be missing. Try Scan now.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/PageSpeed: no message recorded/)).toBeInTheDocument();
+  });
+
   it("shows no Technical details when there is nothing raw to show", () => {
     note(last({ status: "ok" }));
     expect(screen.getByText(/^Last scan 1 Oct 2026, 06:04\.$/)).toBeInTheDocument();
@@ -55,6 +73,14 @@ describe("ScanStatusNote", () => {
     const { unmount } = note({ active: null, last: null });
     expect(screen.getByText(/hasn't scanned this site yet/)).toBeInTheDocument();
     unmount();
+    const { unmount: unmount2 } = note({
+      active: { jobId: 5, status: "queued", since: AT },
+      last: null,
+    });
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "A scan is waiting to start; this page updates when it finishes.",
+    );
+    unmount2();
     note({ active: { jobId: 4, status: "running", since: AT }, last: null });
     expect(screen.getByRole("status")).toHaveTextContent(
       "Scanning now (started 1 Oct 2026, 06:04)",

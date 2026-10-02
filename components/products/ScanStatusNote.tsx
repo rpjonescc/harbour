@@ -37,7 +37,10 @@ function RawErrors({ last }: { last: NonNullable<ScanState["last"]> }) {
           {last.error !== null && <li>{last.error}</li>}
           {last.failedCollectors.map((f) => (
             <li key={f.collector}>
-              {collectorLabel(f.collector)}: {f.error ?? "no message recorded"}
+              <span>{sourceStatusPhrase(f.collector, "failed")}</span>{" "}
+              <span>
+                {collectorLabel(f.collector)}: {f.error ?? "no message recorded"}
+              </span>
             </li>
           ))}
         </ul>
@@ -65,13 +68,6 @@ function LastScanNote({
       className={`${NOTE} ${last.status === "ok" ? "bg-surface-sunk text-ink-muted" : "bg-warn-soft text-ink"}`}
     >
       <p>{sentence}</p>
-      {last.failedCollectors.length > 0 && (
-        <ul className="mt-1">
-          {last.failedCollectors.map((f) => (
-            <li key={f.collector}>{sourceStatusPhrase(f.collector, "failed")}</li>
-          ))}
-        </ul>
-      )}
       <RawErrors last={last} />
     </div>
   );
