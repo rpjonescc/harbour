@@ -60,7 +60,11 @@ export const IMPACT_GROUP: Readonly<Record<Impact, string>> = {
 };
 
 /** The board header's line: "3 to do · 1 in progress · 2 new ideas". */
-export function boardSummary(counts: { open: number; in_progress: number; suggested: number }) {
+export function boardSummary(counts: {
+  open: number;
+  in_progress: number;
+  suggested: number;
+}): string {
   const ideas = counts.suggested === 1 ? "idea" : "ideas";
   return `${counts.open} to do · ${counts.in_progress} in progress · ${counts.suggested} new ${ideas}`;
 }

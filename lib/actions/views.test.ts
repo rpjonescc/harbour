@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
-import { actions, brainDocs } from "@/lib/db/schema";
+import { actionEvents, actions, brainDocs } from "@/lib/db/schema";
+import { WHO_PHRASE } from "@/lib/explain/actions";
 import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { activeWork } from "./active-work";
@@ -283,9 +284,41 @@ describe("boardActions who's on it", () => {
       finished: null,
     });
     // The board's reading and activeWork's SQL agree for every active action.
-    for (const work of activeWork(db, PRODUCTS)) {
-      const card = cards.find((c) => c.id === work.id);
-      expect(work.statusActor).toBe(lastStatusActor(card?.events ?? []));
+    const work = activeWork(db, PRODUCTS);
+    expect(work.map((w) => w.id).sort()).toEqual(
+      cards
+        .filter((c) => c.who !== null)
+        .map((c) => c.id)
+        .sort(),
+    );
+    for (const item of work) {
+      const card = cards.find((c) => c.id === item.id);
+      expect(card).toBeDefined();
+      expect(item.statusActor).toBe(lastStatusActor(card?.events ?? []));
     }
+  });
+
+  it("reads a history pruned down to pull request links as no one's move: waiting for you", () => {
+    const db = openTestDb();
+    const id = add(db, { title: "pruned", status: "in_progress" });
+    // Pruning dropped every status change; only a PR-link entry (status to itself) is left.
+    db.delete(actionEvents).where(eq(actionEvents.actionId, id)).run();
+    db.insert(actionEvents)
+      .values({
+        actionId: id,
+        at: at(60),
+        actor: "claude",
+        from: "in_progress",
+        to: "in_progress",
+        note: "Linked PR https://github.com/example/site/pull/9",
+      })
+      .run();
+
+    const card = boardActions(db, ACTIVE_ALL, PRODUCTS).groups.flatMap((g) => g.actions)[0];
+    expect(card?.events).toHaveLength(1);
+    expect(lastStatusActor(card?.events ?? [])).toBeNull();
+    expect(activeWork(db, PRODUCTS).map((w) => w.statusActor)).toEqual([null]);
+    expect(card?.who).toBe("you");
+    expect(WHO_PHRASE[card?.who ?? "undecided"]).toBe("Waiting for you");
   });
 });
