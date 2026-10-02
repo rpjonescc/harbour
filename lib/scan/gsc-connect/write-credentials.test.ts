@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readGscCredentials } from "../collectors/gsc-credentials";
@@ -55,5 +55,11 @@ describe("ensureWritable", () => {
     writeFileSync(path, "{}");
     await expect(ensureWritable(path, false)).rejects.toThrow(/already exists/);
     await expect(ensureWritable(path, true)).resolves.toBeUndefined();
+  });
+
+  it("counts a dangling symlink as existing, so it fails before sign-in", async () => {
+    const path = join(dir, "gsc.json");
+    symlinkSync(join(dir, "missing-target"), path);
+    await expect(ensureWritable(path, false)).rejects.toThrow(/already exists/);
   });
 });

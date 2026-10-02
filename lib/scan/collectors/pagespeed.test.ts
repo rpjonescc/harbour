@@ -82,7 +82,7 @@ describe("pagespeed collector", () => {
     expect(calls[0]?.options).toMatchObject({
       ignoreRobots: true,
       timeoutMs: 90_000,
-      maxBytes: 1024 * 1024,
+      maxBytes: 4 * 1024 * 1024,
       onOverflow: "error",
     });
   });

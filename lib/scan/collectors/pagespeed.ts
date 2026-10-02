@@ -6,8 +6,11 @@ import { readCoreWebVitals } from "./pagespeed-response";
 const ENDPOINT = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
 /** PSI runs Lighthouse before answering (15–40 s): a deliberate exception to the 15 s limit. */
 const PSI_TIMEOUT_MS = 90_000;
-/** With `fields` the answer is a few hundred KiB (live: ~280 KiB); 1 MiB leaves room without trusting it. */
-const PSI_MAX_BYTES = 1024 * 1024;
+/**
+ * With `fields` the answer is a few hundred KiB (live: ~280 KiB; more on script-heavy pages,
+ * since audits come back whole); 4 MiB leaves room without trusting it.
+ */
+const PSI_MAX_BYTES = 4 * 1024 * 1024;
 
 /**
  * Partial-response mask: what readCoreWebVitals reads, without screenshots and the rest of

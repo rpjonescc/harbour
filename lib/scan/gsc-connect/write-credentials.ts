@@ -1,12 +1,13 @@
 import { randomBytes } from "node:crypto";
-import { link, mkdir, open, rename, rm, stat } from "node:fs/promises";
+import { link, lstat, mkdir, open, rename, rm } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 /** What goes into the authorized-user file the worker reads (see gsc-credentials.ts). */
 export type AuthorizedUser = { clientId: string; clientSecret: string; refreshToken: string };
 
+/** lstat, so a dangling symlink counts as existing, as link() and rename() will treat it. */
 function exists(path: string): Promise<boolean> {
-  return stat(path).then(
+  return lstat(path).then(
     () => true,
     (error: unknown) => {
       if (error instanceof Error && "code" in error && error.code === "ENOENT") return false;

@@ -50,7 +50,12 @@ type Outcome = { code: string } | { error: Error } | null;
 
 /** What one request means: the code, a refused sign-in, or nothing (answered 400/404). */
 function handle(req: IncomingMessage, res: ServerResponse, state: string): Outcome {
-  const url = new URL(req.url ?? "/", "http://127.0.0.1");
+  // A raw target such as "//" makes URL throw: answer it rather than crash the command.
+  const url = URL.parse(req.url ?? "/", "http://127.0.0.1");
+  if (url === null) {
+    reply(res, 400, "Bad request");
+    return null;
+  }
   if (req.method !== "GET" || url.pathname !== PATH) {
     reply(res, 404, "Not found");
     return null;

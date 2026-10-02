@@ -1,3 +1,4 @@
+import { connect } from "node:net";
 import { startLoopback } from "./loopback";
 
 const STATE = "expected-state-value";
@@ -27,6 +28,25 @@ describe("startLoopback", () => {
     expect((await get(loopback.redirectUri.replace("/callback", "/favicon.ico"))).status).toBe(404);
     await get(`${loopback.redirectUri}?state=${STATE}&code=real-code`);
     await expect(loopback.code).resolves.toBe("real-code");
+  });
+
+  it("answers a malformed request target with 400 instead of crashing", async () => {
+    const loopback = await startLoopback({ state: STATE, timeoutMs: 5_000 });
+    const { port } = new URL(loopback.redirectUri);
+    const status = await new Promise<string>((resolve, reject) => {
+      const socket = connect(Number(port), "127.0.0.1", () => {
+        socket.write("GET // HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
+      });
+      let data = "";
+      socket.on("data", (chunk) => {
+        data += chunk.toString();
+      });
+      socket.on("end", () => resolve(data.split("\r\n")[0] ?? ""));
+      socket.on("error", reject);
+    });
+    expect(status).toMatch(/^HTTP\/1\.1 400/);
+    await get(`${loopback.redirectUri}?state=${STATE}&code=still-works`);
+    await expect(loopback.code).resolves.toBe("still-works");
   });
 
   it("fails when Google reports the sign-in was not completed", async () => {
