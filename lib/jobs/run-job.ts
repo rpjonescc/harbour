@@ -197,7 +197,7 @@ export async function runAgentJob(deps: RunDeps, job: Job): Promise<{ pushed: bo
     if (saved > 0) event("status", `Saved ${saved} note file(s) before starting`);
     snapshot = snapshotRun(root);
     // Durable before the agent starts: if the worker dies mid-run, startup recovery discards.
-    writeRunMarker(deps.quarantineRoot, job.id, snapshot);
+    writeRunMarker(deps.quarantineRoot, job.id, snapshot, quiet);
     const log = touchedLog(deps.quarantineRoot, job.id);
     touched = log;
     // A reviewed run is published by the worker, not written by the agent: if it is discarded

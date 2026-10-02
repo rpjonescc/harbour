@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import { truncateSync } from "node:fs";
 import { join } from "node:path";
 import { eventsSince } from "@/lib/jobs/queue";
+import { recoveryStatus } from "@/lib/jobs/run-marker";
+import { makeScheduler } from "@/lib/jobs/scheduler";
 import { CANARY } from "@/tests/fixtures/content/hostile-snippets";
 import { dumpDb, searchEverywhere } from "@/tests/helpers/content";
 import { digest } from "@/tests/helpers/digest-run";
@@ -121,6 +123,23 @@ describe("the canary", () => {
       expect(events.some((e) => /Could not discard/.test(e.text))).toBe(true);
       // Residual, by design: the run's touched-file log stays in the quarantine's active folder
       // (outside the brain) until recovery discards the run, because recovery needs it.
+      expect(leaks(r).filter((hit) => !/\/active\/job-\d+\.touched$/.test(hit))).toEqual([]);
+      // Recovery then retries the same discard, and fails the same way: its events, its log lines,
+      // the recorded error and the banner's props (pending and lastError) carry no file name either.
+      const scheduler = makeScheduler({
+        db: r.deps.db,
+        root: r.brain.root,
+        quarantineRoot: r.deps.quarantineRoot,
+        clock: () => Date.now(),
+      });
+      scheduler.tick();
+      const status = recoveryStatus(r.deps.quarantineRoot);
+      expect(status.pending).toEqual([String(r.job.id)]);
+      expect(status.lastError).toMatch(/could not move an interrupted run's files/);
+      expect(JSON.stringify(status)).not.toContain(CANARY);
+      expect(eventsSince(r.deps.db, r.job.id, 0).some((e) => /Recovery failed/.test(e.text))).toBe(
+        true,
+      );
       expect(leaks(r).filter((hit) => !/\/active\/job-\d+\.touched$/.test(hit))).toEqual([]);
     } finally {
       await r.cleanup();
