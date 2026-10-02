@@ -1089,11 +1089,14 @@ Each is a call made while building, one bullet each.
   windows on and drops apps, memories, key texts, recording and guidance; the client test pins the
   exact query.
 - **l. Number rules.** Numbers for the claims check are digits (with `,` `.` `$` `%`), four-digit
-  years and spelled-out two to twenty, thirty to ninety, "twenty-one" to "ninety-nine" (one
+  years, a `k`, `m` or `b` glued to a figure ("10k" is 10000), "zero", plural magnitudes
+  ("thousands of") and spelled-out two to twenty, thirty to ninety, "twenty-one" to "ninety-nine" (one
   number), hundred, thousand, million, billion and "-fold" forms. "one" is not counted. Digits
   glued to a letter ("Top10", "Q4") are read, except a short list of names (p3, v2, x86, h1 to h6,
   b2b, b2c, 3d, 2fa, i18n, a11y). A number matches when its normalised digits match, and it is
-  checked against what the sources say, never their `[ref]` labels.
+  checked against what the sources say, never their `[ref]` labels, and a source's leading YAML
+  frontmatter and ISO dates are not counted as things the owner said. One helper (`factsCheckText`)
+  builds that text for the facts gate and for an owner's edit.
 - **m. An idea has `needsYou`** (a plain sentence or null), set when the source piece's number check
   fails and the idea returns to `idea`.
 - **n. The buttons are on the Content page**, not the Agents page: "Make today's digest now", "Find
@@ -1155,8 +1158,15 @@ Each is a call made while building, one bullet each.
 - `AgentSpec.noQuarantine`: a failed digest run deletes the files the agent itself wrote (and the
   quarantine manifest) instead of quarantining them, because they may echo screen text. Anything
   not known to be the agent's is still quarantined.
-- A theme sharing a verbatim run of 20 or more characters with the filtered snippets (product terms
-  excepted) is dropped and counted.
+- A theme sharing a verbatim run of 20 or more characters with the filtered snippets of ANY product
+  (every product's terms excepted) is dropped and counted, so text cannot be filed under another
+  product; a theme for a product with no on-topic text is dropped too.
+- One event per product says how many snippets Screenpipe returned and how many were kept (counts
+  only). If Screenpipe returned text but none of it carries an app or window name, the job fails with
+  a fixed sentence instead of reading as a quiet day.
+- Invisible characters have one definition (`lib/text/hidden-chars.ts`: format, private-use,
+  variation-selector, default-ignorable and blank-looking code points) shared by the sanitiser, the
+  number check, the facts pack, ideas inputs, skills, the note check and the screen filter.
 
 **Ideas.**
 
@@ -1228,6 +1238,9 @@ These are accepted for the MVP. Each is a limit of a check, not a hole in a prom
 - **Link check false positives.** A word like `Node.js/TypeScript`, or a sentence run together
   across a full stop ("works.In the"), can read as a link to another host and refuse a piece or a
   draft. The agent's one retry usually clears it; otherwise the piece is a Needs you stub.
+- **Numbers still not caught.** Ordinals ("third"), Roman numerals, fractions in words ("a third",
+  "half"), "a dozen", "double" and units glued to a figure ("5mb" reads as 5) are not figures to
+  the check. A figure inside a fenced piece of markup is read like any other text.
 - **Digit hashtags.** A hashtag holding a digit (`#web3`, `#2024trends`, `#100DaysOfCode`) fails the
   facts gate unless that number is in the sources.
 - **Split and vague numbers.** Numbers split by formatting (`10 000`, a digit inside markup) and
@@ -1249,9 +1262,11 @@ These are accepted for the MVP. Each is a limit of a check, not a hole in a prom
   quarantine folder. A failed discard keeps the run's touched-file log in the quarantine's `active`
   folder (also outside the brain) until recovery finishes it. Both hold file names the agent
   chose.
-- **Quiet runs and failed discards.** If discarding a failed quiet run itself fails, the job's event
-  and the worker's log say so in a fixed sentence without the file names the error carried
-  (`run-job.ts`); the run's marker stays and recovery retries.
+- **Quiet runs and failed discards.** The two discard errors that named files now count them
+  ("could not restore 2 file(s)"; names stay in the quarantine's MANIFEST.txt). The run marker
+  records that the run was quiet, so recovery turns any failure of a quiet run into a fixed sentence
+  in the database, the worker log, `recovery-error.txt` and the banner. The run's marker stays and
+  recovery retries.
 - **An owner's edit during a run.** A draft or a check whose files the owner edited meanwhile fails
   with a plain sentence and saves nothing, and the owner's version stays where it is (these runs
   start with no allowed files, so a failed run has nothing of theirs to discard). Any other
@@ -1266,7 +1281,9 @@ Two assumptions could not be tested without a real Screenpipe and a real model, 
   reads snippets as `text`, `app_name` and `window_name` and the status as `data_status`
   (`ok`, `empty_but_recording`, `no_capture_in_range`, `not_recording`), and is tolerant of what it
   does not know. The installed Screenpipe's OpenAPI document needs its key and was not read. If a
-  name differs the first real digest comes out empty (the failure is a gap, not a leak); read the
+  name differs the first real digest fails with "Screenpipe's answer didn't look as expected" when no
+  snippet carries an app or window name, or comes out empty with a count event saying how many
+  snippets were returned and kept (never a leak); read the
   first digest before leaving the schedule on, and adjust `schema.ts`, the one place that knows the
   names.
 - **`claude -p` reading its prompt from stdin is unverified against the real CLI.** `claude --help`
