@@ -176,6 +176,12 @@ describe("lastMoveLine", () => {
     expect(line("owner", "in_review", 3 * HOUR)).toBe("You moved this to In review, 3 hours ago");
   });
 
+  it("says a card that was only created was added, not moved", () => {
+    expect(lastMoveLine({ actor: "scan", to: "backlog", at: ago(3 * DAY), added: true }, NOW)).toBe(
+      "A check added this to Backlog, 3 days ago",
+    );
+  });
+
   it("words the other movers plainly", () => {
     expect(line("scan", "backlog", 5 * DAY)).toBe("A check moved this to Backlog, 5 days ago");
     expect(line("agent", "backlog", DAY)).toBe(
@@ -231,6 +237,14 @@ describe("board screen wording", () => {
   it("says the card cap in a sentence", () => {
     expect(BOARD_TEXT.truncated(200)).toBe(
       "The board shows 200 cards at most, so some are not here. Use the filters to narrow it.",
+    );
+  });
+});
+
+describe("Done's explainer", () => {
+  it("says a problem that comes back reopens the same card, as rule sync does", () => {
+    expect(COLUMN_COPY.done.explainer.ifStuck).toBe(
+      "Nothing to unstick. If the problem comes back, the same card returns to Backlog.",
     );
   });
 });

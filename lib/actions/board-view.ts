@@ -52,8 +52,8 @@ export type BoardCard = {
   /** Null for a parked card (snoozed or dismissed), which sits in no column. */
   column: BoardColumnId | null;
   prUrl: string | null;
-  /** The latest status or column change; null when pruned away or parked. */
-  lastMove: { actor: ActionActor; to: BoardColumnId; at: Date } | null;
+  /** The latest status or column change (`added`: the card's creation); null when pruned or parked. */
+  lastMove: { actor: ActionActor; to: BoardColumnId; at: Date; added: boolean } | null;
   /** Stood still longer than STUCK_DAYS for its column. */
   stuck: boolean;
   /** A new idea to decide, a card In review waiting for a look, or work that is the owner's. */
@@ -157,7 +157,7 @@ function toCard(
     who,
     column,
     prUrl: row.prUrl,
-    lastMove: move && to ? { actor: move.actor, to, at: move.at } : null,
+    lastMove: move && to ? { actor: move.actor, to, at: move.at, added: move.from === null } : null,
     stuck: isStuck(column, row, now),
     needsOwner: needsOwner(who, column),
     isNewIdea: row.status === "suggested",

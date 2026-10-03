@@ -318,7 +318,7 @@ describe("lastMove", () => {
       now: daysAgo(2),
     });
     const [card] = load().columns.queue;
-    expect(card?.lastMove).toEqual({ actor: "claude", to: "queue", at: daysAgo(2) });
+    expect(card?.lastMove).toEqual({ actor: "claude", to: "queue", at: daysAgo(2), added: false });
     expect(card?.who).toBe("you");
   });
 
@@ -348,6 +348,7 @@ describe("lastMove", () => {
       actor: "scan",
       to: "backlog",
       at: daysAgo(3),
+      added: true,
     });
   });
 

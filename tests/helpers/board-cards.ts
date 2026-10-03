@@ -21,7 +21,7 @@ export function boardCard(over: Partial<BoardCard> = {}): BoardCard {
     who: "you",
     column: "queue",
     prUrl: null,
-    lastMove: { actor: "owner", to: "queue", at: new Date("2026-10-01T09:00:00Z") },
+    lastMove: { actor: "owner", to: "queue", at: new Date("2026-10-01T09:00:00Z"), added: false },
     stuck: false,
     needsOwner: false,
     isNewIdea: false,

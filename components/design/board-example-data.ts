@@ -26,6 +26,7 @@ function card(over: Card): BoardCard {
           actor: "owner",
           to: column,
           at: new Date(BOARD_EXAMPLE_NOW.getTime() - 26 * HOUR),
+          added: false,
         }
       : null,
     stuck: false,
@@ -60,6 +61,7 @@ const CARDS: BoardCard[] = [
       actor: "claude",
       to: "started",
       at: new Date(BOARD_EXAMPLE_NOW.getTime() - 3 * HOUR),
+      added: false,
     },
   }),
   card({
@@ -75,6 +77,7 @@ const CARDS: BoardCard[] = [
       actor: "owner",
       to: "in_progress",
       at: new Date(BOARD_EXAMPLE_NOW.getTime() - 9 * 24 * HOUR),
+      added: false,
     },
   }),
   card({

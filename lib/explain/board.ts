@@ -137,7 +137,7 @@ export const COLUMN_COPY: Readonly<Record<BoardColumnId, ColumnCopy>> = {
       what: "Jobs that are finished. This column shows the last 14 days.",
       whoMoves: "You or Claude move a card here once the work is merged or checked.",
       next: "Nothing. The next check shows whether the problem is gone.",
-      ifStuck: "Nothing to unstick. If the problem comes back, a new card opens in Backlog.",
+      ifStuck: "Nothing to unstick. If the problem comes back, the same card returns to Backlog.",
     },
     waitingOn: () => "Nothing. This is finished.",
     whatNext: () => "Nothing more to do.",
@@ -162,12 +162,16 @@ function ago(at: Date, now: Date): string {
   return days === 1 ? "yesterday" : `${days} days ago`;
 }
 
-/** "Claude moved this to Queue, 2 days ago": the latest move on a card. */
+/**
+ * "Claude moved this to Queue, 2 days ago": the latest move on a card. `added` is a card nobody
+ * has moved since it was created: "A check added this to Backlog, 3 days ago".
+ */
 export function lastMoveLine(
-  move: { actor: ActionActor; to: BoardColumnId; at: Date },
+  move: { actor: ActionActor; to: BoardColumnId; at: Date; added?: boolean },
   now: Date,
 ): string {
-  return `${MOVER[move.actor]} moved this to ${COLUMN_COPY[move.to].name}, ${ago(move.at, now)}`;
+  const verb = move.added ? "added" : "moved";
+  return `${MOVER[move.actor]} ${verb} this to ${COLUMN_COPY[move.to].name}, ${ago(move.at, now)}`;
 }
 
 /** Headings for the four parts behind a column's "What's this?". */
