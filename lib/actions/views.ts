@@ -19,10 +19,10 @@ export type ActionFilter = {
   /** active = open + in_progress. */
   status: (typeof STATUS_FILTERS)[number];
 };
-export type ActionEventView = Pick<
-  typeof actionEvents.$inferSelect,
-  "at" | "actor" | "from" | "to" | "note"
->;
+type EventRow = typeof actionEvents.$inferSelect;
+/** A history entry; the stages are there so a board move within one status reads as a move. */
+export type ActionEventView = Pick<EventRow, "at" | "actor" | "from" | "to" | "note"> &
+  Partial<Pick<EventRow, "fromStage" | "toStage">>;
 /**
  * An action for the board. Stored evidence and docs are re-validated: a value that fails is
  * shown as a gap (empty, with the matching `…Invalid` flag), never trusted.
@@ -45,7 +45,8 @@ function statusesFor(filter: ActionFilter["status"]): readonly ActionStatus[] {
   return [filter];
 }
 
-const impactRank = sql`CASE ${actions.impact} WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`;
+/** SQL rank for impact: high 0, medium 1, low 2. */
+export const impactRank = sql`CASE ${actions.impact} WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`;
 const startedFirst = sql`CASE WHEN ${actions.status} = 'in_progress' THEN 0 ELSE 1 END`;
 const effortRank = sql`CASE ${actions.effort} WHEN 'small' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`;
 /** Board order: impact high → low, in progress first, effort small → large, then oldest. */
@@ -103,9 +104,9 @@ function eventsByAction(db: Db, ids: number[]): Map<number, ActionEventView[]> {
     .where(inArray(actionEvents.actionId, ids))
     .orderBy(asc(actionEvents.id))
     .all();
-  for (const { actionId, at, actor, from, to, note } of rows) {
+  for (const { actionId, at, actor, from, to, fromStage, toStage, note } of rows) {
     const list = byAction.get(actionId) ?? [];
-    list.push({ at, actor, from, to, note });
+    list.push({ at, actor, from, to, fromStage, toStage, note });
     byAction.set(actionId, list);
   }
   return byAction;
@@ -143,6 +144,7 @@ function toViews(db: Db, rows: ActionRow[]): ActionView[] {
       who: whoIsOnIt({
         status: row.status,
         prUrl: row.prUrl,
+        stage: row.stage,
         statusActor: lastStatusActor(history),
       }),
     };
@@ -232,6 +234,7 @@ export function ruleActionStatuses(db: Db, productId: string): Map<string, RuleA
       status: actions.status,
       snoozedUntil: actions.snoozedUntil,
       prUrl: actions.prUrl,
+      stage: actions.stage,
     })
     .from(actions)
     .where(and(eq(actions.productId, productId), eq(actions.source, "rule")))
@@ -242,7 +245,7 @@ export function ruleActionStatuses(db: Db, productId: string): Map<string, RuleA
     rows.map((row) => row.id),
   );
   return new Map(
-    rows.flatMap(({ ruleKey, prUrl, ...rest }) =>
+    rows.flatMap(({ ruleKey, prUrl, stage, ...rest }) =>
       ruleKey === null
         ? []
         : [
@@ -253,6 +256,7 @@ export function ruleActionStatuses(db: Db, productId: string): Map<string, RuleA
                 who: whoIsOnIt({
                   status: rest.status,
                   prUrl,
+                  stage,
                   statusActor: lastStatusActor(events.get(rest.id) ?? []),
                 }),
               },

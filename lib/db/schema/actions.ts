@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { Evidence } from "@/lib/actions/types";
-import { ACTION_ACTORS } from "@/lib/actions/types";
+import { ACTION_ACTORS, ACTION_STAGES } from "@/lib/actions/types";
 import { timestamp } from "./columns";
 import { jobs } from "./jobs";
 
@@ -31,6 +31,8 @@ export const actions = sqliteTable(
     status: text("status", {
       enum: ["suggested", "open", "in_progress", "done", "snoozed", "dismissed"],
     }).notNull(),
+    // Board stage within open / in_progress; null means the default column for the status.
+    stage: text("stage", { enum: ACTION_STAGES }),
     // YYYY-MM-DD in HARBOUR_TIMEZONE; set iff snoozed.
     snoozedUntil: text("snoozed_until"),
     // Rule actions: whether the last judged scan found the issue.
@@ -66,6 +68,9 @@ export const actionEvents = sqliteTable(
     // Null on creation.
     from: text("from_status"),
     to: text("to_status").notNull(),
+    // Board stage before and after; both null for events that do not touch a stage.
+    fromStage: text("from_stage", { enum: ACTION_STAGES }),
+    toStage: text("to_stage", { enum: ACTION_STAGES }),
     note: text("note"),
   },
   (t) => [index("action_events_action").on(t.actionId, t.id)],

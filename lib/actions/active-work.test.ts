@@ -2,6 +2,7 @@ import type { Db } from "@/lib/db/client";
 import { ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { activeWork } from "./active-work";
+import { moveToColumn } from "./move-to-column";
 import { linkPullRequest } from "./pr-link";
 import { insertAction, MAX_ACTION_EVENTS, setStatus } from "./store";
 import type { NewAction } from "./types";
@@ -40,6 +41,7 @@ describe("activeWork", () => {
         area: "SEO",
         status: "open",
         prUrl: null,
+        stage: null,
         statusActor: "scan",
       },
       {
@@ -48,6 +50,7 @@ describe("activeWork", () => {
         area: "SEO",
         status: "in_progress",
         prUrl: null,
+        stage: null,
         statusActor: "owner",
       },
       {
@@ -56,6 +59,7 @@ describe("activeWork", () => {
         area: "GEO",
         status: "in_progress",
         prUrl: null,
+        stage: null,
         statusActor: "claude",
       },
     ]);
@@ -67,7 +71,8 @@ describe("activeWork", () => {
   it("ignores a pull request link when finding who moved the status last", () => {
     const db = openTestDb();
     const mine = add(db, { title: "mine" });
-    setStatus(db, mine, "open", "in_progress", { actor: "owner", now: at() });
+    // Started: the link does not move the card, so it is no status change.
+    setStatus(db, mine, "open", "in_progress", { actor: "owner", stage: "started", now: at() });
     const claudes = add(db, { title: "claude's" });
     setStatus(db, claudes, "open", "in_progress", { actor: "claude", note: "On it", now: at() });
     const linked = linkPullRequest(db, { id: mine, url: pr(7), productIds: PRODUCTS, now: at() });
@@ -82,7 +87,8 @@ describe("activeWork", () => {
   it("has no actor once pruning removed every status change", () => {
     const db = openTestDb();
     const id = add(db, { title: "busy" });
-    setStatus(db, id, "open", "in_progress", { actor: "claude", note: "On it", now: at() });
+    const opts = { actor: "claude", note: "On it", stage: "started", now: at() } as const;
+    setStatus(db, id, "open", "in_progress", opts);
     for (let i = 1; i <= MAX_ACTION_EVENTS / 2; i++) {
       linkPullRequest(db, { id, url: pr(i), productIds: PRODUCTS, now: at() });
       linkPullRequest(db, { id, url: null, productIds: PRODUCTS, now: at() });
@@ -94,8 +100,26 @@ describe("activeWork", () => {
         area: "SEO",
         status: "in_progress",
         prUrl: null,
+        stage: "started",
         statusActor: null,
       },
     ]);
+  });
+
+  it("counts a board move within one status as the latest status change", () => {
+    const db = openTestDb();
+    const id = add(db, { title: "queued by Claude" });
+    const moved = moveToColumn(db, {
+      id,
+      from: "backlog",
+      to: "queue",
+      actor: "claude",
+      note: "Next up",
+      login: "claude",
+      productIds: PRODUCTS,
+      now: at(),
+    });
+    expect(moved).toEqual({ ok: true });
+    expect(activeWork(db, PRODUCTS).map((w) => w.statusActor)).toEqual(["claude"]);
   });
 });

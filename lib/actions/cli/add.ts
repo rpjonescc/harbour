@@ -42,6 +42,7 @@ function newAction(input: AddInput): NewAction {
     ruleKey: null,
     sourceJobId: null,
     status: input.status,
+    stage: input.stage,
     snoozedUntil: null,
     issuePresent: null,
   };

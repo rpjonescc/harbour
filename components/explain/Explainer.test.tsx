@@ -74,4 +74,21 @@ describe("Explainer", () => {
     const names = screen.getAllByRole("button").map((button) => button.textContent);
     expect(new Set(names).size).toBe(3);
   });
+
+  it("shows parts with their own headings when given items", () => {
+    render(
+      <Explainer
+        topic="Queue"
+        oneLiner="Decided, and next up."
+        items={[
+          { label: "Who moves cards here", text: "You or Claude." },
+          { label: "If a card is stuck", text: "Move it back." },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "What's this? (Queue)" }));
+    expect(screen.getByText("Who moves cards here")).toBeVisible();
+    expect(screen.getByText("Move it back.")).toBeVisible();
+    expect(screen.queryByText("What it is")).toBeNull();
+  });
 });

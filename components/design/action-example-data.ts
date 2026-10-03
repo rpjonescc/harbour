@@ -33,6 +33,7 @@ export function exampleActionView(over: Partial<ActionView> = {}): ActionView {
     snoozedUntil: null,
     issuePresent: true,
     prUrl: null,
+    stage: null,
     createdAt: AT,
     updatedAt: AT,
     statusChangedAt: AT,

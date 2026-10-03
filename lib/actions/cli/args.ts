@@ -1,8 +1,10 @@
 import { parseArgs } from "node:util";
 import { parseActionId } from "../action-id";
+import { BOARD_COLUMNS, type BoardColumnId } from "../board-column";
 import type { StatusChange } from "../transitions";
 import { ACTION_STATUSES, type ActionStatus } from "../types";
 import { ADD_OPTIONS, type AddInput, type AddValues, parseAdd } from "./add-args";
+import { columnArg, rejectStatusWithColumn } from "./column-arg";
 import { CliUsageError } from "./usage-error";
 
 export { CliUsageError };
@@ -12,27 +14,38 @@ export const MAX_NOTE = 1000;
 
 export type CliCommand =
   | { name: "help" }
-  | { name: "list"; productId: string | null; statuses: ActionStatus[] | null; json: boolean }
+  | {
+      name: "list";
+      productId: string | null;
+      statuses: ActionStatus[] | null;
+      columns: BoardColumnId[] | null;
+      json: boolean;
+    }
   | { name: "show"; id: number }
   | { name: "set"; id: number; from: ActionStatus; change: StatusChange & { note: string } }
+  | { name: "move"; id: number; from: BoardColumnId; to: BoardColumnId; note: string }
   | { name: "link"; id: number; url: string | null }
   | { name: "add"; input: AddInput };
 
 export const USAGE = `Usage:
-  pnpm actions list [--product <id>] [--status <s>[,<s>]] [--json]
+  pnpm actions list [--product <id>] [--status <s>[,<s>] | --column <c>[,<c>]] [--json]
   pnpm actions show <id>
   pnpm actions set <id> <status> --from <status> --note "<reason>" [--until YYYY-MM-DD]
+  pnpm actions move <id> <column> --from <column> --note "<reason>"
   pnpm actions link <id> <github-pr-url>
   pnpm actions link <id> --clear
   pnpm actions add --product <id> --title "<title>" --why "<why>" --area SEO|GEO|AEO
       --impact high|medium|low --effort small|medium|large [--fix "<fix>"] [--check "<done when>"]
-      [--evidence "<text>"]... [--doc <https-url>]... [--status suggested|open|in_progress]
+      [--evidence "<text>"]... [--doc <https-url>]...
+      [--status suggested|open|in_progress | --column backlog|queue|started|in_progress|in_review]
 
-Statuses: ${ACTION_STATUSES.join(", ")}`;
+Statuses: ${ACTION_STATUSES.join(", ")}
+Columns: ${BOARD_COLUMNS.join(", ")} (snoozed and dismissed cards are in no column)`;
 
 const OPTIONS = {
   product: { type: "string" },
   status: { type: "string" },
+  column: { type: "string" },
   json: { type: "boolean" },
   from: { type: "string" },
   note: { type: "string" },
@@ -53,6 +66,7 @@ const OPTIONS = {
 type Values = {
   product?: string;
   status?: string;
+  column?: string;
   json?: boolean;
   from?: string;
   note?: string;
@@ -63,11 +77,12 @@ type Values = {
 
 /** Which options each command accepts; anything else is a usage error. */
 const ALLOWED: Record<Exclude<CliCommand["name"], "help">, readonly (keyof Values)[]> = {
-  list: ["product", "status", "json"],
+  list: ["product", "status", "column", "json"],
   show: [],
   set: ["from", "note", "until"],
+  move: ["from", "note"],
   link: ["clear"],
-  add: ["product", "status", ...ADD_OPTIONS],
+  add: ["product", "status", "column", ...ADD_OPTIONS],
 };
 
 function tokens(argv: readonly string[]): { positionals: string[]; values: Values } {
@@ -98,8 +113,16 @@ function actionId(raw: string | undefined, usage: string): number {
 
 function parseList(args: string[], values: Values): CliCommand {
   if (args.length > 0) throw new CliUsageError("list takes no arguments, only options");
+  rejectStatusWithColumn(values);
   const statuses = values.status === undefined ? null : values.status.split(",").map(status);
-  return { name: "list", productId: values.product ?? null, statuses, json: values.json ?? false };
+  const columns = values.column === undefined ? null : values.column.split(",").map(columnArg);
+  return {
+    name: "list",
+    productId: values.product ?? null,
+    statuses,
+    columns,
+    json: values.json ?? false,
+  };
 }
 
 function parseNote(raw: string | undefined): string {
@@ -130,6 +153,17 @@ function parseSet(args: string[], values: Values): CliCommand {
   const from = status(values.from);
   const note = parseNote(values.note);
   return { name: "set", id, from, change: { to, note, ...parseUntil(to, values.until) } };
+}
+
+function parseMove(args: string[], values: Values): CliCommand {
+  const usage = 'Usage: pnpm actions move <id> <column> --from <column> --note "<reason>"';
+  const [rawId, rawTo, ...rest] = args;
+  const id = actionId(rawId, usage);
+  if (rawTo === undefined || rest.length > 0) throw new CliUsageError(usage);
+  const to = columnArg(rawTo);
+  if (values.from === undefined)
+    throw new CliUsageError("--from is required: the column you last saw");
+  return { name: "move", id, from: columnArg(values.from), to, note: parseNote(values.note) };
 }
 
 function parseAddCommand(args: string[], values: Values): CliCommand {
@@ -167,6 +201,7 @@ export function parseCliArgs(argv: readonly string[]): CliCommand {
   const parsers = {
     list: parseList,
     set: parseSet,
+    move: parseMove,
     link: parseLink,
     add: parseAddCommand,
   } as const;

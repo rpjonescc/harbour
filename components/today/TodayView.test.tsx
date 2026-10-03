@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, within } from "@testing-library/react";
+import { NORMAL_STRIP } from "@/components/design/board-example-data";
 import { EXAMPLE_BACKUPS } from "@/components/design/ops-example-data";
 import type { NoteSlot } from "@/lib/note/view";
 import type { BackupStatus } from "@/lib/ops/backup-status";
@@ -21,6 +22,7 @@ const renderToday = (
       today={today}
       note={note}
       backup={backup}
+      workStrip={NORMAL_STRIP}
       costMeter={{ state: "no-paid-sources", spentMicro: 0, unconfirmedMicro: 0 }}
       now={NOW}
       timeZone="UTC"

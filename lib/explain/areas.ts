@@ -83,7 +83,7 @@ export const AREAS: Readonly<Record<AreaKey, AreaExplanation>> = {
 };
 
 /**
- * An area's next step: its actions on the board. The board opens on To do and In progress, so
+ * An area's next step: its actions on the board. The list opens on Backlog and In progress, so
  * the label promises what's worth doing there, not new ideas.
  */
 export function areaNextStep(key: AreaKey): { href: string; label: string } {

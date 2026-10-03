@@ -4,17 +4,30 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import { type FourParts, PART_LABELS, PART_ORDER } from "@/lib/explain/four-parts";
 
+/** One labelled part behind "What's this?". */
+export type ExplainerItem = { label: string; text: string };
+
 type Props = {
   /** What it explains, e.g. "Found on Google": names the button for screen readers. */
   topic: string;
   oneLiner: string;
-  parts: FourParts;
   /** Where to act on it, e.g. the matching actions. */
   nextStep?: { href: string; label: string };
-};
+} & (
+  | { parts: FourParts; items?: never }
+  /** Parts with their own headings, e.g. a board column's (who moves cards, if one is stuck). */
+  | { items: readonly ExplainerItem[]; parts?: never }
+);
 
-/** One plain sentence, always visible, and a "What's this?" disclosure with the four parts. */
-export function Explainer({ topic, oneLiner, parts, nextStep }: Props) {
+function itemsOf(props: Props): readonly ExplainerItem[] {
+  if (props.items) return props.items;
+  const { parts } = props;
+  return PART_ORDER.map((part) => ({ label: PART_LABELS[part], text: parts[part] }));
+}
+
+/** One plain sentence, always visible, and a "What's this?" disclosure with its parts. */
+export function Explainer(props: Props) {
+  const { topic, oneLiner, nextStep } = props;
   const [open, setOpen] = useState(false);
   const panelId = useId();
   return (
@@ -33,10 +46,10 @@ export function Explainer({ topic, oneLiner, parts, nextStep }: Props) {
       </p>
       <div id={panelId} hidden={!open} className="rounded-md bg-surface-sunk p-3">
         <dl className="flex flex-col gap-2">
-          {PART_ORDER.map((part) => (
-            <div key={part}>
-              <dt className="text-xs font-medium text-ink">{PART_LABELS[part]}</dt>
-              <dd className="text-sm text-ink-muted">{parts[part]}</dd>
+          {itemsOf(props).map(({ label, text }) => (
+            <div key={label}>
+              <dt className="text-xs font-medium text-ink">{label}</dt>
+              <dd className="text-sm text-ink-muted">{text}</dd>
             </div>
           ))}
         </dl>

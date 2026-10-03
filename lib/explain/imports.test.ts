@@ -10,6 +10,9 @@ const ALLOWED = [
   /^zod$/,
   /^\.\.?\//,
   /^@\/lib\/explain\//,
+  // Pure board modules (no database): the column ids and the refusal sentences.
+  /^@\/lib\/actions\/board-column$/,
+  /^@\/lib\/actions\/move-refusal$/,
   /^@\/lib\/scan\/labels$/,
   /^@\/lib\/scan\/scoring\/sub-score$/,
   /^@\/lib\/text\/hidden-chars$/,

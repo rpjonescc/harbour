@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
+import type { ActionsView } from "@/lib/actions/board-view";
 import type { ActionFilter } from "@/lib/actions/views";
 import { AREA_ORDER, AREAS } from "@/lib/explain/areas";
 import { STATUS_FILTER_LABEL } from "./action-labels";
@@ -20,16 +21,21 @@ function Field({ id, label, children }: { id: string; label: string; children: R
 
 /**
  * Product, area and status filters as a plain GET form: works without JavaScript, and the
- * resulting URL is the bookmark (`?product=&area=&status=`).
+ * resulting URL is the bookmark (`?product=&area=&status=`). The board has no status filter (its
+ * columns are the statuses); the list keeps `view=list` so applying stays on the list.
  */
 export function ActionFilters({
   filter,
   products,
+  view = "list",
 }: {
   filter: ActionFilter;
   products: readonly { id: string; name: string }[];
+  view?: ActionsView;
 }) {
-  const filtered = filter.productId !== null || filter.area !== null || filter.status !== "active";
+  const board = view === "board";
+  const filtered =
+    filter.productId !== null || filter.area !== null || (!board && filter.status !== "active");
   return (
     // Keyed by the filter: a client navigation (Clear filters, back) re-renders the page in place,
     // and uncontrolled selects would otherwise keep showing, and re-submit, the old choice.
@@ -65,21 +71,24 @@ export function ActionFilters({
           ))}
         </select>
       </Field>
-      <Field id="filter-status" label="Status">
-        <select id="filter-status" name="status" defaultValue={filter.status} className={SELECT}>
-          {Object.entries(STATUS_FILTER_LABEL).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </Field>
+      {!board && (
+        <Field id="filter-status" label="Status">
+          <select id="filter-status" name="status" defaultValue={filter.status} className={SELECT}>
+            {Object.entries(STATUS_FILTER_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {!board && <input type="hidden" name="view" value="list" />}
       <Button type="submit" variant="ghost">
         Apply
       </Button>
       {filtered && (
         <Link
-          href="/actions"
+          href={board ? "/actions" : "/actions?view=list"}
           className="rounded-sm py-1.5 text-sm text-accent underline underline-offset-2"
         >
           Clear filters

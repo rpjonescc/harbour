@@ -25,6 +25,7 @@ describe("ActionCard for an action added by hand", () => {
       {
         productId: "acme-docs",
         status: "open",
+        stage: null,
         title: "Hand the page titles to the docs owner",
         why: "The owner session needs a tracked item for this hand-off.",
         fix: null,

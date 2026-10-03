@@ -17,7 +17,7 @@ describe("ScoresSection", () => {
     }
   });
 
-  // The board opens on To do and In progress, so "ideas" would promise a column it hides.
+  // The list opens on Backlog and In progress, so "ideas" would promise a column it hides.
   it("points each area's next step at what's worth doing on the Actions board", () => {
     render(<ScoresSection scores={scores} />);
     fireEvent.click(screen.getByRole("button", { name: "What's this? (Answer-ready)" }));

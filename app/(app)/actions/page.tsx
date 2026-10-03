@@ -1,10 +1,12 @@
 import { ActionBoard } from "@/components/actions/ActionBoard";
 import { ActionFilters } from "@/components/actions/ActionFilters";
 import { ApprovalsNote } from "@/components/actions/ApprovalsNote";
+import { Board, FocusNotice, ViewSwitch } from "@/components/actions/board";
 import { BOARD_HEADING_ID } from "@/components/actions/focus-after-change";
 import { SyncFailureNote } from "@/components/actions/SyncFailureNote";
 import { PageHeader } from "@/components/explain/PageHeader";
 import { approvalsWaiting, syncFailures } from "@/lib/actions/board-notices";
+import { loadBoard, parseActionsView, parseBoardFocus } from "@/lib/actions/board-view";
 import { actionCounts, boardActions, parseActionFilter } from "@/lib/actions/views";
 import { requireSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
@@ -24,12 +26,16 @@ export default async function ActionsPage({
   const db = getDb();
   const products = getProducts();
   const ids = products.map((p) => p.id);
-  const filter = parseActionFilter(await searchParams, ids);
-  const { groups, more } = boardActions(db, filter, ids);
+  const params = await searchParams;
+  const filter = parseActionFilter(params, ids);
+  const view = parseActionsView(params.view);
+  const focus = parseBoardFocus(params.focus);
   const counts = actionCounts(db, ids);
+  const now = new Date();
+  const today = isoDateIn(config.HARBOUR_TIMEZONE, now);
   const zone = { timeZone: config.HARBOUR_TIMEZONE, locale: config.HARBOUR_LOCALE };
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className={`mx-auto flex flex-col gap-6 ${view === "board" ? "max-w-7xl" : "max-w-3xl"}`}>
       <PageHeader
         title="Actions"
         page="actions"
@@ -43,15 +49,27 @@ export default async function ActionsPage({
       />
       <SyncFailureNote failures={syncFailures(db, products)} {...zone} />
       <ApprovalsNote waiting={approvalsWaiting(db, products)} />
-      <ActionFilters filter={filter} products={products} />
-      <ActionBoard
-        groups={groups}
-        more={more}
-        filter={filter}
-        products={products}
-        today={isoDateIn(config.HARBOUR_TIMEZONE, new Date())}
-        {...zone}
-      />
+      <ViewSwitch view={view} filter={filter} />
+      <ActionFilters filter={filter} products={products} view={view} />
+      {view === "board" && <FocusNotice focus={focus} filter={filter} />}
+      {view === "board" ? (
+        <Board
+          board={loadBoard(db, { ...filter, focus }, now, products)}
+          focused={focus !== null}
+          products={products}
+          now={now}
+          locale={zone.locale}
+          today={today}
+        />
+      ) : (
+        <ActionBoard
+          {...boardActions(db, filter, ids)}
+          filter={filter}
+          products={products}
+          today={today}
+          {...zone}
+        />
+      )}
     </div>
   );
 }

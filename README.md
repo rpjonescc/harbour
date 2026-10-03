@@ -40,11 +40,12 @@ explainable breakdowns. The roadmap continues with:
 - **Actions board** — every issue the check finds becomes a tracked action, grouped as Big wins,
   Worth doing and Small wins. Each card is a headline, one line on why it matters, a chip for how
   big a win it is (Big win, Worth doing, Small win) and a chip for who's on it (a new idea not
-  decided yet, Claude is on it, a pull request waiting for your OK, or waiting for you), with the
+  decided yet, Claude is on it, a pull request waiting for your OK, waiting for you to look it over
+  when it is In review without a pull request, or waiting for you), with the
   area, how big a job it is (a quick job, an afternoon or a project) and the product in one small
   line, and a link to its pull request. The full reason, evidence, where it came from, the exact fix
   and check, and **Hand to Claude** (a ready prompt) sit under **Technical details**. Filter by
-  product, area and status (a plain, bookmarkable form); move an action through New ideas → To do →
+  product, area and status (a plain, bookmarkable form); move an action through New ideas → Backlog →
   In progress → Done, snooze it until a date or dismiss it. The sidebar badge reads "N things worth
   doing". Claude can triage the board for you with `pnpm actions`, every change recorded with its
   reason.
@@ -103,7 +104,7 @@ explainable breakdowns. The roadmap continues with:
 | `/` | Today |
 | `/products/<id>` | A product's scores, issues, pages and sources |
 | `/content` | Content (only when `HARBOUR_CONTENT=on`, else 404): ideas and drafts in six tabs, with Copy, Approve, Edit and Discard; nothing is posted for you |
-| `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`; the status values are the stored ones, which the board shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed) |
+| `/actions` | Actions board: a six-column board by default, or the list with `?view=list` (`?product=<id>&area=SEO\|GEO\|AEO` on both; the list also takes `&status=active\|suggested\|snoozed\|done\|dismissed\|all`, whose stored values the list shows as New ideas (`suggested`), Backlog (`open`), In progress, Done, Snoozed and Dismissed; the board takes `&focus=stuck\|needs-you`). `#column-<id>` jumps to a column |
 | `/settings` | Settings overview: products, schedules, connections, budget and backups |
 | `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors, content pillars) |
 | `/settings/sources` | Check schedule, connections and each source's last run |
@@ -275,7 +276,7 @@ git gate and Claude subscription as the other agents (no paid API calls).
   and never twice; each failure is listed on the run's activity page.
 - **Where suggestions appear** — on the **Actions** board as **New ideas** (`/actions`), labelled
   "Suggested by the weekly report"; accept or dismiss each one. An action the product already
-  has (a new idea, to do, in progress, snoozed or dismissed) is not suggested again.
+  has (a new idea, in Backlog, in progress, snoozed or dismissed) is not suggested again.
 - **When it runs** — every Sunday at 20:00 in `HARBOUR_TIMEZONE`, for that week (see [When things
   run](#when-things-run)). The **Weekly report** panel on **Agents** shows the next scheduled run
   (or that a run is queued or running, that a catch-up is due, or that scheduled runs are off or
@@ -1060,7 +1061,8 @@ the Treg address is fixed in code and Harbour refuses to follow a redirect from 
   details**. Each product name opens its page. While a check is queued or running, the page
   refreshes itself. **Next up** shows the top three open or in-progress actions (in
   the Actions board's order), each linked to its card and saying who's on it (Claude is on it,
-  Pull request waiting for your OK, or Waiting for you), and the briefing's second line counts
+  Pull request waiting for your OK, Waiting for you to look it over, or Waiting for you), and the
+  briefing's second line counts
   every one of them; the rest are a link away on the Actions board. Before the first check is
   scored, Today shows clearly flagged sample data instead.
 - **Product page** (`/products/<id>`) opens with the three area cards and a one-line summary (for
@@ -1110,12 +1112,12 @@ the Treg address is fixed in code and Harbour refuses to follow a redirect from 
   says the list may be out of date, that the last check finished but couldn't update the actions
   (with the time), and that the next check tries again. Reasons are written in plain words;
   actions raised before a wording change keep the old text until the next check refreshes them.
-- **The Actions board** shows To do and In progress actions by default, grouped Big wins → Worth
+- **The Actions list** (`/actions?view=list`, the older view of the same jobs) shows Backlog and In progress actions by default, grouped Big wins → Worth
   doing → Small wins, in-progress first, then the smallest effort. Filters (product, area,
   status) are a normal form, so a filtered view can be bookmarked; at most 200 actions are shown,
   with a count of the rest. Each card offers only the moves its status allows (**Start**,
   **Mark done**, **Snooze…** with a date from tomorrow to a year ahead, **Dismiss**, **Move back
-  to To do**, **Bring back now**, **Restore to To do**; new ideas from the weekly analyst are
+  to Backlog**, **Bring back now**, **Restore to Backlog**; new ideas from the weekly analyst are
   **Accept**ed or **Dismiss**ed). **History** lists every change with who made it (**You**,
   **Claude**, **Harbour's check**…) and its note; a card whose fix has a pull request links to it
   (**Pull request owner/repo#42**, in a new tab). **Hand to Claude** copies a prompt with the
@@ -1125,6 +1127,45 @@ the Treg address is fixed in code and Harbour refuses to follow a redirect from 
 - **Sources** (`/settings/sources`) shows each collector's latest run per product (ok, failed,
   not connected or skipped) with its reason, and whether PageSpeed and Search Console are
   connected — as connected or not, never the key or the credentials.
+
+## Actions board
+
+`/actions` shows every job Harbour has found for your products as a board: one card per job, in
+six columns that read left to right as the job's life.
+
+| Column | In plain words |
+|---|---|
+| Backlog | Ideas and jobs nobody has picked yet (new ideas from the weekly review sit here, tagged **New idea**) |
+| Queue | Decided, and next up |
+| Started | Someone has begun |
+| In progress | Being worked on now |
+| In review | Finished, and waiting for a look (a job with a pull request is always here) |
+| Done | Finished in the last 14 days |
+
+Each card says what the job is, why it matters, who is on it, what it waits for, what happens next
+and the last move. A card says **Stuck** when nothing has changed for more than 7 days in Started or
+In progress, or more than 3 days in In review. Each column has a "What's this?" that explains it.
+**Snoozed** cards and cards **dismissed** in the last 14 days are not columns: they sit in the
+**Parked** strip under the board, where **Bring back now** or **Restore to Backlog** puts them back.
+
+**Moving a card.** Drag it into another column, or use the card's **Move to…** button, which works
+from the keyboard and on a phone: press Enter to open the menu, the arrow keys to choose a column,
+Enter to move and Escape to close it. The move is announced ("Moved … to Queue") and focus returns
+to the card. If Harbour refuses a move (the card was moved a moment ago, or it has a pull request
+and you chose In progress) the card snaps back and a plain sentence says why. A card can go to any
+column except that a new idea cannot go straight to Done: **Accept** it first (the menu leaves
+Done out for a new idea), or move it to Queue.
+
+**The Today strip.** Today's **Where the work is** band shows a tile per column with its count, a
+bar of how the jobs are spread, how many are stuck, how many need you (new ideas, pull requests
+waiting for a look, and your own work in Started, In progress or In review) and what moved today.
+Each tile opens that column on the board; **See the stuck jobs** and **See what needs you** open the
+board narrowed to those cards, with a line at the top and a **Show everything** link to clear it.
+
+**From the terminal.** Claude keeps the columns true with `pnpm actions move <id> <column> --from
+<column> --note "why"`, filters with `pnpm actions list --column queue,started` and creates a card
+straight in a column with `pnpm actions add --column queue …`; see "Let Claude triage the board".
+The list view (`/actions?view=list`) and the board share one set of rules.
 
 ## Let Claude triage the board
 
@@ -1137,10 +1178,11 @@ reopen or move anything back. It is a tool run on the host, not a worker agent: 
 agents still only suggest.
 
 ```bash
-pnpm actions list [--product <id>] [--status open,in_progress] [--json]
+pnpm actions list [--product <id>] [--status open,in_progress | --column queue,started] [--json]
 pnpm actions show 12
 pnpm actions set 12 in_progress --from open --note "Fixing the page titles in acme/widget#42"
 pnpm actions set 12 snoozed --from open --note "Wait for the redesign" --until 2026-11-01
+pnpm actions move 12 in_review --from started --note "Pull request acme/widget#42 is open"
 pnpm actions link 12 https://github.com/acme/widget/pull/42
 pnpm actions link 12 --clear
 pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles" \
@@ -1151,15 +1193,23 @@ pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles"
 
 - **list** shows suggested, open, in-progress and snoozed actions by default (at most 500), one
   per line: `#id  product  area  status  impact/effort  title  [PR]`. `--status` takes one or more
-  statuses (`suggested`, `open`, `in_progress`, `done`, `snoozed`, `dismissed`); `--json` prints
+  statuses (`suggested`, `open`, `in_progress`, `done`, `snoozed`, `dismissed`); `--column` takes
+  one or more board columns instead (`backlog`, `queue`, `started`, `in_progress`, `in_review`,
+  `done`; snoozed and dismissed actions are in no column; `--column done` lists every finished
+  action, while the board's Done shows only the last 14 days); `--json` prints
   `{"note": "...", "actions": [...]}` with the full actions.
 - **show** prints every field, the evidence, the history and the **Hand to Claude** prompt.
 - **set** needs `--from`, the status Claude last saw: if the action changed since, it is
   refused instead of overwritten, as on the board. `--note` (up to 1,000 characters) is
   required: Claude must say why. Snoozing needs `--until`, a date after today in
   `HARBOUR_TIMEZONE` and at most a year ahead.
+- **move** puts an action in another board column. `--from` is the column Claude last saw (`show`
+  prints it): if the card moved since, it is refused. `--note` is required, as for `set`. Moving a
+  new idea accepts it; a card with a pull request cannot go to `in_progress` (it counts as in
+  review), and a new idea cannot go straight to `done`.
 - **link** stores a GitHub pull request URL (`https://github.com/<owner>/<repo>/pull/<number>`,
-  nothing else) on the action, or clears it with `--clear`, and notes it in the history.
+  nothing else) on the action, or clears it with `--clear`, and notes it in the history. Linking
+  a card that is In progress moves it to In review, and its "stuck" clock starts again.
 - **add** creates a board item by hand, as Claude, and prints `Created action #<id>` and the
   same text as `show`. Required: `--product` (a configured product id), `--title` (8 to 140
   characters, one line), `--why` (10 to 600), `--area` (`SEO`, `GEO` or `AEO`), `--impact`
@@ -1167,7 +1217,8 @@ pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles"
   `--check` (up to 600 characters each; a plain sentence stands in when left out), `--evidence`
   (up to 8 lines of 300 characters, repeat the option), `--doc` (up to 8 `https://` links, repeat
   the option; the card shows them with the evidence) and `--status` (`open` by default,
-  `suggested`, or `in_progress` for work already handed to an agent). Text is plain: control and
+  `suggested`, or `in_progress` for work already handed to an agent) or `--column` (any column
+  but `done`; not both). Text is plain: control and
   hidden characters are refused. It is refused, naming the existing action, when the product
   already has a to-do, suggested, in-progress or snoozed action with the same title. Scans never
   close or rewrite a hand-made action, and its history starts with "Added by hand through the CLI".
@@ -1390,8 +1441,11 @@ The Playwright projects run in order — the shell and brain specs, then agents,
 weekly analyst, the note, content and finally operations (Settings) — because each later one changes what the
 earlier ones check. The actions specs seed a scored check of the fictional Lighthouse Café and two
 analyst suggestions through Harbour's own code (`tests/e2e/seed-actions.ts`), then work the Actions
-board: filters, status changes, snooze, **Hand to Claude** (read back from the clipboard), Today's
-top three, keyboard paths and both themes. The analyst specs choose **Write this week's report now**
+list view: filters, status changes, snooze, **Hand to Claude** (read back from the clipboard), Today's
+top three, keyboard paths and both themes. The board specs (`tests/e2e/board.spec.ts`, run last)
+seed six cards of the fictional Fern & Field (`tests/e2e/seed-board.ts`) and check the six columns
+and counts, a keyboard move with its announcement and focus, a drag move, a refused move and
+Today's strip links. The analyst specs choose **Write this week's report now**
 twice (the scheduled analyst is off, `HARBOUR_SCHEDULED_ANALYST=off`): the first run commits the
 report and imports a suggestion, the second finds it already known.
 

@@ -1,6 +1,9 @@
 import type { actions } from "@/lib/db/schema";
 
 export type ActionStatus = "suggested" | "open" | "in_progress" | "done" | "snoozed" | "dismissed";
+/** Board stages an open or in-progress action can sit in; null stage is the status's default column. */
+export const ACTION_STAGES = ["queue", "started", "in_review"] as const;
+export type ActionStage = (typeof ACTION_STAGES)[number];
 /** Everyone who can change an action; the history table's actor column uses this list. */
 export const ACTION_ACTORS = ["owner", "claude", "scan", "agent", "system"] as const;
 export type ActionActor = (typeof ACTION_ACTORS)[number];
