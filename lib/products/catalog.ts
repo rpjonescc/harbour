@@ -1,4 +1,5 @@
 import { getConfig } from "@/lib/config";
+import type { PostizChannels } from "@/lib/content/postiz/channels";
 import {
   type Hue,
   type LoadedProductConfig,
@@ -65,6 +66,11 @@ export function getContentProducts(): readonly ContentProduct[] {
 /** Extra apps whose screen text is never read (`content.excludeApps`). */
 export function getExcludeApps(): readonly string[] {
   return getProductConfig().content?.excludeApps ?? [];
+}
+
+/** The Postiz channel each platform's drafts go to (`content.postiz.channels`); none by default. */
+export function getPostizChannels(): PostizChannels {
+  return getProductConfig().content?.postiz?.channels ?? {};
 }
 
 /** Products and content-only projects by id and name, for labelling jobs (a project has no other list). */

@@ -38,13 +38,26 @@ describe("content config", () => {
     ).toThrow();
   });
 
-  it("rejects a content entry for a product that is not configured, and Postiz settings", () => {
+  it("rejects a content entry for a product that is not configured", () => {
     expect(() =>
       parseProductConfig({ products, content: { products: { ghost: { terms: ["boo"] } } } }),
     ).toThrow(/ghost/);
-    expect(() =>
-      parseProductConfig({ products, content: { postiz: { channels: { x: "c1" } } } }),
-    ).toThrow();
+  });
+
+  it("reads the Postiz channel for LinkedIn, Facebook and Instagram (spec 11)", () => {
+    const channels = { linkedin: "cm4ean69r0003w8w1cdomox9n", instagram: "example-channel_2" };
+    const config = parseProductConfig({ products, content: { postiz: { channels } } });
+    expect(config.content?.postiz?.channels).toEqual(channels);
+  });
+
+  it.each([
+    ["X, which is not used", { channels: { x: "c1" } }],
+    ["a blog post, which is not a social post", { channels: { blog: "c1" } }],
+    ["a channel id that could change a URL", { channels: { linkedin: "../posts" } }],
+    ["an empty channel id", { channels: { linkedin: "" } }],
+    ["an unknown key", { channels: {}, type: "now" }],
+  ])("rejects Postiz settings with %s", (_label, postiz) => {
+    expect(() => parseProductConfig({ products, content: { postiz } })).toThrow();
   });
 });
 

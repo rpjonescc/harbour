@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
 import { PLATFORMS, platformSchema, productIdSchema } from "@/lib/content/ids";
+import { postizConfigSchema } from "@/lib/content/postiz/channels";
 import { hasControlChars, hasInvisible } from "@/lib/text/hidden-chars";
 
 export const HUES = ["amber", "violet", "blue", "green", "rose", "teal"] as const;
@@ -84,11 +85,11 @@ const contentProjectSchema = z.strictObject({
   platforms: platformList.default(PLATFORMS.filter((p) => p !== "website")),
 });
 
-// Postiz settings are not part of this version: an unknown key is an error, not ignored.
 const contentSchema = z.strictObject({
   excludeApps: z.array(z.string().trim().min(1).max(60)).max(50).default([]),
   products: z.record(productIdSchema, contentProductSchema).default({}),
   projects: z.record(productIdSchema, contentProjectSchema).default({}),
+  postiz: postizConfigSchema.optional(),
 });
 
 // What the weekly outside-view check (Treg) is asked about. Plain text only: it is sent to a

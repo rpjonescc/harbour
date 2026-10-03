@@ -14,7 +14,8 @@
         "terms": ["acme tools"],
         "platforms": ["linkedin", "blog"]
       }
-    }
+    },
+    "postiz": { "channels": { "linkedin": "example-channel-id" } }
   },
   "tracking": {
     "products": {
