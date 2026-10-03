@@ -2,6 +2,7 @@ import { ActionBoard } from "@/components/actions/ActionBoard";
 import { ActionFilters } from "@/components/actions/ActionFilters";
 import { ApprovalsNote } from "@/components/actions/ApprovalsNote";
 import { Board, FocusNotice, ViewSwitch } from "@/components/actions/board";
+import { CardDeepLink } from "@/components/actions/CardDeepLink";
 import { BOARD_HEADING_ID } from "@/components/actions/focus-after-change";
 import { SyncFailureNote } from "@/components/actions/SyncFailureNote";
 import { PageHeader } from "@/components/explain/PageHeader";
@@ -54,6 +55,7 @@ export default async function ActionsPage({
       <ViewSwitch view={view} filter={filter} />
       <ActionFilters filter={filter} products={products} view={view} />
       {view === "board" && <FocusNotice focus={focus} filter={filter} />}
+      <CardDeepLink />
       {view === "board" ? (
         <Board
           board={loadBoard(db, { ...filter, focus }, now, products)}

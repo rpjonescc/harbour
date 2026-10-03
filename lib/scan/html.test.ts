@@ -224,6 +224,29 @@ describe("extractPage snippet directives", () => {
     expect(extractPage(html, PAGE_URL)).toMatchObject({ wordCount: 7, nosnippetWords: 3 });
   });
 
+  it("ignores data-nosnippet where Google ignores it: on body, main or article", () => {
+    const wrapped = (tag: string) =>
+      `<!doctype html><html><head><title>T</title></head><body${tag === "body" ? " data-nosnippet" : ""}>` +
+      (tag === "body"
+        ? "<p>one two three</p>"
+        : `<${tag} data-nosnippet><p>one two three</p></${tag}>`) +
+      "</body></html>";
+    for (const tag of ["body", "main", "article"]) {
+      expect(extractPage(wrapped(tag), PAGE_URL)).toMatchObject({
+        wordCount: 3,
+        nosnippetWords: 0,
+      });
+    }
+  });
+
+  it("counts a honoured span, div or section inside an ignored wrapper", () => {
+    const html = doc(
+      "",
+      "<main data-nosnippet><p>one two</p><section data-nosnippet>three <div data-nosnippet>four</div></section></main>",
+    );
+    expect(extractPage(html, PAGE_URL)).toMatchObject({ wordCount: 4, nosnippetWords: 2 });
+  });
+
   it("reports no hidden words when nothing is marked", () => {
     expect(extractPage(doc("", "<p>plain page</p>"), PAGE_URL)).toMatchObject({
       noSnippet: false,

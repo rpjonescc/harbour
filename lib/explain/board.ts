@@ -283,3 +283,9 @@ export const FOCUS_TEXT = {
   "needs-you": "Showing only the jobs that need you.",
   clear: "Show everything",
 } as const;
+
+/** A link to one card (`#action-<id>`) whose card this page does not show. */
+export const DEEP_LINK_TEXT = {
+  missing: "That card is not shown here. It may be finished, put aside or filtered out.",
+  everyStatus: "Find it in the full list",
+} as const;

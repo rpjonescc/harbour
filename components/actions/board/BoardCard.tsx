@@ -77,6 +77,7 @@ export function BoardCard({
   const state = { ...card, stuck: card.stuck && column === card.column };
   return (
     <article
+      id={`action-${card.id}`}
       aria-labelledby={headingId}
       data-action-id={card.id}
       data-group-heading={columnHeadingId(column)}

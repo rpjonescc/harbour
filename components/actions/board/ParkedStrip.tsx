@@ -40,6 +40,7 @@ export function ParkedStrip({
           {cards.map((card) => (
             <li key={card.id}>
               <article
+                id={`action-${card.id}`}
                 aria-labelledby={cardTitleId(card.id)}
                 data-action-id={card.id}
                 data-group-heading={PARKED_HEADING_ID}

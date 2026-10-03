@@ -82,6 +82,10 @@ export function claimNextJob(db: Db, now = new Date()): Job | null {
   );
 }
 
+/** Whether a queued job may be claimed at `now`: never deferred, or its wait is over. */
+export const isJobDue = (job: Pick<Job, "notBefore">, now: Date): boolean =>
+  job.notBefore === null || job.notBefore.getTime() <= now.getTime();
+
 /** Puts a running job back in the queue, not to be claimed before `until`. */
 export function deferJob(db: Db, id: number, until: Date): boolean {
   return (

@@ -50,6 +50,8 @@ describe("BoardCard", () => {
     expect(details).toHaveTextContent("You moved this to Queue, yesterday");
     expect(details?.querySelector("details")).toHaveTextContent(BOARD_TEXT.technical.id);
     expect(card).toHaveAttribute("aria-labelledby", "action-1-title");
+    // The target of `/actions#action-<id>` links from Today and the product pages.
+    expect(card).toHaveAttribute("id", "action-1");
     expect(card).toHaveAttribute("data-group-heading", "column-queue");
     expect(card).toHaveAttribute("draggable", "true");
   });

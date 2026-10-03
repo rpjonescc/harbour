@@ -1128,7 +1128,8 @@ itself, with the meaning of every underlined word.
   the check's raw observations: pages without a title or meta description, broken internal links,
   pages hidden by noindex, indexable pages Google can't quote (**Google can't quote these pages**:
   `nosnippet` or `max-snippet:0` in the robots meta tag or X-Robots-Tag header, or half or more of
-  the page's text inside `data-nosnippet`; up to 5 URLs with the count, no score change), AI search
+  the page's text inside `data-nosnippet` on a `span`, `div` or `section`, the only elements
+  Google honours it on; up to 5 URLs with the count, no score change), AI search
   crawlers blocked in robots.txt (blocking only training crawlers raises nothing) and no Google
   Preferred Sources button (news sites only), and (once Search Console is connected and Harbour has known
   the sitemap for 14 days) at least 3 pages, and a fifth or more of those checked, that Google hasn't
@@ -1241,6 +1242,7 @@ pnpm actions set 12 snoozed --from open --note "Wait for the redesign" --until 2
 pnpm actions move 12 in_review --from started --note "Pull request acme/widget#42 is open"
 pnpm actions link 12 https://github.com/acme/widget/pull/42
 pnpm actions link 12 --clear
+pnpm actions note 12 --note "Pull request acme/widget#42 was closed without merging"
 pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles" \
   --why "Pages without a clear title are skipped by search and AI answers." \
   --area SEO --impact high --effort small --fix "Give each page a title under 60 characters" \
@@ -1266,6 +1268,10 @@ pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles"
 - **link** stores a GitHub pull request URL (`https://github.com/<owner>/<repo>/pull/<number>`,
   nothing else) on the action, or clears it with `--clear`, and notes it in the history. Linking
   a card that is In progress moves it to In review, and its "stuck" clock starts again.
+- **note** records a note (required, up to 1,000 characters) in the action's history as Claude
+  and changes nothing else: the card stays in its column, its "stuck" clock keeps running and the
+  note never counts as a move. Use it for what Claude cannot settle, such as a pull request closed
+  without merging, and leave the decision to you. An unknown id is refused with one line.
 - **add** creates a board item by hand, as Claude, and prints `Created action #<id>` and the
   same text as `show`. Required: `--product` (a configured product id), `--title` (8 to 140
   characters, one line), `--why` (10 to 600), `--area` (`SEO`, `GEO` or `AEO`), `--impact`

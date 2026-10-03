@@ -1,9 +1,10 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
-import { claimNextJob, enqueueJob } from "@/lib/jobs/queue";
+import { jobs } from "@/lib/db/schema";
+import { claimNextJob, deferJob, enqueueJob } from "@/lib/jobs/queue";
 import { recordWorkerBeat } from "@/lib/ops/worker-beat";
 import { todaySummary } from "@/lib/today/from-scans";
 import { openTestDb } from "@/tests/helpers/db";
@@ -128,6 +129,22 @@ describe("loadTower", () => {
     enqueueJob(db, "scan", { productId: "acme-docs" }, null, ago(MIN));
     expect(load().active).toBe(true);
     claimNextJob(db, ago(30_000));
+    expect(load().active).toBe(true);
+  });
+
+  it("does not count a run deferred until later, so the page does not pause itself", () => {
+    recordWorkerBeat(db, ago(20_000));
+    enqueueJob(db, "research", {}, null, ago(MIN));
+    const job = claimNextJob(db, ago(30_000));
+    if (!job) throw new Error("the run should be claimed");
+    // The owner is editing the brain: the run waits for an hour.
+    deferJob(db, job.id, new Date(t0.getTime() + 60 * MIN));
+    expect(load().active).toBe(false);
+    // Once its wait is over it is due, and the page speeds up again.
+    db.update(jobs)
+      .set({ notBefore: ago(MIN) })
+      .where(eq(jobs.id, job.id))
+      .run();
     expect(load().active).toBe(true);
   });
 });

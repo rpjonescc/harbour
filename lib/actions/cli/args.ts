@@ -9,7 +9,7 @@ import { CliUsageError } from "./usage-error";
 
 export { CliUsageError };
 
-/** Longest reason Claude may give for a status change. */
+/** Longest reason Claude may give for a status change, or note it may leave on a card. */
 export const MAX_NOTE = 1000;
 
 export type CliCommand =
@@ -25,6 +25,7 @@ export type CliCommand =
   | { name: "set"; id: number; from: ActionStatus; change: StatusChange & { note: string } }
   | { name: "move"; id: number; from: BoardColumnId; to: BoardColumnId; note: string }
   | { name: "link"; id: number; url: string | null }
+  | { name: "note"; id: number; note: string }
   | { name: "add"; input: AddInput };
 
 export const USAGE = `Usage:
@@ -34,6 +35,7 @@ export const USAGE = `Usage:
   pnpm actions move <id> <column> --from <column> --note "<reason>"
   pnpm actions link <id> <github-pr-url>
   pnpm actions link <id> --clear
+  pnpm actions note <id> --note "<note>"
   pnpm actions add --product <id> --title "<title>" --why "<why>" --area SEO|GEO|AEO
       --impact high|medium|low --effort small|medium|large [--fix "<fix>"] [--check "<done when>"]
       [--evidence "<text>"]... [--doc <https-url>]...
@@ -82,6 +84,7 @@ const ALLOWED: Record<Exclude<CliCommand["name"], "help">, readonly (keyof Value
   set: ["from", "note", "until"],
   move: ["from", "note"],
   link: ["clear"],
+  note: ["note"],
   add: ["product", "status", "column", ...ADD_OPTIONS],
 };
 
@@ -166,6 +169,14 @@ function parseMove(args: string[], values: Values): CliCommand {
   return { name: "move", id, from: columnArg(values.from), to, note: parseNote(values.note) };
 }
 
+function parseNoteCommand(args: string[], values: Values): CliCommand {
+  const usage = 'Usage: pnpm actions note <id> --note "<note>"';
+  const [rawId, ...rest] = args;
+  const id = actionId(rawId, usage);
+  if (rest.length > 0) throw new CliUsageError(usage);
+  return { name: "note", id, note: parseNote(values.note) };
+}
+
 function parseAddCommand(args: string[], values: Values): CliCommand {
   if (args.length > 0) throw new CliUsageError("add takes no arguments, only options");
   return { name: "add", input: parseAdd(values) };
@@ -203,6 +214,7 @@ export function parseCliArgs(argv: readonly string[]): CliCommand {
     set: parseSet,
     move: parseMove,
     link: parseLink,
+    note: parseNoteCommand,
     add: parseAddCommand,
   } as const;
   if (!(name in parsers)) throw new CliUsageError(`Unknown command: ${name}`);

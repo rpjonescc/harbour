@@ -33,7 +33,7 @@ const tower = (over: Partial<Tower> = {}): Tower => ({
   isSample: false,
   activity: {
     ok: true,
-    data: { running: RUNNING_ITEMS, finished: FINISHED_ITEMS, more: 0, empty: null },
+    data: { running: RUNNING_ITEMS, finished: FINISHED_ITEMS, more: 0, empty: null, busy: true },
   },
   wins: { ok: true, data: BUSY_WEEK },
   note: { ok: true, data: EXAMPLE_NOTES[0]?.slot ?? null },

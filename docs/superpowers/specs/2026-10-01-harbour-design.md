@@ -278,7 +278,7 @@ follows it:
   effort): a page must be indexed and allowed to show a snippet to appear in AI Overviews or AI
   Mode. The crawler records `noSnippet` (`nosnippet` or `max-snippet:0` for Google, from the
   robots or googlebot meta tag or the X-Robots-Tag header) and `nosnippetWords` (visible words
-  inside `data-nosnippet`). The rule judges only pages meant to be found (not noindex) and lists
+  inside `data-nosnippet` on a `span`, `div` or `section`; Google ignores it elsewhere). The rule judges only pages meant to be found (not noindex) and lists
   a page with a directive, or with half or more of its words inside `data-nosnippet` (a cookie
   notice is the owner's choice); up to 5 URLs with the count. It changes no score; wording lives
   in `lib/explain/snippets.ts`. Pages crawled before the fields existed are unknown, not clear.
@@ -416,6 +416,10 @@ runs set to 90 days).
   `https://github.com/<owner>/<repo>/pull/<number>` only), set or cleared with
   `pnpm actions link`; linking adds a history entry that keeps the status and an
   `action_pr_linked` audit entry. The card links it in a new tab; Hand to Claude is unchanged.
+- **Notes**: `pnpm actions note <id> --note "…"` adds a history entry as `claude` from the card's
+  status and stage to themselves (never read as a move or a status change, and left out of Today's
+  activity feed) with an `action_noted` audit entry holding only the id. It is how Claude records
+  what it cannot settle and leaves it for the owner.
 - **Hand-made actions**: `pnpm actions add` lets Claude create a board item (source `manual`, no
   rule key, no analyst job, `issue_present` null) to track work it hands to a project's owner
   session. Rule sync reads only `source = rule` rows, so a scan never closes, rewrites or resolves

@@ -6,6 +6,7 @@ import type { ContentScan } from "@/lib/content/read/scan";
 import type { Db } from "@/lib/db/client";
 import type { Briefing } from "@/lib/explain/briefing";
 import { towerHeadlineParts } from "@/lib/explain/tower";
+import { isJobDue } from "@/lib/jobs/queue";
 import { noteEnabled } from "@/lib/note/schedule";
 import { type NoteSlot, noteSlot } from "@/lib/note/view";
 import { backupStatus } from "@/lib/ops/backup-status";
@@ -17,6 +18,7 @@ import { loadWorkStrip, type WorkStrip } from "@/lib/today/work-strip";
 import { type ActivityFeed, activityFeed } from "./activity";
 import { activityFacts } from "./activity-data";
 import { towerContentScan } from "./content-data";
+import { type IndexingReader, indexingReader } from "./indexing-reads";
 import { loadTile, type TileResult } from "./load-tile";
 import { type NeedItem, needsYou } from "./needs";
 import { needsFacts } from "./needs-data";
@@ -46,7 +48,7 @@ export type Tower = {
   wins: TileResult<WeekWins>;
   /** The daily note beside Needs you; null data when the personality is quiet. */
   note: TileResult<NoteSlot | null>;
-  /** A check or agent run is queued or running: the page refreshes more often. */
+  /** A check or job is running or due to start: the page refreshes more often. */
   active: boolean;
 };
 
@@ -72,6 +74,8 @@ type Ctx = {
   products: readonly Product[];
   now: Date;
   contentProducts: readonly ContentProduct[];
+  /** The render's scan reader: the product cards and the wins share each scan's read. */
+  indexing: IndexingReader;
 };
 
 /** One card per product; before the first check the verdicts are the labelled sample's. */
@@ -81,7 +85,7 @@ function runwayCards(ctx: Ctx, summary: TodaySummary, content: () => ContentScan
   const contentIds = new Set(ctx.contentProducts.map((p) => p.id));
   return products.map((product) => {
     const scan = contentIds.has(product.id) ? content() : null;
-    const facts = runwayFacts(db, config, product, scan, now);
+    const facts = runwayFacts(db, config, product, scan, now, undefined, ctx.indexing);
     const sample = summary.isSample
       ? summary.scores.find((row) => row.productId === product.id)
       : undefined;
@@ -114,7 +118,7 @@ export function loadTower(
   now: Date,
   contentProducts: readonly ContentProduct[] = getContentProducts(),
 ): Tower {
-  const ctx: Ctx = { db, config, products, now, contentProducts };
+  const ctx: Ctx = { db, config, products, now, contentProducts, indexing: indexingReader(db) };
   const { HARBOUR_TIMEZONE: timeZone, HARBOUR_LOCALE: locale } = config;
   const content = once(() => towerContentScan(config, contentProducts));
 
@@ -141,7 +145,12 @@ export function loadTower(
     activityFeed(activityFacts(db, products, config, now), products, now, timeZone, locale),
   );
   const wins = loadTile("wins", () =>
-    weekWins(winsFacts(db, config, products, now, content()), products, timeZone, locale),
+    weekWins(
+      winsFacts(db, config, products, now, content(), ctx.indexing),
+      products,
+      timeZone,
+      locale,
+    ),
   );
 
   const note = loadTile("note", () => readNote(ctx, summary.ok && summary.data.isSample));
@@ -156,11 +165,15 @@ export function loadTower(
     systemsRead: systems.ok,
   });
   const facts = system.ok ? system.data.facts : null;
+  // A job deferred for later (the owner is editing the brain, another chain runs) is not activity:
+  // counting it would keep the 15 s refresh going until the page pauses itself.
   const active =
     (facts?.checks.some((c) => c.scanning) ?? false) ||
-    (facts ? facts.agents.running.length + facts.agents.queued.length > 0 : false) ||
+    (facts
+      ? facts.agents.running.length > 0 || facts.agents.queued.some((job) => isJobDue(job, now))
+      : false) ||
     (summary.ok && summary.data.scanning) ||
-    (activity.ok && activity.data.running.length > 0);
+    (activity.ok && activity.data.busy);
   return {
     headline: lead,
     subline,

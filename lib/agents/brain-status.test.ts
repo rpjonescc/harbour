@@ -62,6 +62,7 @@ describe("brainSyncStatus", () => {
     cleanups.push(brain.cleanup);
     expect(brainSyncStatus(brain.root, tempDir()).sync).toBeNull();
     expect(brainSyncStatus(join(brain.root, "missing"), tempDir()).sync).toBeNull();
+    expect(brainSyncStatus(brain.root, tempDir()).syncFailed).toBe(false);
     expect(logged).not.toHaveBeenCalled();
   });
 
@@ -70,7 +71,7 @@ describe("brainSyncStatus", () => {
     const brain = makeGitBrain({ "notes.md": "a\n" });
     cleanups.push(brain.cleanup);
     gitMocks.failOwnerChanges = true;
-    expect(brainSyncStatus(brain.root, tempDir()).sync).toBeNull();
+    expect(brainSyncStatus(brain.root, tempDir())).toMatchObject({ sync: null, syncFailed: true });
     expect(logged).toHaveBeenCalledTimes(1);
     expect(String(logged.mock.calls[0]?.join(" "))).toContain("git exploded");
   });

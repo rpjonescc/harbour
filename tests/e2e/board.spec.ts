@@ -151,3 +151,34 @@ test("Today's strip links land on the board, and Show everything clears the focu
   await expect(page.getByText("Showing only the stuck jobs.")).toHaveCount(0);
   await expect(card(page, BOARD_CARDS.finished)).toBeVisible();
 });
+
+test("a link to one card lands on it, on the board and the list, even off screen", async ({
+  page,
+}) => {
+  // From Today (a client-side navigation): the product card's next action.
+  await page.goto("/");
+  const next = page
+    .getByRole("region", { name: "Your products" })
+    .locator('a[href^="/actions#action-"]')
+    .first();
+  await hydrated(next);
+  const href = await next.getAttribute("href");
+  await next.click();
+  await expect(page).toHaveURL(/\/actions#action-\d+$/);
+  const id = href?.split("#action-")[1];
+  const focused = page.locator(`#action-${id}-title`);
+  await expect(focused).toBeFocused();
+  await expect(page.locator(`#action-${id}`)).toBeInViewport();
+
+  // A narrow window puts Done off screen to the side; a fresh load still lands on its card.
+  const done = await card(page, BOARD_CARDS.finished).getAttribute("data-action-id");
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto(`${BOARD}#action-${done}`);
+  await expect(page.locator(`#action-${done}-title`)).toBeFocused();
+  await expect(card(page, BOARD_CARDS.finished)).toBeInViewport({ ratio: 1 });
+
+  // The list keeps its own anchors.
+  await page.goto(`/actions?view=list&product=${FERN.id}&status=all#action-${done}`);
+  await expect(page.locator(`#action-${done}-title`)).toBeFocused();
+  await expect(page.locator(`#action-${done}`)).toBeInViewport();
+});

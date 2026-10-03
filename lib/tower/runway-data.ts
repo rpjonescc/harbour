@@ -9,9 +9,8 @@ import type { Db } from "@/lib/db/client";
 import { actionEvents, actions } from "@/lib/db/schema";
 import { getTracking, type Product } from "@/lib/products/catalog";
 import type { ProductTracking } from "@/lib/products/config";
-import { type IndexingState, indexingState } from "@/lib/scan/indexing-view";
+import type { IndexingState } from "@/lib/scan/indexing-view";
 import { type OutsideView, outsideView } from "@/lib/scan/outside-view";
-import { scanFindings } from "@/lib/scan/product-view";
 import {
   type AreaValues,
   scanState,
@@ -20,6 +19,7 @@ import {
 } from "@/lib/scan/views";
 import { type ProductToday, productToday } from "@/lib/today/from-scans";
 import { type ContentCounts, contentCounts } from "./content-counts";
+import { type IndexingReader, indexingReader } from "./indexing-reads";
 
 export type RunwayFacts = {
   product: Product;
@@ -35,11 +35,10 @@ export type RunwayFacts = {
 };
 
 /** Indexing from the product's last finished check, when it produced something. */
-function lastIndexing(db: Db, productId: string): IndexingState | null {
+function lastIndexing(db: Db, indexing: IndexingReader, productId: string): IndexingState | null {
   const last = scanState(db, productId).last;
   if (!last || last.status === "failed") return null;
-  const { observations, runs } = scanFindings(db, last.scanId);
-  return indexingState(observations, runs);
+  return indexing(last.scanId);
 }
 
 /** When Claude last changed one of the product's cards (an action event by Claude). */
@@ -57,7 +56,8 @@ function claudeTouchedAt(db: Db, productId: string): Date | null {
 
 /**
  * Everything one runway card shows. `contentScan` is the render's one content read, passed only
- * when content is on for this product (else null); `tracking` is its tracked searches and questions.
+ * when content is on for this product (else null); `tracking` is its tracked searches and questions;
+ * `indexing` is the render's scan reader, shared with the week's wins.
  */
 export function runwayFacts(
   db: Db,
@@ -66,6 +66,7 @@ export function runwayFacts(
   contentScan: ContentScan | null,
   now: Date,
   tracking: ProductTracking | null = getTracking(product.id),
+  indexing: IndexingReader = indexingReader(db),
 ): RunwayFacts {
   const outside = outsideView({ db, config, product, tracking, now });
   return {
@@ -73,7 +74,7 @@ export function runwayFacts(
     today: productToday(db, product, now),
     nextAction: topActiveActions(db, [product.id], 1).actions[0] ?? null,
     weekly: weeklyScoreChanges(db, product.id, product.kind, now),
-    indexing: lastIndexing(db, product.id),
+    indexing: lastIndexing(db, indexing, product.id),
     outside: { state: outside.state, links: outside.links, ai: outside.ai },
     content: contentScan === null ? null : contentCounts(contentScan, product.id),
     claudeTouchedAt: claudeTouchedAt(db, product.id),

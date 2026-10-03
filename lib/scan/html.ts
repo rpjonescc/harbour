@@ -176,11 +176,14 @@ function visibleWordCount(root: HTMLElement): number {
   return wordsIn(root.querySelector("body") ?? root);
 }
 
-/** Visible words inside outermost data-nosnippet elements; call after visibleWordCount. */
+/** Google honours data-nosnippet only on these elements; on body, main or article it is ignored. */
+const NOSNIPPET = "span[data-nosnippet], div[data-nosnippet], section[data-nosnippet]";
+
+/** Visible words inside outermost honoured data-nosnippet elements; call after visibleWordCount. */
 function nosnippetWordCount(root: HTMLElement): number {
   return root
-    .querySelectorAll("[data-nosnippet]")
-    .filter((el) => !el.parentNode?.closest("[data-nosnippet]"))
+    .querySelectorAll(NOSNIPPET)
+    .filter((el) => !el.parentNode?.closest(NOSNIPPET))
     .reduce((n, el) => n + wordsIn(el), 0);
 }
 

@@ -31,6 +31,7 @@ describe("activityFeed", () => {
       finished: [],
       more: 0,
       empty: "Nothing ran in the last day.",
+      busy: false,
     });
     // 05:00 UTC tomorrow is 06:00 in London.
     expect(feed({ nextRun: new Date("2026-10-03T05:00:00Z") }).empty).toBe(
@@ -39,6 +40,15 @@ describe("activityFeed", () => {
     expect(feed({ nextRun: new Date("2026-10-05T05:00:00Z") }).empty).toBe(
       "Nothing ran in the last day. The next run is at 5 Oct, 06:00.",
     );
+  });
+
+  it("is busy while a job runs or is due, not while one waits for later", () => {
+    const due = job({ id: 10, kind: "daily-note", status: "queued", createdAt: ago(MIN) });
+    const later = { ...due, notBefore: new Date(t0.getTime() + HOUR) };
+    expect(feed({ queued: [later] }).busy).toBe(false);
+    expect(feed({ queued: [due] }).busy).toBe(true);
+    expect(feed({ queued: [{ ...due, notBefore: ago(MIN) }] }).busy).toBe(true);
+    expect(feed({ running: [job({ id: 11, status: "running" })] }).busy).toBe(true);
   });
 
   it("lists what is running and waiting, with when it started and a link", () => {

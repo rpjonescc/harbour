@@ -86,6 +86,17 @@ describe("activityFacts", () => {
     moved(id, ago(30 * MIN));
     moved(id, ago(2 * DAY));
     moved(elsewhere, ago(MIN));
+    // A note kept the status and stage: it is not a move.
+    db.insert(actionEvents)
+      .values({
+        actionId: id,
+        at: ago(10 * MIN),
+        actor: "claude",
+        from: "done",
+        to: "done",
+        note: "n",
+      })
+      .run();
     expect(read().moves).toEqual([
       {
         actionId: id,

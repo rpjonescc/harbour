@@ -94,7 +94,13 @@ describe("ActivityFeed", () => {
       <ActivityFeed
         result={{
           ok: true,
-          data: { running: many as typeof RUNNING_ITEMS, finished: [], more: 0, empty: null },
+          data: {
+            running: many as typeof RUNNING_ITEMS,
+            finished: [],
+            more: 0,
+            empty: null,
+            busy: true,
+          },
         }}
       />,
     );

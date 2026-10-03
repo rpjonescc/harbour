@@ -185,8 +185,9 @@ not to edit Harbour or the brain.
 - **The board stays true.** The main agent keeps each card's column accurate with `pnpm actions
   move <id> <column> --from <column> --note "why"`: a pull request opened moves its card to In
   review, a merge moves it to Done. Anything it cannot settle (a pull request closed unmerged, a
-  card whose column is unclear) it records on the card as a note and leaves for the owner. Notes
-  carry no private data.
+  card whose column is unclear) it records on the card with `pnpm actions note <id> --note "what
+  happened"`, which leaves the card where it is, and leaves for the owner. Notes carry no private
+  data.
 - **Session roles:** the main Harbour session coordinates and does Harbour's own work. Topic sessions in the Harbour group are for research and explanation on one topic and do not send hand-offs unless asked. Project owner sessions do only that project's work. The registry in the brain has the detail.
 - **Mistakes to avoid:** do not call something a test or demo from its name alone; check the data.
   Keep each project's ledgers and reports out of a worktree you will delete.
