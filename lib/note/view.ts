@@ -44,7 +44,8 @@ function latestNoteRun(db: Db): LatestRun | null {
  * What Today's note card shows (spec §4), or null when the personality is quiet. The sample
  * Today shows the fixed sample note, never a file; otherwise the newest valid note from the last
  * 24 hours, else the quiet gap. A folder that cannot be read is said so (and logged), never shown
- * as a gap. Read-only: the web process never writes a note.
+ * as a gap; a database that cannot be read throws, for the caller's tile isolation. Read-only:
+ * the web process never writes a note.
  */
 export function noteSlot(input: {
   db: Db;
@@ -68,6 +69,9 @@ export function noteSlot(input: {
     latestRun,
   });
   if (input.isSample) return slot({ kind: "sample", note: SAMPLE_NOTE });
+  // Outside the folder's try: a database that can't be read is the tile's failure (the tower's
+  // loadTile), never worded as a note folder problem.
+  const latestRun = latestNoteRun(input.db);
   try {
     const fresh = freshNote(
       readNotes(input.db, input.root, input.timeZone, input.now, 1),
@@ -77,7 +81,7 @@ export function noteSlot(input: {
       fresh
         ? { kind: "note", note: fresh.note, at: fresh.at }
         : { kind: "gap", line: gapLine(noteTime) },
-      latestNoteRun(input.db),
+      latestRun,
     );
   } catch (error) {
     console.error("could not read the daily note", error);

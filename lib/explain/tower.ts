@@ -50,6 +50,11 @@ export const TONE_WORDS: Readonly<Record<LightTone, string>> = {
 export const TILE_FAILED =
   "Harbour couldn't read this just now. The rest of the page is fine, and it tries again at the next update.";
 
+/** The note card has no heading of its own, so its failure names it. */
+export const NOTE_TILE = "Daily note";
+export const NOTE_FAILED =
+  "Harbour couldn't read the daily note just now. The rest of the page is fine, and it tries again at the next update.";
+
 export const NOTHING_NEEDS_YOU =
   "Nothing needs you right now. Harbour will put anything that does here.";
 

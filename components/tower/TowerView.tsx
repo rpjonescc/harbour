@@ -1,7 +1,6 @@
 import { NoteCard } from "@/components/today/note/NoteCard";
 import { WorkStrip } from "@/components/today/WorkStrip";
-import { SECTION_TITLES } from "@/lib/explain/tower";
-import type { NoteSlot } from "@/lib/note/view";
+import { NOTE_FAILED, NOTE_TILE, SECTION_TITLES } from "@/lib/explain/tower";
 import type { Tower } from "@/lib/tower/load";
 import { ActivityFeed } from "./ActivityFeed";
 import { NeedsYou } from "./NeedsYou";
@@ -14,8 +13,6 @@ import { WinsPanel } from "./WinsPanel";
 
 type Props = {
   tower: Tower;
-  /** The daily note; null when the personality is quiet. */
-  note: NoteSlot | null;
   now: Date;
   timeZone: string;
   locale: string;
@@ -37,12 +34,27 @@ function Work({ work }: { work: Tower["work"] }) {
   );
 }
 
+/** The daily note beside Needs you, or its plain failure; nothing when the personality is quiet. */
+function Note({
+  note,
+  timeZone,
+  locale,
+}: {
+  note: Tower["note"];
+  timeZone: string;
+  locale: string;
+}) {
+  if (!note.ok) return <TileFailed tile={NOTE_TILE} detail={note.detail} sentence={NOTE_FAILED} />;
+  return note.data && <NoteCard slot={note.data} timeZone={timeZone} locale={locale} />;
+}
+
 /**
  * Today as a control tower, in the order the owner asks: is everything OK, what needs me, where
  * the work is, how each product is doing, what is happening and what got better. Layout only:
  * the DOM order is the reading order at every width.
  */
-export function TowerView({ tower, note, now, timeZone, locale }: Props) {
+export function TowerView({ tower, now, timeZone, locale }: Props) {
+  const withNote = !tower.note.ok || tower.note.data !== null;
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
       <TowerHeader
@@ -54,9 +66,9 @@ export function TowerView({ tower, note, now, timeZone, locale }: Props) {
         active={tower.active}
       />
       <SystemStrip result={tower.systems} />
-      <div className={note ? "grid items-start gap-8 lg:grid-cols-[3fr_2fr]" : undefined}>
+      <div className={withNote ? "grid items-start gap-8 lg:grid-cols-[3fr_2fr]" : undefined}>
         <NeedsYou result={tower.needs} />
-        {note && <NoteCard slot={note} timeZone={timeZone} locale={locale} />}
+        <Note note={tower.note} timeZone={timeZone} locale={locale} />
       </div>
       <Work work={tower.work} />
       <RunwayGrid result={tower.runways} briefing={tower.briefing} isSample={tower.isSample} />

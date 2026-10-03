@@ -151,7 +151,7 @@ describe("noteSlot", () => {
     try {
       expect(noteSlot(base(brain.root))?.view).toEqual({
         kind: "unavailable",
-        line: "Harbour couldn't read today's note. The briefing below is still up to date.",
+        line: "Harbour couldn't read today's note. Everything else on this page is up to date.",
       });
       expect(error).toHaveBeenCalledOnce();
     } finally {

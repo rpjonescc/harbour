@@ -101,7 +101,7 @@ describe("NoteCard", () => {
     renderCard(
       slot({
         kind: "unavailable",
-        line: "Harbour couldn't read today's note. The briefing below is still up to date.",
+        line: "Harbour couldn't read today's note. Everything else on this page is up to date.",
       }),
     );
     expect(within(card()).getByText(/couldn't read today's note/)).toBeInTheDocument();

@@ -14,7 +14,7 @@ import {
   FINISHED_ITEMS,
   RUNNING_ITEMS,
 } from "@/components/design/tower-feed-example-data";
-import { SECTION_TITLES, TILE_FAILED } from "@/lib/explain/tower";
+import { NOTE_FAILED, SECTION_TITLES, TILE_FAILED } from "@/lib/explain/tower";
 import type { Tower } from "@/lib/tower/load";
 import { TowerView } from "./TowerView";
 
@@ -36,12 +36,12 @@ const tower = (over: Partial<Tower> = {}): Tower => ({
     data: { running: RUNNING_ITEMS, finished: FINISHED_ITEMS, more: 0, empty: null },
   },
   wins: { ok: true, data: BUSY_WEEK },
+  note: { ok: true, data: EXAMPLE_NOTES[0]?.slot ?? null },
   active: false,
   ...over,
 });
-const note = EXAMPLE_NOTES[0]?.slot ?? null;
-const renderTower = (t = tower(), slot = note) =>
-  render(<TowerView tower={t} note={slot} now={NOW} timeZone="Europe/London" locale="en-GB" />);
+const renderTower = (t = tower()) =>
+  render(<TowerView tower={t} now={NOW} timeZone="Europe/London" locale="en-GB" />);
 
 /** The page's text as first painted: closed Technical details hold the raw errors. */
 function paintedText(container: HTMLElement): string {
@@ -107,7 +107,7 @@ describe("TowerView", () => {
     const card = screen.getByRole("region", { name: "A note from Harbour" });
     expect(needs.parentElement).toBe(card.parentElement);
     unmount();
-    renderTower(tower(), null);
+    renderTower(tower({ note: { ok: true, data: null } }));
     expect(screen.queryByRole("region", { name: "A note from Harbour" })).toBeNull();
     expect(screen.getByRole("region", { name: "Needs you" })).toBeInTheDocument();
   });
@@ -140,6 +140,14 @@ describe("TowerView", () => {
     expect(screen.getByRole("region", { name: "What's happening" })).toBeInTheDocument();
     for (const raw of screen.getAllByText(RAW_ERROR)) expect(raw).not.toBeVisible();
     expect(paintedText(container)).not.toMatch(/Error|database is locked/);
+  });
+
+  it("says in a plain sentence when the daily note can't be read, and keeps Needs you", () => {
+    const { container } = renderTower(tower({ note: { ok: false, detail: RAW_ERROR } }));
+    expect(screen.getByText(NOTE_FAILED)).toBeVisible();
+    expect(screen.queryByRole("region", { name: "A note from Harbour" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Needs you" })).toBeInTheDocument();
+    expect(paintedText(container)).not.toMatch(/database is locked/);
   });
 
   it("speaks plainly: no codes outside Technical details", () => {

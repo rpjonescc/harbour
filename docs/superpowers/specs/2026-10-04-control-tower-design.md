@@ -521,5 +521,8 @@ Board was merged in first. Where it differs from the sections above:
   the worker table for one render, so the real reader throws inside the real loader). There is no
   axe check: it would be a new dependency, and contrast is proved by the token tests instead.
 - **Not built yet:** the "new" tint on Needs-you items; one shared `productToday` read per render
-  (it is read three times; bounded by the product count); the daily note is not behind `loadTile`
-  (it already catches an unreadable folder, but a database error there would still fail the page).
+  (it is read three times; bounded by the product count).
+- **Daily note isolation (polish, 4 October).** The note is a tile of `loadTower` behind
+  `loadTile("note")`. An unreadable folder still shows the card's own "couldn't read today's note"
+  line; a database error now fails only the note, with "Harbour couldn't read the daily note just
+  now…" and the error under Technical details.
