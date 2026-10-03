@@ -243,6 +243,12 @@ test.describe("on a phone", () => {
     await expect(tipOf(page)).toBeVisible();
     await term.tap();
     await expect(tipOf(page)).toBeHidden();
+
+    // The narrowest phone the spec names.
+    await page.setViewportSize({ width: 320, height: 640 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(
+      false,
+    );
   });
 });
 

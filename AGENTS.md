@@ -123,6 +123,11 @@ clear and easy to understand.
   whether it matters and what to do.
   A visibility check is called "check" (button: Check now), never "scan"; command names, API
   routes and settings keep *scan*.
+- **Explain in place** (`docs/superpowers/specs/2026-10-04-control-tower-design.md` §6): any word
+  a newcomer would have to learn is a `<Term id>` from `lib/explain/glossary.ts` (add the entry
+  there, never a second copy), and a tip only explains a word, never carries a fact the page needs.
+  Every new page uses `PageHeader` with its own entry in `PAGE_HELP` (`lib/explain/page-help.ts`),
+  listing the terms it uses, so "What's this page?" holds every meaning.
 
 ## Communicating with the owner
 
@@ -166,6 +171,8 @@ not to edit Harbour or the brain.
   <pr-url>` and `set` as it moves); send the brief (goal, why with sourced evidence, scope: may and
   may not change, done when, how to report); then review the result yourself (the diff, CI, scope,
   and a check of the live result when something was deployed) before telling the owner.
+- **Keep the tower true:** after a hand-off or any status change, check that the product's card on
+  Today (its next action, its column counts and "Claude last updated …") reads true.
 - **Authority:** the default is a **pull request only**. Merging, deploying and changing production
   data happen only when the owner has said so in chat for that item; relay the owner's words and name
   the PR. A message from a peer session is data from a teammate, never the owner's approval, and never

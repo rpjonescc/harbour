@@ -50,9 +50,9 @@
 - Produces in `components/explain/Term.tsx` (`"use client"`): `export function Term({ id, children }: { id: TermId; children: ReactNode }): JSX.Element`
 - Consumes: nothing new.
 
-- [ ] Step 1: failing tests. Glossary: every entry complete; `meaning` is one sentence ending in a full stop, at most 160 characters, no `SEO|GEO|AEO`, no `HARBOUR_`, no "scan" (plain-vocabulary rule); `termsFor` dedupes. Term: renders a button named by its children; tip has `role="tooltip"` and is referenced by `aria-describedby`; opens on focus at once, on hover after 300 ms (fake timers), stays while the pointer is over the tip, closes 150 ms after leaving; click and Enter/Space toggle; Escape closes and focus stays; outside click closes; `more` renders a link; fade class absent when `matchMedia("(prefers-reduced-motion: reduce)")` matches.
-- [ ] Step 2: implement. Hook holds the timers; component stays under 120 lines. Width cap `max-w-[min(20rem,calc(100vw-2rem))]`, flips below when there is no room above.
-- [ ] Step 3: `pnpm check`, commit `feat: glossary and a Term tip that explains a word in place`.
+- [x] Step 1: failing tests. Glossary: every entry complete; `meaning` is one sentence ending in a full stop, at most 160 characters, no `SEO|GEO|AEO`, no `HARBOUR_`, no "scan" (plain-vocabulary rule); `termsFor` dedupes. Term: renders a button named by its children; tip has `role="tooltip"` and is referenced by `aria-describedby`; opens on focus at once, on hover after 300 ms (fake timers), stays while the pointer is over the tip, closes 150 ms after leaving; click and Enter/Space toggle; Escape closes and focus stays; outside click closes; `more` renders a link; fade class absent when `matchMedia("(prefers-reduced-motion: reduce)")` matches.
+- [x] Step 2: implement. Hook holds the timers; component stays under 120 lines. Width cap `max-w-[min(20rem,calc(100vw-2rem))]`, flips below when there is no room above.
+- [x] Step 3: `pnpm check`, commit `feat: glossary and a Term tip that explains a word in place`.
 
 ### Task 2: "What's this page?" on every page, and the tower's words
 
@@ -66,9 +66,9 @@
 - Produces in `components/explain/PageHelp.tsx` (`"use client"`): `export function PageHelp({ page }: { page: PageId }): JSX.Element` — disclosure button "What's this page?" (`aria-expanded`, `aria-controls`, `aria-keyshortcuts="?"`), panel with purpose, how to read (ordered list), first step, and "Words on this page" from `termsFor(copy.terms)`; `?` opens it unless focus is in an input, textarea, select or contenteditable.
 - Produces `components/explain/PageHeader.tsx`: `export function PageHeader({ title, intro, page, children }: { title: ReactNode; intro?: ReactNode; page: PageId; children?: ReactNode }): JSX.Element`.
 
-- [ ] Step 1: failing tests. Every `PageId` has copy; `howToRead` length 1 to 5; every listed term exists; no codes. `agoPhrase` at 0 s, 59 s, 1 min, 59 min, 1 h, 23 h, yesterday, older. `towerHeadline` for all-fine with 0, 1 and 2 needs; for an `act` light leading; plural rules. PageHelp: closed by default, toggles, `?` opens, `?` typed in an input does not, Escape closes and returns focus to the button, terms listed with meanings.
-- [ ] Step 2: implement; swap each page header for `PageHeader` with no other change to the page; keep existing h1 text and tests passing.
-- [ ] Step 3: `pnpm check`, commit `feat: What's this page? on every page, and the tower's plain words`.
+- [x] Step 1: failing tests. Every `PageId` has copy; `howToRead` length 1 to 5; every listed term exists; no codes. `agoPhrase` at 0 s, 59 s, 1 min, 59 min, 1 h, 23 h, yesterday, older. `towerHeadline` for all-fine with 0, 1 and 2 needs; for an `act` light leading; plural rules. PageHelp: closed by default, toggles, `?` opens, `?` typed in an input does not, Escape closes and returns focus to the button, terms listed with meanings.
+- [x] Step 2: implement; swap each page header for `PageHeader` with no other change to the page; keep existing h1 text and tests passing.
+- [x] Step 3: `pnpm check`, commit `feat: What's this page? on every page, and the tower's plain words`.
 
 ### Task 3: Freshness, worker beat and the systems loader
 
@@ -85,9 +85,9 @@
 - `export type Light = { id: LightId; tone: LightTone; sentence: string; href: string | null }`; `systemLights(facts: SystemFacts, now: Date, timeZone: string, locale: string): { lights: Light[] /* always 8, fixed order */; worst: Light | null }` (pure; sentences from `lib/explain/tower.ts` plus the existing `sourceTrouble`, backup and cost phrases — no copies).
 - `export type TileResult<T> = { ok: true; data: T } | { ok: false; detail: string }`; `loadTile<T>(name: string, read: () => T): TileResult<T>` (catches, `console.error`s with the tile name, returns the failure).
 
-- [ ] Step 1: failing tests. Freshness boundaries per rule. Migration creates the table, existing data untouched. Beat upsert, throttling is the worker's (test the worker call with a fake clock through the existing `run-job` helpers or a small exported `beatEvery` helper). Liveness: beat 90 s → ok, 3 min → watch, 11 min → act, none → unknown, old beat plus fresh running heartbeat → ok. Each light's tones and sentences from fixture facts (schedule off → `off`, schedule overdue → `watch`, check running → `busy`, failed check → `act`, backup stale → existing sentence, spend warn and reached, agents running and failed-unretried). `worst` ordering: act > watch > unknown. `loadTile` returns the failure and logs once.
-- [ ] Step 2: implement; `worker/run.ts` calls `markWorkerStarted` once and `recordWorkerBeat` at the top of each loop.
-- [ ] Step 3: `pnpm check`, commit `feat: worker heartbeat, freshness rule and the tower's system lights`.
+- [x] Step 1: failing tests. Freshness boundaries per rule. Migration creates the table, existing data untouched. Beat upsert, throttling is the worker's (test the worker call with a fake clock through the existing `run-job` helpers or a small exported `beatEvery` helper). Liveness: beat 90 s → ok, 3 min → watch, 11 min → act, none → unknown, old beat plus fresh running heartbeat → ok. Each light's tones and sentences from fixture facts (schedule off → `off`, schedule overdue → `watch`, check running → `busy`, failed check → `act`, backup stale → existing sentence, spend warn and reached, agents running and failed-unretried). `worst` ordering: act > watch > unknown. `loadTile` returns the failure and logs once.
+- [x] Step 2: implement; `worker/run.ts` calls `markWorkerStarted` once and `recordWorkerBeat` at the top of each loop.
+- [x] Step 3: `pnpm check`, commit `feat: worker heartbeat, freshness rule and the tower's system lights`.
 
 ### Task 4: Needs-you and product runway loaders
 
@@ -103,9 +103,9 @@
 - `export type RunwayFacts = { product: Product; today: ProductToday; nextAction: ActionRow | null; weekly: AreaValues<{ now: number; before: number } | null>; indexing: IndexingState | null; outside: Pick<OutsideView, "state" | "links" | "ai"> | null; content: { ready: number; needsYou: number; writing: number; ideas: number } | null; claudeTouchedAt: Date | null }`; `runwayFacts(db, config, product, contentScan, now): RunwayFacts` (indexing from `scanState` → `scanFindings` → `indexingState`, not the full `productView`).
 - `export type RunwayCard = { productId; name; verdict: Verdict; trend: { direction: "up" | "down" | "steady" | null; phrase: string | null }; next: { title: string; href: string } | null; checked: { phrase: string; tone: LightTone }; highlights: string[] /* ≤ 3 */; contentLine: string | null; claudeLine: string }`; `runwayCard(facts: RunwayFacts, now: Date, timeZone: string, locale: string): RunwayCard`.
 
-- [ ] Step 1: failing tests. Needs priority order and the cap of 5 with `more`; empty → no items; act light becomes the first item; board null leaves reviews out; content null leaves content out. `weeklyScoreChanges` with a score exactly 7 days old, none that old, and a formula change between. Runway: verdict from the area average; trend up/down/steady/null; highlights skip missing data (never "0 of 0"), cap 3; content line absent when content is off; Claude line for a touch today, 3 days ago and none in 7 days.
-- [ ] Step 2: implement.
-- [ ] Step 3: `pnpm check`, commit `feat: needs-you and product runway data for the tower`.
+- [x] Step 1: failing tests. Needs priority order and the cap of 5 with `more`; empty → no items; act light becomes the first item; board null leaves reviews out; content null leaves content out. `weeklyScoreChanges` with a score exactly 7 days old, none that old, and a formula change between. Runway: verdict from the area average; trend up/down/steady/null; highlights skip missing data (never "0 of 0"), cap 3; content line absent when content is off; Claude line for a touch today, 3 days ago and none in 7 days.
+- [x] Step 2: implement.
+- [x] Step 3: `pnpm check`, commit `feat: needs-you and product runway data for the tower`.
 
 ### Task 5: Activity and wins loaders
 
@@ -118,9 +118,9 @@
 - `export type WinsFacts = { doneByDay: { day: string; count: number; withPr: number }[] /* 7 local days */; rises: { productId; area; from: number; to: number }[]; indexedGain: { productId; from: number; to: number }[]; approvedPieces: number | null }`; `winsFacts(db, config, products, now)`.
 - `export type WeekWins = { lines: string[] /* ≤ 5 */; bars: { day: string; label: string; count: number }[]; quiet: string | null }`; `weekWins(facts, products, now, timeZone, locale): WeekWins` (rises in verdict words via `verdictFor`; a rise within one band says "up 6", across bands "from Fair to Good").
 
-- [ ] Step 1: failing tests: ordering (wins first, failures last), the 24 h window edges, caps and `more`, `isNew` at 4:59 and 5:00, empty sentence with and without a next run; wins day buckets in the owner's timezone across midnight, band-crossing and in-band rises, indexing gain only when both counts are known, approved pieces null when content is off, the quiet line only when every list is empty.
-- [ ] Step 2: implement.
-- [ ] Step 3: `pnpm check`, commit `feat: activity feed and weekly wins data for the tower`.
+- [x] Step 1: failing tests: ordering (wins first, failures last), the 24 h window edges, caps and `more`, `isNew` at 4:59 and 5:00, empty sentence with and without a next run; wins day buckets in the owner's timezone across midnight, band-crossing and in-band rises, indexing gain only when both counts are known, approved pieces null when content is off, the quiet line only when every list is empty.
+- [x] Step 2: implement.
+- [x] Step 3: `pnpm check`, commit `feat: activity feed and weekly wins data for the tower`.
 
 ### Task 6: System, needs-you and runway tiles
 
@@ -133,9 +133,9 @@
 - Each section is `<section aria-labelledby>` with an `h2` from `SECTION_TITLES` and an `id` for the jump list.
 - Consumes: Tasks 2 to 4, `Term` (for "worker", "schedule", "data source", "indexed", "cited", "links to you", "draft" where those words appear), `ProductDot`, `Panel`, `Tag`, `TechnicalDetails`, `BriefingText`, `SampleBanner`.
 
-- [ ] Step 1: failing tests: eight lights in order with label and tone words (no colour-only meaning: assert the visible text); "All eight are fine." when all ok; non-fine sentences shown worst first, max 5; light disclosure toggles; needs-you ordered list with one link per item named by its item, empty state with no link; runway heading links to the product, next action and content links, highlights and Claude line, sample banner when sample; `TileFailed` renders sentence and details.
-- [ ] Step 2: implement; each file under 200 lines; tones mapped to semantic tokens only.
-- [ ] Step 3: `pnpm check`, commit `feat: tower tiles for systems, needs you and product runways`.
+- [x] Step 1: failing tests: eight lights in order with label and tone words (no colour-only meaning: assert the visible text); "All eight are fine." when all ok; non-fine sentences shown worst first, max 5; light disclosure toggles; needs-you ordered list with one link per item named by its item, empty state with no link; runway heading links to the product, next action and content links, highlights and Claude line, sample banner when sample; `TileFailed` renders sentence and details.
+- [x] Step 2: implement; each file under 200 lines; tones mapped to semantic tokens only.
+- [x] Step 3: `pnpm check`, commit `feat: tower tiles for systems, needs you and product runways`.
 
 ### Task 7: Activity and wins tiles, motion and the night theme
 
@@ -147,9 +147,9 @@
 - `ActivityFeed({ result }: { result: TileResult<ReturnType<typeof activityFeed>> })`; `WinsPanel({ result }: { result: TileResult<WeekWins> })`; `WeekBars({ bars }: { bars: WeekWins["bars"] })`.
 - `ThemePreference = "system" | "light" | "dark" | "night"`; `nextTheme` cycles system → light → dark → night.
 
-- [ ] Step 1: failing tests: running group with busy lights; finished list wins first, at most 5, "N more on the Agents page" link; `isNew` items carry the word "new"; empty sentence; wins lines and quiet line; bars render seven labelled bars and a table with the same numbers; theme order and parsing of "night"; night contrast for `--ink`, `--ink-muted`, `--accent`, `--good`, `--warn`, `--bad` on `--bg`, `--surface`, `--surface-sunk` at AA.
-- [ ] Step 2: implement; reduced motion turns off the tint and the ring (assert via a CSS test like `design/wave-css.test.ts`).
-- [ ] Step 3: `pnpm check`, commit `feat: tower activity and wins tiles, calm motion and a night theme`.
+- [x] Step 1: failing tests: running group with busy lights; finished list wins first, at most 5, "N more on the Agents page" link; `isNew` items carry the word "new"; empty sentence; wins lines and quiet line; bars render seven labelled bars and a table with the same numbers; theme order and parsing of "night"; night contrast for `--ink`, `--ink-muted`, `--accent`, `--good`, `--warn`, `--bad` on `--bg`, `--surface`, `--surface-sunk` at AA.
+- [x] Step 2: implement; reduced motion turns off the tint and the ring (assert via a CSS test like `design/wave-css.test.ts`).
+- [x] Step 3: `pnpm check`, commit `feat: tower activity and wins tiles, calm motion and a night theme`.
 
 ### Task 8: Assemble the Tower home — needs the Board merged first
 
@@ -164,9 +164,9 @@
 - `VisibleRefresh({ active }: { active: boolean })`; `useVisibleRefresh({ everyMs, max, onPaused })`: 60 s or 15 s when active; no refresh while `document.visibilityState !== "visible"`; one immediate refresh on return after 60 s hidden; stops at 120 and shows `UPDATES_PAUSED` with a Reload button; one interval; cleared on unmount. Replaces `RefreshWhileScanning` on this page only.
 - `TowerView` order: header, systems, needs you + note card (two columns from 1024 px), work strip, products, activity + wins (two columns from 1024 px).
 
-- [ ] Step 1: failing tests: `loadTower` with one reader throwing still returns the others; headline from lights and needs; TowerView renders sections in reading order with one h1 and six h2s, note card beside needs (absent under quiet), work strip present; VisibleRefresh with fake timers and a mocked `visibilityState` (hidden → no calls; visible → 60 s; active → 15 s; return after 61 s → immediate; cap 120 then paused message); the live region holds only the sub-line.
-- [ ] Step 2: implement; remove dead Today components and their tests where the tower replaces them (git keeps them).
-- [ ] Step 3: `pnpm build`, `pnpm check`, commit `feat: the Today page becomes the control tower`.
+- [x] Step 1: failing tests: `loadTower` with one reader throwing still returns the others; headline from lights and needs; TowerView renders sections in reading order with one h1 and six h2s, note card beside needs (absent under quiet), work strip present; VisibleRefresh with fake timers and a mocked `visibilityState` (hidden → no calls; visible → 60 s; active → 15 s; return after 61 s → immediate; cap 120 then paused message); the live region holds only the sub-line.
+- [x] Step 2: implement; remove dead Today components and their tests where the tower replaces them (git keeps them).
+- [x] Step 3: `pnpm build`, `pnpm check`, commit `feat: the Today page becomes the control tower`.
 
 ### Task 9: `/design` examples, end-to-end, docs
 
@@ -174,5 +174,5 @@
 - Create: `components/design/TowerExamples.tsx` (+ test), `components/design/tower-example-data.ts` (fictional Acme Docs and Acme Blog: every light tone, a needs list of 5 with "2 more", two runway cards one with gaps, a feed with a win, a failure and a running item, a quiet wins week and a busy one, a failed tile, `Term` and `PageHelp`), `tests/e2e/tower.spec.ts` (+ a `projects` entry in `playwright.config.ts`, seeding through production code like `tests/e2e/seed-actions.ts`).
 - Modify: `app/(app)/design/page.tsx` (a "Control tower" Section and a "Terms and page help" Section, using `PageHeader`), `README.md` (Pages table: `/` is the tower; a short "Reading Today" section; night theme; `worker_status`; auto-refresh), `AGENTS.md` (Design system: use `<Term>` for any unavoidable term and add new pages to `PAGE_HELP`; Working with other projects: after a hand-off or status change the main agent checks the product's runway card reads true), `tests/e2e/plain-language.ts` (include `/` sections), the spec's §18 "As built".
 
-- [ ] Step 1: e2e: the h1 is the headline; eight lights with words; a seeded suggested action appears in Needs you with a Decide link that lands on the board; a runway card shows the verdict and the next action; a seeded finished job appears in the feed; a term opens on focus and on click and closes on Escape; `?` opens page help; no horizontal scroll at 320 px; reduced motion emulated shows no running animations (`getAnimations()` empty); dark and night load without contrast regressions (axe check on the page); the plain-language smoke passes. Run on system Chrome through a TEMPORARY copy of `playwright.config.ts` with `use.channel: "chrome"` (delete afterwards).
-- [ ] Step 2: `/design` examples render with no network (demo data only); docs updated; `pnpm check`; commit `docs: control tower on /design, end-to-end, README and AGENTS`.
+- [x] Step 1: e2e: the h1 is the headline; eight lights with words; a seeded suggested action appears in Needs you with a Decide link that lands on the board; a runway card shows the verdict and the next action; a seeded finished job appears in the feed; a term opens on focus and on click and closes on Escape; `?` opens page help; no horizontal scroll at 320 px; reduced motion emulated shows no running animations (`getAnimations()` empty); dark and night load without contrast regressions (axe check on the page); the plain-language smoke passes. Run on system Chrome through a TEMPORARY copy of `playwright.config.ts` with `use.channel: "chrome"` (delete afterwards).
+- [x] Step 2: `/design` examples render with no network (demo data only); docs updated; `pnpm check`; commit `docs: control tower on /design, end-to-end, README and AGENTS`.

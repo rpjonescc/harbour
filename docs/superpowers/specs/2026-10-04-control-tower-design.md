@@ -461,4 +461,57 @@ The tower makes the main agent's work visible; it does not add agent powers.
 
 ## 18. As built
 
-Filled in when the work is merged.
+Built on branch `feat/control-tower` in nine tasks (plan `2026-10-04-control-tower.md`); the
+Board was merged in first. Where it differs from the sections above:
+
+- **Glossary and tips (§6.1, §6.2).** 23 plain terms; codes (SEO, GEO, AEO, `HARBOUR_*`) are
+  forbidden in it by test, as §6.2 says. A test checks every `<Term id>` in `app/` and
+  `components/` resolves and every term is listed on at least one page's help. The tip is always
+  in the DOM (hidden when closed), has a 44 px hit area through `::before`, and wraps left-aligned.
+- **Page help (§6.3).** Every page uses `PageHeader` (h1, intro, What's this page?). It takes
+  `titleId` (Actions keeps its focus-target h1) and `titleLevel` (examples on `/design`). Only the
+  first `PageHelp` on a page answers `?`.
+- **Worker heartbeat (§7.1).** Migration `0015_worker_status`. The worker beats at most every
+  30 s on a timer and on every loop pass, so a long job keeps it alive; nothing wrote
+  `jobs.heartbeat_at`, so a running job counts by `heartbeat_at ?? started_at`. A failed beat is
+  logged once and never stops the worker.
+- **Readers (§7.2).** `needsFacts` and `winsFacts` take the render's one content read (a 15 s
+  cached `towerContentScan`), shared through a memo that also remembers a throw, so each tile that
+  uses content fails honestly. Runway content is read only for products with content on. Wording
+  is split by tile (`lib/explain/tower*.ts`, `spend.ts`); the cost meter reuses the spend
+  sentences.
+- **Headline (§4.2).** Only an `act` light is passed as the leader. Watch or unknown lights give
+  "Nothing is broken. N lights are worth a look."; unread tiles are said ("Harbour couldn't read
+  its systems just now."). The h1 holds lead and sub-line; only the sub-line is the polite live
+  region, so the minute-by-minute "updated" time is never announced.
+- **Systems (§4.3).** "All eight are fine." only when every light is `ok`; busy or off with
+  nothing needing a look reads "Nothing needs a look. Working now: … Switched off: …". The lights
+  are one client disclosure row (one panel, one light open at a time; Escape closes and refocuses
+  the light unless a tip is open), a 4 x 2 grid below the wide layout and one row of eight from
+  1024 px.
+- **Needs you (§4.4).** "N more" is a link only when every hidden item waits in one place.
+  Items carry no "new" tint: `NeedItem` has no age flag yet.
+- **Runway cards (§4.6).** Highlights are `<Term>`s. A gap's reason is left out when the check
+  line already says the same words ("Not checked yet." once). Before the first check the cards
+  show the sample verdicts under the sample banner while "checked" stays real.
+- **Work strip (§4.5).** Inserted unchanged in `#tower-work`; if it can't be read a "Where the
+  work is" section says so, so there are always six h2s. On a phone the flow bar's segments wrap
+  instead of clipping; Stuck and Needs you keep their own height.
+- **Motion (§11).** Breathing ring 2.4 s and new-item tint 1.2 s, both tokens
+  (`--duration-breathe`, `--duration-settle`), both off under reduced motion.
+- **Night (§13).** New primitives for night; contrast tests cover ink, muted ink, accent and the
+  three tones on every surface, and the ocean, in night as in light and dark.
+- **Auto-refresh (§9).** `VisibleRefresh` + `useVisibleRefresh` as specified; the paused line is
+  its own `UpdatesPaused` component so `/design` can show it without a timer.
+- **Deleted** (replaced by the tower): `TodayView`, `TodayHeader`, `ScoresSection`, `ScoreTable`
+  and their tests. Product pages keep `RefreshWhileScanning`.
+- **Tests.** Unit and component tests per tile and loader; `tests/e2e/tower.spec.ts` runs last on
+  system Chrome and covers the headline and six sections, eight lights in words, Needs you links
+  that open real pages, tips on hover, focus and tap, page help, no refresh while hidden (fake
+  clock), phone widths 390 and 320 with nothing sideways or clipped, reduced motion, the keyboard
+  path in reading order with visible focus, night, and one tile failing alone (the spec renames
+  the worker table for one render, so the real reader throws inside the real loader). There is no
+  axe check: it would be a new dependency, and contrast is proved by the token tests instead.
+- **Not built yet:** the "new" tint on Needs-you items; one shared `productToday` read per render
+  (it is read three times; bounded by the product count); the daily note is not behind `loadTile`
+  (it already catches an unreadable folder, but a database error there would still fail the page).
