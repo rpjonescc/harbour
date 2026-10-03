@@ -1,7 +1,7 @@
 import type { Spend } from "@/lib/costs/guard";
 import type { Product } from "@/lib/products/catalog";
 import type { ScanDeps } from "./run-scan";
-import { collectorObservations } from "./store";
+import { collectorObservations, latestOkObservations } from "./store";
 import type { CollectContext, CollectorStatus } from "./types";
 
 export type CollectContextInput = {
@@ -29,6 +29,9 @@ export function collectContext(input: CollectContextInput): CollectContext {
     earlier: {
       status: (id) => statuses[id],
       observations: (id) => collectorObservations(deps.db, scanId, id),
+    },
+    previous: {
+      observations: (id) => latestOkObservations(deps.db, product.id, id)?.observations ?? [],
     },
     cost: spend.cost,
     budget: spend.budget,
