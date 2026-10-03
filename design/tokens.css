@@ -17,11 +17,20 @@
   --night-700: #2a2e32;
   --night-400: #a09a8f; /* WCAG AA as text on every dark surface and on the ocean's foam line */
   --night-100: #e8e2d6;
+  /* Primitives: dusk (the night theme: darker surfaces, warmer and dimmer ink) */
+  --dusk-950: #0b0c0d;
+  --dusk-900: #101113;
+  --dusk-800: #17181b;
+  --dusk-700: #26272b;
+  --dusk-400: #9b9183; /* WCAG AA as text on every night surface and on the night ocean */
+  --dusk-100: #d6ccbb;
   /* Primitives: tide (accent) */
   --tide-100: #dcebe5;
   --tide-300: #6fbfa8;
   --tide-700: #1f6b5a;
   --tide-900: #1d3a33;
+  --tide-400: #5fa894; /* the night accent: the tide, softened */
+  --tide-950: #16302a;
   /* Primitives: sea (the ocean background). Every text colour keeps WCAG AA on each one
      (design/wave-contrast.test.ts): cool sea-glass on paper, deep teal water at night. */
   --sea-50: #f0f2ec;
@@ -34,15 +43,24 @@
   --sea-850: #16282f;
   --sea-800: #192e36;
   --sea-foam-dark: #1c333c;
+  --abyss-950: #0d1013;
+  --abyss-900: #0f1418;
+  --abyss-850: #11171b;
+  --abyss-800: #131a1f;
+  --abyss-foam: #172128;
   /* Primitives: signal colours */
   --amber-100: #f4e5cf;
   --amber-300: #e0a35c;
   --amber-700: #8f5414; /* 4.9:1 on --warn-soft, 6:1 on --surface (WCAG AA) */
   --amber-900: #3a2d1c;
+  --amber-400: #d49a57;
+  --amber-950: #33281a;
   --clay-300: #e07a6e;
   --clay-700: #a63d32;
+  --clay-400: #d6766a;
   --fern-300: #86c493;
   --fern-700: #367242; /* WCAG AA (>=4.5:1) as text on bg, surface and surface-sunk */
+  --fern-400: #7bb487;
   /* Primitives: product hues (300 on dark surfaces, 600 on light) */
   --hue-amber-300: #e8b26a;
   --hue-amber-600: #c9822e;
@@ -65,8 +83,9 @@
   --shadow-hairline: 0 1px 0 var(--line);
   --duration-fast: 120ms;
   --duration-base: 200ms;
-  /* The tower's one slow motion: a working light breathing (spec §11). */
+  /* The tower's slow motions (spec §11): a working light breathing, and a new item's tint fading. */
   --duration-breathe: 2.4s;
+  --duration-settle: 1.2s;
 }
 
 /* Semantic: light (default) */
@@ -160,6 +179,38 @@
   --ocean-3: var(--sea-800);
   --ocean-crest: var(--sea-foam-dark);
   --elevation-overlay: 0 16px 40px -8px color-mix(in srgb, var(--night-950) 70%, transparent);
+  --hue-amber: var(--hue-amber-300);
+  --hue-violet: var(--hue-violet-300);
+  --hue-blue: var(--hue-blue-300);
+  --hue-green: var(--hue-green-300);
+  --hue-rose: var(--hue-rose-300);
+  --hue-teal: var(--hue-teal-300);
+}
+
+/* Semantic: night — a chosen theme for late hours (never automatic): darker surfaces, warmer and
+   dimmer ink, a softer tide. Still WCAG AA (design/surface-contrast.test.ts). */
+[data-theme="night"] {
+  color-scheme: dark;
+  --bg: var(--dusk-900);
+  --surface: var(--dusk-800);
+  --surface-sunk: var(--dusk-950);
+  --line: var(--dusk-700);
+  --ink: var(--dusk-100);
+  --ink-muted: var(--dusk-400);
+  --accent: var(--tide-400);
+  --accent-soft: var(--tide-950);
+  --accent-ink: var(--dusk-950);
+  --good: var(--fern-400);
+  --warn: var(--amber-400);
+  --warn-soft: var(--amber-950);
+  --bad: var(--clay-400);
+  --focus: var(--tide-400);
+  --ocean-sky-fade: var(--abyss-950);
+  --ocean-1: var(--abyss-900);
+  --ocean-2: var(--abyss-850);
+  --ocean-3: var(--abyss-800);
+  --ocean-crest: var(--abyss-foam);
+  --elevation-overlay: 0 16px 40px -8px color-mix(in srgb, var(--dusk-950) 75%, transparent);
   --hue-amber: var(--hue-amber-300);
   --hue-violet: var(--hue-violet-300);
   --hue-blue: var(--hue-blue-300);

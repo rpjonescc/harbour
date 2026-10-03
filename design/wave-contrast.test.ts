@@ -6,7 +6,7 @@ import { OCEAN_TOKENS } from "./wave";
 const TEXT = ["ink", "ink-muted", "accent", "good", "warn", "bad"] as const;
 const AA = 4.5;
 
-describe.each(["light", "dark", "system-dark"] as const)(
+describe.each(["light", "dark", "system-dark", "night"] as const)(
   "text over the ocean, %s theme",
   (theme) => {
     // Every wave layer and foam line is opaque and the fade ends in its token, so each ocean pixel

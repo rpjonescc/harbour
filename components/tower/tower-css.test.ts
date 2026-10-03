@@ -18,7 +18,17 @@ describe("the tower's motion", () => {
     );
   });
 
-  it("moves only by opacity and transform", () => {
+  it("fades a new item's tint once, on a token", () => {
+    expect(tokens).toMatch(/--duration-settle:\s*1\.2s;/);
+    expect(css).toMatch(
+      /\.tower-new\s*\{[^}]*animation:\s*tower-new\s+var\(--duration-settle\)\s+ease-out\s+1;/,
+    );
+    expect(css).toMatch(
+      /@keyframes tower-new\s*\{\s*from\s*\{\s*background-color:\s*var\(--accent-soft\);/,
+    );
+  });
+
+  it("moves only by opacity and transform, and tints by a token colour", () => {
     const frames = [...css.matchAll(/@keyframes\s+tower-[a-z]+\s*\{([\s\S]*?)\n\}/g)];
     expect(frames.length).toBeGreaterThanOrEqual(1);
     for (const [, body] of frames) {
@@ -31,6 +41,7 @@ describe("the tower's motion", () => {
 
   it("holds still under prefers-reduced-motion", () => {
     expect(stilled).toContain(".tower-breathe");
+    expect(stilled).toContain(".tower-new");
   });
 
   it("hard-codes no colour", () => {

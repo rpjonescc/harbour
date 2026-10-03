@@ -1,3 +1,4 @@
+export { ActivityFeed } from "./ActivityFeed";
 export { LightDetails } from "./LightDetails";
 export { NeedsYou } from "./NeedsYou";
 export { RunwayCard } from "./RunwayCard";
@@ -6,3 +7,5 @@ export { LightMark, StatusLight } from "./StatusLight";
 export { SystemStrip } from "./SystemStrip";
 export { TileFailed } from "./TileFailed";
 export { TOWER_ANCHORS, TowerSection, type TowerSectionKey } from "./TowerSection";
+export { WeekBars } from "./WeekBars";
+export { WinsPanel } from "./WinsPanel";

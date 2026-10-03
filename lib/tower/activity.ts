@@ -34,7 +34,8 @@ export type ActivityFeed = {
   empty: string | null;
 };
 
-const FEED_CAP = 5;
+/** At most this many items show in each group; the rest are counted. */
+export const FEED_CAP = 5;
 const NEW_MS = 5 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
 const GROUP_ORDER: readonly FeedItem["kind"][] = ["win", "finished", "failed"];

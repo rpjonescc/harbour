@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { parseHex, type Rgb } from "@/design/contrast";
 
-export type Theme = "light" | "dark" | "system-dark";
+export type Theme = "light" | "dark" | "system-dark" | "night";
 
 const css = readFileSync(new URL("../../design/tokens.css", import.meta.url), "utf8").replace(
   /\/\*[\s\S]*?\*\//g,
@@ -24,6 +24,7 @@ const THEMES: Record<Theme, Map<string, string>> = {
   light: declarations(/:root,\s*\[data-theme="light"\]\s*\{([^}]*)\}/),
   dark: declarations(/\n\[data-theme="dark"\]\s*\{([^}]*)\}/),
   "system-dark": declarations(/\[data-theme="system"\]\s*\{([^}]*)\}/),
+  night: declarations(/\n\[data-theme="night"\]\s*\{([^}]*)\}/),
 };
 
 /** A colour token in a theme, followed through var() to its #rrggbb primitive. */
