@@ -40,19 +40,28 @@ export function hostMatches(host: string, domain: string): boolean {
 
 const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** `term` in `text` with no letter or digit directly before or after it (works in any script). */
-function hasWholeWord(text: string, term: string): boolean {
+const WORD_BEFORE = "(?<![\\p{L}\\p{N}])";
+const WORD_AFTER = "(?![\\p{L}\\p{N}])";
+// A host is not "named" inside a longer one: no letter, digit or hyphen before it (not-acme.com is
+// out, sub.acme.com is in) and no further label or hyphen after it (acme.com.au is out).
+const HOST_BEFORE = "(?<![\\p{L}\\p{N}-])";
+const HOST_AFTER = "(?![\\p{L}\\p{N}-]|\\.[\\p{L}\\p{N}])";
+
+/** `term` in `text` between the given boundaries (any script); false for an empty or huge term. */
+function hasTerm(text: string, term: string, before: string, after: string): boolean {
   if (term === "" || term.length > MAX_NAME) return false;
-  return new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegex(term)}(?![\\p{L}\\p{N}])`, "u").test(text);
+  return new RegExp(`${before}${escapeRegex(term)}${after}`, "u").test(text);
 }
 
-/** Whether the answer names the product: its name or its domain as a whole word, in any case. */
+/** Whether the answer names the product: its name as a whole word, or its domain as a host. */
 export function mentionsProduct(
   answer: string,
   product: { name: string; domain: string },
 ): boolean {
   const text = stripInvisible(answer).toLowerCase();
+  const name = product.name.trim().toLowerCase();
   return (
-    hasWholeWord(text, product.domain) || hasWholeWord(text, product.name.trim().toLowerCase())
+    hasTerm(text, product.domain, HOST_BEFORE, HOST_AFTER) ||
+    hasTerm(text, name, WORD_BEFORE, WORD_AFTER)
   );
 }

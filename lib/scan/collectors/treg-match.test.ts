@@ -73,6 +73,27 @@ describe("mentionsProduct", () => {
     expect(mentionsProduct("Acme and Docs", product)).toBe(false);
   });
 
+  it("is strict about a domain inside a longer host", () => {
+    const acme = { name: "Zed", domain: "acmedocs.com" };
+    for (const text of [
+      "Try acmedocs.com.au for this",
+      "Try not-acmedocs.com today",
+      "Try acmedocs.com.evil.net",
+      "Try xacmedocs.com",
+    ]) {
+      expect(mentionsProduct(text, acme), text).toBe(false);
+    }
+    for (const text of [
+      "sub.acmedocs.com is it",
+      "visit acmedocs.com.",
+      "(acmedocs.com)",
+      "acmedocs.com/page",
+      "acmedocs.com, yes",
+    ]) {
+      expect(mentionsProduct(text, acme), text).toBe(true);
+    }
+  });
+
   it("works for other scripts and accents", () => {
     expect(
       mentionsProduct("Café Müller is open", { name: "Café Müller", domain: "x.example" }),
