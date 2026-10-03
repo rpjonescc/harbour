@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { PostizChannels } from "@/lib/content/postiz/channels";
 import { type PostizJobDeps, runPostizJob } from "@/lib/content/worker/postiz-job";
-import { claimNextJob, enqueueJob } from "@/lib/jobs/queue";
+import { claimNextJob, enqueueJob, finishJob } from "@/lib/jobs/queue";
 import { seedPieces } from "./chain";
 import { ACME, VOICE_ACME } from "./content";
 import { openTestDb } from "./db";
@@ -58,5 +58,12 @@ export function postizSetup(over: Record<string, unknown> = APPROVED) {
   const later = (minutes: number) => {
     at = new Date(at.getTime() + minutes * 60_000);
   };
-  return { brain, db, send, later };
+  /** A send of another piece that started `minutesAgo` and finished with `result`. */
+  const started = (minutesAgo: number, result: string | null = null) => {
+    const when = new Date(at.getTime() - minutesAgo * 60_000);
+    const { id } = enqueueJob(db, "content-postiz", { earlier: String(minutesAgo) }, null, when);
+    claimNextJob(db, when);
+    finishJob(db, id, "ok", null, when, result);
+  };
+  return { brain, db, send, later, started };
 }

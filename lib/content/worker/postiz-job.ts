@@ -13,6 +13,7 @@ import { postText } from "@/lib/content/postiz/text";
 import { type ReadPiece, readPieces } from "@/lib/content/read/pieces";
 import {
   CHANNEL_PROBLEMS,
+  CHECK_CRASHED,
   NOT_PUSHED,
   notRecorded,
   POSTIZ_REFUSALS,
@@ -123,7 +124,7 @@ export async function runPostizJob(
     }
     // Only the error's kind is logged: its message could carry a path or the piece's words.
     console.error(`job ${job.id}: the Postiz send crashed (${(error as Error).name})`);
-    return fail(SEND_CRASHED);
+    return fail(stage === "checks" ? CHECK_CRASHED : SEND_CRASHED);
   }
 }
 

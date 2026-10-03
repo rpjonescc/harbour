@@ -1,6 +1,12 @@
-import { writeFileSync } from "node:fs";
+import { chmodSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CHANNEL_PROBLEMS, POSTIZ_REFUSALS, postizFailure } from "@/lib/explain/postiz";
+import { NOT_ASKED } from "@/lib/content/postiz/limits";
+import {
+  CHANNEL_PROBLEMS,
+  CHECK_CRASHED,
+  POSTIZ_REFUSALS,
+  postizFailure,
+} from "@/lib/explain/postiz";
 import { eventsSince } from "@/lib/jobs/queue";
 import { dumpDb, searchEverywhere } from "@/tests/helpers/content";
 import { readPieceAt } from "@/tests/helpers/decision";
@@ -185,28 +191,30 @@ describe("runPostizJob (spec 11)", () => {
     expect(s.brain.git("log", "--format=%s")).not.toContain("postiz");
   });
 
-  it("sends at most five drafts in any hour, one at a time, and counts the hour from when each started", async () => {
+  it("sends at most five drafts in any hour, counted from when each started; a refused one does not count", async () => {
     const s = setup();
     const f = await fake();
-    for (let i = 0; i < 5; i++) {
-      expect(
-        (
-          await s.send(f.url, {
-            ...linkedin,
-            revision: String(i + 1),
-            ...(i ? { resend: "1" } : {}),
-          })
-        ).job.status,
-      ).toBe("ok");
-      s.later(5);
-    }
-    const sixth = await s.send(f.url, { ...linkedin, revision: "6", resend: "1" });
+    // Four sends that asked Postiz, 50 to 20 minutes ago, and one refusal that asked nothing.
+    for (const minutes of [50, 40, 30, 20]) s.started(minutes);
+    s.started(10, NOT_ASKED);
+    expect((await s.send(f.url, linkedin)).job.status).toBe("ok");
+    const sixth = await s.send(f.url, { ...linkedin, revision: "2", resend: "1" });
     expect(sixth.job.error).toBe(POSTIZ_REFUSALS.rate);
-    expect(posted(f)).toHaveLength(5);
-    s.later(40);
-    expect((await s.send(f.url, { ...linkedin, revision: "6", resend: "1" })).job.status).toBe(
+    expect(posted(f)).toHaveLength(1);
+    s.later(11); // the send from 50 minutes ago is now over an hour old
+    expect((await s.send(f.url, { ...linkedin, revision: "2", resend: "1" })).job.status).toBe(
       "ok",
     );
+  });
+
+  it("says nothing was sent when the piece can't be read", async () => {
+    const s = setup();
+    const f = await fake();
+    chmodSync(join(s.brain.root, piecePath("linkedin")), 0o000);
+    const { job } = await s.send(f.url, linkedin);
+    chmodSync(join(s.brain.root, piecePath("linkedin")), 0o644);
+    expect(job.error).toBe(CHECK_CRASHED);
+    expect(f.calls).toEqual([]);
   });
 
   it("sends nothing while the owner has unsaved changes to the piece", async () => {

@@ -89,5 +89,8 @@ export const notRecorded = (postId: string) =>
   `Postiz made the draft (post ${postId}), but Harbour couldn't note it on the piece. Check the brain repository. Sending again would make a second draft.`;
 export const NOT_PUSHED =
   "The draft is in Postiz and noted here, but the note couldn't be pushed to the brain repository yet. Harbour will try again.";
+/** Something unexpected before Postiz was asked anything (for example the piece's file can't be read). */
+export const CHECK_CRASHED =
+  "Harbour couldn't check this piece, so nothing was sent. Check the brain folder, then try again.";
 export const SEND_CRASHED =
   "Something went wrong while sending to Postiz. Look in Postiz before you send it again. The piece is still approved.";
