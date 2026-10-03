@@ -36,6 +36,7 @@ export const USAGE = `Usage:
   pnpm actions link <id> <github-pr-url>
   pnpm actions link <id> --clear
   pnpm actions note <id> --note "<note>"
+  pnpm actions sync-prs [--dry-run] [--json]
   pnpm actions add --product <id> --title "<title>" --why "<why>" --area SEO|GEO|AEO
       --impact high|medium|low --effort small|medium|large [--fix "<fix>"] [--check "<done when>"]
       [--evidence "<text>"]... [--doc <https-url>]...
