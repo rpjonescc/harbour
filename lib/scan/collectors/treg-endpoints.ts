@@ -29,8 +29,10 @@ export type Endpoint<In, Out> = {
   id: string;
   /** Who answers, as stored with a backlinks result. */
   provider: string;
-  /** What one call is expected to cost, in micro-USD. */
+  /** What one call is expected to cost, in micro-USD (the base, when the price depends on the input). */
   estimateMicroUsd: number;
+  /** The price of one call for this input, when it is not a flat one (a list is priced per row). */
+  estimateFor?(input: In): number;
   /** The JSON body to send. */
   request(input: In): unknown;
   /** What the answer says, or null when it is not readable. */
@@ -74,6 +76,48 @@ export const BACKLINKS: Endpoint<BacklinksIn, BacklinksOut> = {
       dofollow: data.dofollow_backlinks,
       rank: data.sersptat_domain_rank ?? null,
     };
+  },
+};
+
+/** The extra links call is made only for a site with at most this many linking domains. */
+export const MAX_LISTED_DOMAINS = 25;
+/** What each returned row costs, in micro-USD. */
+export const LINKING_ROW_MICRO_USD = 500;
+
+type LinkingIn = { domain: string; rows: number };
+type LinkingOut = { rows: { host: string; pages: number }[] };
+
+// The rows are `{domain_from, ref_pages, domainRank}`; the list sits under result.data. A row that
+// is not readable fails the whole answer: it could be the site's own, and a guess would count it.
+const linkingRow = z.object({
+  domain_from: z.string().min(1).max(253),
+  ref_pages: count,
+});
+const linkingAnswer = z.object({
+  result: z.object({ data: z.array(z.unknown()).max(MAX_ITEMS) }),
+});
+
+export const LINKING_DOMAINS: Endpoint<LinkingIn, LinkingOut> = {
+  id: "serpstat.web.linking_domains.list",
+  provider: "serpstat",
+  estimateMicroUsd: LINKING_ROW_MICRO_USD,
+  estimateFor: ({ rows }) => LINKING_ROW_MICRO_USD * rows,
+  request: ({ domain, rows }) => ({
+    method: "SerpstatBacklinksProcedure.getRefDomains",
+    id: "1",
+    params: { query: domain, size: rows },
+  }),
+  parse(body) {
+    const parsed = linkingAnswer.safeParse(body);
+    if (!parsed.success) return null;
+    const rows: LinkingOut["rows"] = [];
+    for (const raw of parsed.data.result.data) {
+      const row = linkingRow.safeParse(raw);
+      const host = row.success ? cleanHost(row.data.domain_from) : null;
+      if (!row.success || host === null) return null;
+      rows.push({ host, pages: row.data.ref_pages });
+    }
+    return { rows };
   },
 };
 
@@ -176,4 +220,9 @@ export const AI_CHATGPT: Endpoint<AiIn, AiOut> = {
 };
 
 /** Every endpoint the weekly run uses, for the log line that says which ones it asked. */
-export const ENDPOINT_IDS: readonly string[] = [BACKLINKS.id, SERP_ORGANIC.id, AI_CHATGPT.id];
+export const ENDPOINT_IDS: readonly string[] = [
+  BACKLINKS.id,
+  LINKING_DOMAINS.id,
+  SERP_ORGANIC.id,
+  AI_CHATGPT.id,
+];

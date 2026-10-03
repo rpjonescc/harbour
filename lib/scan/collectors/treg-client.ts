@@ -26,7 +26,14 @@ export type TregRun = {
 
 /** What a call came to: its parsed answer, a failed check, or a reason to end the whole run. */
 export type CallOutcome<Out> =
-  | { kind: "ok"; value: Out }
+  | {
+      kind: "ok";
+      value: Out;
+      /** A part of the check that failed but left a usable result (a fixed code). */
+      note?: TregProblem;
+      /** A reason to end the run, found by that part. */
+      stopAfter?: "budget" | "balance" | "key" | "error";
+    }
   | { kind: "failed"; problem: TregProblem }
   | { kind: "stop"; why: "budget" | "balance" | "key" | "error" };
 
@@ -96,7 +103,7 @@ export async function callEndpoint<In, Out>(
   input: In,
 ): Promise<CallOutcome<Out>> {
   const { ctx } = run;
-  const estimate = endpoint.estimateMicroUsd;
+  const estimate = endpoint.estimateFor ? endpoint.estimateFor(input) : endpoint.estimateMicroUsd;
   // At least 1: the ledger refuses a free-looking price.
   if (!ctx.budget.allow(Math.max(1, usdMicroToAudMicro(estimate, run.rate)))) {
     return { kind: "stop", why: "budget" };

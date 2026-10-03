@@ -4,7 +4,12 @@ import { getConfig } from "@/lib/config";
 import type { Product } from "@/lib/products/catalog";
 import type { ProductTracking } from "@/lib/products/config";
 import { createTreg, type TregDeps } from "@/lib/scan/collectors/treg";
-import { AI_CHATGPT, BACKLINKS, SERP_ORGANIC } from "@/lib/scan/collectors/treg-endpoints";
+import {
+  AI_CHATGPT,
+  BACKLINKS,
+  LINKING_DOMAINS,
+  SERP_ORGANIC,
+} from "@/lib/scan/collectors/treg-endpoints";
 import { createSafeFetch } from "@/lib/scan/fetch";
 import { HostLimiter } from "@/lib/scan/host-limiter";
 import type { CollectContext, Collector, CollectorResult } from "@/lib/scan/types";
@@ -12,7 +17,7 @@ import { type Answers, DOMAIN, okBody } from "./fake-treg-answers";
 import { site } from "./http-site";
 
 export const KEY = "SENTINEL-treg-key-9f3a";
-export { aiBody, backlinksBody, DOMAIN, serpBody } from "./fake-treg-answers";
+export { type Answers, aiBody, backlinksBody, DOMAIN, serpBody } from "./fake-treg-answers";
 
 export type Mode =
   | "ok"
@@ -40,8 +45,16 @@ export type Call = {
 const COST: Record<string, string> = {
   [BACKLINKS.id]: "2500",
   [SERP_ORGANIC.id]: "6000",
+  // The list is priced per row: see `chargeFor`.
   [AI_CHATGPT.id]: "3600",
 };
+
+/** What the fake charges for a call it was not told a figure for: the list costs 500 a row. */
+function chargeFor(endpoint: string, json: unknown): string | undefined {
+  if (endpoint !== LINKING_DOMAINS.id) return undefined;
+  const size = (json as { params?: { size?: unknown } } | null)?.params?.size;
+  return typeof size === "number" ? String(500 * size) : undefined;
+}
 
 export function respond(
   res: ServerResponse,
@@ -134,11 +147,11 @@ export async function fakeTreg(options: FakeTregOptions = {}) {
         chosen,
         endpoint,
         typeof answers === "function" ? answers(endpoint, n) : answers,
-        options.charges?.[endpoint],
+        options.charges?.[endpoint] ?? chargeFor(endpoint, json),
       );
     });
   };
-  const ids = [BACKLINKS.id, SERP_ORGANIC.id, AI_CHATGPT.id];
+  const ids = [BACKLINKS.id, LINKING_DOMAINS.id, SERP_ORGANIC.id, AI_CHATGPT.id];
   const { origin } = await site(Object.fromEntries(ids.map((id) => [`/call/${id}`, handler(id)])));
   return { origin, calls };
 }

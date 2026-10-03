@@ -1,5 +1,5 @@
 /** Synthetic Treg answers, shaped as the spec describes them. Fictional data only. */
-import { BACKLINKS, SERP_ORGANIC } from "@/lib/scan/collectors/treg-endpoints";
+import { BACKLINKS, LINKING_DOMAINS, SERP_ORGANIC } from "@/lib/scan/collectors/treg-endpoints";
 
 export const DOMAIN = "docs.example.com";
 
@@ -14,14 +14,28 @@ export type Answers = {
   /** Source URLs the answer cites. */
   sources?: string[];
   entities?: unknown[] | null;
+  /** The linking domains the list call returns (default: four outside sites, 30 pages each). */
+  /** The summary's counts (default 40 domains, so no list call; 120 links). */
+  referringDomains?: number;
+  backlinks?: number;
+  linkingRows?: { domain_from: string; ref_pages: number }[];
 };
 
-export function backlinksBody() {
+export const OUTSIDERS = ["a.example.org", "b.example.org", "c.example.org", "d.example.org"].map(
+  (domain_from) => ({ domain_from, ref_pages: 30 }),
+);
+
+/** The list answer: `{"domain_from", "ref_pages", "domainRank"}` rows under result.data. */
+export function linkingBody(rows = OUTSIDERS) {
+  return { result: { data: rows.map((row) => ({ ...row, domainRank: 0 })) } };
+}
+
+export function backlinksBody(referringDomains = 40, backlinks = 120) {
   return {
     result: {
       data: {
-        referring_domains: 4,
-        backlinks: 120,
+        referring_domains: referringDomains,
+        backlinks,
         dofollow_backlinks: 80,
         nofollow_backlinks: 40,
         sersptat_domain_rank: 12.5,
@@ -66,7 +80,8 @@ export function aiBody({ text, sources, entities }: Answers) {
 }
 
 export function okBody(endpoint: string, answers: Answers): unknown {
-  if (endpoint === BACKLINKS.id) return backlinksBody();
+  if (endpoint === BACKLINKS.id) return backlinksBody(answers.referringDomains, answers.backlinks);
+  if (endpoint === LINKING_DOMAINS.id) return linkingBody(answers.linkingRows);
   if (endpoint === SERP_ORGANIC.id)
     return serpBody(answers.rank === undefined ? 4 : answers.rank, answers.domain);
   return aiBody(answers);

@@ -5,6 +5,7 @@ import {
   ceilingHeaderValue,
   ceilingMicroUsd,
   ENDPOINT_IDS,
+  LINKING_DOMAINS,
   SERP_ORGANIC,
 } from "./treg-endpoints";
 
@@ -20,12 +21,13 @@ describe("the endpoint table", () => {
   it("pins the provider ids exactly as the spec names them", () => {
     expect(ENDPOINT_IDS).toEqual([
       "serpstat.web.backlinks.summary",
+      "serpstat.web.linking_domains.list",
       "dataforseo.google.serp.organic",
       "cloro.ai-search.chatgpt.scrape",
     ]);
-    expect([BACKLINKS, SERP_ORGANIC, AI_CHATGPT].map((e) => e.estimateMicroUsd)).toEqual([
-      2_500, 6_000, 3_600,
-    ]);
+    expect(
+      [BACKLINKS, LINKING_DOMAINS, SERP_ORGANIC, AI_CHATGPT].map((e) => e.estimateMicroUsd),
+    ).toEqual([2_500, 500, 6_000, 3_600]);
   });
 
   it("prices every ceiling at 1.5 times the estimate and never above US$0.05", () => {
@@ -43,7 +45,7 @@ describe("the endpoint table", () => {
 describe("backlinks answer", () => {
   it("reads the counts and the misspelled rank, ignoring extra fields", () => {
     expect(BACKLINKS.parse(backlinksBody(), { domain: "x" })).toEqual({
-      referringDomains: 4,
+      referringDomains: 40,
       backlinks: 120,
       dofollow: 80,
       rank: 12.5,

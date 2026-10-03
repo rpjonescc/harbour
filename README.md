@@ -846,8 +846,8 @@ and `-wal` files, and it says so if it cannot open the database.
 One paid source is in use: **Treg** (`https://treg.to`), a pay-per-call catalogue of data APIs.
 Once a week the `treg` collector asks it for each tracked product's links from other sites, its
 position for each search you chose and whether ChatGPT names or cites it (a full run of 8
-searches and 5 questions costs up to US$0.07 per product per week, about A$1.40 a month for three
-products, or A$2.10 if every call hit its price ceiling; fewer searches cost less; see
+searches and 5 questions costs about US$0.08 per product per week, about A$1.60 a month for three
+products, or A$2.45 if every call hit its price ceiling; fewer searches cost less; see
 [Outside view](#the-outside-view-treg)). The monthly budget bounds the worst case. It makes **no calls** until you set
 `HARBOUR_TREG_API_KEY`, a monthly budget and a `tracking` list. Other paid sources (DataForSEO,
 OpenAI, Perplexity, Gemini) have no collector yet. The guard below means a paid collector can only
@@ -892,7 +892,11 @@ Besides what Google tells you, Harbour asks how the rest of the web sees each pr
 week the worker's `treg` collector makes up to three kinds of paid call to
 [Treg](https://treg.to), a pay-per-call catalogue of data APIs:
 
-1. **Links to you**: how many other sites link to your domain (about US$0.0025).
+1. **Links to you**: how many other sites link to your domain (about US$0.0025). The provider counts
+   your own pages linking to each other as a linking domain, so for a site with 25 linking domains
+   or fewer Harbour makes one more call that lists them (US$0.0005 a row, at most US$0.0125) and
+   leaves your own domain and its subdomains out. The page then says "(your own pages not counted)".
+   If that call fails the first count is kept without it, and the product page does not say so.
 2. **Where you rank**: your position on Google for each search you chose, looking down to
    position 30 (about US$0.006 each). "Not in the top 30" is stored as such, never as a number.
 3. **AI answers**: whether ChatGPT names or cites your site when asked each question you chose

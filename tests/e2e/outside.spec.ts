@@ -41,7 +41,9 @@ test("Run this check now fills the section with links, positions and the AI chec
   await expect(section(page)).toContainText("Not checked yet.");
   await requestCheck(page);
   // The page refreshes itself every 10 s while the check is queued or running.
-  await expect(section(page)).toContainText("4 sites link to you", { timeout: 90_000 });
+  await expect(section(page)).toContainText("4 sites link to you (your own pages not counted)", {
+    timeout: 90_000,
+  });
 
   await expect(section(page)).toContainText("ChatGPT named you in 1 of 1 answer");
   await expect(section(page)).toContainText(
