@@ -25,6 +25,19 @@ describe("scheduleLight", () => {
     );
   });
 
+  it("does not worry about a monthly refresh that has never needed to run", () => {
+    const refresh = schedule("refresh", "Monthly research refresh");
+    expect(
+      scheduleLight(
+        [
+          { row: daily, lastRun: ran(ago(HOUR)) },
+          { row: refresh, lastRun: null },
+        ],
+        words,
+      ),
+    ).toEqual({ tone: "ok", sentence: "All 2 schedules ran on time." });
+  });
+
   it("is switched off when no schedule is on", () => {
     const off = { ...daily, enabled: false };
     expect(scheduleLight([{ row: off, lastRun: null }], words)).toEqual({

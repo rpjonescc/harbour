@@ -29,7 +29,12 @@ const SCHEDULE_RULE: Readonly<Record<ScheduleRow["id"], FreshnessRule>> = {
 
 /** A schedule that did not run on time, or null when it did. */
 function scheduleTrouble({ row, lastRun }: ScheduleFact, words: Words): Shaped | null {
-  if (lastRun === null) return { tone: "unknown", sentence: SCHEDULE_SENTENCE.never(row.label) };
+  if (lastRun === null) {
+    // The monthly refresh queues a job only when a research note is stale, so "no run yet" is
+    // normal for it and must not keep the page from ever saying all is well.
+    if (row.id === "refresh") return null;
+    return { tone: "unknown", sentence: SCHEDULE_SENTENCE.never(row.label) };
+  }
   const ago = agoPhrase(lastRun.at, words.now, words.timeZone, words.locale);
   if (lastRun.status === "failed") {
     return { tone: "watch", sentence: SCHEDULE_SENTENCE.failed(row.label, ago) };
