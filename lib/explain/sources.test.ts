@@ -3,8 +3,10 @@ import { PAID_SOURCES } from "@/lib/costs/paid-sources";
 import { COLLECTOR_IDS } from "@/lib/scan/labels";
 import {
   SOURCES,
+  searchConsoleLinkNote,
   sourceExplanation,
   sourceName,
+  sourceSetupLink,
   sourceStatusPhrase,
   sourceTrouble,
 } from "./sources";
@@ -80,5 +82,19 @@ describe("sourceExplanation", () => {
   it("finds a source by id and knows when it doesn't", () => {
     expect(sourceExplanation("search-console").name).toBe("Google Search Console");
     expect(() => sourceExplanation("nope")).toThrow(/nope/);
+  });
+});
+
+describe("setup links and Search Console notes", () => {
+  it("labels the setup guide for the two sources that have one", () => {
+    expect(sourceSetupLink("pagespeed")?.label).toBe("Connect PageSpeed");
+    expect(sourceSetupLink("search-console")?.label).toBe("Connect Search Console");
+    expect(sourceSetupLink("crawler")).toBeUndefined();
+  });
+
+  it("names the sites that still need linking", () => {
+    expect(searchConsoleLinkNote(["Fern"])).toMatch(/^Fern isn't linked to a Search Console site/);
+    expect(searchConsoleLinkNote(["A", "B"])).toMatch(/^A and B aren't linked/);
+    expect(searchConsoleLinkNote([])).toMatch(/^Every site is linked/);
   });
 });

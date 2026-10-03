@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
-import { sourceName, sourceTrouble } from "@/lib/explain/sources";
+import {
+  SOURCE_TROUBLE_LINK,
+  SOURCE_TROUBLE_NOTE,
+  sourceName,
+  sourceTrouble,
+} from "@/lib/explain/sources";
 import { productById } from "@/lib/products/catalog";
 import type { SourceFailure } from "@/lib/today/types";
 
@@ -26,10 +31,9 @@ export function SourceFailures({ failures }: { failures: SourceFailure[] }) {
         ))}
       </ul>
       <p>
-        Scores that use this data are marked as missing some data until it works again. Harbour
-        tries again in the next check; if it keeps happening,{" "}
+        {SOURCE_TROUBLE_NOTE}{" "}
         <Link href="/settings/sources" className="rounded-sm text-accent hover:underline">
-          check your data sources
+          {SOURCE_TROUBLE_LINK}
         </Link>
         .
       </p>
