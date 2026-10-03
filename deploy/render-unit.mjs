@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 // Renders a Harbour systemd unit template to stdout.
-// Usage: node render-unit.mjs <template> <repo> <node-bin-dir> [claude-path]
-// claude-path is where `command -v claude` found the CLI (empty if not found). Its directory is
-// added in front of the unit's PATH unless the PATH already has it, so the worker can run
-// `claude` even when it lives outside the default directories (e.g. a version manager's bin).
+// Usage: node render-unit.mjs <template> <repo> <node-bin-dir> [tool-path]
+// tool-path is where `command -v` found the CLI the unit needs (`claude` for the worker, `gh` for
+// the board sync; empty if not found). Its directory is added in front of the unit's PATH unless
+// the PATH already has it, so the unit can run the tool even when it lives outside the default
+// directories (e.g. a version manager's bin).
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname } from "node:path";
 
-const [template, repo, nodeBin, claudePath = ""] = process.argv.slice(2);
+const [template, repo, nodeBin, toolPath = ""] = process.argv.slice(2);
 if (!template || !repo || !nodeBin) {
-  console.error("usage: render-unit.mjs <template> <repo> <node-bin-dir> [claude-path]");
+  console.error("usage: render-unit.mjs <template> <repo> <node-bin-dir> [tool-path]");
   process.exit(2);
 }
 
@@ -22,6 +23,6 @@ const pathDirs = (/^Environment=PATH=(.*)$/m.exec(base)?.[1] ?? "")
   .replaceAll("__EXTRA_PATH__", "")
   .replaceAll("%h", home)
   .split(":");
-const claudeDir = claudePath ? dirname(claudePath) : "";
-const extra = claudeDir && !pathDirs.includes(claudeDir) ? `${claudeDir}:` : "";
+const toolDir = toolPath ? dirname(toolPath) : "";
+const extra = toolDir && !pathDirs.includes(toolDir) ? `${toolDir}:` : "";
 process.stdout.write(base.replaceAll("__EXTRA_PATH__", extra));
