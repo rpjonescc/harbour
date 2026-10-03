@@ -8,6 +8,7 @@ import type { Impact } from "@/lib/scan/issues";
 import { firstSentence } from "@/lib/today/reason";
 import { BOARD_COLUMNS, type BoardColumnId, boardColumn } from "./board-column";
 import { inBoardColumns } from "./board-column-sql";
+import { needsYouWhere, stuckWhere } from "./board-focus-sql";
 import { latestStatusChange } from "./status-actor";
 import { ACTION_STATUSES, type ActionActor, type ActionRow, type ActionStatus } from "./types";
 import { type ActionFilter, impactRank, MAX_BOARD_ACTIONS } from "./views";
@@ -69,6 +70,8 @@ export type Board = {
   parked: BoardCard[];
   /** Cards in each column for the filters, ignoring `focus` and the card cap. */
   counts: Record<BoardColumnId, number>;
+  /** Stuck cards and cards that need the owner for the filters, ignoring `focus` and the cap. */
+  focusCounts: Record<BoardFocus, number>;
   /** More cards match than the board shows. */
   truncated: boolean;
 };
@@ -217,13 +220,17 @@ function columnCounts(db: Db, base: SQL | undefined, now: Date): Record<BoardCol
   return counts;
 }
 
+const focusWhere = (focus: BoardFocus | null | undefined, now: Date) =>
+  focus === "stuck" ? stuckWhere(now) : focus === "needs-you" ? needsYouWhere() : undefined;
+
 const keep = (focus: BoardFocus | null | undefined) => (card: BoardCard) =>
   focus === "stuck" ? card.stuck : focus === "needs-you" ? card.needsOwner : true;
 
 /**
  * The board for the product and area filters: cards by column (impact high to low, oldest first),
- * the parked ones, true column counts, and whether the 200-card cap cut some off. `focus`
- * narrows the columns to stuck cards or ones that need the owner, for the Today strip's links.
+ * the parked ones, true column and focus counts, and whether the 200-card cap cut some off.
+ * `focus` narrows the columns to stuck cards or ones that need the owner, for the Today strip's
+ * links; it narrows the query, so the cap counts only those cards.
  * Cards of products that are not configured are skipped.
  */
 export function loadBoard(
@@ -235,7 +242,12 @@ export function loadBoard(
   const names = new Map(products.map((p) => [p.id, p]));
   const base = scope(filter, [...names.keys()]);
   const counts = columnCounts(db, base, now);
-  const boardWhere = and(base, onBoard(now));
+  const onBoardNow = and(base, onBoard(now));
+  const focusCounts = {
+    stuck: total(db, and(onBoardNow, stuckWhere(now))),
+    "needs-you": total(db, and(onBoardNow, needsYouWhere())),
+  };
+  const boardWhere = and(onBoardNow, focusWhere(filter.focus, now));
   const rows = fetchRows(db, boardWhere, MAX_BOARD_ACTIONS);
   const parkedRows = filter.focus
     ? []
@@ -260,6 +272,7 @@ export function loadBoard(
     columns,
     parked,
     counts,
+    focusCounts,
     truncated: total(db, boardWhere) > rows.length || parkedTotal > parkedRows.length,
   };
 }

@@ -39,9 +39,14 @@ export function boardOf(cards: BoardCard[], over: Partial<Board> = {}): Board {
   const counts = Object.fromEntries(
     BOARD_COLUMNS.map((id) => [id, columns[id].length]),
   ) as Board["counts"];
+  const inColumns = cards.filter((card) => card.column !== null);
   return {
     columns,
     counts,
+    focusCounts: {
+      stuck: inColumns.filter((card) => card.stuck).length,
+      "needs-you": inColumns.filter((card) => card.needsOwner).length,
+    },
     parked: cards.filter((card) => card.column === null),
     truncated: false,
     ...over,

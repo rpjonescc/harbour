@@ -152,8 +152,10 @@ Where the build differs from, or adds to, the sections above.
 **Today strip**
 - Tiles link to `/actions?view=board#column-<id>`, a jump to the column rather than a filter.
   **See the stuck jobs** and **See what needs you** link to `&focus=stuck` and `&focus=needs-you`.
-- Counts per column are the true totals; the stuck and needs-you counts, and the first five
-  needs-you lines, come from the loaded cards (so they are bounded by the 200-card cap).
+- Counts per column, and the stuck and needs-you counts, are true totals from SQL
+  (`board-focus-sql.ts` mirrors the stuck and needs-you rules, checked against the cards in
+  `board-focus.test.ts`). The first five needs-you lines come from a board focused on needs-you,
+  whose query (and so its 200-card cap) holds only those cards; `?focus=` narrows the same way.
 - "Moved today" counts cards with a status or stage change since local midnight in
   `HARBOUR_TIMEZONE`; creation and pull request links are not moves, except a link that moves a
   card from In progress to In review.

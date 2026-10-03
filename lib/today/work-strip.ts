@@ -75,12 +75,11 @@ export function loadWorkStrip(
   timeZone: string = getConfig().HARBOUR_TIMEZONE,
   products: readonly Pick<Product, "id" | "name">[] = getProducts(),
 ): WorkStrip {
-  const board = loadBoard(db, { productId: null, area: null }, now, products);
-  const inColumns = BOARD_COLUMNS.flatMap((column) =>
+  // Focused on needs-you: the counts stay true totals, and the columns hold the cards to word.
+  const board = loadBoard(db, { productId: null, area: null, focus: "needs-you" }, now, products);
+  const needs = BOARD_COLUMNS.flatMap((column) =>
     board.columns[column].map((card) => ({ column, card })),
   );
-  const stuck = inColumns.filter(({ card }) => card.stuck);
-  const needs = inColumns.filter(({ card }) => card.needsOwner);
   return {
     tiles: BOARD_COLUMNS.map((column) => ({
       column,
@@ -88,9 +87,9 @@ export function loadWorkStrip(
       count: board.counts[column],
       href: BOARD_HREF,
     })),
-    stuck: { count: stuck.length, href: `${BOARD_HREF}&focus=stuck` },
+    stuck: { count: board.focusCounts.stuck, href: `${BOARD_HREF}&focus=stuck` },
     needsYou: {
-      count: needs.length,
+      count: board.focusCounts["needs-you"],
       href: `${BOARD_HREF}&focus=needs-you`,
       lines: needs
         .slice(0, NEEDS_LINES)

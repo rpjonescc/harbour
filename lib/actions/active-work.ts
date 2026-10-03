@@ -11,7 +11,7 @@ const isActor = (value: unknown): value is ActionActor =>
  * event from a status and stage to themselves) does not. Raw SQL on purpose: Drizzle renders columns unqualified inside a
  * subquery, so `${actions.id}` would bind to action_events.id instead of the outer action.
  */
-const statusActor = sql<string | null>`(
+export const statusActorSql = sql<string | null>`(
   SELECT e.actor FROM action_events AS e
   WHERE e.action_id = "actions"."id"
     AND (e.from_status IS NULL OR e.from_status <> e.to_status OR e.from_stage IS NOT e.to_stage)
@@ -36,7 +36,7 @@ export function activeWork(db: Db, productIds: readonly string[]): ActiveWork[] 
       status: actions.status,
       prUrl: actions.prUrl,
       stage: actions.stage,
-      statusActor,
+      statusActor: statusActorSql,
     })
     .from(actions)
     .where(and(inArray(actions.productId, [...productIds]), inArray(actions.status, [...ACTIVE])))
