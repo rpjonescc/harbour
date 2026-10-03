@@ -39,9 +39,9 @@ function card(over: Card): BoardCard {
 }
 
 const CARDS: BoardCard[] = [
-  card({ id: 1, title: "Write a meta description for the pricing page", column: "backlog" }),
+  card({ id: 201, title: "Write a meta description for the pricing page", column: "backlog" }),
   card({
-    id: 2,
+    id: 202,
     title: "Answer “how do I install Acme Docs?” on the setup page",
     column: "backlog",
     area: "GEO",
@@ -51,9 +51,9 @@ const CARDS: BoardCard[] = [
     needsOwner: true,
     lastMove: null,
   }),
-  card({ id: 3, title: "Add a title to the pricing page", column: "queue", impact: "high" }),
+  card({ id: 203, title: "Add a title to the pricing page", column: "queue", impact: "high" }),
   card({
-    id: 4,
+    id: 204,
     title: "Fix the broken link in the setup guide",
     column: "started",
     who: "claude",
@@ -65,7 +65,7 @@ const CARDS: BoardCard[] = [
     },
   }),
   card({
-    id: 5,
+    id: 205,
     title: "Add structured data to the changelog",
     column: "in_progress",
     area: "AEO",
@@ -81,7 +81,7 @@ const CARDS: BoardCard[] = [
     },
   }),
   card({
-    id: 6,
+    id: 206,
     title: "Shorten the home page title",
     column: "in_review",
     status: "in_progress",
@@ -90,14 +90,14 @@ const CARDS: BoardCard[] = [
     prUrl: "https://github.com/example/acme-docs/pull/7",
   }),
   card({
-    id: 7,
+    id: 207,
     title: "Add alt text to the hero image",
     column: "done",
     status: "done",
     who: null,
   }),
   card({
-    id: 8,
+    id: 208,
     title: "Rewrite the footer links",
     column: null,
     status: "snoozed",
