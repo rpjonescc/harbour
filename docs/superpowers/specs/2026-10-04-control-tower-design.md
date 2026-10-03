@@ -494,9 +494,13 @@ Board was merged in first. Where it differs from the sections above:
 - **Runway cards (§4.6).** Highlights are `<Term>`s. A gap's reason is left out when the check
   line already says the same words ("Not checked yet." once). Before the first check the cards
   show the sample verdicts under the sample banner while "checked" stays real.
-- **Work strip (§4.5).** Inserted unchanged in `#tower-work`; if it can't be read a "Where the
+- **Work strip (§4.5).** Inserted in `#tower-work`; if it can't be read a "Where the
   work is" section says so, so there are always six h2s. On a phone the flow bar's segments wrap
-  instead of clipping; Stuck and Needs you keep their own height.
+  instead of clipping. Polish (4 October): the strip's Needs you is no longer a second list. Stuck
+  and Needs you are one line each (a count and a link to the board's `focus=stuck` /
+  `focus=needs-you`), side by side, so an empty Stuck no longer leaves a hole beside a long list.
+  The board's filter, not the section above, is the link target: the section is already on screen,
+  and the filter is the one place that holds every card behind the count.
 - **Motion (§11).** Breathing ring 2.4 s and new-item tint 1.2 s, both tokens
   (`--duration-breathe`, `--duration-settle`), both off under reduced motion.
 - **Night (§13).** New primitives for night; contrast tests cover ink, muted ink, accent and the

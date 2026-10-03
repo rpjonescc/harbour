@@ -64,9 +64,11 @@ Wake and Bring back buttons, exactly as today.
   card back and says why in plain words.
 - Motion: a card eases into its new column in `--duration-base`; none under `prefers-reduced-motion`.
 - **Today strip:** a "Where the work is" band: six small column tiles with counts and a segmented flow bar,
-  a "Stuck" tile (in progress or started for more than 7 days, or in review for more than 3 days), a
-  "Needs you" tile (ideas to decide, pull requests waiting, anything on the owner), and a "Moved today"
-  line. Each tile links into the board filtered to that group.
+  a "Stuck" line (in progress or started for more than 7 days, or in review for more than 3 days), a
+  "Needs you" line (ideas to decide, pull requests waiting, anything on the owner), and a "Moved today"
+  line. Stuck and Needs you are one sentence each with a count, linking into the board filtered to that
+  group. The strip never lists the needs-you cards: Today's own "Needs you" section (control tower
+  spec §4.4) is the one list, so the page never shows two (polish, 4 October 2026).
 - Light and dark, every new component on `/design`, accessible names, visible focus, full keyboard path.
 
 ## 5. The agent as boss
@@ -157,6 +159,7 @@ Where the build differs from, or adds to, the sections above.
   (`board-focus-sql.ts` mirrors the stuck and needs-you rules, checked against the cards in
   `board-focus.test.ts`). The first five needs-you lines come from a board focused on needs-you,
   whose query (and so its 200-card cap) holds only those cards; `?focus=` narrows the same way.
+  (Since the polish pass the strip shows only the needs-you count, not the first five lines.)
 - "Moved today" counts cards with a status or stage change since local midnight in
   `HARBOUR_TIMEZONE`; creation and pull request links are not moves, except a link that moves a
   card from In progress to In review.

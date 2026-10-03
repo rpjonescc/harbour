@@ -10,7 +10,7 @@ import type { Light } from "./system";
 export const NEEDS_CAP = 5;
 
 /** The Board's "Needs you" (its work strip's shape), declared here so the tower stays apart. */
-export type BoardNeeds = { count: number; href: string; lines: string[] } | null;
+export type BoardNeeds = { count: number; href: string } | null;
 
 export type NeedItem = {
   kind: "system" | "review" | "ideas" | "content" | "approvals" | "run";

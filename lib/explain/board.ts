@@ -248,19 +248,16 @@ export const STRIP_TEXT = {
   /** The tile's name for a column: "Queue: 3 cards". */
   columnTile: (column: BoardColumnId, n: number) => `${COLUMN_COPY[column].name}: ${cards(n)}`,
   cards,
-  stuckTitle: "Stuck",
   stuck: (n: number) =>
     n === 0
       ? "Nothing is stuck."
       : `${count(n, "job")} ${n === 1 ? "has" : "have"} stood still for too long.`,
   stuckLink: "See the stuck jobs",
-  needsTitle: "Needs you",
   needs: (n: number) =>
     n === 0
-      ? "Nothing needs you right now."
-      : `${count(n, "job")} ${n === 1 ? "is" : "are"} waiting for you.`,
+      ? "Nothing on the board needs you."
+      : `${count(n, "job")} on the board ${n === 1 ? "is" : "are"} waiting for you.`,
   needsLink: "See what needs you",
-  needsMore: (n: number) => `${n} more on the board.`,
   moved: (n: number) => (n === 0 ? "Nothing has moved today." : `${count(n, "job")} moved today.`),
 } as const;
 
@@ -276,11 +273,6 @@ export function movedTodayLine(move: {
 }): string {
   const where = move.to ? COLUMN_COPY[move.to].name : "Parked";
   return `${MOVER[move.actor]} moved “${move.title}” to ${where}.`;
-}
-
-/** The "Needs you" line for a card: its title and what it is waiting on. */
-export function needsYouLine(title: string, column: BoardColumnId, card: CardState): string {
-  return `${title}. ${COLUMN_COPY[column].waitingOn(card)}`;
 }
 
 /** The note on /actions while the Today strip's `?focus=` is on: what is filtered, and how to clear it. */

@@ -13,7 +13,7 @@ const quiet: NeedsFacts = {
 const fine: Light[] = [
   { id: "worker", tone: "ok", sentence: "The worker is running.", href: "/x" },
 ];
-const board = { count: 0, href: "/actions?view=board&focus=needs-you", lines: [] };
+const board = { count: 0, href: "/actions?view=board&focus=needs-you" };
 const facts = (over: Partial<NeedsFacts>): NeedsFacts => ({ ...quiet, ...over });
 
 describe("needsYou", () => {

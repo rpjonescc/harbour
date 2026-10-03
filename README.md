@@ -1208,8 +1208,9 @@ column except that a new idea cannot go straight to Done: **Accept** it first (t
 Done out for a new idea), or move it to Queue.
 
 **The Today strip.** Today's **Where the work is** band shows a tile per column with its count, a
-bar of how the jobs are spread, how many are stuck, how many need you (new ideas, pull requests
-waiting for a look, and your own work in Started, In progress or In review) and what moved today.
+bar of how the jobs are spread, one line saying how many are stuck, one line saying how many need you
+(new ideas, pull requests waiting for a look, and your own work in Started, In progress or In review)
+and what moved today. It only counts what needs you: the list itself is Today's **Needs you**.
 Each tile opens that column on the board; **See the stuck jobs** and **See what needs you** open the
 board narrowed to those cards, with a line at the top and a **Show everything** link to clear it.
 

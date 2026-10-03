@@ -38,7 +38,7 @@ describe("loadWorkStrip", () => {
     const strip = setup().load();
     expect(strip.tiles.map((t) => t.count)).toEqual([0, 0, 0, 0, 0, 0]);
     expect(strip.stuck.count).toBe(0);
-    expect(strip.needsYou).toMatchObject({ count: 0, lines: [] });
+    expect(strip.needsYou).toEqual({ count: 0, href: "/actions?view=board&focus=needs-you" });
     expect(strip.movedToday).toEqual({ count: 0, lastLine: null });
   });
 
@@ -72,7 +72,7 @@ describe("loadWorkStrip", () => {
     expect(load().stuck.count).toBe(2);
   });
 
-  it("counts the cards that need the owner and words the first five", () => {
+  it("counts the cards that need the owner, without listing them (Today's Needs you does)", () => {
     const { db, seed, load } = setup();
     const job = analystJob(db);
     for (let i = 0; i < 6; i++) {
@@ -91,10 +91,7 @@ describe("loadWorkStrip", () => {
     seed("queue");
     const strip = load();
     expect(strip.needsYou.count).toBe(6);
-    expect(strip.needsYou.lines).toHaveLength(5);
-    expect(strip.needsYou.lines[0]).toMatch(
-      /^Idea \d\. Waiting for you to accept or dismiss it\.$/,
-    );
+    expect(strip.needsYou).not.toHaveProperty("lines");
   });
 
   it("counts moves since midnight in the owner's timezone, not UTC", () => {

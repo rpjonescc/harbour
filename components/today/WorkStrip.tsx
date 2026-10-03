@@ -1,8 +1,8 @@
+import { Hand, Hourglass, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { type ReactNode, useId } from "react";
+import { useId } from "react";
 import { columnHeadingId } from "@/components/actions/focus-after-change";
 import { Explainer } from "@/components/explain/Explainer";
-import { Panel } from "@/components/ui/Panel";
 import { STRIP_TEXT } from "@/lib/explain/board";
 import type { WorkStrip as WorkStripData } from "@/lib/today/work-strip";
 import { FlowBar } from "./FlowBar";
@@ -10,39 +10,36 @@ import { FlowBar } from "./FlowBar";
 const LINK =
   "min-h-11 rounded-sm text-accent underline underline-offset-2 hover:no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus";
 
-/** A tile that is a link only when there is something behind it. */
-function GroupTile({
-  title,
+/** One line of the strip: a sentence, and a link to the board's focus only when there is something. */
+function SignalLine({
+  icon: Icon,
   sentence,
   href,
   linkText,
   active,
-  children,
 }: {
-  title: string;
+  icon: LucideIcon;
   sentence: string;
   href: string;
   linkText: string;
   active: boolean;
-  children?: ReactNode;
 }) {
   return (
-    <Panel className="flex flex-col gap-2 p-4">
-      <h3 className="font-medium text-ink">{title}</h3>
-      <p className="text-sm text-ink">{sentence}</p>
-      {children}
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-line bg-surface px-3 py-1">
+      <Icon aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
+      <span className="min-w-0 flex-1 py-2 text-sm text-ink">{sentence}</span>
       {active && (
         <Link href={href} className={`${LINK} inline-flex items-center text-sm`}>
           {linkText}
         </Link>
       )}
-    </Panel>
+    </li>
   );
 }
 
 /**
- * Today's "Where the work is" band: a tile per board column, a flow bar, the stuck and needs-you
- * groups in plain sentences, and what moved today. A server component: it needs no script.
+ * Today's "Where the work is" band: a tile per board column, a flow bar, one line each for the stuck
+ * jobs and the jobs that need the owner (counts linking to the board's focus), and what moved today. A server component: it needs no script.
  */
 export function WorkStrip({ strip }: { strip: WorkStripData }) {
   const headingId = useId();
@@ -80,35 +77,23 @@ export function WorkStrip({ strip }: { strip: WorkStripData }) {
           <FlowBar tiles={strip.tiles} />
         </>
       )}
-      <div className="grid items-start gap-2 sm:grid-cols-2">
-        <GroupTile
-          title={STRIP_TEXT.stuckTitle}
+      {/* One line each: the full list of what needs the owner is Today's own "Needs you". */}
+      <ul className="grid gap-2 sm:grid-cols-2">
+        <SignalLine
+          icon={Hourglass}
           sentence={STRIP_TEXT.stuck(stuck.count)}
           href={stuck.href}
           linkText={STRIP_TEXT.stuckLink}
           active={stuck.count > 0}
         />
-        <GroupTile
-          title={STRIP_TEXT.needsTitle}
+        <SignalLine
+          icon={Hand}
           sentence={STRIP_TEXT.needs(needsYou.count)}
           href={needsYou.href}
           linkText={STRIP_TEXT.needsLink}
           active={needsYou.count > 0}
-        >
-          {needsYou.lines.length > 0 && (
-            <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-ink-muted">
-              {needsYou.lines.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-              {needsYou.count > needsYou.lines.length && (
-                <li className="list-none">
-                  {STRIP_TEXT.needsMore(needsYou.count - needsYou.lines.length)}
-                </li>
-              )}
-            </ul>
-          )}
-        </GroupTile>
-      </div>
+        />
+      </ul>
       <p className="text-sm text-ink-muted">
         {STRIP_TEXT.moved(movedToday.count)}
         {movedToday.lastLine && <> {movedToday.lastLine}</>}
