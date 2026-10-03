@@ -113,14 +113,16 @@ export function towerConfig(dir: string, env: Record<string, string> = {}): Conf
   });
 }
 
+export const ACME_DOCS: Product = {
+  id: "acme-docs",
+  name: "Acme Docs",
+  url: "https://docs.example.com",
+  hue: "amber",
+  kind: "product",
+};
+
 export const PRODUCT_ROWS: Product[] = [
-  {
-    id: "acme-docs",
-    name: "Acme Docs",
-    url: "https://docs.example.com",
-    hue: "amber",
-    kind: "product",
-  },
+  ACME_DOCS,
   {
     id: "acme-blog",
     name: "Acme Blog",
