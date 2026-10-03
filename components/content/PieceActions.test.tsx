@@ -15,6 +15,16 @@ afterEach(() => {
 const ID = "acme-docs-20261002-five-minutes.linkedin";
 
 describe("PieceActions", () => {
+  it("puts the piece title in every button name so two pieces never share one", () => {
+    const view = piece({});
+    render(<PieceActions piece={view} />);
+    for (const verb of ["Approve", "Edit", "Discard"]) {
+      expect(screen.getByRole("button", { name: `${verb}: ${view.title}` })).toBeVisible();
+    }
+    fireEvent.click(screen.getByRole("button", { name: `Discard: ${view.title}` }));
+    expect(screen.getByRole("button", { name: `Confirm discard: ${view.title}` })).toBeVisible();
+  });
+
   it("makes the owner tick every flag before Confirm approval is enabled, then posts the ticked flags", async () => {
     render(
       <PieceActions
@@ -24,7 +34,7 @@ describe("PieceActions", () => {
         })}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Approve:/ }));
     const confirm = screen.getByRole("button", { name: "Confirm approval" });
     expect(confirm).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox", { name: "I've checked the pricing claim" }));
@@ -53,7 +63,7 @@ describe("PieceActions", () => {
         })}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Approve:/ }));
     expect(
       screen.getByText("Approve anyway? The humanizer check still found 1 pattern."),
     ).toBeVisible();
@@ -67,7 +77,7 @@ describe("PieceActions", () => {
 
   it("edits through a labelled textarea prefilled with the piece's own text", async () => {
     render(<PieceActions piece={piece()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit:/ }));
     const box = screen.getByRole("textbox", { name: "Edit the piece text" });
     expect(box).toHaveValue("Docs that ship in five minutes.");
     fireEvent.change(box, { target: { value: "Docs in five minutes, plainly." } });
@@ -83,7 +93,7 @@ describe("PieceActions", () => {
 
   it("does not save an empty edit", () => {
     render(<PieceActions piece={piece()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit:/ }));
     fireEvent.change(screen.getByRole("textbox", { name: "Edit the piece text" }), {
       target: { value: "   " },
     });
@@ -92,9 +102,9 @@ describe("PieceActions", () => {
 
   it("asks before discarding, and posts nothing until it is confirmed", async () => {
     render(<PieceActions piece={piece()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Discard:/ }));
     expect(mocks.postJson).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Confirm discard" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Confirm discard:/ }));
     await act(async () => {});
     expect(mocks.postJson).toHaveBeenCalledWith("/api/content", {
       action: "discard",
@@ -110,10 +120,10 @@ describe("PieceActions", () => {
       message: "This piece changed since you opened it. Reload and try again.",
     });
     render(<PieceActions piece={piece()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
-    fireEvent.click(screen.getByRole("button", { name: "Confirm discard" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Discard:/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Confirm discard:/ }));
     await screen.findByText("This piece changed since you opened it. Reload and try again.");
-    expect(screen.getByRole("button", { name: "Confirm discard" })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Confirm discard:/ })).toBeVisible();
     expect(mocks.refresh).not.toHaveBeenCalled();
   });
 
@@ -134,8 +144,8 @@ describe("PieceActions", () => {
     try {
       render(<PieceActions piece={piece({ saving: true })} />);
       expect(screen.getByRole("status")).toHaveTextContent("Saving…");
-      expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "Discard" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /^Approve:/ })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /^Discard:/ })).toBeDisabled();
       act(() => void vi.advanceTimersByTime(2100));
       expect(mocks.refresh).toHaveBeenCalledTimes(1);
       act(() => void vi.advanceTimersByTime(4 * 60_000));
@@ -161,7 +171,7 @@ describe("PieceActions", () => {
 
   it("returns focus to the button that opened a panel when it closes", () => {
     render(<PieceActions piece={piece()} />);
-    const edit = screen.getByRole("button", { name: "Edit" });
+    const edit = screen.getByRole("button", { name: /^Edit:/ });
     fireEvent.click(edit);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(edit).toHaveFocus();
@@ -171,29 +181,29 @@ describe("PieceActions", () => {
     const { rerender } = render(
       <PieceActions piece={piece({ tab: "needs-you", empty: true, text: "", copy: [] })} />,
     );
-    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Discard" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^Approve:/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Edit:/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Discard:/ })).toBeVisible();
     rerender(<PieceActions piece={piece({ tab: "discarded", state: "discarded" })} />);
     expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("offers Discard but not Approve or Edit for a step that failed", () => {
     render(<PieceActions piece={piece({ tab: "needs-you", retry: true })} />);
-    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Discard" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^Approve:/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Discard:/ })).toBeVisible();
   });
 
   it("offers Discard but not Approve or Edit for an approved piece", () => {
     render(<PieceActions piece={piece({ tab: "approved", state: "approved" })} />);
-    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Discard" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /^Approve:/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Edit:/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Discard:/ })).toBeVisible();
   });
 
   it("names flags in plain words at approval", () => {
     render(<PieceActions piece={piece({ flags: ["curriculum", "comparative"] })} />);
-    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Approve:/ }));
     expect(
       screen.getByRole("checkbox", { name: "I've checked the curriculum or education claim" }),
     ).toBeVisible();
@@ -204,7 +214,7 @@ describe("PieceActions", () => {
 
   it("limits the edit box to the platform's cap and counts what is typed", () => {
     render(<PieceActions piece={piece()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit:/ }));
     const box = screen.getByRole("textbox", { name: "Edit the piece text" });
     expect(box).toHaveAttribute("maxlength", "3000");
     expect(screen.getByText("31 of 3,000 characters.")).toBeVisible();

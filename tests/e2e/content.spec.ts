@@ -138,7 +138,7 @@ test("a piece reads as plain text, copies clean, and keeps its checks folded awa
 test("Approve exports clean markdown into the brain, audited and committed", async ({ page }) => {
   await openContent(page, /^Ready for you/);
   const piece = await openPiece(page, "LinkedIn");
-  await piece.getByRole("button", { name: "Approve" }).click();
+  await piece.getByRole("button", { name: /^Approve:/ }).click();
   await piece.getByRole("button", { name: "Confirm approval" }).click();
   await expect(page.getByRole("tab", { name: /^Approved \(1\)/ })).toBeVisible({
     timeout: 60_000,
@@ -168,7 +168,7 @@ test("a piece with an open finding asks 'Approve anyway?' and says what is open"
   const piece = await openPiece(page, "X");
   // What is open is said in a plain sentence, above the buttons.
   await expect(piece.getByText(/still found 1 pattern/).first()).toBeVisible();
-  await piece.getByRole("button", { name: "Approve" }).click();
+  await piece.getByRole("button", { name: /^Approve:/ }).click();
   await expect(piece.getByText(/^Approve anyway\? .*still found 1 pattern/)).toBeVisible();
   await piece.getByRole("button", { name: "Confirm approval" }).click();
   await expect(page.getByRole("tab", { name: /^Approved \(2\)/ })).toBeVisible({
@@ -184,7 +184,7 @@ test("Edit keeps a piece Ready when the checks pass; Discard asks first and can 
   const facebook = await openPiece(page, "Facebook");
   const edited =
     "Our getting-started guide is rebuilt, and a first deploy takes about five minutes.";
-  await facebook.getByRole("button", { name: "Edit" }).click();
+  await facebook.getByRole("button", { name: /^Edit:/ }).click();
   await facebook.getByRole("textbox", { name: "Edit the piece text" }).fill(edited);
   await facebook.getByRole("button", { name: "Save" }).click();
   await waitForJob("content-decision", (p) => p.action === "edit");
@@ -192,12 +192,12 @@ test("Edit keeps a piece Ready when the checks pass; Discard asks first and can 
   // Still in the Ready tab, with the owner's words.
   await expect((await openPiece(page, "Facebook")).getByText(edited)).toBeVisible();
   const blog = await openPiece(page, "Blog post");
-  await blog.getByRole("button", { name: "Discard" }).click();
+  await blog.getByRole("button", { name: /^Discard:/ }).click();
   await blog.getByRole("button", { name: "Cancel" }).click();
   await expect(blog.getByText("Discard this piece?")).toBeHidden();
-  await blog.getByRole("button", { name: "Discard" }).click();
+  await blog.getByRole("button", { name: /^Discard:/ }).click();
   await expect(blog.getByText("Discard this piece?")).toBeVisible();
-  await blog.getByRole("button", { name: "Confirm discard" }).click();
+  await blog.getByRole("button", { name: /^Confirm discard:/ }).click();
   await expect(page.getByRole("tab", { name: /^Discarded \(1\)/ })).toBeVisible({
     timeout: 60_000,
   });
