@@ -140,6 +140,28 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
 - Scoring unchanged in this version. The GEO and AEO "not connected" placeholders from the original design
   stay at weight 0; a formula `v3` that weights these is a separate, later decision.
 
+### 3.6 Verified Treg HTTP details (checked against the live service on 3 October 2026)
+- **Call:** `POST https://treg.to/call/<endpoint-id>` with `X-Treg-Token: <key>`, `Content-Type: application/json`
+  and an optional `X-Treg-Route-Max-Cost: <usd decimal>` (hard per-call ceiling).
+- **Success:** HTTP 200; the body is the provider's body unchanged; `x-treg-cost-micro` is the charge in
+  micro-USD (for example `2500` is US$0.0025) and `x-treg-call-id` identifies the call.
+- **Ceiling refusal:** HTTP 402 with `{"detail":{"error":"route_max_cost","endpoint_id","provider",
+  "max_cost_micro","estimated_cost_micro","message"}}`, header `x-treg-error: 1`, and nothing is charged. Any
+  other 402 (for example an empty balance), 401/403 (key), 429 and 5xx are recorded as fixed-sentence
+  failures; a 402 or 401/403 ends the run for all products, because it will repeat.
+- **Endpoint bodies** (the three used here; synthetic fixtures only in tests):
+  - `serpstat.web.backlinks.summary`: `{"method":"SerpstatBacklinksProcedure.getSummaryV2","id":"1","params":{"query":"<domain>"}}`
+    answers `result.data` with `referring_domains`, `backlinks`, `dofollow_backlinks`, `nofollow_backlinks`,
+    `sersptat_domain_rank` (sic). About US$0.0025.
+  - `dataforseo.google.serp.organic`: body is an array of one task `[{"keyword","location_name","language_code":"en","depth":30}]`;
+    answers `tasks[0].result[0].items[]` with `type`, `rank_group`, `domain`, `url`, `title` (only items whose
+    `type` is `organic` count for a position). About US$0.002 per 10 results of depth.
+  - `cloro.ai-search.chatgpt.scrape`: `{"country":"AU","prompt":"<question>"}` answers `result.text`,
+    `result.sources[]` (objects with a `url`), `result.entities[]`, `result.citationPills`. About US$0.003 and
+    around 30 seconds per call.
+- Prices are quoted per call by `treg catalog get <id>`; the table of endpoints and price ceilings lives in one
+  code file and changes only with a code change.
+
 ## 4. Architecture notes
 
 - Feature 1 touches: `lib/scan/collectors/indexing.ts`, `registry.ts` and `labels.ts` (+ their tests),
