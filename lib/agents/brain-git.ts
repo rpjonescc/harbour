@@ -234,7 +234,7 @@ export function pushBrain(root: string): { ok: true } | { ok: false; error: stri
   }
 }
 
-/** Commits not yet on the upstream, or null when there is no upstream. */
+/** Commits not yet on the upstream, or null when they could not be counted (no upstream, git failed). */
 export function unpushedCount(root: string): number | null {
   try {
     return Number(git(root, ["rev-list", "--count", "@{upstream}..HEAD"]).trim());

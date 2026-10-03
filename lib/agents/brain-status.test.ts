@@ -47,6 +47,13 @@ describe("brainSyncStatus", () => {
     expect(status.recovery).toEqual({ pending: [], lastError: null });
   });
 
+  it("reports an unknown unpushed count as null, never as synced", () => {
+    const brain = makeGitBrain({});
+    cleanups.push(brain.cleanup);
+    brain.git("branch", "--unset-upstream");
+    expect(brainSyncStatus(brain.root, tempDir()).sync).toEqual({ unsaved: 0, unpushed: null });
+  });
+
   it("quietly hides sync counts when the brain is not its own repository root", () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const brain = makeBrain({ "a.md": "x\n" });

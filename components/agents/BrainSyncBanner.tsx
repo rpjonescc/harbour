@@ -4,12 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { postJson } from "@/lib/auth/client-api";
+import { SYNC_UNCHECKED } from "@/lib/explain/brain-sync";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * Whether the owner's notes are saved and pushed. Saving and syncing are automatic; the buttons
  * are optional shortcuts. `paused` is true while an interrupted agent run is being recovered.
+ * `unpushed` is null when Harbour could not count the commits waiting to reach GitHub.
  */
 export function BrainSyncBanner({
   unsaved,
@@ -17,7 +19,7 @@ export function BrainSyncBanner({
   paused = false,
 }: {
   unsaved: number;
-  unpushed: number;
+  unpushed: number | null;
   paused?: boolean;
 }) {
   const router = useRouter();
@@ -62,7 +64,8 @@ export function BrainSyncBanner({
           )}
         </div>
       )}
-      {unpushed > 0 && (
+      {unpushed === null && <p>{SYNC_UNCHECKED}</p>}
+      {unpushed !== null && unpushed > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span>
             {unpushed} saved {unpushed === 1 ? "change is" : "changes are"} waiting to reach GitHub

@@ -2,7 +2,8 @@ import { dirname, join } from "node:path";
 import { recoveryStatus } from "@/lib/jobs/run-marker";
 import { assertBrainRepoRoot, ownerChanges, unpushedCount } from "./brain-git";
 
-export type BrainSyncCounts = { unsaved: number; unpushed: number };
+/** `unpushed` is null when it could not be counted (no upstream branch, or git failed). */
+export type BrainSyncCounts = { unsaved: number; unpushed: number | null };
 export type BrainSyncStatus = {
   /** Null when git must not run in the brain (missing, or not its own repository root). */
   sync: BrainSyncCounts | null;
@@ -23,7 +24,7 @@ function syncCounts(root: string): BrainSyncCounts | null {
     return null;
   }
   try {
-    return { unsaved: ownerChanges(root).length, unpushed: unpushedCount(root) ?? 0 };
+    return { unsaved: ownerChanges(root).length, unpushed: unpushedCount(root) };
   } catch (error) {
     console.error("brain sync status unavailable:", (error as Error).message);
     return null;
