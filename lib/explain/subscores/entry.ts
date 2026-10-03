@@ -11,6 +11,11 @@ export type SubScoreExplanation = {
    * not have the expected wording (an older formula's), so the caller uses the verdict instead.
    */
   summarise: (evidence: string) => string | null;
+  /**
+   * Said after the reading when a formula measures the sub-score but gives it weight 0, so the
+   * owner knows it is shown for information and why it doesn't count.
+   */
+  notCounted?: string;
 };
 
 /**

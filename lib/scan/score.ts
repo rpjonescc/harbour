@@ -8,11 +8,16 @@ import type { ScanScores, ScoreScan } from "./types";
 
 /**
  * Bump with any change to a formula, weight or threshold: stored rows keep their version.
- * v2: Preferred Sources only counts for news sites (spec §6).
+ * v2: Preferred Sources only counts for news sites (plain-language spec §6).
+ * v3: FAQ markup, llms.txt and AI training crawlers are measured but not counted (design spec
+ * "Scoring v3").
  */
-export const FORMULA_VERSION = "v2";
+export const FORMULA_VERSION = "v3";
 
-/** Each total's sub-scores. A weight-0 entry is a "not connected yet" note. */
+/**
+ * Each total's sub-scores. A weight-0 entry is not counted: a "not connected yet" note when it has
+ * no score, or a check measured for information.
+ */
 export const SUB_SCORES: Readonly<Record<Total, readonly SubScoreSpec[]>> = {
   seo: SEO_SUB_SCORES,
   geo: GEO_SUB_SCORES,
@@ -53,7 +58,7 @@ function total(scored: readonly Scored[]): { value: number | null; complete: boo
 }
 
 /**
- * Scoring v2: SEO, GEO and AEO totals (0–100) from a scan's observations, with a breakdown
+ * Scoring v3: SEO, GEO and AEO totals (0–100) from a scan's observations, with a breakdown
  * entry per sub-score explaining its number or why it is missing. Pure: same input, same
  * result; a collector that did not end ok, or whose data is malformed, is a gap, never a zero.
  */

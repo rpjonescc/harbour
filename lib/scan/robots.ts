@@ -23,14 +23,30 @@ export type AiCrawler = (typeof AI_CRAWLERS)[number];
 
 /**
  * Agents that fetch pages to answer a question or build an AI search index: being blocked
- * keeps a site out of AI answers. The other AI crawlers (GPTBot, ClaudeBot, Google-Extended,
- * CCBot, Bytespider) collect training data only, which owners may block on purpose.
+ * keeps a site out of AI answers.
  */
 export const AI_RETRIEVAL_AGENTS: ReadonlySet<string> = new Set<AiCrawler>([
   "OAI-SearchBot",
   "ChatGPT-User",
   "PerplexityBot",
   "Claude-SearchBot",
+]);
+
+/**
+ * Crawlers that collect training data: blocking them is the owner's policy choice, so from
+ * formula v3 they count neither for nor against AI crawler access.
+ */
+export const AI_TRAINING_CRAWLERS: ReadonlySet<string> = new Set<AiCrawler>([
+  // OpenAI: collects content for training its models.
+  "GPTBot",
+  // Anthropic: collects content to improve its models.
+  "ClaudeBot",
+  // Google: a robots.txt token for Gemini training and grounding; Search is unaffected.
+  "Google-Extended",
+  // Common Crawl: an open web archive many models are trained on.
+  "CCBot",
+  // ByteDance: collects content for training its models.
+  "Bytespider",
 ]);
 
 /** "HarbourBot/0.1" and "harbourbot" name the same crawler. */

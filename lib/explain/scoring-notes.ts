@@ -4,6 +4,10 @@ import type { AreaKey, FormulaChange } from "@/lib/scan/views";
 /** One fixed note per formula version, shown while the change is in the Product page's window. */
 const NOTES: Readonly<Record<string, string>> = {
   v2: "Scoring updated: Preferred Sources now only counts for news sites.",
+  v3:
+    "Scoring updated: FAQ markup, llms.txt and AI training crawlers are still checked but no " +
+    "longer count, so a move in Recommended by AI assistants or Answer-ready this time comes " +
+    "from that change, not your site.",
 };
 
 /**
@@ -14,6 +18,7 @@ const NOTES: Readonly<Record<string, string>> = {
  */
 const AREAS_CHANGED: Readonly<Record<string, Readonly<Record<ProductKind, readonly AreaKey[]>>>> = {
   v2: { product: ["aeo"], news: [] },
+  v3: { product: ["geo", "aeo"], news: ["geo", "aeo"] },
 };
 
 /** "v2" → 2; anything else (such as "v2.1") is NaN, which counts as an unknown version. */
@@ -45,7 +50,11 @@ export function hasScoringNote(version: string): boolean {
   return version in NOTES;
 }
 
-/** The note for the first score on a new formula; null when there is no change or no note. */
-export function scoringNote(change: FormulaChange | null): string | null {
-  return change ? (NOTES[change.to] ?? null) : null;
+/**
+ * The note for the first score on a new formula; null when there is no change, no note, or the
+ * version changed nothing on this kind of site.
+ */
+export function scoringNote(change: FormulaChange | null, kind: ProductKind): string | null {
+  if (!change || AREAS_CHANGED[change.to]?.[kind].length === 0) return null;
+  return NOTES[change.to] ?? null;
 }

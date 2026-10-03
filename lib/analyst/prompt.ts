@@ -5,7 +5,7 @@ import type { Product } from "@/lib/products/catalog";
 import { fenceFor } from "@/lib/text/fence";
 import { isWeekLabel } from "./week";
 
-export const ANALYST_PROMPT_VERSION = "4-v4";
+export const ANALYST_PROMPT_VERSION = "4-v5";
 
 /** The brain paths one weekly run writes: its report and its suggested actions. */
 export function weeklyPaths(week: string): { report: string; proposals: string } {
@@ -64,6 +64,7 @@ The three areas are ${areaNames()}; the data names them by their codes, which be
 Give each score's verdict before its number: ${verdictBandsText()}.
 A missing score is a gap, never "Needs work".
 Each score in the data carries the scoring formula version that produced it. A score from a different formula version is not comparable; do not call a change that crosses a version an improvement or a decline.
+A sub-score with weight 0 is measured for information and not counted in its score (such as FAQ markup and llms.txt); do not suggest work to raise it.
 
 Week: ${week}
 Today's date: ${today}

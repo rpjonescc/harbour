@@ -52,14 +52,17 @@ export const AEO_EXPLANATIONS: readonly SubScoreExplanation[] = [
     parts: {
       what:
         "How many of your pages use FAQ, how-to or Q&A structured data, which tells machines " +
-        "“this is a question, and this is its answer”. Full marks when a quarter of your pages do.",
-      why: "Marked-up answers are the easiest for Google and AI assistants to lift into their results.",
+        "“this is a question, and this is its answer”.",
+      why:
+        "Google stopped showing FAQ results in May 2026, so this markup no longer earns a place " +
+        "in its results. Harbour checks for it but doesn't count it.",
       todo:
-        "Add FAQ structured data to pages that already answer common questions, such as your " +
-        "FAQ, pricing or opening-hours pages.",
-      worth: "It's quick to do on pages you already have, and it makes those answers stand out.",
+        "Nothing for the score. Spend the time on short, direct answers under question headings " +
+        "instead; existing markup can stay.",
+      worth: "Clear answers on the page help people, Google and AI assistants alike.",
     },
     summarise: qaCoverage,
+    notCounted: "Measured, not counted: Google no longer shows FAQ results.",
   },
   {
     key: "aeo.conciseAnswers",

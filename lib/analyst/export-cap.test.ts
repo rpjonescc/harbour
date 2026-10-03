@@ -27,6 +27,7 @@ function product(
       key: `seo.k${k}`,
       label: `Sub-score ${k}`,
       score: k % 3 === 0 ? null : 70,
+      weight: 0.1,
       status: k % 3 === 0 ? "missing" : "ok",
       evidence: long(size.text, "e"),
     })),

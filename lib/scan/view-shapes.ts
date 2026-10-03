@@ -20,6 +20,10 @@ const crawledPage = z.object({
   h1Count: z.number().nullable(),
   noindex: z.boolean().nullable(),
   hasFaqMarkup: z.boolean().nullable(),
+  // Recorded from scoring v3 on: a page crawled before reads as not known (undefined).
+  noSnippet: z.boolean().nullish(),
+  nosnippetWords: z.number().nullish(),
+  wordCount: z.number().nullish(),
 });
 
 const crawlSite = z

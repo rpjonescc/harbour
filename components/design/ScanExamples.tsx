@@ -53,7 +53,10 @@ export function ScanExamples() {
         </div>
         <ScanNowButton productId={EXAMPLE_PRODUCT.id} active={null} demo />
       </div>
-      <ScoringNote change={{ from: "v1", to: "v2", at: new Date("2026-09-28T06:00:00Z") }} />
+      <ScoringNote
+        change={{ from: "v2", to: "v3", at: new Date("2026-09-28T06:00:00Z") }}
+        kind="product"
+      />
       <AreaCards
         scores={EXAMPLE_SCORES}
         scan={EXAMPLE_SCAN_STATES[0]?.scan ?? { active: null, last: null }}

@@ -232,11 +232,19 @@ describe("buildWeeklyExport", () => {
   it("takes sub-scores, issues, collectors and Search Console from the latest scored scan", () => {
     const product = build(fixture()).products[0];
     expect(product?.subScores).toEqual([
-      { key: "seo.titles", label: "Titles", score: 80, status: "ok", evidence: "4 of 5 pages" },
+      {
+        key: "seo.titles",
+        label: "Titles",
+        score: 80,
+        weight: 1,
+        status: "ok",
+        evidence: "4 of 5 pages",
+      },
       {
         key: "geo.llms",
         label: "llms.txt",
         score: null,
+        weight: 1,
         status: "missing",
         evidence: "not checked",
       },

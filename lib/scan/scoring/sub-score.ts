@@ -9,7 +9,10 @@ export type SubScore = { score: number | null; evidence: string; gaps: string[] 
 
 export type Total = "seo" | "geo" | "aeo";
 
-/** A sub-score of the v1 formula. Weight 0 marks a "not connected yet" note, not a score. */
+/**
+ * A sub-score of the formula. Weight 0 is not counted in the total: a "not connected yet" note,
+ * or a check measured only for information.
+ */
 export type SubScoreSpec = {
   key: string;
   label: string;

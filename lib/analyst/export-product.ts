@@ -137,10 +137,11 @@ export function productExport(
       complete: r.complete,
     })),
     deltas: deltas(rows, series, product.kind),
-    subScores: (latest?.breakdown ?? []).map(({ key, label, score, status, evidence }) => ({
+    subScores: (latest?.breakdown ?? []).map(({ key, label, score, weight, status, evidence }) => ({
       key,
       label,
       score,
+      weight,
       status,
       evidence,
     })),

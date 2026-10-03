@@ -1,4 +1,4 @@
-import { extractPage, hasNoindex, type PageFacts } from "../html";
+import { blocksSnippets, extractPage, hasNoindex, type PageFacts } from "../html";
 import type { SafeFetchResponse } from "../types";
 
 type HtmlFields = Omit<PageFacts, "links">;
@@ -6,8 +6,8 @@ type HtmlFields = Omit<PageFacts, "links">;
 /**
  * The `page` observation (subject: the requested URL): the response, plus what its HTML says
  * (see PageFacts, without `links`). Pages without HTML to read (non-2xx statuses, other content
- * types) record every HTML field as null — a gap, not a zero. `noindex` here also counts the
- * X-Robots-Tag header.
+ * types) record every HTML field as null — a gap, not a zero. `noindex` and `noSnippet` here
+ * also count the X-Robots-Tag header.
  */
 export type CrawledPage = {
   /** HTTP status of the final response. */
@@ -29,6 +29,8 @@ const NO_HTML: { [K in keyof HtmlFields]: null } = {
   canonical: null,
   robotsMeta: null,
   noindex: null,
+  noSnippet: null,
+  nosnippetWords: null,
   lang: null,
   jsonLdTypes: null,
   invalidJsonLd: null,
@@ -61,6 +63,8 @@ export function pageFromResponse(response: SafeFetchResponse): {
   }
   const { links, ...facts } = extractPage(response.body, finalUrl);
   const robotsHeaders = response.headerLines.filter(([name]) => name === "x-robots-tag");
-  const noindex = facts.noindex || robotsHeaders.some(([, value]) => hasNoindex(value));
-  return { page: { ...base, ...facts, noindex }, links };
+  const header = (test: (value: string) => boolean) => robotsHeaders.some(([, v]) => test(v));
+  const noindex = facts.noindex || header(hasNoindex);
+  const noSnippet = facts.noSnippet || header(blocksSnippets);
+  return { page: { ...base, ...facts, noindex, noSnippet }, links };
 }

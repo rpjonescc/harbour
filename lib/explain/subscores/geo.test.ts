@@ -2,7 +2,7 @@ import { GEO_SUB_SCORES } from "@/lib/scan/scoring/geo";
 import type { ScanObservation } from "@/lib/scan/types";
 import { ACME_SCAN, entryOf, readiness, scoreOf } from "@/tests/helpers/scoring";
 import { isComplete } from "../four-parts";
-import { GEO_EXPLANATIONS } from "./geo";
+import { aiEnginesLine, GEO_EXPLANATIONS } from "./geo";
 
 function explanation(key: string) {
   const found = GEO_EXPLANATIONS.find((e) => e.key === key);
@@ -42,7 +42,8 @@ describe("GEO explanations", () => {
   it.each([
     [
       "geo.aiCrawlers",
-      "8 of 9 AI crawlers may read your site, including 4 of the 4 that fetch pages to answer people's questions.",
+      "4 of the 4 AI crawlers that fetch pages to answer people's questions may read your site. " +
+        "Training crawlers aren't counted: blocking them is your choice.",
     ],
     ["geo.llmsTxt", "Your site has an llms.txt guide for AI assistants."],
     ["geo.entities", "Your site tells machines who runs it and what it's called."],
@@ -68,8 +69,32 @@ describe("GEO explanations", () => {
     expect(lineOf(schema(organization, website), "geo.entities")).toBe(line);
   });
 
-  it("never read AI engine mentions, which are always missing for now", () => {
+  it("still read formula v2's crawler and citation evidence", () => {
+    const crawlers =
+      "8 of 9 AI crawlers may fetch the home page: 4 of 4 search and retrieval agents, " +
+      "4 of 5 training crawlers; blocked: GPTBot (training only).";
+    expect(explanation("geo.aiCrawlers").summarise(crawlers)).toBe(
+      "8 of 9 AI crawlers may read your site, including 4 of the 4 that fetch pages to answer people's questions.",
+    );
+    const citations =
+      "2 of 5 HTML pages have FAQ, HowTo or Article schema or question-style headings " +
+      "(full marks at half the pages).";
+    expect(explanation("geo.citations").summarise(citations)).toBe(
+      "2 of 5 pages are set out so AI assistants can quote them easily.",
+    );
+  });
+
+  it("never read AI engine mentions, which are not scored yet", () => {
     expect(explanation("geo.aiEngines").summarise("anything")).toBeNull();
+  });
+
+  it.each([
+    ["ready", "Measured in How the web sees you, not counted in the score yet."],
+    ["not_connected", /^Not measured: Treg isn't connected/],
+    ["no_searches", /^Not measured: no questions are chosen/],
+    ["not_checked", /^How the web sees you hasn't asked AI assistants yet/],
+  ] as const)("say where AI engine mentions stand when the outside view is %s", (state, line) => {
+    expect(aiEnginesLine(state)).toMatch(line);
   });
 
   it("return null for wording they don't know", () => {

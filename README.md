@@ -1123,11 +1123,14 @@ itself, with the meaning of every underlined word.
   details**). Each area's tab explains every sub-score as a plain sentence, weakest first, with
   "What's this?"; one with no data reads "Not counted yet" with the reason and is left out of the
   score rather than counted as zero. **What to fix** lists the check's issues with plain titles (the
-  rule titles in `lib/scan/issue-rules.ts`, such as "No guide to your site for AI assistants"); the
+  rule titles in `lib/scan/issue-rules.ts`, such as "AI assistants can't read your site"); the
   exact fix and check text and the affected URLs sit under **Technical details**. Issues come from
   the check's raw observations: pages without a title or meta description, broken internal links,
-  pages hidden by noindex, AI crawlers blocked in robots.txt, no llms.txt, no FAQ structured data
-  and no Google Preferred Sources button, and (once Search Console is connected and Harbour has known
+  pages hidden by noindex, indexable pages Google can't quote (**Google can't quote these pages**:
+  `nosnippet` or `max-snippet:0` in the robots meta tag or X-Robots-Tag header, or half or more of
+  the page's text inside `data-nosnippet`; up to 5 URLs with the count, no score change), AI search
+  crawlers blocked in robots.txt (blocking only training crawlers raises nothing) and no Google
+  Preferred Sources button (news sites only), and (once Search Console is connected and Harbour has known
   the sitemap for 14 days) at least 3 pages, and a fifth or more of those checked, that Google hasn't
   added to its search results. An issue is raised only from collectors that ran ok in
   that check: when the crawler or readiness check failed, its issues are unknown rather than fixed.
@@ -1402,8 +1405,8 @@ evidence behind its number, so the product page can explain it.
 | Score | Sub-score (weight) |
 |---|---|
 | SEO | Technical health (35%), indexability (25%), Core Web Vitals (20%), search impressions trend (20%) |
-| GEO | AI crawler access (30%; AI search and answer agents count three times as much as training-only crawlers), llms.txt (15%), entity structured data (25%), citation-ready content (30%) |
-| AEO | FAQ, HowTo and Q&A coverage (40%), concise answer blocks (35%), **Fresh pages** (25%: 3 or more URLs updated in the last 30 days score 100; a `news` site (see `kind` in [Configuration](#configuration)) instead gets 50 points for a Google Preferred Sources button and 50 for fresh content, as in formula v1) |
+| GEO | AI crawler access (35%: the share of AI search and answer agents robots.txt lets in; training-only crawlers are listed but not counted), entity structured data (30%), citation-ready content (35%: Article structured data or question-style headings), llms.txt (measured, not counted) |
+| AEO | Concise answer blocks (58%), **Fresh pages** (42%: 3 or more URLs updated in the last 30 days score 100; a `news` site (see `kind` in [Configuration](#configuration)) instead gets 50 points for a Google Preferred Sources button and 50 for fresh content, as in formula v1), FAQ, HowTo and Q&A markup (measured, not counted) |
 
 - **Missing data is a gap, never a zero.** When a source is not connected, failed, or returned
   data Harbour could not read, its sub-scores are left out, the rest are re-weighted, and the
@@ -1415,11 +1418,16 @@ evidence behind its number, so the product page can explain it.
   into its window.
 - **PageSpeed runs weekly.** On the days in between, Core Web Vitals use the last result while it
   is at most 14 days old, and say which day it is from.
-- **AI engine mentions and featured snippets** are listed as not connected: they need paid APIs.
-- **Scores never change after they are stored.** Each row records its formula version (`v2` now);
+- **Measured, not counted.** FAQ markup and llms.txt are still checked and shown, tagged "Not
+  counted", with the reason: Google stopped showing FAQ results in May 2026, and says llms.txt
+  neither helps nor harms. Neither raises an action.
+- **AI engine mentions** are measured in **How the web sees you** (the outside view) and not counted
+  in the score yet; **featured snippets** are listed as not connected: they need a paid rankings API.
+- **Scores never change after they are stored.** Each row records its formula version (`v3` now);
   a formula change gets a new version rather than rewriting history. A change in an area's score
   is not shown across a formula version that changed that area (v2 changed only Answer-ready on
-  product sites), so the first check after the change has no change beside that one score, and the
+  product sites; v3 changed Recommended by AI assistants and Answer-ready on every site), so the
+  first check after the change has no change beside those scores, and the
   daily note and the weekly report never call it an improvement or a decline. The weekly report's
   data labels each score with its version, and the 30-day SEO trend line keeps its older points as
   they were.
@@ -1429,11 +1437,20 @@ evidence behind its number, so the product page can explain it.
   — not found in the check of <date>". For about 30 days after formula v2 first scores a product
   site, its page says "Scoring updated: Preferred Sources now only counts for news sites." so a move
   in the score is not mistaken for a change in the site.
+- **Formula v3 follows the research.** FAQ markup and llms.txt have weight 0, and blocking AI
+  training crawlers (GPTBot, ClaudeBot, Google-Extended, CCBot, Bytespider) no longer lowers AI
+  crawler access; their weight went to the other parts in proportion. Open actions from the old
+  "Your questions and answers aren't labelled for Google and AI", "No guide to your site for AI
+  assistants" and "Your site opts out of AI training" rules move to Done at the next check, with a
+  note saying why Harbour no longer suggests them; their history is kept. For about 30 days the
+  product page says "Scoring updated: FAQ markup, llms.txt and AI training crawlers are still
+  checked but no longer count…".
 
 The exact formulas, thresholds and rounding are in the Phase 3 plan's "As built — scoring" notes
 ([docs/superpowers/plans](docs/superpowers/plans/2026-10-02-phase-3-visibility.md)), which
 describe formula v1; the AEO change in v2 is in
-[the plain-language spec](docs/superpowers/specs/2026-10-02-plain-language-ux-design.md) §6.
+[the plain-language spec](docs/superpowers/specs/2026-10-02-plain-language-ux-design.md) §6, and
+v3 in [the design spec](docs/superpowers/specs/2026-10-01-harbour-design.md) ("Scoring v3").
 
 ## Deployment
 

@@ -26,6 +26,8 @@ export function htmlPage(path: string, value: Record<string, unknown> = {}): Sca
       canonical: at(path),
       robotsMeta: null,
       noindex: false,
+      noSnippet: false,
+      nosnippetWords: 0,
       lang: "en",
       jsonLdTypes: [],
       invalidJsonLd: 0,

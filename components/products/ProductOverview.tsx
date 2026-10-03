@@ -37,6 +37,7 @@ export function ProductOverview({
         area={area}
         entries={latest?.breakdown ?? []}
         complete={latest?.complete[area] ?? true}
+        outside={outside.state}
       />
     ),
   }));

@@ -1,3 +1,4 @@
+import { closedNote } from "@/lib/explain/rule-notes";
 import type { Issue, RuleOutcome } from "@/lib/scan/issues";
 import { httpUrl, MAX_DOCS, MAX_EVIDENCE_ITEMS, MAX_EVIDENCE_TEXT } from "./evidence";
 import type { ActionFields, ActionRow, ActionStatus, Evidence, EvidenceItem } from "./types";
@@ -73,10 +74,15 @@ function planPresent(row: RuleActionState | undefined, issue: Issue, date: strin
   return { kind: "refresh", id: row.id, issue };
 }
 
-function planClear(row: RuleActionState | undefined, date: string): SyncChange | null {
+/** `why`: the rule's reason when it stopped applying, rather than the problem being fixed. */
+function planClear(
+  row: RuleActionState | undefined,
+  date: string,
+  why: string | undefined,
+): SyncChange | null {
   if (!row) return null;
   if (UNRESOLVED.includes(row.status)) {
-    const note = `Resolved — not found in the check of ${date}`;
+    const note = why ? closedNote(why, date) : `Resolved — not found in the check of ${date}`;
     return { kind: "status", id: row.id, from: row.status, to: "done", issue: null, note };
   }
   if (row.issuePresent === false) return null;
@@ -97,7 +103,7 @@ export function planRuleSync(
     const row = byRule.get(outcome.ruleId);
     if (outcome.state === "present") return [planPresent(row, outcome.issue, scanDate)];
     if (outcome.state === "unknown") return [];
-    const change = planClear(row, scanDate);
+    const change = planClear(row, scanDate, outcome.note);
     return change ? [change] : [];
   });
 }
