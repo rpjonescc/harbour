@@ -27,7 +27,8 @@ function SignalLine({
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-line bg-surface px-3 py-1">
       <Icon aria-hidden="true" className="size-4 shrink-0 text-ink-muted" />
-      <span className="min-w-0 flex-1 py-2 text-sm text-ink">{sentence}</span>
+      {/* A real basis, so a narrow tile wraps the link below rather than squeezing the words. */}
+      <span className="min-w-0 flex-[1_1_12rem] py-2 text-sm text-ink">{sentence}</span>
       {active && (
         <Link href={href} className={`${LINK} inline-flex items-center text-sm`}>
           {linkText}
@@ -78,7 +79,7 @@ export function WorkStrip({ strip }: { strip: WorkStripData }) {
         </>
       )}
       {/* One line each: the full list of what needs the owner is Today's own "Needs you". */}
-      <ul className="grid gap-2 sm:grid-cols-2">
+      <ul className="grid gap-2 lg:grid-cols-2">
         <SignalLine
           icon={Hourglass}
           sentence={STRIP_TEXT.stuck(stuck.count)}

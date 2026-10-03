@@ -98,11 +98,13 @@ export function BoardCard({
           {card.whyLine}
         </p>
       )}
-      <p className="flex flex-wrap items-center gap-x-1.5 text-sm">
-        <ProductDot product={card} />
-        <span className="text-ink-muted">{card.productName} ·</span>
-        <span className="text-ink">{copy.waitingOn(state)}</span>
-      </p>
+      <div className="flex flex-col gap-0.5">
+        <p className="flex items-center gap-1.5 text-xs text-ink-muted">
+          <ProductDot product={card} />
+          {card.productName}
+        </p>
+        <p className="text-sm text-ink">{copy.waitingOn(state)}</p>
+      </div>
       <PullRequestLink url={card.prUrl} />
       {card.isNewIdea && (
         <ActionStatusControls

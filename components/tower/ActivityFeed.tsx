@@ -27,27 +27,20 @@ function FeedRow({ item }: { item: FeedItem }) {
       <span className="flex h-5 items-center">
         <LightMark tone={MARK[item.kind]} />
       </span>
-      <span className="min-w-0 flex-1">
+      <span className="flex min-w-0 flex-1 flex-col items-start">
         {item.href ? (
           <Link href={item.href} className={TILE_LINK}>
             {item.sentence}
           </Link>
         ) : (
-          item.sentence
-        )}{" "}
-        <span className="whitespace-nowrap text-xs text-ink-muted">{item.ago}</span>
-        {item.kind === "win" && (
-          <>
-            {" "}
-            <Tag tone="good">{FEED_TEXT.win}</Tag>
-          </>
+          <span>{item.sentence}</span>
         )}
-        {item.isNew && (
-          <>
-            {" "}
-            <Tag>{FEED_TEXT.isNew}</Tag>
-          </>
-        )}
+        {/* Its own line: when and the tags never wrap into the sentence. */}
+        <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-ink-muted">{item.ago}</span>
+          {item.kind === "win" && <Tag tone="good">{FEED_TEXT.win}</Tag>}
+          {item.isNew && <Tag>{FEED_TEXT.isNew}</Tag>}
+        </span>
       </span>
     </li>
   );

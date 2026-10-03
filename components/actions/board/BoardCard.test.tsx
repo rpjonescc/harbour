@@ -40,7 +40,7 @@ describe("BoardCard", () => {
     const why = screen.getByText("Search results show the address instead of a name.");
     expect(why).toBeVisible();
     expect(why.className).toContain("line-clamp-2");
-    expect(screen.getByText("Acme Docs ·")).toBeVisible();
+    expect(screen.getByText("Acme Docs")).toBeVisible();
     // One status line: who has it and what it waits on, said once.
     expect(screen.getByText(COLUMN_COPY.queue.waitingOn(boardCard()))).toBeVisible();
     expect(screen.queryByText("· Waiting for you")).toBeNull();

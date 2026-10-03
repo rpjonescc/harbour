@@ -255,6 +255,22 @@ test.describe("on a phone", () => {
   });
 });
 
+test.describe("on a tablet", () => {
+  test.use({ viewport: { width: 768, height: 1024 } });
+
+  test("the work strip's Stuck and Needs you lines keep their words on a line or two", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const strip = page.getByRole("region", { name: SECTION_TITLES.work });
+    for (const name of ["See the stuck jobs", "See what needs you"]) {
+      const line = strip.getByRole("listitem").filter({ has: page.getByRole("link", { name }) });
+      const box = await line.boundingBox();
+      expect(box?.height ?? 0).toBeLessThanOrEqual(100);
+    }
+  });
+});
+
 test.describe("in the night theme", () => {
   test("the tower renders with the night tokens", async ({ page, context }) => {
     await context.addCookies([{ name: THEME_COOKIE, value: "night", url: E2E_ORIGIN }]);

@@ -63,6 +63,17 @@ describe("ActivityFeed", () => {
     expect(textOutsideDetails(container)).not.toMatch(/weekly-analyst|\(scan\)|Check \(/);
   });
 
+  it("puts when and the tags on their own line under the sentence", () => {
+    if (!busy) throw new Error("missing example");
+    render(<ActivityFeed result={busy} />);
+    const [first] = within(listUnder("Finished")).getAllByRole("listitem");
+    const when = within(first as HTMLElement).getByText("just now");
+    expect(when.parentElement).toHaveTextContent(/^just now\s*win\s*new$/);
+    expect(when.parentElement?.contains(within(first as HTMLElement).getByRole("link"))).toBe(
+      false,
+    );
+  });
+
   it("says when nothing is running but things finished", () => {
     if (!idle) throw new Error("missing example");
     render(<ActivityFeed result={idle} />);
