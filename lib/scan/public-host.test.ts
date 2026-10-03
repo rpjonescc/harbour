@@ -1,4 +1,5 @@
 import type { LookupAddress } from "node:dns";
+import { FetchError } from "./fetch-error";
 import { isNonPublicLiteral, isPublicAddress, publicLookup } from "./public-host";
 
 describe("isPublicAddress", () => {
@@ -17,6 +18,8 @@ describe("isPublicAddress", () => {
     "fe80::1",
     "::ffff:7f00:1",
     "64:ff9b::a00:1",
+    "64:ff9b:1::a00:1",
+    "64:ff9b:1:ffff::1",
     "2002:a00:1::1",
     "192.0.0.8",
     "198.18.0.1",
@@ -51,6 +54,11 @@ describe("isNonPublicLiteral", () => {
 });
 
 describe("publicLookup", () => {
+  const failWith = (resolveHost: () => Promise<LookupAddress[]>, all = false, family = 0) =>
+    new Promise<NodeJS.ErrnoException | null>((resolve) => {
+      const lookup = publicLookup(resolveHost, { allowLoopback: false });
+      lookup("docs.example.com", { all, family }, (error) => resolve(error));
+    });
   const lookupWith = (addresses: LookupAddress[], all: boolean, family = 0) =>
     new Promise<unknown>((resolve) => {
       const lookup = publicLookup(async () => addresses, { allowLoopback: false });
@@ -75,5 +83,28 @@ describe("publicLookup", () => {
       { address: "127.0.0.1", family: 4 },
     ];
     expect(await lookupWith(mixed, true)).toBe("Refused non-public host docs.example.com");
+  });
+
+  it("refuses a name that resolves to no address at all", async () => {
+    expect(await lookupWith([], true)).toBe("Refused non-public host docs.example.com");
+    expect(await lookupWith([], false)).toBe("Refused non-public host docs.example.com");
+  });
+
+  it("turns a resolver error into a network FetchError that keeps the cause", async () => {
+    const cause = Object.assign(new Error("getaddrinfo ENOTFOUND"), { code: "ENOTFOUND" });
+    const error = await failWith(() => Promise.reject(cause));
+    expect(error).toBeInstanceOf(FetchError);
+    expect(error).toMatchObject({ kind: "network", message: "Could not resolve docs.example.com" });
+    expect(error?.cause).toBe(cause);
+    const odd = await failWith(() => Promise.reject("not an Error"));
+    expect(odd?.cause).toEqual(new Error("not an Error"));
+  });
+
+  it("refuses when no address is of the family Node asked for", async () => {
+    const v4: LookupAddress[] = [{ address: "93.184.216.34", family: 4 }];
+    expect(await lookupWith(v4, false, 6)).toBe("No IPv6 address for docs.example.com");
+    expect(await lookupWith(v4, true, 6)).toBe("No IPv6 address for docs.example.com");
+    const error = await failWith(async () => v4, false, 6);
+    expect(error).toMatchObject({ kind: "network" });
   });
 });

@@ -7,7 +7,7 @@ export type HostPolicy = { allowLoopback: boolean };
 
 // Addresses a scan must never reach: private, link-local (cloud metadata), CGNAT (tailnets),
 // multicast, benchmarking (198.18/15), IETF (192.0.0/24) and reserved ranges, plus the IPv6
-// translation prefixes (NAT64, 6to4) that can wrap any of those. Node checks IPv4-mapped IPv6 addresses against the IPv4 rules.
+// translation prefixes (NAT64 well-known and local-use, 6to4) that can wrap any of those. Node checks IPv4-mapped IPv6 addresses against the IPv4 rules.
 const PRIVATE = new BlockList();
 for (const [network, prefix] of [
   ["0.0.0.0", 8],
@@ -26,6 +26,7 @@ for (const [network, prefix] of [
 for (const [network, prefix] of [
   ["::", 128],
   ["64:ff9b::", 96],
+  ["64:ff9b:1::", 48],
   ["2002::", 16],
   ["fc00::", 7],
   ["fe80::", 10],
