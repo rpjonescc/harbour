@@ -5,6 +5,7 @@ const LABELS: Record<string, string> = {
   pagespeed: "PageSpeed",
   "search-console": "Search Console",
   indexing: "Indexing",
+  treg: "Outside view",
 };
 
 /** Every collector a scan runs, in run order (the registry's order; a test keeps them equal). */

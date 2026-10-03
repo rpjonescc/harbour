@@ -3,7 +3,7 @@
 import type { Config } from "@/lib/config";
 
 export type PaidSource = {
-  id: "dataforseo" | "openai" | "perplexity" | "gemini";
+  id: "treg" | "dataforseo" | "openai" | "perplexity" | "gemini";
   label: string;
   /** Every setting the source needs (secrets: only their presence is ever checked). */
   settings: readonly (keyof Config)[];
@@ -12,6 +12,12 @@ export type PaidSource = {
 };
 
 export const PAID_SOURCES: readonly PaidSource[] = [
+  {
+    id: "treg",
+    label: "Treg",
+    settings: ["HARBOUR_TREG_API_KEY"],
+    collector: "treg",
+  },
   {
     id: "dataforseo",
     label: "DataForSEO",
@@ -38,7 +44,7 @@ export const PAID_SOURCES: readonly PaidSource[] = [
   },
 ];
 
-/** Sources whose collector exists and whose every setting is present (none in this phase). */
+/** Sources whose collector exists and whose every setting is present. */
 export function connectedPaidSources(
   config: Config,
   sources: readonly PaidSource[] = PAID_SOURCES,
