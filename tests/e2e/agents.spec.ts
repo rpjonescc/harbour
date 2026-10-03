@@ -37,10 +37,10 @@ test("discovery proposals can be approved", async ({ page }) => {
 
   await page.goto("/settings/products/acme-docs");
   const keywords = page.getByRole("region", { name: "Keywords" });
-  await expect(keywords.getByText("1 proposed · 0 approved · 0 rejected")).toBeVisible();
+  await expect(keywords.getByText("1 waiting for your OK · 0 approved · 0 rejected")).toBeVisible();
   await keywords.getByRole("button", { name: 'Approve keyword "example widgets"' }).click();
   await expect(keywords.getByRole("status")).toHaveText('Approved keyword "example widgets"');
-  await expect(keywords.getByText("0 proposed · 1 approved · 0 rejected")).toBeVisible();
+  await expect(keywords.getByText("0 waiting for your OK · 1 approved · 0 rejected")).toBeVisible();
 });
 
 test("the Agents page and a run page speak plainly", async ({ page }) => {
