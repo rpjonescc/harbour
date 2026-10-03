@@ -61,7 +61,7 @@ export function LightDetails({ lights }: { lights: readonly Light[] }) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: Escape from anywhere inside closes the open light
     <div className="flex flex-col gap-3" onKeyDown={onKeyDown}>
-      <ul className="grid grid-cols-4 gap-1 md:grid-cols-8">
+      <ul className="grid grid-cols-4 gap-1 lg:grid-cols-8">
         {lights.map((light) => {
           const label = LIGHT_LABELS[light.id];
           const expanded = openId === light.id;

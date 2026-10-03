@@ -13,14 +13,15 @@ const FILL: Record<WorkStrip["tiles"][number]["column"], string> = {
 /**
  * The share of cards in each column as one bar. Each segment grows with its count and carries its
  * own text (name and number), so colour is never the only signal. The tiles above hold the links,
- * so the bar is hidden from assistive technology rather than read twice.
+ * so the bar is hidden from assistive technology rather than read twice. On a phone the segments
+ * wrap onto a second row rather than clip the last one.
  */
 export function FlowBar({ tiles }: { tiles: WorkStrip["tiles"] }) {
   return (
     <ol
       aria-hidden="true"
       data-testid="flow-bar"
-      className="strip-grow flex gap-0.5 overflow-hidden rounded-md border border-line"
+      className="strip-grow flex flex-wrap gap-0.5 overflow-hidden rounded-md border border-line"
     >
       {tiles.map((tile) => (
         <li
