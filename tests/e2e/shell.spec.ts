@@ -135,7 +135,8 @@ for (const colorScheme of ["light", "dark"] as const) {
       const cspErrors = watchCspErrors(page);
       await page.goto("/");
       await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
-      await expect(page.getByRole("heading", { level: 2 })).toHaveText([
+      // The sidebar has its own "Products" heading; the tower's six sections are in main.
+      await expect(page.getByRole("main").getByRole("heading", { level: 2 })).toHaveText([
         "Systems",
         "Needs you",
         "Where the work is",
@@ -152,7 +153,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(note).toContainText("Sample note");
       await expect(note.getByRole("button")).toHaveCount(0);
       await expect(yours.getByRole("article", { name: "Fern & Field" })).toBeVisible();
-      const products = page.getByRole("region", { name: "Products" });
+      const products = page.getByRole("region", { name: "Products", exact: true });
       await expect(products.getByRole("link", { name: "Acme Docs" })).toBeVisible();
       await expectPlainLanguage(page);
       await page.waitForLoadState("networkidle");
