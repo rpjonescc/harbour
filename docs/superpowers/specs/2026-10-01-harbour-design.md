@@ -194,7 +194,7 @@ Collectors write raw observations only; they never compute scores.
 |---|---|---|
 | `crawler` | Own HTTP crawler (sitemap-seeded, capped at 500 pages/site) | status codes, titles/descriptions, headings, canonical, robots meta, schema.org types, internal links, broken links |
 | `pagespeed` | PageSpeed Insights API (free) | Core Web Vitals on key pages (mobile) |
-| `readiness` | Own checks | robots.txt rules for Googlebot and AI crawlers (GPTBot, OAI-SearchBot, PerplexityBot, ClaudeBot, Google-Extended), sitemap validity, `llms.txt` presence, FAQ/HowTo/Organization/LocalBusiness schema presence, NAP consistency (local businesses), Google Preferred Sources button/deeplink and regularly updated content section |
+| `readiness` | Own checks | robots.txt rules for Googlebot and AI crawlers (GPTBot, OAI-SearchBot, PerplexityBot, ClaudeBot, Google-Extended), sitemap validity, `llms.txt` presence (measured, not counted from formula v3), FAQ/HowTo (measured, not counted from v3)/Organization/LocalBusiness schema presence, NAP consistency (local businesses), Google Preferred Sources button/deeplink and regularly updated content section |
 | `search-console` | GSC API, read-only scope (service account, or the owner's own OAuth sign-in via `pnpm gsc:connect`) | daily clicks, impressions, CTR, position; top queries and pages; new queries |
 | `rankings` | DataForSEO SERP API, the product's Google market (the target market's Google domain) | position for each keyword, ranking URL, competitor positions |
 | `aeo-serp` | DataForSEO SERP API | AI Overview presence and whether we are cited, featured snippet owner, People Also Ask questions |
@@ -220,7 +220,8 @@ Initial sub-scores (weights tuned after the research sprint, documented in
 - **GEO**: mention rate across engines × questions, citation rate, average answer
   position, share of voice vs approved competitors, AI crawler access.
 - **AEO**: AI Overview citation rate, featured snippet ownership, PAA coverage,
-  answer-ready content (FAQ/HowTo schema, concise answer blocks).
+  answer-ready content (concise answer blocks; FAQ/HowTo schema is measured but not counted
+  from formula v3, see §5.5).
 
 Formula v1 (Phase 3) scores only what the free sources measure: the crawl, readiness checks,
 PageSpeed and Search Console. Sub-scores that need paid APIs (engine mentions and citations,
@@ -237,13 +238,50 @@ auto-resolves when the condition clears.
 
 v1's rules are the eight issue rules: `missing-title`, `missing-description`,
 `broken-links`, `noindex`, `ai-crawlers-blocked`, `no-faq-schema`, `no-llms-txt` and
-`no-preferred-sources`. "Keyword dropped > 5 positions" waits for the rankings
+`no-preferred-sources` (formula v3 retired `no-faq-schema` and `no-llms-txt`, and
+`ai-crawlers-blocked` no longer fires for training crawlers alone: see §5.5). "Keyword dropped > 5 positions" waits for the rankings
 collector; "sitemap 404" is part of the `seo.indexability` score, not a separate rule
 yet. Each rule judges a scan as present, clear or unknown; auto-resolve happens only
 when the rule's collectors ran ok (unknown never creates, resolves or reopens an
 action). Dismissed actions stay dismissed while the issue persists and reopen if it
 clears and comes back; snoozed actions whose issue clears are marked done; an action
 the owner marked done reopens if the next scan still finds the issue.
+
+### 5.5 Scoring v3 (amendment, 2026-10-04)
+
+**What changed.** The owner's scoring research gives zero weight to tactics Google says do
+nothing, and says training crawlers are a policy choice to be scored neither way. Formula v3
+follows it:
+
+- `aeo.qaCoverage` (FAQPage/HowTo/QAPage markup) and `geo.llmsTxt` get weight 0. Google stopped
+  showing FAQ rich results on 7 May 2026, and its AI guide lists llms.txt as not needed. Both are
+  still measured and shown, tagged "Not counted", with one plain line saying why
+  (`notCounted` in `lib/explain/subscores/`). FAQ and HowTo markup also no longer make a page
+  "citation-ready" in `geo.citations` (Article schema and question headings still do).
+- Their weight is spread over the rest of each total in proportion, rounded to whole percents
+  (largest remainder): GEO 30/25/30 → AI crawler access 35%, entities 30%, citations 35%; AEO
+  35/25 → concise answers 58%, fresh pages 42%.
+- `geo.aiCrawlers` counts only the agents that fetch pages to answer questions (`AI_RETRIEVAL_AGENTS`:
+  OAI-SearchBot, ChatGPT-User, PerplexityBot, Claude-SearchBot). The training crawlers
+  (`AI_TRAINING_CRAWLERS` in `lib/scan/robots.ts`: GPTBot, ClaudeBot, Google-Extended, CCBot,
+  Bytespider) are listed in the evidence as "not counted".
+- `geo.aiEngines` says it is measured in How the web sees you and not counted yet, or why it is
+  not measured (Treg not connected, no questions chosen, not checked yet).
+- Rules: `no-faq-schema` and `no-llms-txt` are retired (`retiredRule`): they always clear with a
+  reason, so the normal rule sync moves their open, in-progress or snoozed actions to Done with
+  "Resolved in the check of <date>: Harbour no longer suggests this. …" and keeps their history;
+  a dismissed one stays dismissed. `ai-crawlers-blocked` clears with a note when only training
+  crawlers are blocked, and is always high impact when it fires.
+- The analyst export carries each sub-score's weight, and the prompt says not to suggest work on
+  a weight-0 sub-score.
+
+**What the owner sees on the first check after deploy.** GEO and Answer-ready scores move once,
+on every product (no SEO change). `formulaChangedArea` knows v3 changed `geo` and `aeo` for both
+kinds, so no change is shown beside those two scores and the daily note and weekly report don't
+call the move an improvement or a decline. For 30 days the product page says: "Scoring updated:
+FAQ markup, llms.txt and AI training crawlers are still checked but no longer count, so a move in
+Recommended by AI assistants or Answer-ready this time comes from that change, not your site."
+The FAQ, llms.txt and training-crawler actions move to Done with their note.
 
 ## 6. Second Brain
 
