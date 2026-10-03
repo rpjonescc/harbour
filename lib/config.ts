@@ -187,6 +187,14 @@ const schema = z
     HARBOUR_PERPLEXITY_API_KEY: z.string().min(1).optional(),
     // Secret: Gemini API key. Reserved: read only for its status until its collector exists.
     HARBOUR_GEMINI_API_KEY: z.string().min(1).optional(),
+    // Test only: points the Treg collector at a fake server on this machine (the end-to-end tests).
+    // Needs HARBOUR_TEST_MODE; the key goes to this address instead of treg.to.
+    HARBOUR_TREG_TEST_URL: z
+      .string()
+      .refine(isLoopbackHttpOrigin, {
+        message: "HARBOUR_TREG_TEST_URL must be an http origin on 127.0.0.1, [::1] or localhost",
+      })
+      .optional(),
     // Test only: marks the E2E environment. Refused unless Harbour runs on a loopback origin.
     HARBOUR_TEST_MODE: flag,
     // Test only: lets scans reach 127.0.0.1 / ::1 (the E2E fixture site). Needs HARBOUR_TEST_MODE.
@@ -204,6 +212,10 @@ const schema = z
   .refine((c) => !c.HARBOUR_SCAN_ALLOW_LOOPBACK || c.HARBOUR_TEST_MODE, {
     message: "HARBOUR_SCAN_ALLOW_LOOPBACK is for tests only: it needs HARBOUR_TEST_MODE=1",
     path: ["HARBOUR_SCAN_ALLOW_LOOPBACK"],
+  })
+  .refine((c) => !c.HARBOUR_TREG_TEST_URL || c.HARBOUR_TEST_MODE, {
+    message: "HARBOUR_TREG_TEST_URL is for tests only: it needs HARBOUR_TEST_MODE=1",
+    path: ["HARBOUR_TREG_TEST_URL"],
   })
   .refine((c) => !c.HARBOUR_BACKUP_DIR || !isSharedFolder(c.HARBOUR_BACKUP_DIR), {
     message:

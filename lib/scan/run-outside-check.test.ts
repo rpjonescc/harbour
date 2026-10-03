@@ -22,7 +22,7 @@ async function harness(options: FakeTregOptions = {}, capAud = 1) {
   const server = await fakeTreg(options);
   const collector = createTreg({
     tracking: () => TRACKING,
-    baseUrl: server.origin,
+    baseUrl: () => server.origin,
     timeoutMs: 5_000,
     clock: Date.now,
   });

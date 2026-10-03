@@ -7,6 +7,8 @@ export const DOMAIN = "docs.example.com";
 export type Answers = {
   /** Our rank_group among organic results; null: not among them. */
   rank?: number | null;
+  /** The domain our result is under (default docs.example.com). */
+  domain?: string;
   /** The text ChatGPT "wrote". */
   text?: string;
   /** Source URLs the answer cites. */
@@ -29,7 +31,7 @@ export function backlinksBody() {
   };
 }
 
-export function serpBody(rank: number | null) {
+export function serpBody(rank: number | null, ours = DOMAIN) {
   const organic = (n: number, domain: string) => ({
     type: "organic",
     rank_group: n,
@@ -40,12 +42,12 @@ export function serpBody(rank: number | null) {
   });
   const items: Record<string, unknown>[] = [
     { type: "paid", rank_group: 1, domain: "ads.example.net", url: "https://ads.example.net/" },
-    { type: "featured_snippet", domain: DOMAIN, url: `https://${DOMAIN}/snippet` },
+    { type: "featured_snippet", domain: ours, url: `https://${ours}/snippet` },
   ];
   for (let n = 1; n <= 30; n++) {
     items.push(
       n === rank
-        ? { ...organic(n, DOMAIN), url: `https://${DOMAIN}/guide` }
+        ? { ...organic(n, ours), url: `https://${ours}/guide` }
         : organic(n, `site-${n}.example.net`),
     );
   }
@@ -65,6 +67,7 @@ export function aiBody({ text, sources, entities }: Answers) {
 
 export function okBody(endpoint: string, answers: Answers): unknown {
   if (endpoint === BACKLINKS.id) return backlinksBody();
-  if (endpoint === SERP_ORGANIC.id) return serpBody(answers.rank === undefined ? 4 : answers.rank);
+  if (endpoint === SERP_ORGANIC.id)
+    return serpBody(answers.rank === undefined ? 4 : answers.rank, answers.domain);
   return aiBody(answers);
 }

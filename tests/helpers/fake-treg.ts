@@ -43,7 +43,7 @@ const COST: Record<string, string> = {
   [AI_CHATGPT.id]: "3600",
 };
 
-function respond(
+export function respond(
   res: ServerResponse,
   mode: Mode,
   endpoint: string,
@@ -171,7 +171,7 @@ export function fakeFetch(timeoutMs = 5_000) {
 
 export const deps = (origin: string): TregDeps => ({
   tracking: () => TRACKING,
-  baseUrl: origin,
+  baseUrl: () => origin,
   timeoutMs: 5_000,
   clock: Date.now,
 });
@@ -230,7 +230,7 @@ export async function tregRun(setup: RunSetup) {
   const tracking = setup.tracking === undefined ? TRACKING : setup.tracking;
   const deps: TregDeps = {
     tracking: () => tracking,
-    baseUrl: setup.origin,
+    baseUrl: () => setup.origin,
     timeoutMs: setup.timeoutMs ?? 5_000,
     clock: setup.clock ?? Date.now,
   };

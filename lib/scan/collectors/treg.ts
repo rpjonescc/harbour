@@ -1,3 +1,4 @@
+import type { Config } from "@/lib/config";
 import { TREG_REASONS } from "@/lib/explain/treg";
 import { getTracking } from "@/lib/products/catalog";
 import type { ProductTracking } from "@/lib/products/config";
@@ -14,8 +15,8 @@ const MAX_RUN_MS = 8 * 60_000;
 export type TregDeps = {
   /** What the owner chose to track for a product; null when nothing. */
   tracking: (productId: string) => ProductTracking | null;
-  /** Treg's address; tests point it at a local fake server. */
-  baseUrl: string;
+  /** Treg's address: the constant, except under the end-to-end tests' own setting. */
+  baseUrl: (config: Config) => string;
   timeoutMs: number;
   /** Milliseconds now, for the run's own time limit. */
   clock: () => number;
@@ -84,7 +85,7 @@ async function collectWith(
     ctx,
     apiKey,
     rate: ctx.config.HARBOUR_USD_TO_AUD,
-    baseUrl: deps.baseUrl,
+    baseUrl: deps.baseUrl(ctx.config),
     timeoutMs: deps.timeoutMs,
     spentMicroUsd: 0,
   };
@@ -135,7 +136,7 @@ export function createTreg(deps: TregDeps): Collector {
  */
 export const treg: Collector = createTreg({
   tracking: getTracking,
-  baseUrl: TREG_BASE_URL,
+  baseUrl: (config) => config.HARBOUR_TREG_TEST_URL ?? TREG_BASE_URL,
   timeoutMs: TREG_TIMEOUT_MS,
   clock: Date.now,
 });

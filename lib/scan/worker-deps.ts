@@ -5,7 +5,7 @@ import { saveExternalChecks } from "@/lib/external/store";
 import { isoDateIn } from "@/lib/format/date";
 import { createSafeFetch } from "./fetch";
 import { evaluateRules } from "./issues";
-import { outboundHosts } from "./outbound-hosts";
+import { outboundHosts, TREG_HOST } from "./outbound-hosts";
 import { COLLECTORS } from "./registry";
 import type { AfterScoreInput, ScanDeps } from "./run-scan";
 import { scoreScan } from "./score";
@@ -47,6 +47,11 @@ function syncActions(context: WorkerContext, { scanId, product, statuses }: Afte
   return `Actions: ${counts.created} new, ${counts.resolved} resolved, ${counts.reopened} reopened`;
 }
 
+/** Hosts that take Treg's custom-header POST: treg.to, plus the test fake's host under test mode. */
+function tregHosts(testUrl: string | undefined): readonly string[] {
+  return testUrl ? [TREG_HOST, new URL(testUrl).hostname] : [TREG_HOST];
+}
+
 /** The scan dependencies the worker runs with in production. */
 export function workerScanDeps(context: WorkerContext): ScanDeps {
   return {
@@ -55,6 +60,8 @@ export function workerScanDeps(context: WorkerContext): ScanDeps {
     // One per scan: robots.txt is cached for the scan; the per-site limiter is process-wide.
     fetch: createSafeFetch({
       allowedHosts: outboundHosts(context.products),
+      // Only the end-to-end tests' fake Treg: config refuses this outside test mode.
+      customHeaderHosts: tregHosts(context.config.HARBOUR_TREG_TEST_URL),
       // Only the E2E fixture site: config refuses this outside test mode on a loopback origin.
       allowLoopback: context.config.HARBOUR_SCAN_ALLOW_LOOPBACK,
     }),

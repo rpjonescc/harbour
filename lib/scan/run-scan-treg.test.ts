@@ -22,7 +22,7 @@ async function tregScan(options: FakeTregOptions = {}, capAud = 1, key: string |
   const server = await fakeTreg(options);
   const collector = createTreg({
     tracking: () => TRACKING,
-    baseUrl: server.origin,
+    baseUrl: () => server.origin,
     timeoutMs: 5_000,
     clock: Date.now,
   });

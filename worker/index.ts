@@ -215,6 +215,9 @@ async function main() {
     ...contentRunDeps({ db, root, config, now }),
   });
 
+  const scanDeps = (now: () => Date) =>
+    workerScanDeps({ db, config, products: getProducts(), now, stopping: () => stopping });
+
   const runJob = async (job: Job) => {
     const now = () => new Date();
     if (deferForOtherChain(db, job)) return; // a draft waits for another idea's chain
@@ -224,23 +227,9 @@ async function main() {
       scheduler.notesSynced(runNotesSyncJob({ db, root, quarantineRoot, now }, job));
     } else if (job.kind === "scan") {
       // Scans never touch the brain, so they don't wait for it to be quiet.
-      const deps = workerScanDeps({
-        db,
-        config,
-        products: getProducts(),
-        now,
-        stopping: () => stopping,
-      });
-      await runScan(deps, job);
+      await runScan(scanDeps(now), job);
     } else if (job.kind === "outside-check") {
-      const deps = workerScanDeps({
-        db,
-        config,
-        products: getProducts(),
-        now,
-        stopping: () => stopping,
-      });
-      await runOutsideCheck(deps, job);
+      await runOutsideCheck(scanDeps(now), job);
     } else if (job.kind === "backup") {
       await runBackupJob(opsDeps(now), job);
     } else if (job.kind === "retention") {

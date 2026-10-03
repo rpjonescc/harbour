@@ -166,8 +166,9 @@ export function createSafeFetch(
     const host = url.hostname;
     const treg = settings.customHeaderHosts.includes(host);
     if (!post) {
-      // Treg's host answers its own collector's POSTs and nothing else.
-      if (treg) throw new FetchError("network", `${host} only takes the Treg collector's calls`);
+      // Treg's own address answers its collector's POSTs and nothing else.
+      if (host === TREG_HOST)
+        throw new FetchError("network", `${host} only takes the Treg collector's calls`);
       return;
     }
     if ("headers" in post) {
