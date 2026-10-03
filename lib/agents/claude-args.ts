@@ -14,6 +14,14 @@ export const AGENT_TOOLS = [
 // everywhere else. Listing them here would pre-approve them for the whole machine.
 const PRE_APPROVED = ["WebSearch", "WebFetch"] as const;
 
+/**
+ * Git metadata no agent may edit: with .git/config plus .gitattributes an agent could make the
+ * worker's own git calls run a command. The agent's working directory is the brain, so these
+ * relative deny rules cover it at any depth. Claude Code checks file writes against Edit rules
+ * only (a Write path rule is never consulted), so Edit covers Write too.
+ */
+const GIT_META_DENY = ["Edit(.git)", "Edit(.git/**)", "Edit(.gitattributes)", "Edit(.gitmodules)"];
+
 /** Headless Claude Code invocation with no user settings, plugins, hooks, skills or MCP. */
 export function claudeArgs(
   prompt: string,
@@ -40,7 +48,7 @@ export function claudeArgs(
     "--setting-sources",
     "",
     "--settings",
-    JSON.stringify({ disableAllHooks: true }),
+    JSON.stringify({ disableAllHooks: true, permissions: { deny: GIT_META_DENY } }),
     "--disable-slash-commands",
     "--strict-mcp-config",
     "--mcp-config",
