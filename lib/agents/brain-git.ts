@@ -154,15 +154,11 @@ export function inspectRun(
   gitTampered: string[];
 } {
   const gitTampered = gitTamperedPaths(root, snapshot);
-  let status: Change[];
-  try {
-    status = statusChanges(root);
-  } catch (error) {
-    // Tampered metadata (e.g. a broken HEAD) can stop git itself; report the tampering.
-    if (gitTampered.length > 0)
-      return { allowed: [], rejected: [], owner: [], tampered: [], gitTampered };
-    throw error;
-  }
+  // Before any git call: tampered metadata could make git itself run a command (a filter
+  // driver in .git/config, say) or stop it (a broken HEAD). The run fails on the tampering.
+  if (gitTampered.length > 0)
+    return { allowed: [], rejected: [], owner: [], tampered: [], gitTampered };
+  const status = statusChanges(root);
   const changes = status.filter((c) => isAgentChange(c, touched));
   const owner = status.filter((c) => !isAgentChange(c, touched));
   if (touched !== "all") {
