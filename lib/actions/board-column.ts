@@ -34,10 +34,13 @@ export function boardColumn(
     case "suggested":
       return "backlog";
     case "open":
-    case "in_progress":
-      if (row.stage) return STAGE_COLUMN[row.stage];
+    case "in_progress": {
+      // No CHECK guards the stored stage: a stray value reads as no stage (as in the SQL mirror).
+      const staged = row.stage ? STAGE_COLUMN[row.stage] : undefined;
+      if (staged) return staged;
       if (row.status === "open") return "backlog";
       return row.prUrl ? "in_review" : "in_progress";
+    }
   }
 }
 

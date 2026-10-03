@@ -5,7 +5,7 @@ import { openTestDb } from "@/tests/helpers/db";
 import { BOARD_COLUMNS, boardColumn } from "../board-column";
 import { MOVE_REFUSAL } from "../move-refusal";
 import { actionEventsFor, insertAction } from "../store";
-import { ACTION_STAGES, ACTION_STATUSES, type NewAction } from "../types";
+import { ACTION_STAGES, ACTION_STATUSES, type ActionStage, type NewAction } from "../types";
 import { parseCliArgs, USAGE } from "./args";
 import { type CliDeps, runActionsCli } from "./run";
 
@@ -149,7 +149,8 @@ describe("pnpm actions list --column", () => {
     const { db, add, run, row } = setup();
     const ids: number[] = [];
     for (const status of ACTION_STATUSES) {
-      for (const stage of [null, ...ACTION_STAGES]) {
+      // A stray stage value (no CHECK guards it) must read the same in SQL as in boardColumn.
+      for (const stage of [null, ...ACTION_STAGES, "stray" as ActionStage]) {
         for (const prUrl of [null, PR]) {
           const snoozedUntil = status === "snoozed" ? "2026-10-09" : null;
           const id = add({ status, stage, snoozedUntil });

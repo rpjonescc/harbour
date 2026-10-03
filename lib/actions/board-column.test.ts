@@ -1,5 +1,5 @@
 import { BOARD_COLUMNS, boardColumn, columnTarget } from "./board-column";
-import type { ActionRow } from "./types";
+import type { ActionRow, ActionStage } from "./types";
 
 const pr = "https://github.com/example/repo/pull/1";
 type Row = Pick<ActionRow, "status" | "stage" | "prUrl">;
@@ -21,6 +21,18 @@ describe("boardColumn", () => {
     ],
     ["done", { status: "done" }, "done"],
     ["done with a pull request", { status: "done", prUrl: pr }, "done"],
+    // No CHECK guards the stage column: a stray value reads as no stage, never undefined.
+    ["open, unknown stage", { stage: "parked" as ActionStage }, "backlog"],
+    [
+      "in progress, unknown stage",
+      { status: "in_progress", stage: "x" as ActionStage },
+      "in_progress",
+    ],
+    [
+      "in progress, unknown stage, pull request",
+      { status: "in_progress", stage: "x" as ActionStage, prUrl: pr },
+      "in_review",
+    ],
     ["snoozed", { status: "snoozed" }, null],
     ["dismissed", { status: "dismissed" }, null],
   ])("%s", (_name, over, column) => {
