@@ -88,12 +88,30 @@ function candidates(facts: NeedsFacts, lights: readonly Light[], board: BoardNee
   return [...system, ...review, ...ideas, ...pieces, ...approvals, ...runs];
 }
 
-/** The first five things that need the owner, and how many more there are. */
+/** Where a hidden item waits: the Board's Needs you holds reviews and ideas, Agents every run. */
+const BOARD_NEEDS_HREF = `${BACKLOG_HREF}&focus=needs-you`;
+const homeOf = (item: NeedItem): string =>
+  item.kind === "review" || item.kind === "ideas"
+    ? BOARD_NEEDS_HREF
+    : item.kind === "run"
+      ? "/agents"
+      : item.button.href;
+
+/**
+ * The first five things that need the owner, how many more there are, and where those wait when
+ * it is one place (else null: the "N more" line stays plain text rather than point at one of many).
+ */
 export function needsYou(
   facts: NeedsFacts,
   lights: readonly Light[],
   board: BoardNeeds,
-): { items: NeedItem[]; more: number } {
+): { items: NeedItem[]; more: number; moreHref: string | null } {
   const all = candidates(facts, lights, board);
-  return { items: all.slice(0, NEEDS_CAP), more: Math.max(0, all.length - NEEDS_CAP) };
+  const homes = new Set(all.slice(NEEDS_CAP).map(homeOf));
+  const [only] = homes;
+  return {
+    items: all.slice(0, NEEDS_CAP),
+    more: Math.max(0, all.length - NEEDS_CAP),
+    moreHref: homes.size === 1 && only !== undefined ? only : null,
+  };
 }

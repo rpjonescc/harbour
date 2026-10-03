@@ -1,14 +1,11 @@
-import { TodayView } from "@/components/today/TodayView";
+import { TowerView } from "@/components/tower";
 import { requireSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
-import { costMeterView } from "@/lib/costs/meter-view";
 import { getDb } from "@/lib/db/client";
 import { noteEnabled } from "@/lib/note/schedule";
 import { noteSlot } from "@/lib/note/view";
-import { backupStatus } from "@/lib/ops/backup-status";
 import { getProducts } from "@/lib/products/catalog";
-import { todaySummary } from "@/lib/today/from-scans";
-import { loadWorkStrip } from "@/lib/today/work-strip";
+import { loadTower } from "@/lib/tower/load";
 
 export default async function TodayPage() {
   // Layouts do not re-run on client navigation, so every page checks the session itself.
@@ -17,15 +14,14 @@ export default async function TodayPage() {
   const now = new Date();
   const db = getDb();
   const tokenSet = Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN);
-  const backup = backupStatus(db, config, now);
-  const today = todaySummary(db, getProducts(), now, backup.health);
+  const tower = loadTower(db, config, getProducts(), now);
   return (
-    <TodayView
-      today={today}
+    <TowerView
+      tower={tower}
       note={noteSlot({
         db,
         personality: config.HARBOUR_PERSONALITY,
-        isSample: today.isSample,
+        isSample: tower.isSample,
         root: config.HARBOUR_BRAIN_DIR,
         timeZone: config.HARBOUR_TIMEZONE,
         noteTime: config.HARBOUR_NOTE_TIME,
@@ -34,9 +30,6 @@ export default async function TodayPage() {
         tokenSet,
         now,
       })}
-      workStrip={loadWorkStrip(db, now, config.HARBOUR_TIMEZONE)}
-      costMeter={costMeterView(db, config, now)}
-      backup={backup}
       now={now}
       timeZone={config.HARBOUR_TIMEZONE}
       locale={config.HARBOUR_LOCALE}

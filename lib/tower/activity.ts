@@ -8,7 +8,7 @@ import { AREAS } from "@/lib/explain/areas";
 import { movedTodayLine } from "@/lib/explain/board";
 import { agoPhrase, NOTHING_RAN } from "@/lib/explain/tower";
 import { FEED_SENTENCE } from "@/lib/explain/tower-activity";
-import { formatShortDateTime } from "@/lib/format/date";
+import { formatClock, formatShortDateTime } from "@/lib/format/date";
 import { isAgentJobKind } from "@/lib/jobs/job-kinds";
 import type { Job } from "@/lib/jobs/queue";
 import { actionHref } from "@/lib/today/from-actions";
@@ -107,12 +107,7 @@ function whenNext(next: Date, ctx: Context): string {
   if (next.getTime() - ctx.now.getTime() >= DAY_MS) {
     return formatShortDateTime(next, ctx.timeZone, ctx.locale);
   }
-  return new Intl.DateTimeFormat(ctx.locale, {
-    timeZone: ctx.timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(next);
+  return formatClock(next, ctx.timeZone, ctx.locale);
 }
 
 /** The feed: running now, then up to five finished items, and the empty sentence when quiet. */

@@ -34,7 +34,7 @@ function writeNoteFile(stamp: string) {
   return file;
 }
 
-test("with no note yet, the card shows the quiet gap and the briefing is still the h1", async ({
+test("with no note yet, the card shows the quiet gap and the headline is still the only h1", async ({
   page,
 }) => {
   await page.goto("/");
@@ -60,7 +60,7 @@ test("a stamp-named note file with no succeeded job is not shown", async ({ page
   }
 });
 
-test("a published note shows on the card, the briefing stays the h1, and quiet hides it all", async ({
+test("a published note shows on the card, the headline stays the only h1, and quiet hides it all", async ({
   page,
 }) => {
   const stamp = stampAgo(3);

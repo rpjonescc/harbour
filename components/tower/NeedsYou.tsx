@@ -4,14 +4,36 @@ import { NOTHING_NEEDS_YOU, SECTION_TITLES } from "@/lib/explain/tower";
 import { NEEDS_TEXT } from "@/lib/explain/tower-tiles";
 import type { TileResult } from "@/lib/tower/load-tile";
 import type { NeedItem } from "@/lib/tower/needs";
-import { LINK_BUTTON } from "./link-styles";
+import { LINK_BUTTON, TILE_LINK } from "./link-styles";
 import { LightMark } from "./StatusLight";
 import { TileFailed } from "./TileFailed";
 import { TowerSection } from "./TowerSection";
 
-type Needs = { items: NeedItem[]; more: number };
+type Needs = {
+  items: NeedItem[];
+  more: number;
+  /** Where every hidden item waits, when that is one page; else "N more" stays plain text. */
+  moreHref?: string | null;
+};
 
-function NeedsList({ items, more }: Needs) {
+function More({ more, moreHref }: { more: number; moreHref?: string | null }) {
+  if (more === 0) return null;
+  return (
+    <p className="text-xs text-ink-muted">
+      {NEEDS_TEXT.more(more)}
+      {moreHref && (
+        <>
+          {" "}
+          <Link href={moreHref} className={TILE_LINK}>
+            {NEEDS_TEXT.moreLink(more)}
+          </Link>
+        </>
+      )}
+    </p>
+  );
+}
+
+function NeedsList({ items, more, moreHref }: Needs) {
   if (items.length === 0) {
     // Nothing waiting is a win: said calmly, with nothing to press.
     return (
@@ -37,7 +59,7 @@ function NeedsList({ items, more }: Needs) {
           </li>
         ))}
       </ol>
-      {more > 0 && <p className="text-xs text-ink-muted">{NEEDS_TEXT.more(more)}</p>}
+      <More more={more} moreHref={moreHref} />
     </Panel>
   );
 }

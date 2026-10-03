@@ -9,7 +9,9 @@ describe("TowerExamples", () => {
     expect(screen.getAllByRole("region", { name: "Systems" })).toHaveLength(3);
     expect(screen.getAllByRole("region", { name: "Needs you" })).toHaveLength(3);
     expect(screen.getAllByRole("region", { name: "Your products" })).toHaveLength(2);
-    expect(screen.getByText("All eight are fine.")).toBeVisible();
+    expect(
+      screen.getByText("Nothing needs a look. Working now: Checks. Switched off: Backups."),
+    ).toBeVisible();
     expect(screen.getByText(NOTHING_NEEDS_YOU)).toBeVisible();
     expect(screen.getAllByText(TILE_FAILED)).toHaveLength(2);
     expect(screen.getByRole("note")).toHaveTextContent(/Sample data/);

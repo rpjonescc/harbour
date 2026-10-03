@@ -104,6 +104,10 @@ the DOM is the reading order in §1 at every width.
   from the systems summary and the needs-you count. Examples: "Everything is running. 2 things need
   you." / "Everything is running. Nothing needs you right now." / "The worker isn't running, so
   nothing new will happen. 1 more thing needs you." A red system light always leads the sentence.
+  A light that is only worth a look (or that Harbour can't read) never reads as "Everything is
+  running": the lead becomes "Nothing is broken. 1 light is worth a look." A tile that could not
+  be read is said, never guessed ("Harbour couldn't read its systems just now."). The second
+  sentence (what needs you) is the polite live region (§10).
 - **Sub-line**: the long date, "updated HH:MM" (the server render time), and an **On this page**
   jump list of the six sections (in-page links, so the keyboard can jump straight to a section).
 - **What's this page?** at the right (§6.3).
@@ -113,8 +117,10 @@ the DOM is the reading order in §1 at every width.
 ### 4.3 (a) Systems strip: is everything OK?
 
 Eight status lights, each a small icon plus a one-word label, in a fixed order. Under the row, one
-sentence: "All eight are fine." when they are; otherwise each light that is not fine shows its plain
-sentence (at most 5, worst first, "N more" beyond). Any light can be opened (a disclosure) to read its
+sentence: "All eight are fine." when every light is `ok`; when nothing needs a look but some are
+working or switched off, it names them ("Nothing needs a look. Working now: Checks. Switched off:
+Backups."); otherwise each light that is not fine shows its plain sentence (at most 5, worst first,
+"N more" beyond). Any light can be opened (a disclosure) to read its
 sentence and a link to where to act.
 
 | Light | Fine when | Sentence examples | Reads | Links to |
@@ -153,6 +159,10 @@ candidates, in this priority order, then oldest first within a kind:
 5. Research targets waiting for approval (`approvalsWaiting()` per product; button "Review", to
    `/settings/products/<id>`).
 6. An agent run that failed in the last 24 h and was not retried (button "See what happened").
+
+Beyond 5, "N more" is a link only when every hidden item waits in one place (the Board's Needs
+you for reviews and ideas, `/agents` for runs, `/content` for content); otherwise it stays plain
+text rather than point at one of several pages.
 
 Buttons are links to the page where the decision is made. The tower never changes data itself, so
 nothing on it can be clicked by accident into a change. When nothing qualifies: "Nothing needs you

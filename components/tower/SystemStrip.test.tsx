@@ -24,9 +24,18 @@ describe("SystemStrip", () => {
     expect(items[4]).toHaveTextContent("Backups switched off");
   });
 
-  it("says all eight are fine when nothing needs a look", () => {
-    render(<SystemStrip result={ok(CALM_LIGHTS)} />);
+  it("says all eight are fine only when every light is fine", () => {
+    const fine = CALM_LIGHTS.map((l) => ({ ...l, tone: "ok" as const }));
+    render(<SystemStrip result={ok(fine)} />);
     expect(screen.getByText("All eight are fine.")).toBeVisible();
+  });
+
+  it("names lights working now or switched off rather than calling them fine", () => {
+    render(<SystemStrip result={ok(CALM_LIGHTS)} />);
+    expect(screen.queryByText("All eight are fine.")).toBeNull();
+    expect(
+      screen.getByText("Nothing needs a look. Working now: Checks. Switched off: Backups."),
+    ).toBeVisible();
   });
 
   it("lists the lights that are not fine, worst first, with their sentences", () => {

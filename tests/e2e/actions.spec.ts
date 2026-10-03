@@ -195,23 +195,15 @@ test("Hand to Claude copies a prompt with the product, fenced evidence and the c
   expect(prompt).toContain("Acceptance check: The home page's first sentence names");
 });
 
-test("Today lists the top three actions in board order; issues link to their actions", async ({
+test("Today's product card links its one next action; issues link to their actions", async ({
   page,
 }) => {
-  await page.goto("/actions?view=list");
-  const { active } = await headerCounts(page);
-  const top = (await page.getByRole("article").all()).slice(0, 3);
-  const titles = await Promise.all(
-    top.map((article) => article.getByRole("heading", { level: 3 }).textContent()),
-  );
-
   await page.goto("/");
-  const attention = page.getByRole("region", { name: "Next up" });
-  await expect(attention.getByRole("article")).toHaveCount(3);
-  await expect(attention.getByRole("heading", { level: 3 })).toHaveText(titles.map((t) => t ?? ""));
-  await expect(attention.getByRole("link", { name: /more on the Actions board$/ })).toHaveText(
-    `${active - 3} more on the Actions board`,
-  );
+  const card = page
+    .getByRole("region", { name: "Your products" })
+    .getByRole("article", { name: CAFE.name });
+  await expect(card.getByText("Next:")).toBeVisible();
+  await expect(card.locator('a[href^="/actions#action-"]')).toHaveCount(1);
 
   await page.goto(`/products/${CAFE.id}`);
   const issues = page.getByRole("region", { name: "What to fix" });

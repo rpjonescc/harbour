@@ -33,6 +33,15 @@ describe("NeedsYou", () => {
   it("counts what is beyond the first five", () => {
     render(<NeedsYou result={ok(NEED_ITEMS, 2)} />);
     expect(screen.getByText(/2 more after these/)).toBeVisible();
+    expect(screen.queryByRole("link", { name: /See the other/ })).toBeNull();
+  });
+
+  it("links the rest when they all wait in one place", () => {
+    const href = "/actions?view=board&focus=needs-you";
+    render(
+      <NeedsYou result={{ ok: true, data: { items: NEED_ITEMS, more: 2, moreHref: href } }} />,
+    );
+    expect(screen.getByRole("link", { name: "See the other 2" })).toHaveAttribute("href", href);
   });
 
   it("makes the empty state a win, with no button", () => {

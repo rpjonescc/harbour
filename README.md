@@ -20,17 +20,18 @@ explainable breakdowns. The roadmap continues with:
 
 ## Features
 
-- **Today** — date, when your sites were last checked, a one-sentence briefing (overall health and
-  the biggest opportunity, then how many things are worth doing, how many Claude is handling and
-  anything broken: a check that didn't finish, a failing data source or a backup that needs a look),
-  a plain verdict per product and area (Found on Google, Recommended by AI assistants, Answer-ready:
-  Strong 85+, Good 70–84, Fair 50–69 or Needs work under 50, with the score and its change beside
-  it; "What's this?" explains each area, and the numbers with a 30-day SEO trend sit under Technical
-  details), **Next up** (the top three actions as plain cards: why each matters, its area, how big a
-  job it is and who's on it), and **Behind the scenes**: paid spend, backup warnings and any data
-  source that failed in the last check, each saying what happened, whether it matters and what to do
-  (raw errors under Technical details). Until the first check finishes it shows clearly labelled
-  sample data.
+- **Today** — a control tower that answers, top to bottom: is everything OK, what needs you,
+  where the work is, how each product is doing, what is happening and what got better. The
+  headline says it in one sentence ("Everything is running. 2 things need you."). Under it: eight
+  status lights (Website, Worker, Schedules, Checks, Backups, Sources, Agents, Spend), each in
+  words with a plain sentence one click away; **Needs you** (at most five things, each with one
+  link to where you decide it) beside the daily note; the Board's **Where the work is**; a card per
+  product (verdict, weekly trend, the one next action, last check and a few highlights) led by the
+  one-sentence briefing; **What's happening** (running now and finished, wins first); and **Wins
+  this week**. A part that can't be read says so and the rest still shows. The page updates
+  itself every minute while you look at it (every 15 seconds while a check or agent run is going),
+  never in a hidden tab, and pauses after about two hours with a Reload button. Until the first
+  check finishes the product cards show clearly labelled sample data.
 - **Product pages** — per product: three area cards (Found on Google, Recommended by AI
   assistants, Answer-ready) each with a verdict, the small number and "What's this?", a
   one-line summary, **Check now**, a tab per area listing its sub-scores as plain sentences
@@ -68,8 +69,8 @@ explainable breakdowns. The roadmap continues with:
   per idea (LinkedIn, X, Instagram, Facebook, a blog post and a website section) that you read,
   copy, approve or discard on the Content page. Off by default; it never posts anything (see
   [Content machine](#content-machine)).
-- **A warm friend** — Today opens with a short note an agent writes fresh every morning, in
-  the voice of a seasoned, warm, quick-witted friend: it celebrates real wins, is honest and
+- **A warm friend** — beside **Needs you**, Today shows a short note an agent writes fresh every
+  morning, in the voice of a seasoned, warm, quick-witted friend: it celebrates real wins, is honest and
   kind about bad news and always gives a next step, and on a weekend or late at night says what
   can wait. Both the note and the [ocean background](#ocean-background) are off with
   `HARBOUR_PERSONALITY=quiet` (see [Daily note](#daily-note)).
@@ -78,7 +79,7 @@ explainable breakdowns. The roadmap continues with:
   [Ocean background](#ocean-background)).
 - **Works on a phone** — on narrow screens the sidebar folds into a top bar with a **Menu**
   button (Escape closes it), and the page uses the full width without sideways scrolling.
-- **Cost meter** — Today shows this month's paid API spend against your monthly budget, with a
+- **Cost meter** — Today's Spend light (and Settings) shows this month's paid API spend against your monthly budget, with a
   month-end projection, a warning at 80 % and a pause at 100 %. Until a paid source (Treg, for
   the weekly [outside view](#the-outside-view-treg)) is connected it says "No paid data
   connected" (see [Costs and budget](#costs-and-budget)).
@@ -86,7 +87,7 @@ explainable breakdowns. The roadmap continues with:
   a living reference at `/design` showing every component in its main states.
 - **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14 kept,
   with retries and a catch-up after downtime (see [Backups and restore](#backups-and-restore)).
-  Today warns when the last backup failed with no retry left, when there has been none for 2 days,
+  Today's Backups light warns when the last backup failed with no retry left, when there has been none for 2 days,
   or when Harbour can't open the backup folder.
 - **Settings** — one read-only page showing what Harbour is set up to do, in sections that
   each open with one plain line on what they are for: **Products**, **Schedules** and their next
@@ -731,7 +732,7 @@ only by hand. Like every agent run it waits for the brain to be quiet first.
 
 Each day at `HARBOUR_NOTE_TIME` (default 06:30) in `HARBOUR_TIMEZONE` the worker queues one
 `daily-note` job: an agent with a personality (a seasoned, warm, quick-witted friend with dry
-humour and the odd harbour turn of phrase) writes the short note at the top of Today. It runs
+humour and the odd harbour turn of phrase) writes the short note beside Needs you on Today. It runs
 on the same runner, git gate and Claude subscription as the other agents.
 
 - **What it is given** — a small snapshot Harbour builds: the day, time and whether it is the
@@ -1055,16 +1056,13 @@ the Treg address is fixed in code and Harbour refuses to follow a redirect from 
 
 ## Reading the results
 
-- **Today** (`/`) gives every product a verdict per area. A missing score reads "No score yet"
-  with the reason (a gap, never a zero); an asterisk marks a verdict where some data was
-  missing because a source was not connected or failed, and the numbers are under **Technical
-  details**. Each product name opens its page. While a check is queued or running, the page
-  refreshes itself. **Next up** shows the top three open or in-progress actions (in
-  the Actions board's order), each linked to its card and saying who's on it (Claude is on it,
-  Pull request waiting for your OK, Waiting for you to look it over, or Waiting for you), and the
-  briefing's second line counts
-  every one of them; the rest are a link away on the Actions board. Before the first check is
-  scored, Today shows clearly flagged sample data instead.
+- **Today** (`/`) gives every product a card with one verdict (the average of its areas). A
+  product with no score reads "No score yet" with the reason (a gap, never a zero); the area
+  verdicts and numbers are on the product's page, which the card's name opens. Each card shows
+  the product's one next action, linked to its card on the Actions board, and the briefing above
+  the cards counts every open action. The page refreshes itself every minute, and every 15
+  seconds while a check is queued or running. Before the first check is scored, the cards show
+  clearly flagged sample data instead.
 - **Product page** (`/products/<id>`) opens with the three area cards and a one-line summary (for
   example "Acme Docs is in fair shape. Weakest: Answer-ready (needs work)."), plus a note on where
   checking stands (never checked, queued, running, or how the last check ended, in one sentence; a

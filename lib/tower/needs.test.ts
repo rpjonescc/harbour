@@ -18,7 +18,7 @@ const facts = (over: Partial<NeedsFacts>): NeedsFacts => ({ ...quiet, ...over })
 
 describe("needsYou", () => {
   it("has no items when nothing needs the owner", () => {
-    expect(needsYou(quiet, fine, board)).toEqual({ items: [], more: 0 });
+    expect(needsYou(quiet, fine, board)).toEqual({ items: [], more: 0, moreHref: null });
   });
 
   it("lists everything in priority order, each with one link named by its item", () => {
@@ -41,9 +41,11 @@ describe("needsYou", () => {
       approvals: [{ productId: "acme-blog", productName: "Acme Blog", count: 4 }],
       failedRuns: [failed],
     });
-    const { items, more } = needsYou(all, [...fine, act], { ...board, count: 5 });
+    const { items, more, moreHref } = needsYou(all, [...fine, act], { ...board, count: 5 });
     expect(items.map((i) => i.kind)).toEqual(["system", "review", "ideas", "content", "content"]);
     expect(more).toBe(2);
+    // An approval and a run wait in two places, so "2 more" names no single page.
+    expect(moreHref).toBeNull();
     expect(items[0]).toEqual({
       kind: "system",
       sentence: act.sentence,
@@ -129,5 +131,38 @@ describe("needsYou", () => {
     const { items, more } = needsYou(facts({ approvals }), fine, board);
     expect(items).toHaveLength(5);
     expect(more).toBe(3);
+  });
+
+  describe("where the hidden ones wait", () => {
+    const acts: Light[] = (["worker", "schedules", "checks", "backups", "sources"] as const).map(
+      (id) => ({ id, tone: "act", sentence: `${id} needs you.`, href: "/settings" }),
+    );
+    const run = (id: number) =>
+      job({ id, kind: "discovery", params: { productId: "acme-docs" }, status: "failed" });
+
+    it("links to the Board's Needs you when every hidden item is on the Board", () => {
+      const hidden = facts({ suggested: { count: 2, oldest: null } });
+      const result = needsYou(hidden, acts, { ...board, count: 4 });
+      expect(result.items.every((i) => i.kind === "system")).toBe(true);
+      expect(result).toMatchObject({ more: 2, moreHref: "/actions?view=board&focus=needs-you" });
+    });
+
+    it("links to Agents when every hidden item is a run, and to Content for content", () => {
+      expect(needsYou(facts({ failedRuns: [run(1), run(2)] }), acts, board).moreHref).toBe(
+        "/agents",
+      );
+      expect(needsYou(facts({ content: { needsYou: 1, ready: 1 } }), acts, board).moreHref).toBe(
+        "/content",
+      );
+    });
+
+    it("stays plain text when the hidden items wait in different places", () => {
+      const approvals = Array.from({ length: 8 }, (_, i) => ({
+        productId: `p${i}`,
+        productName: `Site ${i}`,
+        count: 1,
+      }));
+      expect(needsYou(facts({ approvals }), fine, board).moreHref).toBeNull();
+    });
   });
 });

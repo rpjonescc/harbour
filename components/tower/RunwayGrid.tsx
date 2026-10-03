@@ -13,7 +13,8 @@ import { TowerSection } from "./TowerSection";
 
 type Props = {
   result: TileResult<RunwayCardData[]>;
-  briefing: Briefing;
+  /** Leads the section; null when it could not be read (the tile then says so). */
+  briefing: Briefing | null;
   /** No checks yet: the cards show the labelled sample, as Today did. */
   isSample: boolean;
   anchor?: string;
@@ -45,7 +46,7 @@ function Cards({ cards }: { cards: RunwayCardData[] }) {
 export function RunwayGrid({ result, briefing, isSample, anchor }: Props) {
   return (
     <TowerSection section="products" anchor={anchor}>
-      <BriefingText briefing={briefing} isSample={isSample} level="lead" />
+      {briefing && <BriefingText briefing={briefing} isSample={isSample} level="lead" />}
       {isSample && <SampleBanner />}
       {result.ok ? (
         <Cards cards={result.data} />

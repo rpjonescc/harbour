@@ -64,7 +64,7 @@ const lightsOf = (lights: Light[]): TileResult<Lights> => ({
 });
 
 export const SYSTEM_EXAMPLES: { label: string; result: TileResult<Lights> }[] = [
-  { label: "Systems · all fine, one checking, one off", result: lightsOf(CALM_LIGHTS) },
+  { label: "Systems · nothing needs a look, one checking, one off", result: lightsOf(CALM_LIGHTS) },
   { label: "Systems · every tone, worst first", result: lightsOf(TROUBLED_LIGHTS) },
   {
     label: "Systems · six need a look (five shown, one more)",
