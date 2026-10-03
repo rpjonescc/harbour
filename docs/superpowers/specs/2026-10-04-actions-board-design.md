@@ -92,4 +92,72 @@ Wake and Bring back buttons, exactly as today.
 
 ## 8. As built
 
-Filled in when the work is merged.
+Where the build differs from, or adds to, the sections above.
+
+**Data and moves**
+- `actions.stage` (`queue`, `started`, `in_review`, null) and `fromStage` / `toStage` on every
+  history event. `boardColumn(row)` in `lib/actions/board-column.ts` is the only place that maps
+  status, stage and pull request to a column. A status of done, suggested, snoozed or dismissed
+  wins over a stage; a stage only decides for open and in-progress cards. Open with no stage is
+  Backlog; in-progress with no stage is In progress, or In review when it has a pull request.
+- `moveToColumn(db, { id, from, to, actor, note?, now?, login, productIds })`: two arguments
+  beyond the plan, `login` (for the audit entry, as `applyStatusChange` does) and `productIds`
+  (a card of an unconfigured product is `not_found`, as for every other action write). It does
+  not call `applyStatusChange`: any column may go to any other, so the old allowed-moves table
+  does not apply. Refusals, in order: `note_required` (Claude with a blank note), `not_found`,
+  `stale`, `same_column`, `has_pull_request` (to In progress with a pull request link),
+  `not_allowed` (a new idea straight to Done). A parked card is always stale. A new idea moved to
+  Backlog is accepted as open. Every move updates `statusChangedAt`, including a stage-only move.
+- A stage-only move (Backlog to Queue) counts as a status change for "who is on it" and for the
+  active-work query; adding a pull request link (status and stage unchanged) does not.
+- API: `POST /api/actions/<id>` accepts the old status body unchanged or a strict
+  `{ moveFrom, moveTo, note? }`; a mixed body is 400. Success is `{ id, column }`, a refusal is
+  409 `{ error, message }` with the plain sentence, `not_found` is 404.
+- CLI: `move`, `list --column`, `add --column` (any column but done), `show` prints the column.
+  `--status` with `--column` is refused. `list --column` uses a SQL mirror of `boardColumn`
+  (`board-column-sql.ts`), checked against it for every status, stage and pull request case.
+
+**Board data (`loadBoard`)**
+- `loadBoard(db, filter, now, products)` returns the six columns, the parked list and true column
+  `counts` (SQL totals that ignore the 200-card cap and the `focus` narrowing). Cards of
+  unconfigured products are skipped.
+- Done shows the last 14 days (`DONE_DAYS`; exactly 14 days is kept). Parked is every snoozed
+  card plus dismissed cards from the last 14 days; the 200-card cap fills the columns first and
+  parked gets the remainder; `truncated` says either was cut.
+- Stuck: whole days since `statusChangedAt` strictly greater than the limit (7 days 23 hours is
+  not stuck), only in Started, In progress (7 days) and In review (3 days), from `STUCK_DAYS`,
+  which also words the copy so the two cannot drift.
+- `needsOwner` is true for a new idea, a card with a pull request waiting for a look, or a card
+  in Started, In progress or In review that waits on the owner. Backlog and Queue cards that merely
+  read "waiting for you" do not count: they would flag every card.
+- `STATUS_COLUMN` stayed: the list view, history and /design still use it.
+
+**Screens**
+- `/actions` defaults to the board; `?view=list` is the old list (its Status filter stays there,
+  and the board hides it because the columns are the statuses). `?focus=stuck|needs-you` narrows
+  the board and shows "Showing only ..." with **Show everything**.
+- Moves use native HTML5 drag (pointer only) and the **Move to...** menu button (keyboard and
+  touch). A move is optimistic: the card goes to the top of its new column, a refusal puts it back
+  and shows the server's sentence, and either way the board refreshes and focus lands on the
+  card's heading. The announcement is "Moved <title> to <Column>". In demo mode (/design) nothing
+  is sent.
+- A card shows its stored status, card number and column id only under Technical details.
+
+**Today strip**
+- Tiles link to `/actions?view=board#column-<id>`, a jump to the column rather than a filter.
+  **See the stuck jobs** and **See what needs you** link to `&focus=stuck` and `&focus=needs-you`.
+- Counts per column are the true totals; the stuck and needs-you counts, and the first five
+  needs-you lines, come from the loaded cards (so they are bounded by the 200-card cap).
+- "Moved today" counts cards with a status or stage change since local midnight in
+  `HARBOUR_TIMEZONE`; creation and pull request links are not moves.
+- The strip sits after the Today header and sample banner, not directly under the note.
+
+**Agent as boss**
+- The main agent keeps each card's column true (AGENTS.md): a pull request opened moves the card
+  to In review, a merge moves it to Done, and what it cannot resolve is written on the card.
+
+**Tests**
+- `tests/e2e/board.spec.ts` (project `board`, last in order) seeds Fern & Field cards through
+  production code (`tests/e2e/seed-board.ts`) and checks six columns with counts, a keyboard move
+  with its announcement and focus, a drag move, a refused move (a card with a pull request moved
+  to In progress) reverting with its sentence, and the Today strip links with **Show everything**.

@@ -44,10 +44,10 @@
   - `export function columnTarget(column: BoardColumnId): { status: "open" | "in_progress" | "done"; stage: ActionStage | null }` (backlog → open/null, queue → open/queue, started → in_progress/started, in_progress → in_progress/null, in_review → in_progress/in_review, done → done/null)
 - A stage, when set, decides the column; otherwise status plus `prUrl` decide it (spec section 2). The refusal for moving a card that has a pull request to In progress lives in Task 2's `moveToColumn`.
 
-- [ ] Step 1: write failing tests for `boardColumn` (every row of the spec table, plus snoozed/dismissed → null, suggested → backlog) and for the migration (existing rows get stage null; new columns exist).
-- [ ] Step 2: add schema columns, run `pnpm db:generate`, implement `board-column.ts`, update types (`NewAction` omits nothing new since stage is nullable with default null).
-- [ ] Step 3: `pnpm typecheck` and fix every `ActionRow` fixture/mocks that now needs `stage: null`.
-- [ ] Step 4: `pnpm check`, commit `feat: actions get a board stage and one boardColumn function`.
+- [x] Step 1: write failing tests for `boardColumn` (every row of the spec table, plus snoozed/dismissed → null, suggested → backlog) and for the migration (existing rows get stage null; new columns exist).
+- [x] Step 2: add schema columns, run `pnpm db:generate`, implement `board-column.ts`, update types (`NewAction` omits nothing new since stage is nullable with default null).
+- [x] Step 3: `pnpm typecheck` and fix every `ActionRow` fixture/mocks that now needs `stage: null`.
+- [x] Step 4: `pnpm check`, commit `feat: actions get a board stage and one boardColumn function`.
 
 ### Task 2: `moveToColumn`, API and CLI
 
@@ -60,9 +60,9 @@
 - Produces: `export function moveToColumn(db, { id, from: BoardColumnId, to: BoardColumnId, actor: ActionActor, note?: string, now?: Date }): { ok: true } | { ok: false; reason: "not_found" | "stale" | "same_column" | "has_pull_request" | "note_required" | "not_allowed" }` and a plain message map `MOVE_REFUSAL` in `lib/explain/board.ts` (Task 3 creates the file; here add only the reason→sentence keys in a small `lib/actions/move-refusal.ts` that Task 3 re-exports, to avoid a dependency cycle).
 - Rules: moving a `suggested` card to any column other than Backlog accepts it (event from suggested); to Backlog it is also accepted as open. Claude must give a note. `from` is the column the mover believes the card is in; mismatch → `stale`. Stage is cleared by every non-move status change (done, snooze, dismiss, reopen, wake). One transaction, one event with from/to status and stage.
 
-- [ ] Step 1: failing tests: each column pair, suggested accepting, stale, same column, has_pull_request refusal, Claude without note, stage cleared on done/snooze/reopen/wake/rule-sync reopen, event rows carry stage, CLI `move` and `list --column`, API zod rejects unknown column names and accepts the old status body unchanged.
-- [ ] Step 2: implement; keep `applyStatusChange` behaviour for old callers byte-for-byte.
-- [ ] Step 3: `pnpm check`, commit `feat: move an action between board columns (library, API, CLI)`.
+- [x] Step 1: failing tests: each column pair, suggested accepting, stale, same column, has_pull_request refusal, Claude without note, stage cleared on done/snooze/reopen/wake/rule-sync reopen, event rows carry stage, CLI `move` and `list --column`, API zod rejects unknown column names and accepts the old status body unchanged.
+- [x] Step 2: implement; keep `applyStatusChange` behaviour for old callers byte-for-byte.
+- [x] Step 3: `pnpm check`, commit `feat: move an action between board columns (library, API, CLI)`.
 
 ### Task 3: Plain wording and board data
 
@@ -75,9 +75,9 @@
 - Produces in `lib/actions/board-view.ts`: `loadBoard(db, filter, now): { columns: Record<BoardColumnId, BoardCard[]>; parked: BoardCard[]; counts; truncated: boolean }` where `BoardCard = { id; title; whyLine; productId; productName; area; impact; effort; who: WhoOnIt; column; prUrl: string | null; lastMove: { actor; to; at } | null; stuck: boolean; needsOwner: boolean; isNewIdea: boolean }`; sorted impact then oldest first; Done limited to 14 days; total cap 200 (`truncated` true when hit); unknown products skipped (existing rule); respects `product` and `area` filters from `parseActionFilter`.
 - Each explainer follows the existing four-part `Explainer`; wording is plain (spec §4), says what happened, whether it matters and what to do.
 
-- [ ] Step 1: failing tests for every column's copy (no codes: no `in_progress`, `SEO` jargon allowed only as the existing area names), stuck rules at boundaries (exactly 7 days not stuck, 8 stuck), needsOwner rules (new idea, PR waiting, owner on it), Done 14-day cut, cap, filters.
-- [ ] Step 2: implement; reuse `whoIsOnIt`, `lastStatusActor`, `STATUS_COLUMN` naming where it fits and delete `STATUS_COLUMN` if it becomes unused.
-- [ ] Step 3: `pnpm check`, commit `feat: board data and plain wording for each column`.
+- [x] Step 1: failing tests for every column's copy (no codes: no `in_progress`, `SEO` jargon allowed only as the existing area names), stuck rules at boundaries (exactly 7 days not stuck, 8 stuck), needsOwner rules (new idea, PR waiting, owner on it), Done 14-day cut, cap, filters.
+- [x] Step 2: implement; reuse `whoIsOnIt`, `lastStatusActor`, `STATUS_COLUMN` naming where it fits and delete `STATUS_COLUMN` if it becomes unused.
+- [x] Step 3: `pnpm check`, commit `feat: board data and plain wording for each column`.
 
 ### Task 4: Board UI
 
@@ -90,9 +90,9 @@
 - Behaviour: drag a card onto a column to move it; optimistic card placement, revert with a plain message on refusal; `Move to…` button opens a menu (Enter/Space opens, arrows choose, Escape closes, focus returns to the card heading); columns are `role="list"` regions with accessible names ("Queue, 3 cards"); live announcement "Moved <title> to Queue"; each card shows the fields in spec §4; Parked strip below with existing Wake/Bring back controls (reuse `ActionStatusControls`); `demo` prop disables network for `/design`.
 - Accessibility: visible focus, targets at least 44px on touch, no information by colour alone (column icons plus text), dark mode via semantic tokens only.
 
-- [ ] Step 1: failing component tests (render each column with counts and explainer, card fields, Move menu keyboard path, drag handlers call the API with the right body, refusal reverts and announces, demo mode sends nothing).
-- [ ] Step 2: implement; page toggle; screenshot-free but verify with `pnpm build`.
-- [ ] Step 3: `pnpm check`, commit `feat: kanban board for actions with drag and a keyboard move menu`.
+- [x] Step 1: failing component tests (render each column with counts and explainer, card fields, Move menu keyboard path, drag handlers call the API with the right body, refusal reverts and announces, demo mode sends nothing).
+- [x] Step 2: implement; page toggle; screenshot-free but verify with `pnpm build`.
+- [x] Step 3: `pnpm check`, commit `feat: kanban board for actions with drag and a keyboard move menu`.
 
 ### Task 5: Today strip and `/design`
 
@@ -105,9 +105,9 @@
 - Produces: `loadWorkStrip(db, now): { tiles: { column; name; count; href }[]; stuck: { count; href }; needsYou: { count; href; lines: string[] }; movedToday: { count; lastLine: string | null } }`; a segmented flow bar (six segments, widths from counts, text label per segment, not colour only), tiles link to `/actions?view=board&…` filters (add a `focus=stuck|needs-you` URL param handled by `loadBoard`).
 - Empty and all-clear states say so in plain words ("Nothing is stuck"), never a zero without a sentence.
 
-- [ ] Step 1: failing tests for the strip data (counts, stuck, needs you, moved today in the owner's timezone) and component render (labels, links, empty state).
-- [ ] Step 2: implement, add `/design` examples (board with example cards in every column, a stuck card, a new idea card, the strip).
-- [ ] Step 3: `pnpm check`, commit `feat: Today work strip and design page examples for the board`.
+- [x] Step 1: failing tests for the strip data (counts, stuck, needs you, moved today in the owner's timezone) and component render (labels, links, empty state).
+- [x] Step 2: implement, add `/design` examples (board with example cards in every column, a stuck card, a new idea card, the strip).
+- [x] Step 3: `pnpm check`, commit `feat: Today work strip and design page examples for the board`.
 
 ### Task 6: End-to-end, docs, spec "as built"
 
@@ -115,5 +115,5 @@
 - Create: `tests/e2e/board.spec.ts` (+ a `projects` entry in `playwright.config.ts`, seeding through production code like `seed-actions.ts`)
 - Modify: `README.md` (Actions board section: columns, moving, CLI `move`), `AGENTS.md` ("Working with other projects": the main agent keeps each card's column true; PR opened → In review, merge → Done), the spec's section 8 "As built".
 
-- [ ] Step 1: e2e: board loads with six columns and counts, move a card with the keyboard menu, move with drag (use Playwright `dragTo`), a refused move reverts with the plain sentence, Today strip tile links to the filtered board; run on system Chrome through a TEMPORARY copy of `playwright.config.ts` with `use.channel: "chrome"` (delete afterwards).
-- [ ] Step 2: docs; `pnpm check`; commit `docs: board in README, AGENTS and the spec`.
+- [x] Step 1: e2e: board loads with six columns and counts, move a card with the keyboard menu, move with drag (use Playwright `dragTo`), a refused move reverts with the plain sentence, Today strip tile links to the filtered board; run on system Chrome through a TEMPORARY copy of `playwright.config.ts` with `use.channel: "chrome"` (delete afterwards).
+- [x] Step 2: docs; `pnpm check`; commit `docs: board in README, AGENTS and the spec`.

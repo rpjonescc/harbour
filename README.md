@@ -98,7 +98,7 @@ explainable breakdowns. The roadmap continues with:
 | `/` | Today |
 | `/products/<id>` | A product's scores, issues, pages and sources |
 | `/content` | Content (only when `HARBOUR_CONTENT=on`, else 404): ideas and drafts in six tabs, with Copy, Approve, Edit and Discard; nothing is posted for you |
-| `/actions` | Actions board (`?product=<id>&area=SEO\|GEO\|AEO&status=active\|suggested\|snoozed\|done\|dismissed\|all`; the status values are the stored ones, which the board shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed) |
+| `/actions` | Actions board: a six-column board by default, or the list with `?view=list` (`?product=<id>&area=SEO\|GEO\|AEO` on both; the list also takes `&status=active\|suggested\|snoozed\|done\|dismissed\|all`, whose stored values the list shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed; the board takes `&focus=stuck\|needs-you`). `#column-<id>` jumps to a column |
 | `/settings` | Settings overview: products, schedules, connections, budget and backups |
 | `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors, content pillars) |
 | `/settings/sources` | Check schedule, connections and each source's last run |
@@ -1044,7 +1044,7 @@ the Treg address is fixed in code and Harbour refuses to follow a redirect from 
   says the list may be out of date, that the last check finished but couldn't update the actions
   (with the time), and that the next check tries again. Reasons are written in plain words;
   actions raised before a wording change keep the old text until the next check refreshes them.
-- **The Actions board** shows To do and In progress actions by default, grouped Big wins → Worth
+- **The Actions list** (`/actions?view=list`, the older view of the same jobs) shows To do and In progress actions by default, grouped Big wins → Worth
   doing → Small wins, in-progress first, then the smallest effort. Filters (product, area,
   status) are a normal form, so a filtered view can be bookmarked; at most 200 actions are shown,
   with a count of the rest. Each card offers only the moves its status allows (**Start**,
@@ -1059,6 +1059,45 @@ the Treg address is fixed in code and Harbour refuses to follow a redirect from 
 - **Sources** (`/settings/sources`) shows each collector's latest run per product (ok, failed,
   not connected or skipped) with its reason, and whether PageSpeed and Search Console are
   connected — as connected or not, never the key or the credentials.
+
+## Actions board
+
+`/actions` shows every job Harbour has found for your products as a board: one card per job, in
+six columns that read left to right as the job's life.
+
+| Column | In plain words |
+|---|---|
+| Backlog | Ideas and jobs nobody has picked yet (new ideas from the weekly review sit here, tagged **New idea**) |
+| Queue | Decided, and next up |
+| Started | Someone has begun |
+| In progress | Being worked on now |
+| In review | Finished, and waiting for a look (a job with a pull request is always here) |
+| Done | Finished in the last 14 days |
+
+Each card says what the job is, why it matters, who is on it, what it waits for, what happens next
+and the last move. A card says **Stuck** when nothing has changed for more than 7 days in Started or
+In progress, or more than 3 days in In review. Each column has a "What's this?" that explains it.
+**Snoozed** cards and cards **dismissed** in the last 14 days are not columns: they sit in the
+**Parked** strip under the board, where **Bring back now** or **Restore to To do** puts them back.
+
+**Moving a card.** Drag it into another column, or use the card's **Move to…** button, which works
+from the keyboard and on a phone: press Enter to open the menu, the arrow keys to choose a column,
+Enter to move and Escape to close it. The move is announced ("Moved … to Queue") and focus returns
+to the card. If Harbour refuses a move (the card was moved a moment ago, or it has a pull request
+and you chose In progress) the card snaps back and a plain sentence says why. A card can go to any
+column except that a new idea cannot go straight to Done: accept it by moving it to Backlog or
+Queue first.
+
+**The Today strip.** Today's **Where the work is** band shows a tile per column with its count, a
+bar of how the jobs are spread, how many are stuck, how many need you (new ideas, pull requests
+waiting for a look, and your own work in Started, In progress or In review) and what moved today.
+Each tile opens that column on the board; **See the stuck jobs** and **See what needs you** open the
+board narrowed to those cards, with a line at the top and a **Show everything** link to clear it.
+
+**From the terminal.** Claude keeps the columns true with `pnpm actions move <id> <column> --from
+<column> --note "why"`, filters with `pnpm actions list --column queue,started` and creates a card
+straight in a column with `pnpm actions add --column queue …`; see "Let Claude triage the board".
+The list view (`/actions?view=list`) and the board share one set of rules.
 
 ## Let Claude triage the board
 
@@ -1332,8 +1371,11 @@ The Playwright projects run in order — the shell and brain specs, then agents,
 weekly analyst, the note, content and finally operations (Settings) — because each later one changes what the
 earlier ones check. The actions specs seed a scored check of the fictional Lighthouse Café and two
 analyst suggestions through Harbour's own code (`tests/e2e/seed-actions.ts`), then work the Actions
-board: filters, status changes, snooze, **Hand to Claude** (read back from the clipboard), Today's
-top three, keyboard paths and both themes. The analyst specs choose **Write this week's report now**
+list view: filters, status changes, snooze, **Hand to Claude** (read back from the clipboard), Today's
+top three, keyboard paths and both themes. The board specs (`tests/e2e/board.spec.ts`, run last)
+seed six cards of the fictional Fern & Field (`tests/e2e/seed-board.ts`) and check the six columns
+and counts, a keyboard move with its announcement and focus, a drag move, a refused move and
+Today's strip links. The analyst specs choose **Write this week's report now**
 twice (the scheduled analyst is off, `HARBOUR_SCHEDULED_ANALYST=off`): the first run commits the
 report and imports a suggestion, the second finds it already known.
 
