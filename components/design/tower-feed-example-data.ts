@@ -1,13 +1,20 @@
 // Fictional "What's happening" and "Wins this week" data for /design and the tile tests.
 // Sentences come from the same lib/explain builders the real tower uses.
 
+import { type JobWords, jobWords } from "@/lib/explain/job-words";
 import { NOTHING_RAN, QUIET_WEEK } from "@/lib/explain/tower";
 import { FEED_SENTENCE, WIN_LINE } from "@/lib/explain/tower-activity";
+import type { JobKind } from "@/lib/jobs/queue";
 import type { ActivityFeed, FeedItem } from "@/lib/tower/activity";
 import type { TileResult } from "@/lib/tower/load-tile";
 import type { WeekWins } from "@/lib/tower/wins";
 
 const AT = new Date("2026-10-02T09:00:00Z");
+
+const PRODUCTS = [
+  { id: "acme-docs", name: "Acme Docs" },
+  { id: "acme-blog", name: "Acme Blog" },
+];
 
 const item = (
   id: string,
@@ -15,25 +22,45 @@ const item = (
   sentence: string,
   ago: string,
   isNew = false,
-): FeedItem => ({ id, kind, sentence, at: AT, ago, href: `/agents/${id}`, isNew });
+  technical: string | null = null,
+): FeedItem => ({ id, kind, sentence, at: AT, ago, href: `/agents/${id}`, isNew, technical });
+
+/** A fictional job's plain words, as the real feed words it. */
+const job = (kind: JobKind, params: Record<string, string> = {}): JobWords =>
+  jobWords({ kind, params }, PRODUCTS);
+
+const scanDocs = job("scan", { productId: "acme-docs" });
+const gate = job("content-gate", { gate: "no-ai-slop", ideaId: "acme-blog-20261001-first-deploy" });
 
 export const RUNNING_ITEMS: FeedItem[] = [
-  item("31", "running", FEED_SENTENCE.running("Checking Acme Docs"), "4 min ago", true),
-  item(
-    "32",
-    "running",
-    FEED_SENTENCE.waiting("Claude is drafting a post for Acme Blog"),
-    "1 min ago",
-  ),
+  item("31", "running", FEED_SENTENCE.running(scanDocs.doing), "4 min ago", true),
+  item("32", "running", FEED_SENTENCE.waiting(gate.doing), "1 min ago"),
 ];
 
 /** Wins first, then ordinary finishes, then the failure last (the shaper's order). */
 export const FINISHED_ITEMS: FeedItem[] = [
   item("27", "win", FEED_SENTENCE.rise("Acme Docs", "Found on Google", 6), "just now", true),
-  item("26", "win", FEED_SENTENCE.done("Claude wrote the weekly report"), "2 h ago"),
-  item("25", "finished", FEED_SENTENCE.done("Backing up Harbour"), "6 h ago"),
-  item("24", "finished", FEED_SENTENCE.done("Checking Acme Blog"), "7 h ago"),
-  item("23", "failed", FEED_SENTENCE.failed("Claude's ideas run for Acme Blog"), "9 h ago"),
+  item(
+    "26",
+    "win",
+    FEED_SENTENCE.done(job("weekly-analyst").done),
+    "2 h ago",
+    false,
+    "Weekly report: 2026-W40 (weekly-analyst)",
+  ),
+  item("25", "finished", FEED_SENTENCE.done(job("backup").done), "6 h ago"),
+  item(
+    "24",
+    "finished",
+    FEED_SENTENCE.done(job("scan", { productId: "acme-blog" }).done),
+    "7 h ago",
+  ),
+  item(
+    "23",
+    "failed",
+    FEED_SENTENCE.failed(job("discovery", { productId: "acme-blog" }).doing),
+    "9 h ago",
+  ),
 ];
 
 const feed = (over: Partial<ActivityFeed>): TileResult<ActivityFeed> => ({

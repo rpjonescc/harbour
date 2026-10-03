@@ -81,7 +81,7 @@ describe("agentsLight", () => {
     ];
     expect(agentsLight({ ...agents, running, queued: [job(), job()] }, PRODUCTS)).toEqual({
       tone: "busy",
-      sentence: "Running now: Find ideas: Acme Docs. 2 more waiting.",
+      sentence: "Finding ideas for Acme Docs. 2 more waiting.",
     });
     expect(agentsLight({ ...agents, queued: [job()] }, PRODUCTS)).toEqual({
       tone: "busy",
@@ -96,7 +96,7 @@ describe("agentsLight", () => {
     const running = [job({ status: "running" })];
     expect(agentsLight({ ...agents, failedUnretried: failed, running }, PRODUCTS)).toEqual({
       tone: "watch",
-      sentence: "A run didn't finish (Ideas: Acme Blog).",
+      sentence: "Didn't finish finding content ideas for Acme Blog.",
     });
     expect(agentsLight({ ...agents, failedUnretried: [job(), job()] }, PRODUCTS).sentence).toBe(
       "2 runs didn't finish.",

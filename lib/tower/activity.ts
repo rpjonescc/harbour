@@ -6,6 +6,7 @@ import { ACTION_STATUSES, type ActionStatus } from "@/lib/actions/types";
 import { jobLabel, type Named } from "@/lib/agents/view";
 import { AREAS } from "@/lib/explain/areas";
 import { movedTodayLine } from "@/lib/explain/board";
+import { jobWords } from "@/lib/explain/job-words";
 import { agoPhrase, NOTHING_RAN } from "@/lib/explain/tower";
 import { FEED_SENTENCE } from "@/lib/explain/tower-activity";
 import { formatClock, formatShortDateTime } from "@/lib/format/date";
@@ -23,6 +24,8 @@ export type FeedItem = {
   href: string | null;
   /** Under 5 minutes old: the tile tints it once and says "new". */
   isNew: boolean;
+  /** A job's Agents-page name and kind, shown only under Technical details; null for others. */
+  technical: string | null;
 };
 
 export type ActivityFeed = {
@@ -42,37 +45,53 @@ const GROUP_ORDER: readonly FeedItem["kind"][] = ["win", "finished", "failed"];
 
 type Context = { products: readonly Named[]; now: Date; timeZone: string; locale: string };
 
-function feedItem(ctx: Context, base: Omit<FeedItem, "ago" | "isNew">): FeedItem {
+function feedItem(
+  ctx: Context,
+  base: Omit<FeedItem, "ago" | "isNew" | "technical">,
+  technical: string | null = null,
+): FeedItem {
   const age = ctx.now.getTime() - base.at.getTime();
   return {
     ...base,
     ago: agoPhrase(base.at, ctx.now, ctx.timeZone, ctx.locale),
     isNew: age < NEW_MS,
+    technical,
   };
 }
 
+const technicalName = (ctx: Context, job: Job) =>
+  FEED_SENTENCE.technical(jobLabel(job, ctx.products), job.kind);
+
 function runningItem(ctx: Context, job: Job): FeedItem {
-  const label = jobLabel(job, ctx.products);
+  const { doing } = jobWords(job, ctx.products);
   const running = job.status === "running";
-  return feedItem(ctx, {
-    id: `job-${job.id}`,
-    kind: "running",
-    sentence: running ? FEED_SENTENCE.running(label) : FEED_SENTENCE.waiting(label),
-    at: running ? (job.startedAt ?? job.createdAt) : job.createdAt,
-    href: `/agents/${job.id}`,
-  });
+  return feedItem(
+    ctx,
+    {
+      id: `job-${job.id}`,
+      kind: "running",
+      sentence: running ? FEED_SENTENCE.running(doing) : FEED_SENTENCE.waiting(doing),
+      at: running ? (job.startedAt ?? job.createdAt) : job.createdAt,
+      href: `/agents/${job.id}`,
+    },
+    technicalName(ctx, job),
+  );
 }
 
 function finishedItem(ctx: Context, job: Job): FeedItem {
-  const label = jobLabel(job, ctx.products);
+  const { done, doing } = jobWords(job, ctx.products);
   const ok = job.status === "ok";
-  return feedItem(ctx, {
-    id: `job-${job.id}`,
-    kind: !ok ? "failed" : isAgentJobKind(job.kind) ? "win" : "finished",
-    sentence: ok ? FEED_SENTENCE.done(label) : FEED_SENTENCE.failed(label),
-    at: job.finishedAt ?? job.createdAt,
-    href: `/agents/${job.id}`,
-  });
+  return feedItem(
+    ctx,
+    {
+      id: `job-${job.id}`,
+      kind: !ok ? "failed" : isAgentJobKind(job.kind) ? "win" : "finished",
+      sentence: ok ? FEED_SENTENCE.done(done) : FEED_SENTENCE.failed(doing),
+      at: job.finishedAt ?? job.createdAt,
+      href: `/agents/${job.id}`,
+    },
+    technicalName(ctx, job),
+  );
 }
 
 const isStatus = (value: string): value is ActionStatus =>

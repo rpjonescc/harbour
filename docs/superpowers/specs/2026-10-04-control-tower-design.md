@@ -206,7 +206,9 @@ The whole card is not a link (that would make one huge accessible name). Its hea
 
 A calm feed for the last 24 hours, in two groups:
 
-- **Running now**: queued and running jobs, each a sentence from `jobLabel()` ("Checking Acme Docs",
+- **Running now**: queued and running jobs, each a sentence from `jobWords()` in
+  `lib/explain/job-words.ts` (polish: was `jobLabel()`, whose "Check (humanizer): …" read as jargon;
+  the label and job kind now sit only under the feed's Technical details) ("Checking Acme Docs",
   "Claude is drafting a post for Acme Blog") with a `busy` light and "started 4 min ago".
 - **Finished**: up to 5 items, **wins first** (a job that succeeded and produced something, a card
   moved to Done, a score rise), then ordinary finishes, then failures last, each with its plain
@@ -336,7 +338,7 @@ never breaks the page.
 | Needs you | `needsFacts(db, config, now)` | `needsYou(facts, lights, board)` | `actionCounts`, `approvalsWaiting`, `scanContent` |
 | Work | Board's `loadWorkStrip` | — | — |
 | Runways | `runwayFacts(db, config, product, now)` | `runwayCard(facts, now)` | `productToday`, `topActiveActions`, `scanState` + `scanFindings` + `indexingState`, `outsideView`, `scanContent`, `weeklyScoreChanges` |
-| Activity | `activityFacts(db, now)` | `activityFeed(facts, now)` | `jobLabel`, `RUN_HEADLINE` |
+| Activity | `activityFacts(db, now)` | `activityFeed(facts, now)` | `jobWords` (plain), `jobLabel` (Technical details only) |
 | Wins | `winsFacts(db, config, now)` | `weekWins(facts, now)` | `weeklyScoreChanges`, `verdictFor`, `formulaChangedArea` |
 
 `weeklyScoreChanges(db, productId, kind, now)` is new in `lib/scan/views.ts`: each area's latest score and

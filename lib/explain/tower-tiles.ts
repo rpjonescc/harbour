@@ -73,6 +73,7 @@ export const FEED_TEXT = {
   nothingRunning: "Nothing is running right now.",
   nothingFinished: "Nothing finished in the last day.",
   more: (n: number) => `${n} more on the Agents page`,
+  technicalTopic: "the names of these runs",
   /** Said in words beside the soft tint, so "new" never rests on colour alone. */
   isNew: "new",
   win: "win",

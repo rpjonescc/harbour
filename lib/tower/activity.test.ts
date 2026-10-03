@@ -55,13 +55,14 @@ describe("activityFeed", () => {
     expect(items[0]).toEqual({
       id: "job-9",
       kind: "running",
-      sentence: "Running now: Check: Acme Docs.",
+      sentence: "Checking Acme Docs.",
       at: ago(4 * MIN),
       ago: "4 min ago",
       href: "/agents/9",
       isNew: true,
+      technical: "Check: Acme Docs (scan)",
     });
-    expect(items[1]?.sentence).toBe("Waiting to start: Daily note: 2026-10-02.");
+    expect(items[1]?.sentence).toBe("Waiting to start writing the daily note.");
   });
 
   it("puts wins first and failures last, newest first within each", () => {
@@ -96,14 +97,15 @@ describe("activityFeed", () => {
     });
     expect(finished.map((i) => [i.kind, i.sentence])).toEqual([
       ["win", "Claude moved “Add a sitemap” to Done."],
-      ["win", "Weekly report: 2026-W40: done."],
+      ["win", "Wrote the weekly report."],
       ["win", "Acme Docs: Found on Google up 6."],
-      ["finished", "Nightly backup: 2026-10-02: done."],
+      ["finished", "Backed up Harbour."],
       ["finished", "Claude moved “Fix the title” to Started."],
     ]);
     expect(feed({ finished: [job({ id: 2, status: "failed" })] }).finished[0]).toMatchObject({
       kind: "failed",
-      sentence: "Daily note: 2026-10-02: didn't finish.",
+      sentence: "Didn't finish writing the daily note.",
+      technical: "Daily note: 2026-10-02 (daily-note)",
     });
   });
 

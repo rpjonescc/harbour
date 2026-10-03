@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { Panel } from "@/components/ui/Panel";
 import { Tag } from "@/components/ui/Tag";
 import { type LightTone, SECTION_TITLES } from "@/lib/explain/tower";
@@ -69,6 +70,21 @@ function Group({ title, items, none }: { title: string; items: FeedItem[]; none:
   );
 }
 
+/** The jobs' names as the Agents page and the queue know them: codes stay out of the feed's face. */
+function JobNames({ items }: { items: FeedItem[] }) {
+  const named = items.filter((item) => item.technical !== null);
+  if (named.length === 0) return null;
+  return (
+    <TechnicalDetails id="tower-activity" topic={FEED_TEXT.technicalTopic}>
+      <ul className="flex flex-col gap-1 font-mono text-ink-muted">
+        {named.map((item) => (
+          <li key={item.id}>{item.technical}</li>
+        ))}
+      </ul>
+    </TechnicalDetails>
+  );
+}
+
 function FeedPanel({ feed }: { feed: Feed }) {
   if (feed.empty !== null) {
     return (
@@ -90,6 +106,7 @@ function FeedPanel({ feed }: { feed: Feed }) {
           </Link>
         </p>
       )}
+      <JobNames items={[...running, ...feed.finished]} />
     </Panel>
   );
 }

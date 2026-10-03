@@ -1,7 +1,7 @@
 // "Needs you": at most five items, each one sentence and one link, in the spec's priority order
 // (§4.4). Pure: no I/O.
 
-import { jobLabel } from "@/lib/agents/view";
+import { jobWords } from "@/lib/explain/job-words";
 import { NEED_BUTTON, NEED_SENTENCE, needButtonName } from "@/lib/explain/tower-needs";
 import type { NeedsFacts } from "./needs-data";
 import type { Light } from "./system";
@@ -79,7 +79,7 @@ function candidates(facts: NeedsFacts, lights: readonly Light[], board: BoardNee
     .map((job) =>
       item(
         "run",
-        NEED_SENTENCE.run(jobLabel(job, facts.products)),
+        NEED_SENTENCE.run(jobWords(job, facts.products).doing),
         NEED_BUTTON.run,
         `/agents/${job.id}`,
         job.finishedAt,
