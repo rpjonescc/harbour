@@ -554,5 +554,6 @@ what is happening" at a glance.
   with glossary words a `<Term>` explains. New glossary words: research target, passkey, digest.
   New page help: a run's page and the research targets page.
 - **Layout.** Every page is centred like Today, text pages at `max-w-4xl`; the Second Brain's save
-  line sits under its header; Agents' recent runs sit on the same card surface as the rest.
+  line sits under its header and is hidden when all is clear, since its verdict then says
+  "Everything is saved and synced."; Agents' recent runs sit on the same card surface as the rest.
 - Examples of each tone and a term line are on `/design` ("Page verdicts").

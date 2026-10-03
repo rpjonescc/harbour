@@ -194,6 +194,7 @@ const brain = (over: Partial<BrainFacts> = {}): BrainFacts => ({
   fresh: 0,
   lastChanged: "4 min ago",
   unsaved: 0,
+  unpushed: 0,
   syncFailed: false,
   recovering: false,
   ...over,
@@ -203,8 +204,16 @@ describe("brainVerdict", () => {
   it("counts the notes, says when one changed and that all is saved", () => {
     expect(brainVerdict(brain({ fresh: 3 }))).toEqual({
       tone: "ok",
-      text: "17 notes, the newest changed 4 min ago. Everything is saved. 3 are new to you.",
+      text: "17 notes, the newest changed 4 min ago. Everything is saved and synced. 3 are new to you.",
     });
+  });
+
+  it("says synced only when every saved change has reached GitHub", () => {
+    for (const unpushed of [2, null]) {
+      expect(brainVerdict(brain({ unpushed })).text).toBe(
+        "17 notes, the newest changed 4 min ago. Everything is saved.",
+      );
+    }
   });
 
   it("says what isn't saved, and never reads a failed check as saved", () => {

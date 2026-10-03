@@ -67,6 +67,7 @@ const EXAMPLES = [
       fresh: 2,
       lastChanged: "4 min ago",
       unsaved: 0,
+      unpushed: 0,
       syncFailed: false,
       recovering: false,
     }),

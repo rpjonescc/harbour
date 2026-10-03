@@ -268,8 +268,8 @@ For a product with content turned on, discovery also proposes three to five **co
 pillars** (recurring themes to write about), approved the same way. Harbour keeps at most six
 approved pillars; to approve another, reject one first.
 
-Saving and syncing need no action. The Agents page and the Second Brain say "Saved · synced",
-or show note files that "will be saved automatically soon" and saved changes "waiting to reach
+Saving and syncing need no action. The Agents page says "Saved · synced" (on the Second Brain
+the verdict says it once: "Everything is saved and synced."), or the pages show note files that "will be saved automatically soon" and saved changes "waiting to reach
 GitHub — Harbour keeps retrying"; **Save now** and **Retry now** are optional shortcuts. While an
 interrupted run is being recovered, a banner says so and saving is paused.
 

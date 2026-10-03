@@ -34,6 +34,7 @@ export default async function BrainLayout({ children }: { children: ReactNode })
       ? agoPhrase(stats.newest, new Date(), config.HARBOUR_TIMEZONE, config.HARBOUR_LOCALE)
       : null,
     unsaved: sync.sync?.unsaved ?? null,
+    unpushed: sync.sync ? sync.sync.unpushed : null,
     syncFailed: sync.syncFailed,
     recovering: sync.recovery.pending === null || sync.recovery.pending.length > 0,
   });
@@ -42,7 +43,7 @@ export default async function BrainLayout({ children }: { children: ReactNode })
       <BrainHeader watchError={status.watchError} indexError={status.indexError} verdict={verdict}>
         <SearchDialog />
       </BrainHeader>
-      <BrainStatus status={sync} />
+      <BrainStatus status={sync} quietWhenSynced />
       <ViewedDocProvider>
         <div className="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
           <BrainNav>
