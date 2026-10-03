@@ -16,6 +16,7 @@ import { firstSentence } from "@/lib/today/reason";
 import { ActionHistory } from "./ActionHistory";
 import { ActionStatusControls } from "./ActionStatusControls";
 import { ActionTechnical } from "./ActionTechnical";
+import { impactHeadingId } from "./focus-after-change";
 import { PullRequestLink } from "./PullRequestLink";
 
 /**
@@ -51,6 +52,7 @@ export function ActionCard({
         aria-labelledby={headingId}
         data-action-id={action.id}
         data-impact={action.impact}
+        data-group-heading={impactHeadingId(action.impact)}
         className="flex flex-col gap-4"
       >
         <div className="flex flex-wrap items-center gap-2">

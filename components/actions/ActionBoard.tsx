@@ -5,6 +5,7 @@ import type { Product } from "@/lib/products/catalog";
 import { ActionAnnouncer } from "./ActionAnnouncer";
 import { ActionCard } from "./ActionCard";
 import { EMPTY_STATE } from "./action-labels";
+import { impactHeadingId } from "./focus-after-change";
 
 /** The filtered actions, one section per impact, with what the cap left out. */
 export function ActionBoard({
@@ -35,10 +36,10 @@ export function ActionBoard({
           {groups.map(({ impact, actions }) => (
             <section
               key={impact}
-              aria-labelledby={`impact-${impact}`}
+              aria-labelledby={impactHeadingId(impact)}
               className="flex flex-col gap-3"
             >
-              <h2 id={`impact-${impact}`} tabIndex={-1} className="font-serif text-xl">
+              <h2 id={impactHeadingId(impact)} tabIndex={-1} className="font-serif text-xl">
                 {IMPACT_GROUP[impact]}
               </h2>
               {actions.map((action) => {

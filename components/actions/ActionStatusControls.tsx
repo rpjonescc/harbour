@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { DEMO_NOTE } from "@/components/ui/demo-note";
 import type { ActionStatus } from "@/lib/actions/types";
 import { postJson } from "@/lib/auth/client-api";
+import { SIGN_IN_ENDED } from "@/lib/explain/actions";
 import { useBoardAnnouncer } from "./ActionAnnouncer";
 import { STATUS_CONTROLS, type StatusControl } from "./action-labels";
 import { type ChangeSnapshot, snapshotBoard } from "./focus-after-change";
@@ -15,9 +16,7 @@ import { SnoozeForm } from "./SnoozeForm";
 const CHANGED = new Set(["stale", "not_allowed", "until_required", "conflict", "not_found"]);
 
 function failureMessage(error: string): string {
-  if (error === "unauthenticated") {
-    return "Your sign-in has ended. Reload the page and sign in again, then try again.";
-  }
+  if (error === "unauthenticated") return SIGN_IN_ENDED;
   if (error === "until_invalid") return "Pick a date between tomorrow and a year from now.";
   if (CHANGED.has(error)) {
     return "This card changed since you opened it, so Harbour refreshed the board. Check it and try again.";

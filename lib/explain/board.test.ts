@@ -1,6 +1,14 @@
 import { BOARD_COLUMNS } from "@/lib/actions/board-column";
 import type { ActionActor } from "@/lib/actions/types";
-import { COLUMN_COPY, lastMoveLine, MOVE_REFUSAL, STUCK_DAYS } from "./board";
+import {
+  BOARD_TEXT,
+  COLUMN_COPY,
+  explainerItems,
+  lastMoveLine,
+  MOVE_REFUSAL,
+  PARKED_COPY,
+  STUCK_DAYS,
+} from "./board";
 
 const NOW = new Date("2026-10-10T09:00:00Z");
 const ago = (ms: number) => new Date(NOW.getTime() - ms);
@@ -185,6 +193,44 @@ describe("lastMoveLine", () => {
     expect(line("claude", "started", 24 * HOUR)).toBe("Claude moved this to Started, yesterday");
     expect(line("claude", "started", -HOUR)).toBe(
       "Claude moved this to Started, less than an hour ago",
+    );
+  });
+});
+
+describe("board screen wording", () => {
+  it("heads a column's four parts in order", () => {
+    expect(explainerItems(COLUMN_COPY.queue.explainer)).toEqual([
+      { label: "What it means", text: COLUMN_COPY.queue.explainer.what },
+      { label: "Who moves cards here", text: COLUMN_COPY.queue.explainer.whoMoves },
+      { label: "What usually happens next", text: COLUMN_COPY.queue.explainer.next },
+      { label: "If a card is stuck", text: COLUMN_COPY.queue.explainer.ifStuck },
+    ]);
+  });
+
+  it("names a column region with its count", () => {
+    expect(BOARD_TEXT.columnLabel("queue", 3)).toBe("Queue, 3 cards");
+    expect(BOARD_TEXT.columnLabel("in_review", 1)).toBe("In review, 1 card");
+  });
+
+  it("announces a move by the card's title and the column's name", () => {
+    expect(BOARD_TEXT.moved("Fix the title", "in_progress")).toBe(
+      "Moved Fix the title to In progress",
+    );
+  });
+
+  it("explains Parked in plain words with no codes", () => {
+    // "Snoozed" is the plain word the snooze button uses, so only real codes are ruled out here.
+    const codes = /_|\bstage\b|\bstatus\b|HARBOUR/i;
+    const texts = [PARKED_COPY.short, PARKED_COPY.empty, ...Object.values(PARKED_COPY.explainer)];
+    for (const text of texts) {
+      expect(text).toMatch(/^[A-Z].*\.$/);
+      expect(text).not.toMatch(codes);
+    }
+  });
+
+  it("says the card cap in a sentence", () => {
+    expect(BOARD_TEXT.truncated(200)).toBe(
+      "The board shows 200 cards at most, so some are not here. Use the filters to narrow it.",
     );
   });
 });

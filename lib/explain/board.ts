@@ -169,3 +169,54 @@ export function lastMoveLine(
 ): string {
   return `${MOVER[move.actor]} moved this to ${COLUMN_COPY[move.to].name}, ${ago(move.at, now)}`;
 }
+
+/** Headings for the four parts behind a column's "What's this?". */
+const PART_LABELS: Readonly<Record<keyof ColumnCopy["explainer"], string>> = {
+  what: "What it means",
+  whoMoves: "Who moves cards here",
+  next: "What usually happens next",
+  ifStuck: "If a card is stuck",
+};
+
+const PART_ORDER = ["what", "whoMoves", "next", "ifStuck"] as const;
+
+/** A column's four parts with their headings, in order, for the `Explainer`. */
+export function explainerItems(
+  explainer: ColumnCopy["explainer"],
+): { label: string; text: string }[] {
+  return PART_ORDER.map((part) => ({ label: PART_LABELS[part], text: explainer[part] }));
+}
+
+/** The quiet strip under the board for snoozed and dismissed cards. */
+export const PARKED_COPY: Pick<ColumnCopy, "name" | "short" | "explainer"> & { empty: string } = {
+  name: "Parked",
+  short: "Snoozed cards, and cards dismissed in the last 14 days.",
+  explainer: {
+    what: "Cards put aside for now. They are not in any column.",
+    whoMoves: "You, by snoozing or dismissing a card.",
+    next: "A snoozed card comes back to Backlog on its date. A dismissed card stays here for 14 days, then drops off.",
+    ifStuck: "Bring a card back whenever you want it on the board again.",
+  },
+  empty: "Nothing is parked.",
+};
+
+/** The rest of the board's wording: view switch, card labels, moves and notes. */
+export const BOARD_TEXT = {
+  view: "View",
+  board: "Board",
+  list: "List",
+  moveTo: "Move to…",
+  newIdea: "New idea",
+  stuck: "Stuck",
+  emptyColumn: "No cards here.",
+  moveFailed: "That move wasn't saved. Try again in a moment.",
+  /** The region name for a column: "Queue, 3 cards". */
+  columnLabel: (column: BoardColumnId, n: number) =>
+    `${COLUMN_COPY[column].name}, ${count(n, "card")}`,
+  /** The menu's name: "Move Fix the title to". */
+  moveMenu: (title: string) => `Move ${title} to`,
+  moved: (title: string, column: BoardColumnId) => `Moved ${title} to ${COLUMN_COPY[column].name}`,
+  truncated: (max: number) =>
+    `The board shows ${max} cards at most, so some are not here. Use the filters to narrow it.`,
+  technical: { id: "Card number", status: "Stored status", column: "Column id" },
+} as const;

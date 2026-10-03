@@ -3,7 +3,7 @@ import { actions } from "@/lib/db/schema";
 import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { type BoardColumnId, columnTarget } from "./board-column";
-import { type BoardFilter, loadBoard, parseBoardFocus } from "./board-view";
+import { type BoardFilter, loadBoard, parseActionsView, parseBoardFocus } from "./board-view";
 import { moveToColumn } from "./move-to-column";
 import { insertAction } from "./store";
 import type { ActionActor, NewAction } from "./types";
@@ -130,12 +130,16 @@ describe("loadBoard filters", () => {
     expect(load({ productId: "acme-docs", area: "SEO" }).counts.queue).toBe(1);
   });
 
-  it("parses the focus param, ignoring anything else", () => {
+  it("parses the focus and view params, ignoring anything else", () => {
     expect(parseBoardFocus("stuck")).toBe("stuck");
     expect(parseBoardFocus("needs-you")).toBe("needs-you");
     expect(parseBoardFocus("other")).toBeNull();
     expect(parseBoardFocus(["stuck", "stuck"])).toBeNull();
     expect(parseBoardFocus(undefined)).toBeNull();
+    expect(parseActionsView("list")).toBe("list");
+    expect(parseActionsView("board")).toBe("board");
+    expect(parseActionsView(undefined)).toBe("board");
+    expect(parseActionsView(["list", "list"])).toBe("board");
   });
 });
 

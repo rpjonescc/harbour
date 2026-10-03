@@ -29,6 +29,14 @@ export function parseBoardFocus(value: string | string[] | undefined): BoardFocu
   return FOCUSES.find((focus) => focus === value) ?? null;
 }
 
+/** The /actions page's two views; the board is the default. */
+export type ActionsView = "board" | "list";
+
+/** `?view=board|list` from URL search params; anything else is the board. */
+export function parseActionsView(value: string | string[] | undefined): ActionsView {
+  return value === "list" ? "list" : "board";
+}
+
 export type BoardCard = {
   id: number;
   title: string;

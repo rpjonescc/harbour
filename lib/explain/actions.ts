@@ -28,6 +28,10 @@ export const STATUS_COLUMN: Readonly<Record<ActionStatus, string>> = {
   dismissed: "Dismissed",
 };
 
+/** Said when an API call finds the owner signed out. */
+export const SIGN_IN_ENDED =
+  "Your sign-in has ended. Reload the page and sign in again, then try again.";
+
 export type WhoOnIt = "claude" | "pr_waiting" | "you" | "undecided";
 
 export const WHO_PHRASE: Readonly<Record<WhoOnIt, string>> = {

@@ -45,7 +45,10 @@ describe("ActionFilters", () => {
     expect(screen.getByLabelText("Product")).toHaveValue("acme-shop");
     expect(screen.getByLabelText("Area")).toHaveValue("GEO");
     expect(screen.getByLabelText("Status")).toHaveValue("done");
-    expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute("href", "/actions");
+    expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute(
+      "href",
+      "/actions?view=list",
+    );
   });
 
   it("shows the new filter after a client navigation (Clear filters, back and forward)", () => {
@@ -55,5 +58,23 @@ describe("ActionFilters", () => {
     expect(screen.getByLabelText("Product")).toHaveValue("");
     expect(screen.getByLabelText("Area")).toHaveValue("");
     expect(screen.getByLabelText("Status")).toHaveValue("active");
+  });
+
+  it("keeps the list on the list when applied", () => {
+    renderFilters(DEFAULT);
+    expect(document.querySelector('input[type="hidden"][name="view"]')).toHaveValue("list");
+  });
+
+  it("on the board, drops the status filter (the columns are the statuses)", () => {
+    render(
+      <ActionFilters
+        filter={{ productId: "acme-docs", area: null, status: "done" }}
+        products={PRODUCTS}
+        view="board"
+      />,
+    );
+    expect(screen.queryByLabelText("Status")).toBeNull();
+    expect(document.querySelector('input[name="view"]')).toBeNull();
+    expect(screen.getByRole("link", { name: "Clear filters" })).toHaveAttribute("href", "/actions");
   });
 });
