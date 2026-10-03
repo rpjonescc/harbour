@@ -1,13 +1,13 @@
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, MoonStar, Sun } from "lucide-react";
 import { useState } from "react";
 import { nextTheme, THEME_COOKIE, type ThemePreference } from "@/lib/theme";
 
-const ICONS = { system: Monitor, light: Sun, dark: Moon } as const;
+const ICONS = { system: Monitor, light: Sun, dark: Moon, night: MoonStar } as const;
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-/** Cycles system → light → dark; persisted per device in a cookie. */
+/** Cycles system → light → dark → night; persisted per device in a cookie. */
 export function ThemeToggle({ initial }: { initial: ThemePreference }) {
   const [theme, setTheme] = useState(initial);
   const Icon = ICONS[theme];

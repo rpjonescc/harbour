@@ -28,8 +28,9 @@ function NoteText({ note }: { note: Note }) {
 }
 
 /**
- * The friend's daily note, above the briefing (spec §4). Plain text only: the note's fields are
- * rendered as text nodes, never as markup. It adds no heading, so the briefing stays the page's h1.
+ * The friend's daily note, beside Needs you on the tower (control tower spec §4.9). Plain text
+ * only: the note's fields are rendered as text nodes, never as markup. It adds no heading, so the
+ * tower's headline stays the page's only h1 and its sections keep their six h2s.
  * A celebrating note carries `data-mood` for the wave's one ripple (CSS only).
  */
 export function NoteCard({

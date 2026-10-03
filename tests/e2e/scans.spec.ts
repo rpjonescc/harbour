@@ -175,42 +175,24 @@ test("Sources lists each source's last run and how to connect the missing ones",
   await expect(page.getByRole("region", { name: "Fern & Field" })).toContainText("Never checked");
 });
 
-test("Today shows the real verdicts instead of the sample, with the numbers a click away", async ({
+test("Today shows the real verdicts instead of the sample, each card with its next action", async ({
   page,
 }) => {
   await page.goto("/");
-  await expect(page.getByText(/· last checked /)).toBeVisible();
   await expect(page.getByText("Sample data")).toHaveCount(0);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    /^Your sites (are in (strong|good|fair) shape|need some work)\. Biggest opportunity: (Found on Google|Recommended by AI assistants|Answer-ready) for Acme Docs \((strong|good|fair|needs work)\)\.$/,
-  );
-  await expect(page.getByText(/^\d+ things? worth doing · nothing is broken$/)).toBeVisible();
-  await expectPlainLanguage(page);
-  const table = page.getByRole("table", { name: "Scores by product" });
-  for (const cell of await table
-    .getByRole("row", { name: /Acme Docs/ })
-    .getByRole("cell")
-    .all()) {
-    await expect(cell).toHaveText(/^(Strong|Good|Fair|Needs work) \d+ out of 100/);
-  }
-  // Products not scanned yet show a gap, never a zero.
+  const yours = page.getByRole("region", { name: "Your products" });
   await expect(
-    table
-      .getByRole("row", { name: /Fern & Field/ })
-      .getByRole("cell")
-      .first(),
-  ).toHaveText(/No score yet/);
-  // The numbers stay one click away, under Technical details.
-  await page.getByText("Technical details (scores in numbers)").click();
-  const numbers = page.getByRole("table", { name: "Visibility scores by product" });
-  await expect(numbers).toBeVisible();
-  const acme = numbers.getByRole("row", { name: /Acme Docs/ });
-  for (const cell of (await acme.getByRole("cell").all()).slice(0, 3)) {
-    await expect(cell).toHaveText(/^\d+/);
-  }
-  // Next up lists the actions the scan opened, each linked to its board card.
-  await expect(page.getByRole("link", { name: "1 page is missing a title" })).toHaveAttribute(
-    "href",
-    /^\/actions#action-\d+$/,
-  );
+    yours.getByText(
+      /^Your sites (are in (strong|good|fair) shape|need some work)\. Biggest opportunity: (Found on Google|Recommended by AI assistants|Answer-ready) for Acme Docs \((strong|good|fair|needs work)\)\.$/,
+    ),
+  ).toBeVisible();
+  await expect(yours.getByText(/^\d+ things? worth doing · nothing is broken$/)).toBeVisible();
+  await expectPlainLanguage(page);
+  const acme = yours.getByRole("article", { name: "Acme Docs" });
+  await expect(acme).toContainText(/(Strong|Good|Fair|Needs work)/);
+  await expect(acme.getByText(/^Checked (just now|.+ ago)\.$/)).toBeVisible();
+  // Products not checked yet show a gap, never a zero.
+  await expect(yours.getByRole("article", { name: "Fern & Field" })).toContainText("No score yet");
+  // The card's one next action links to its board card.
+  await expect(acme.locator('a[href^="/actions#action-"]')).toHaveCount(1);
 });

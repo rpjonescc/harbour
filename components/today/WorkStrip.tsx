@@ -80,7 +80,7 @@ export function WorkStrip({ strip }: { strip: WorkStripData }) {
           <FlowBar tiles={strip.tiles} />
         </>
       )}
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid items-start gap-2 sm:grid-cols-2">
         <GroupTile
           title={STRIP_TEXT.stuckTitle}
           sentence={STRIP_TEXT.stuck(stuck.count)}

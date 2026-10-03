@@ -118,7 +118,7 @@ test("client navigation re-checks the session on every page", async ({ browser }
   const context = await browser.newContext({ storageState: sessionStorageState(token) });
   const page = await context.newPage();
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(SAMPLE_BRIEFING);
+  await expect(page.getByRole("region", { name: "Your products" })).toContainText(SAMPLE_BRIEFING);
   revokeSession(db, token);
   await page.getByRole("link", { name: "Design system" }).click();
   await expect(page).toHaveURL(/\/login$/);
@@ -129,21 +129,32 @@ for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`${colorScheme} mode`, () => {
     test.use({ colorScheme });
 
-    test("Today renders the briefing, verdicts and what's worth doing", async ({ page }) => {
+    test("Today renders the tower: one headline, six sections, the sample products", async ({
+      page,
+    }) => {
       const cspErrors = watchCspErrors(page);
       await page.goto("/");
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText(SAMPLE_BRIEFING);
-      await expect(page.getByText("2 things worth doing · nothing is broken")).toBeVisible();
-      await expect(page.getByRole("note")).toContainText("Sample data");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+      // The sidebar has its own "Products" heading; the tower's six sections are in main.
+      await expect(page.getByRole("main").getByRole("heading", { level: 2 })).toHaveText([
+        "Systems",
+        "Needs you",
+        "Where the work is",
+        "Your products",
+        "What's happening",
+        "Wins this week",
+      ]);
+      const yours = page.getByRole("region", { name: "Your products" });
+      await expect(yours).toContainText(SAMPLE_BRIEFING);
+      await expect(yours.getByText("2 things worth doing · nothing is broken")).toBeVisible();
+      await expect(yours.getByRole("note")).toContainText("Sample data");
       // The sample Today shows the fixed, labelled sample note: never agent output, no button.
       const note = page.getByRole("region", { name: "A note from Harbour" });
       await expect(note).toContainText("Sample note");
       await expect(note.getByRole("button")).toHaveCount(0);
-      const table = page.getByRole("table", { name: "Scores by product" });
-      await expect(table.getByRole("rowheader", { name: "Fern & Field" })).toBeVisible();
-      const products = page.getByRole("region", { name: "Products" });
+      await expect(yours.getByRole("article", { name: "Fern & Field" })).toBeVisible();
+      const products = page.getByRole("region", { name: "Products", exact: true });
       await expect(products.getByRole("link", { name: "Acme Docs" })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Next up", exact: true })).toBeVisible();
       await expectPlainLanguage(page);
       await page.waitForLoadState("networkidle");
       expect(cspErrors).toEqual([]);

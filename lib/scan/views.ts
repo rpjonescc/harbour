@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte, max, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { collectorRuns, jobs, type ScoreBreakdownEntry, scanRuns, scores } from "@/lib/db/schema";
 import { formulaChangedArea, hasScoringNote } from "@/lib/explain/scoring-notes";
@@ -53,7 +53,7 @@ const DAY_MS = 24 * 60 * 60_000;
 // Only scans that produced something: a failed scan never hides the last good scores.
 const GOOD = inArray(scanRuns.status, ["ok", "partial"]);
 
-function scoreRows(db: Db, productId: string, since?: Date) {
+function scoreRows(db: Db, productId: string, since?: Date, until?: Date) {
   return db
     .select({
       scanId: scores.scanId,
@@ -68,7 +68,12 @@ function scoreRows(db: Db, productId: string, since?: Date) {
     .from(scores)
     .innerJoin(scanRuns, eq(scores.scanId, scanRuns.id))
     .where(
-      and(eq(scores.productId, productId), GOOD, since ? gte(scores.computedAt, since) : undefined),
+      and(
+        eq(scores.productId, productId),
+        GOOD,
+        since ? gte(scores.computedAt, since) : undefined,
+        until ? lte(scores.computedAt, until) : undefined,
+      ),
     );
 }
 
@@ -120,6 +125,35 @@ export function productScoreTrend(
     },
     trend,
   };
+}
+
+/** One area's score now and 7 days ago; null when either is missing or the formula changed. */
+export type WeeklyChange = { now: number; before: number } | null;
+
+/**
+ * Each area's latest score against the latest score at or before 7 days ago, from good scans. An
+ * area is null (a gap, not a change) when either score is missing or its formula changed between.
+ */
+export function weeklyScoreChanges(
+  db: Db,
+  productId: string,
+  kind: ProductKind,
+  now: Date,
+): AreaValues<WeeklyChange> {
+  const newest = (until?: Date) =>
+    scoreRows(db, productId, undefined, until)
+      .orderBy(desc(scores.computedAt), desc(scores.id))
+      .get();
+  const latest = newest();
+  const before = newest(new Date(now.getTime() - 7 * DAY_MS));
+  const change = (area: AreaKey): WeeklyChange => {
+    const [a, b] = [latest?.[area], before?.[area]];
+    if (a == null || b == null || !latest || !before || latest.scanId === before.scanId)
+      return null;
+    if (formulaChangedArea(kind, area, before.formulaVersion, latest.formulaVersion)) return null;
+    return { now: a, before: b };
+  };
+  return { seo: change("seo"), geo: change("geo"), aeo: change("aeo") };
 }
 
 export type FormulaChange = { from: string; to: string; at: Date };

@@ -14,6 +14,9 @@ import { SourcesExamples } from "@/components/design/SourcesExamples";
 import { TermExamples } from "@/components/design/TermExamples";
 import { TodayExamples } from "@/components/design/TodayExamples";
 import { TokenSwatches } from "@/components/design/TokenSwatches";
+import { TowerExamples } from "@/components/design/TowerExamples";
+import { TowerFeedExamples } from "@/components/design/TowerFeedExamples";
+import { TowerHeaderExamples } from "@/components/design/TowerHeaderExamples";
 import { WaveExample } from "@/components/design/WaveExample";
 import { PageHeader } from "@/components/explain/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -98,6 +101,15 @@ export default async function DesignPage() {
       </Section>
       <Section title="Today examples">
         {firstProduct && <TodayExamples product={firstProduct} />}
+      </Section>
+      <Section title="Control tower: headline and refresh">
+        <TowerHeaderExamples />
+      </Section>
+      <Section title="Control tower">
+        <TowerExamples />
+      </Section>
+      <Section title="Control tower: activity and wins">
+        <TowerFeedExamples />
       </Section>
       <Section title="Navigation on a phone">
         <p className="text-sm">

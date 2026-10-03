@@ -73,7 +73,8 @@ function digestOffReason(switchOn: boolean, tokenSet: boolean): string {
   return tokenSet ? DIGEST_OFF_REASON.screenpipe : DIGEST_OFF_REASON.token;
 }
 
-function schedules(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] {
+/** Every schedule with whether it is on and its next run, for Settings and the tower. */
+export function scheduleRows(config: Config, now: Date, tokenSet: boolean): ScheduleRow[] {
   const zone = config.HARBOUR_TIMEZONE;
   const on = (value: "on" | "off") => value === "on";
   const scans = on(config.HARBOUR_SCHEDULED_SCANS);
@@ -185,7 +186,7 @@ export function settingsView(
       awaitingApproval: waiting.get(p.id) ?? 0,
     })),
     isDemoConfig,
-    schedules: schedules(config, now, tokenSet),
+    schedules: scheduleRows(config, now, tokenSet),
     keys: keyStatusRows(config),
     budget: {
       ...costMeterView(db, config, now),

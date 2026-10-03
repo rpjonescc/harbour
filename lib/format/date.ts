@@ -23,6 +23,16 @@ export function isoDateIn(timeZone: string, date: Date): string {
   }).format(date);
 }
 
+/** A 24-hour clock time, e.g. "09:42", in the given zone. */
+export function formatClock(date: Date, timeZone: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
+}
+
 /** Medium date and short time, e.g. "1 Oct 2026, 10:30". */
 export function formatDateTime(date: Date, timeZone: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, {

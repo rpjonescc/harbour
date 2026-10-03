@@ -34,6 +34,7 @@ import { makeNoteSchedule, noteEnabled } from "@/lib/note/schedule";
 import { type OpsJobDeps, runBackupJob, runRetentionJob } from "@/lib/ops/backup-job";
 import { describeNextBackup, makeBackupSchedule } from "@/lib/ops/backup-schedule";
 import { backupStatus } from "@/lib/ops/backup-status";
+import { startWorkerBeat } from "@/lib/ops/worker-beat";
 import { getContentProducts, getOwnerFirstName, getProducts } from "@/lib/products/catalog";
 import { runOutsideCheck } from "@/lib/scan/run-outside-check";
 import { runScan } from "@/lib/scan/run-scan";
@@ -150,6 +151,7 @@ export async function runWorker(seams?: WorkerTestSeams) {
     products: getProducts,
     clock: Date.now,
   });
+  const heartbeat = startWorkerBeat(db);
   scheduler.startup();
   failInterruptedScans(db); // their jobs were just failed by startup()
   const resumed = resumeContentChains({ db, root, config, now: () => new Date() });
@@ -266,6 +268,7 @@ export async function runWorker(seams?: WorkerTestSeams) {
   const claim = guardTick("job claim", () => claimNextJob(db));
 
   while (!stopping) {
+    heartbeat.beat();
     for (const duty of duties) duty();
     const job = claim();
     if (!job) {
@@ -281,4 +284,5 @@ export async function runWorker(seams?: WorkerTestSeams) {
     );
     console.log(`job ${job.id} finished`);
   }
+  heartbeat.stop();
 }

@@ -3,6 +3,7 @@ import { Tag } from "@/components/ui/Tag";
 import { formatAud, MICRO_PER_AUD } from "@/lib/costs/budget";
 import type { CostMeterView } from "@/lib/costs/meter-view";
 import { DOCS_LINKS } from "@/lib/docs-links";
+import { budgetReachedLine, NO_BUDGET, NO_PAID_DATA, spendOfBudget } from "@/lib/explain/spend";
 import { monthWindow } from "@/lib/format/zoned-time";
 
 type Props = { view: CostMeterView; now: Date; timeZone: string; locale: string };
@@ -46,19 +47,18 @@ export function CostMeter({ view, now, timeZone, locale }: Props) {
       <p className="text-sm text-ink-muted">
         {view.spentMicro > 0
           ? `No paid data connected · ${aud(view.spentMicro)} spent this month${unconfirmed}`
-          : "No paid data connected — Harbour is using free data only, so nothing is being spent."}
+          : NO_PAID_DATA}
       </p>
     );
   }
   if (view.state === "no-budget") {
     return (
       <p className="text-sm text-ink-muted">
-        Paid data is off until you set a monthly budget —{" "}
-        <DocsLink href={DOCS_LINKS.costs}>how to set one</DocsLink>
+        {NO_BUDGET} — <DocsLink href={DOCS_LINKS.costs}>how to set one</DocsLink>
       </p>
     );
   }
-  const amounts = `${aud(view.spentMicro)} of ${aud(view.capMicro)}`;
+  const amounts = spendOfBudget(aud(view.spentMicro), aud(view.capMicro));
   const projection =
     view.projectedMicro === null ? "" : ` · on track for ${aud(view.projectedMicro)}`;
   const resumes = new Intl.DateTimeFormat(locale, { timeZone, day: "numeric", month: "short" });
@@ -74,8 +74,8 @@ export function CostMeter({ view, now, timeZone, locale }: Props) {
       <SpendBar view={view} label={amounts} />
       {view.state === "reached" && (
         <p role="status" className="text-ink">
-          Budget reached — paid data is paused until{" "}
-          {resumes.format(monthWindow(now, timeZone).end)}. Free checks carry on as normal.
+          {budgetReachedLine(resumes.format(monthWindow(now, timeZone).end))} Free checks carry on
+          as normal.
         </p>
       )}
     </div>

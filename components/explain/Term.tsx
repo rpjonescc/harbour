@@ -23,7 +23,7 @@ export function Term({ id, children }: { id: TermId; children: ReactNode }) {
         type="button"
         aria-describedby={tipId}
         // The ::before box widens the hit area to 44 px tall without moving any text.
-        className="relative cursor-help rounded-sm underline decoration-ink-muted decoration-dotted underline-offset-4 before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']"
+        className="relative cursor-help rounded-sm text-left underline decoration-ink-muted decoration-dotted underline-offset-4 before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']"
       >
         {children}
       </button>

@@ -9,4 +9,5 @@ export const DOCS_LINKS = {
   costs: `${README}costs-and-budget`,
   backups: `${README}backups-and-restore`,
   configuration: `${README}configuration`,
+  deployment: `${README}deployment`,
 } as const;

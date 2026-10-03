@@ -171,6 +171,39 @@ body:has([data-mood="celebrate"]) .wave-layer[data-front] {
   }
 }
 
+/* A working ("busy") status light on the tower breathes slowly; under reduced motion it holds still. */
+.tower-breathe {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: tower-breathe var(--duration-breathe) ease-in-out infinite;
+}
+
+@keyframes tower-breathe {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+}
+
+/* Something new on the tower (under five minutes old) carries a soft tint that fades once; it
+   also says "new" in words. */
+.tower-new {
+  animation: tower-new var(--duration-settle) ease-out 1;
+}
+
+@keyframes tower-new {
+  from {
+    background-color: var(--accent-soft);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tower-breathe,
+  .tower-new {
+    animation: none;
+  }
+}
+
 /* Paper copies carry only the content. */
 @media print {
   [data-wave] {

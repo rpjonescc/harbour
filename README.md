@@ -20,17 +20,23 @@ explainable breakdowns. The roadmap continues with:
 
 ## Features
 
-- **Today** — date, when your sites were last checked, a one-sentence briefing (overall health and
-  the biggest opportunity, then how many things are worth doing, how many Claude is handling and
-  anything broken: a check that didn't finish, a failing data source or a backup that needs a look),
-  a plain verdict per product and area (Found on Google, Recommended by AI assistants, Answer-ready:
-  Strong 85+, Good 70–84, Fair 50–69 or Needs work under 50, with the score and its change beside
-  it; "What's this?" explains each area, and the numbers with a 30-day SEO trend sit under Technical
-  details), **Next up** (the top three actions as plain cards: why each matters, its area, how big a
-  job it is and who's on it), and **Behind the scenes**: paid spend, backup warnings and any data
-  source that failed in the last check, each saying what happened, whether it matters and what to do
-  (raw errors under Technical details). Until the first check finishes it shows clearly labelled
-  sample data.
+- **Today** — a control tower that answers, top to bottom: is everything OK, what needs you,
+  where the work is, how each product is doing, what is happening and what got better. The
+  headline says it in one sentence ("Everything is running. 2 things need you."). Under it: eight
+  status lights (Website, Worker, Schedules, Checks, Backups, Sources, Agents, Spend), each in
+  words with a plain sentence one click away; **Needs you** (at most five things, each with one
+  link to where you decide it) beside the daily note; the Board's **Where the work is**; a card per
+  product (verdict, weekly trend, the one next action, last check and a few highlights) led by the
+  one-sentence briefing; **What's happening** (running now and finished, wins first); and **Wins
+  this week**. A part that can't be read says so and the rest still shows. The page updates
+  itself every minute while you look at it (every 15 seconds while a check or agent run is going),
+  never in a hidden tab, and pauses after about two hours with a Reload button. Until the first
+  check finishes the product cards show clearly labelled sample data. See
+  [Reading Today](#reading-today-the-control-tower).
+- **Explained in place** — every unavoidable word (check, worker, backup, in Google…) is
+  underlined: hover, focus or tap it for a one-sentence meaning. Every page has **What's this
+  page?** at the top right (or press `?`): what the page is for, how to read it, what to do first
+  and the meaning of every word on it.
 - **Product pages** — per product: three area cards (Found on Google, Recommended by AI
   assistants, Answer-ready) each with a verdict, the small number and "What's this?", a
   one-line summary, **Check now**, a tab per area listing its sub-scores as plain sentences
@@ -68,8 +74,8 @@ explainable breakdowns. The roadmap continues with:
   per idea (LinkedIn, X, Instagram, Facebook, a blog post and a website section) that you read,
   copy, approve or discard on the Content page. Off by default; it never posts anything (see
   [Content machine](#content-machine)).
-- **A warm friend** — Today opens with a short note an agent writes fresh every morning, in
-  the voice of a seasoned, warm, quick-witted friend: it celebrates real wins, is honest and
+- **A warm friend** — beside **Needs you**, Today shows a short note an agent writes fresh every
+  morning, in the voice of a seasoned, warm, quick-witted friend: it celebrates real wins, is honest and
   kind about bad news and always gives a next step, and on a weekend or late at night says what
   can wait. Both the note and the [ocean background](#ocean-background) are off with
   `HARBOUR_PERSONALITY=quiet` (see [Daily note](#daily-note)).
@@ -78,15 +84,17 @@ explainable breakdowns. The roadmap continues with:
   [Ocean background](#ocean-background)).
 - **Works on a phone** — on narrow screens the sidebar folds into a top bar with a **Menu**
   button (Escape closes it), and the page uses the full width without sideways scrolling.
-- **Cost meter** — Today shows this month's paid API spend against your monthly budget, with a
+- **Cost meter** — Today's Spend light (and Settings) shows this month's paid API spend against your monthly budget, with a
   month-end projection, a warning at 80 % and a pause at 100 %. Until a paid source (Treg, for
   the weekly [outside view](#the-outside-view-treg)) is connected it says "No paid data
   connected" (see [Costs and budget](#costs-and-budget)).
-- **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
+- **Design system** — "Paper & Tide" tokens (primitives → semantic) in light, dark and night (a
+  darker, warmer theme for late hours; the theme button at the bottom of the sidebar cycles
+  system → light → dark → night), with
   a living reference at `/design` showing every component in its main states.
 - **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14 kept,
   with retries and a catch-up after downtime (see [Backups and restore](#backups-and-restore)).
-  Today warns when the last backup failed with no retry left, when there has been none for 2 days,
+  Today's Backups light warns when the last backup failed with no retry left, when there has been none for 2 days,
   or when Harbour can't open the backup folder.
 - **Settings** — one read-only page showing what Harbour is set up to do, in sections that
   each open with one plain line on what they are for: **Products**, **Schedules** and their next
@@ -731,7 +739,7 @@ only by hand. Like every agent run it waits for the brain to be quiet first.
 
 Each day at `HARBOUR_NOTE_TIME` (default 06:30) in `HARBOUR_TIMEZONE` the worker queues one
 `daily-note` job: an agent with a personality (a seasoned, warm, quick-witted friend with dry
-humour and the odd harbour turn of phrase) writes the short note at the top of Today. It runs
+humour and the odd harbour turn of phrase) writes the short note beside Needs you on Today. It runs
 on the same runner, git gate and Claude subscription as the other agents.
 
 - **What it is given** — a small snapshot Harbour builds: the day, time and whether it is the
@@ -802,7 +810,7 @@ and setup pages too.
 
 - **Calm by design** — pale sea-glass on the paper theme, deep teal water in the dark. Every text
   colour keeps WCAG AA contrast (at least 4.5:1, the usual readability bar) on every ocean colour,
-  in light, dark and system dark; a test checks this, so a token change that hurts legibility fails.
+  in light, dark, system dark and night; a test checks this, so a token change that hurts legibility fails.
 - **Reduced motion** — with *Reduce motion* turned on in your operating system, the waves hold
   still as a still wave shape.
 - **Cheap** — inline SVG and CSS only, no script; it moves by `transform` alone, browsers do not
@@ -1053,18 +1061,61 @@ success, so it is tried again at the next daily check. With no budget set, a che
 `skipped — budget: …`. The key is read only by the worker and is never shown, logged or stored;
 the Treg address is fixed in code and Harbour refuses to follow a redirect from it.
 
+## Reading Today (the control tower)
+
+Today (`/`) is built to be read in ten seconds, top to bottom. Each part answers one question.
+
+- **The headline** (the big sentence) sums it all up: "Everything is running. 2 things need you."
+  A red light always leads it ("The worker isn't running, …"); lights only worth a look read
+  "Nothing is broken. 1 light is worth a look."; and when Harbour can't read something it says so
+  rather than guess. Under it: the date, when the page was drawn ("updated 09:42") and **On this
+  page**, links that jump to each section.
+- **Systems — is everything OK?** Eight status lights. Each shows its state by shape and word, not
+  colour alone: **fine** (tick), **working** (a slowly breathing ring), **worth a look**
+  (triangle), **needs you** (diamond with "!"), **switched off** (hollow circle) and **can't
+  tell** (dashed circle with "?"). Under the row, one sentence: "All eight are fine.", or the
+  sentence of each light that is not. Press a light to read its sentence and a link to where to
+  act.
+  - **Website**: this page is up, and since when.
+  - **Worker**: the background process that runs checks, backups and agents. It writes a
+    heartbeat (a "still alive" time, kept in the one-row `worker_status` table) at most every 30
+    seconds; Today reads it. Fine when the last beat (or a running job's) is under 2 minutes old,
+    worth a look after that, needs you after 10 minutes. Never written yet reads "can't tell".
+  - **Schedules**: every switched-on schedule ran when it should. **Checks**: every product was
+    checked in the last 26 hours and the check finished. **Backups**: last night's backup worked
+    and the Second Brain has nothing unsaved for over an hour. **Sources**: no data source failed
+    in the last check. **Agents**: no agent run failed in the last day without a later success.
+    **Spend**: this month's paid data is within budget.
+- **Needs you — what needs me now?** At most five things, each with one button that opens the
+  page where you decide it (a red light's fix, pull requests to review, new ideas, drafts, research
+  targets waiting for your OK, a failed run). The tower never changes anything itself. Beyond five
+  it says how many more. Empty: "Nothing needs you right now." The daily note sits beside it.
+- **Where the work is**: the Board's six columns with counts, what is stuck and what moved today.
+- **Your products**: the one-sentence briefing, then a card per product: its verdict, the trend
+  since last week ("up 4 since last week"), the one next action, when it was last checked, up to
+  three highlights (pages in Google, AI answers that name you, sites that link to you), its content
+  and when Claude last updated its cards.
+- **What's happening**: what is running now and what finished in the last day, wins first.
+- **Wins this week**: what got better since the same day last week, with a small bar chart of
+  cards finished each day. A quiet week says so kindly.
+
+A part that can't be read says "Harbour couldn't read this just now…" (the error is under
+**Technical details**) and the rest of the page still shows. The page **updates itself** every
+minute while you look at it, every 15 seconds while a check or agent run is going, never while the
+tab is hidden (once at once when you come back after a minute away), and stops after about two
+hours with "Updates paused. Reload to see the latest." and a **Reload** button. Open tips and
+panels stay open across an update. **What's this page?** (or `?`) explains all of this on the page
+itself, with the meaning of every underlined word.
+
 ## Reading the results
 
-- **Today** (`/`) gives every product a verdict per area. A missing score reads "No score yet"
-  with the reason (a gap, never a zero); an asterisk marks a verdict where some data was
-  missing because a source was not connected or failed, and the numbers are under **Technical
-  details**. Each product name opens its page. While a check is queued or running, the page
-  refreshes itself. **Next up** shows the top three open or in-progress actions (in
-  the Actions board's order), each linked to its card and saying who's on it (Claude is on it,
-  Pull request waiting for your OK, Waiting for you to look it over, or Waiting for you), and the
-  briefing's second line counts
-  every one of them; the rest are a link away on the Actions board. Before the first check is
-  scored, Today shows clearly flagged sample data instead.
+- **Today** (`/`) gives every product a card with one verdict (the average of its areas). A
+  product with no score reads "No score yet" with the reason (a gap, never a zero); the area
+  verdicts and numbers are on the product's page, which the card's name opens. Each card shows
+  the product's one next action, linked to its card on the Actions board, and the briefing above
+  the cards counts every open action. The page refreshes itself (see
+  [Reading Today](#reading-today-the-control-tower)). Before the first check is scored, the cards show
+  clearly flagged sample data instead.
 - **Product page** (`/products/<id>`) opens with the three area cards and a one-line summary (for
   example "Acme Docs is in fair shape. Weakest: Answer-ready (needs work)."), plus a note on where
   checking stands (never checked, queued, running, or how the last check ended, in one sentence; a
@@ -1393,7 +1444,7 @@ recovery.
 ```bash
 pnpm check       # typecheck, lint + format, file-size limits, unit tests
 pnpm test        # unit and component tests (Vitest)
-pnpm test:e2e    # production build + Playwright, light and dark
+pnpm test:e2e    # production build + Playwright, light, dark and night
 ```
 
 `pnpm check:private` scans staged and working files for secrets (API keys, tokens, private
@@ -1438,14 +1489,19 @@ left out of print and stops under emulated reduced motion. `design/wave-contrast
 computes every text colour's contrast on every ocean colour from `design/tokens.css`.
 
 The Playwright projects run in order — the shell and brain specs, then agents, scans, actions, the
-weekly analyst, the note, content and finally operations (Settings) — because each later one changes what the
+weekly analyst, the note, content, operations (Settings), the outside view, the board and finally
+the tower — because each later one changes what the
 earlier ones check. The actions specs seed a scored check of the fictional Lighthouse Café and two
 analyst suggestions through Harbour's own code (`tests/e2e/seed-actions.ts`), then work the Actions
 list view: filters, status changes, snooze, **Hand to Claude** (read back from the clipboard), Today's
 top three, keyboard paths and both themes. The board specs (`tests/e2e/board.spec.ts`, run last)
 seed six cards of the fictional Fern & Field (`tests/e2e/seed-board.ts`) and check the six columns
 and counts, a keyboard move with its announcement and focus, a drag move, a refused move and
-Today's strip links. The analyst specs choose **Write this week's report now**
+Today's strip links. The tower specs (`tests/e2e/tower.spec.ts`, run after everything else) read
+what the others left behind: one headline and six sections, eight lights in words, Needs you links
+that open real pages, term tips on hover, focus and tap, **What's this page?**, no refresh while the
+tab is hidden, a phone width with nothing scrolling sideways, the keyboard path, and one tile
+failing alone (the spec hides the worker's table for one render). The analyst specs choose **Write this week's report now**
 twice (the scheduled analyst is off, `HARBOUR_SCHEDULED_ANALYST=off`): the first run commits the
 report and imports a suggestion, the second finds it already known.
 

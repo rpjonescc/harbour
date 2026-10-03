@@ -9,6 +9,9 @@ import type { ActionPreview } from "./types";
 
 const TOP_ACTIONS = 3;
 
+/** Where an action's card lives on the Actions page. */
+export const actionHref = (id: number) => `/actions#action-${id}`;
+
 const toPreview = (action: ActionRow, who: WhoOnIt | null): ActionPreview => ({
   id: action.id,
   productId: action.productId,
@@ -18,7 +21,7 @@ const toPreview = (action: ActionRow, who: WhoOnIt | null): ActionPreview => ({
   title: action.title,
   reason: firstSentence(action.why),
   who,
-  href: `/actions#action-${action.id}`,
+  href: actionHref(action.id),
 });
 
 /**

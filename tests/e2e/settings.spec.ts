@@ -148,7 +148,11 @@ test("with Treg connected and a budget set, Settings and Today show spend agains
   const budget = settingsRegion(page, "Budget");
   await expect(budget.getByText("A$10.00 a month")).toBeVisible();
   await expect(budget.getByText(/^A\$0\.00 of A\$10\.00 this month/)).toBeVisible();
+  // On Today the spend sits behind the Spend light: open it to read the sentence.
   await page.goto("/");
+  const spend = page.getByRole("button", { name: /^Spend: / });
+  await hydrated(spend);
+  await spend.click();
   await expect(page.getByRole("main").getByText(/^A\$0\.00 of A\$10\.00 this month/)).toBeVisible();
 });
 
@@ -238,9 +242,10 @@ test("Back up now writes a verified backup, then retention runs", async ({ page 
   await expect(backups.getByText("1 of 14")).toBeVisible();
   await expect(backups.getByText(/· \d+\.\d MB$/)).toBeVisible();
   await expect(backups.getByRole("link", { name: /No old checks to prune/ })).toBeVisible();
+  // A fresh backup is not trouble: no sentence about it under Today's lights.
   await page.goto("/");
-  await expect(page.getByRole("main")).toBeVisible();
-  await expect(page.getByRole("main").getByText(/backup/i)).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Systems" })).toBeVisible();
+  await expect(page.getByTestId("trouble").filter({ hasText: /back(ed)? ?up/i })).toHaveCount(0);
 });
 
 test("Update old research rewrites the oldest document with today's date", async ({ page }) => {
