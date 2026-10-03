@@ -228,7 +228,7 @@ new agent runs.
 Discovery results are proposals, not commitments. Open a product in the sidebar and choose
 **Research targets** (`/settings/products/<id>`) to see its proposed keywords, AI questions and
 competitors, each with the agent's reason. **Approve**, **Reject** or **Edit** each one, or
-**Approve all proposed** per list. Re-running discovery never overwrites items you've already
+**Approve all** per list (items waiting for your OK). Choosing **Find ideas** again never overwrites items you've already
 decided on.
 
 For a product with content turned on, discovery also proposes three to five **content
