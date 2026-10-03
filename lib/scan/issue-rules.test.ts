@@ -79,8 +79,12 @@ const CASES: { id: string; present: ScanObservation[]; unknownFacts: ScanObserva
 ];
 
 describe("RULES", () => {
-  it("has the nine rules, in order, each with a test case", () => {
-    expect(RULES.map((r) => r.id)).toEqual(CASES.map((c) => c.id));
+  it("has the nine page rules, in order, each with a test case, then the two outside-view rules", () => {
+    expect(RULES.map((r) => r.id)).toEqual([
+      ...CASES.map((c) => c.id),
+      "few-referring-sites",
+      "not-named-by-ai",
+    ]);
   });
 
   it("links every rule to real research topics", () => {
@@ -113,6 +117,8 @@ describe("RULES", () => {
         ["research/seo/google-preferred-sources.md"],
       ],
       "pages-not-indexed": [["indexing"], "medium", tech],
+      "few-referring-sites": [[], "medium", ["research/seo/local-seo.md"]],
+      "not-named-by-ai": [[], "large", ["research/geo/how-ai-engines-pick-sources.md"]],
     });
   });
 });

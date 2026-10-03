@@ -1,3 +1,4 @@
+import type { OutsideFacts } from "@/lib/external/facts";
 import type { ProductKind } from "@/lib/products/catalog";
 import { RULES } from "./issue-rules";
 import { collectorLabel } from "./labels";
@@ -46,6 +47,7 @@ export function evaluateRules(
   observations: readonly ScanObservation[],
   statuses: Readonly<Record<string, CollectorStatus>>,
   kind: ProductKind,
+  outside: OutsideFacts | null = null,
 ): RuleOutcome[] {
   const crawled = crawlPageFacts(observations);
   const facts: Facts = {
@@ -54,6 +56,7 @@ export function evaluateRules(
     site: crawlSiteFacts(observations),
     readiness: readinessFacts(observations),
     coverage: indexCoverageFacts(observations),
+    outside,
     productKind: kind,
   };
   return RULES.map((rule): RuleOutcome => {
@@ -75,8 +78,9 @@ export function deriveIssues(
   observations: readonly ScanObservation[],
   statuses: Readonly<Record<string, CollectorStatus>>,
   kind: ProductKind,
+  outside: OutsideFacts | null = null,
 ): Issue[] {
-  return evaluateRules(observations, statuses, kind)
+  return evaluateRules(observations, statuses, kind, outside)
     .flatMap((outcome) => (outcome.state === "present" ? [outcome.issue] : []))
     .sort(byImpact);
 }

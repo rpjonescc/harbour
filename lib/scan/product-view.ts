@@ -1,5 +1,6 @@
 import { type RuleActionStatus, ruleActionStatuses } from "@/lib/actions/views";
 import type { Db } from "@/lib/db/client";
+import { readOutsideFacts } from "@/lib/external/read-facts";
 import type { Product } from "@/lib/products/catalog";
 import { type IndexingState, indexingState } from "./indexing-view";
 import { deriveIssues, type Issue } from "./issues";
@@ -73,7 +74,12 @@ export function productView(db: Db, product: Pick<Product, "id" | "kind">, now: 
     scores,
     formulaChange: formulaChange(db, product.id, now),
     scan: scanState(db, product.id),
-    issues: deriveIssues(observations, statuses, product.kind),
+    issues: deriveIssues(
+      observations,
+      statuses,
+      product.kind,
+      readOutsideFacts(db, product.id, now),
+    ),
     actionByRule: ruleActionStatuses(db, product.id),
     pages: pageRows(observations),
     search: searchState(observations, runs),

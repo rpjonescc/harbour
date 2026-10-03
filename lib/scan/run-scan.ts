@@ -49,6 +49,8 @@ export type AfterScoreInput = {
   scanId: number;
   product: Product;
   statuses: Record<string, CollectorStatus>;
+  /** The scan job, for what the step writes on its behalf. */
+  jobId: number;
 };
 
 const MAX_OBSERVATIONS = 20_000;
@@ -207,7 +209,7 @@ function scoreAndFinish(scan: Scan, statuses: Record<string, CollectorStatus>) {
   }
   if (status === "failed") return finish(deps, job, "failed", "All collectors failed");
   try {
-    const summary = deps.afterScore?.({ scanId, product: scan.product, statuses });
+    const summary = deps.afterScore?.({ scanId, product: scan.product, statuses, jobId: job.id });
     if (summary) scan.event("status", summary);
   } catch (error) {
     // The scan and its scores stand; the next scan syncs again.

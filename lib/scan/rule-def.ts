@@ -1,4 +1,5 @@
 import { RESEARCH_TOPICS } from "@/lib/agents/topics";
+import type { OutsideFacts } from "@/lib/external/facts";
 import type { ProductKind } from "@/lib/products/catalog";
 import type { Effort, Issue } from "./issues";
 import {
@@ -21,6 +22,8 @@ export type Facts = {
   readiness: ReadinessFacts | null;
   /** What Google says about the sitemap pages; null when the indexing check recorded nothing. */
   coverage: CoverageFacts | null;
+  /** The outside view's history (links, AI answers); null when it could not be read. */
+  outside: OutsideFacts | null;
   /** "news" sites are the only ones Preferred Sources applies to. */
   productKind: ProductKind;
 };
