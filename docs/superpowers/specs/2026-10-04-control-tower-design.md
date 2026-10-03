@@ -526,3 +526,27 @@ Board was merged in first. Where it differs from the sections above:
   `loadTile("note")`. An unreadable folder still shows the card's own "couldn't read today's note"
   line; a database error now fails only the note, with "Harbour couldn't read the daily note just
   now…" and the error under Technical details.
+
+## 19. Every page in the tower's style (page verdicts, 4 October)
+
+The owner asked that every page, not only Today and the Board, answer "is it OK, what needs me,
+what is happening" at a glance.
+
+- **One verdict line per page.** `PageHeader` takes `verdict: { tone, text }` and shows it under
+  the h1 with the tower's status mark (`LightMark`), so tone is shape and colour and the sentence
+  says the same. The h1 stays the page's name, so links and headings keep working. Each verdict
+  is a pure function in `lib/explain` built from data the page already reads:
+  Agents (`agentsVerdict`: what runs now, how the last 5 finished), Content (`contentVerdict`: what
+  waits for you first, two parts at most), Sources (`sourcesVerdict`: a data source that didn't
+  answer, then checks under way), Settings (`settingsVerdict` over `settingsFacts`: "Everything is
+  set up." or the one thing missing), Second Brain (`brainVerdict`: notes, newest change, saved),
+  Devices, research targets and the product page (`productVerdict`, the existing summary).
+  A run's page keeps its live status line, now styled as its verdict with the same mark.
+- **Tones.** Anything waiting for the owner's decision is `watch` ("worth a look"); `act` is kept
+  for something broken (a failed backup); `busy` while work runs; `unknown` before there is data.
+- **Words explained in place.** Intros are `TermLine`s (`lib/explain/term-line.ts`): fixed text
+  with glossary words a `<Term>` explains. New glossary words: research target, passkey, digest.
+  New page help: a run's page and the research targets page.
+- **Layout.** Every page is centred like Today, text pages at `max-w-4xl`; the Second Brain's save
+  line sits under its header; Agents' recent runs sit on the same card surface as the rest.
+- Examples of each tone and a term line are on `/design` ("Page verdicts").

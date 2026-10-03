@@ -37,6 +37,12 @@ explainable breakdowns. The roadmap continues with:
   underlined: hover, focus or tap it for a one-sentence meaning. Every page has **What's this
   page?** at the top right (or press `?`): what the page is for, how to read it, what to do first
   and the meaning of every word on it.
+- **A verdict on every page** — under each page's title, one plain line with a status mark says
+  whether it is OK, what needs you and what is happening: Agents ("Nothing is running. The last 5
+  runs worked."), Content ("3 drafts are ready for you."), Sources ("Every connected data source
+  answered at the last check."), Settings ("Everything is set up." or the one thing missing), the
+  Second Brain (how many notes, when one last changed, whether all is saved), Devices, research
+  targets and each product.
 - **Product pages** — per product: three area cards (Found on Google, Recommended by AI
   assistants, Answer-ready) each with a verdict, the small number and "What's this?", a
   one-line summary, **Check now**, a tab per area listing its sub-scores as plain sentences
