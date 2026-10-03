@@ -1195,7 +1195,8 @@ pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles"
   per line: `#id  product  area  status  impact/effort  title  [PR]`. `--status` takes one or more
   statuses (`suggested`, `open`, `in_progress`, `done`, `snoozed`, `dismissed`); `--column` takes
   one or more board columns instead (`backlog`, `queue`, `started`, `in_progress`, `in_review`,
-  `done`; snoozed and dismissed actions are in no column); `--json` prints
+  `done`; snoozed and dismissed actions are in no column; `--column done` lists every finished
+  action, while the board's Done shows only the last 14 days); `--json` prints
   `{"note": "...", "actions": [...]}` with the full actions.
 - **show** prints every field, the evidence, the history and the **Hand to Claude** prompt.
 - **set** needs `--from`, the status Claude last saw: if the action changed since, it is
