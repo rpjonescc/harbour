@@ -80,16 +80,16 @@ function contentWords(job: Pick<Job, "kind" | "params">, products: readonly Name
 export function jobWords(job: Pick<Job, "kind" | "params">, products: readonly Named[]): JobWords {
   const { params } = job;
   if (job.kind.startsWith("content-")) return contentWords(job, products);
+  if (job.kind === "scan") {
+    const name = productName(params.productId, products);
+    return words(`checked ${name}`, `checking ${name}`);
+  }
   switch (job.kind) {
     case "research": {
       const note = researchNote(params.topic);
       return params.mode === "refresh"
         ? words(`updated ${note}`, `updating ${note}`)
         : words(`wrote ${note}`, `writing ${note}`);
-    }
-    case "scan": {
-      const name = productName(params.productId, products);
-      return words(`checked ${name}`, `checking ${name}`);
     }
     case "outside-check": {
       const name = productName(params.productId, products);
