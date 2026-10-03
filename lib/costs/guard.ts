@@ -2,8 +2,7 @@
 import type { Db } from "@/lib/db/client";
 import { monthWindow } from "@/lib/format/zoned-time";
 import type { CollectContext } from "@/lib/scan/types";
-import { budgetLevel, formatAud, formatAudPrecise, MAX_CALL_MICRO_AUD } from "./budget";
-import { spentBetween } from "./ledger";
+import { formatAudPrecise, MAX_CALL_MICRO_AUD } from "./budget";
 import {
   dropReservations,
   type PaidCall,
@@ -133,17 +132,4 @@ export function noSpend(collector: string): Spend {
   };
 }
 
-/** Why a paid collector is skipped before it runs, or null. */
-export function budgetSkipReason(
-  db: Db,
-  capMicroAud: number,
-  timeZone: string,
-  now: Date,
-): string | null {
-  if (capMicroAud <= 0) return "budget: no monthly budget set (HARBOUR_MONTHLY_BUDGET_AUD)";
-  const { start, end } = monthWindow(now, timeZone);
-  const spent = spentBetween(db, start, end);
-  if (budgetLevel(spent, capMicroAud) !== "reached") return null;
-  const cap = formatAud(capMicroAud, REASON_LOCALE);
-  return `budget: ${cap} monthly budget reached (${formatAud(spent, REASON_LOCALE)} spent)`;
-}
+export { budgetSkipReason } from "./budget-skip";
