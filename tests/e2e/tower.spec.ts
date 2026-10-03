@@ -233,6 +233,11 @@ test.describe("on a phone", () => {
     // The jump links are one short row that scrolls sideways, not tall wrapped rows.
     const jump = await page.getByTestId("jump-list").boundingBox();
     expect(jump?.height ?? 0).toBeLessThanOrEqual(60);
+    // Its right edge fades, so it is clear the row scrolls.
+    const mask = await page
+      .getByTestId("jump-list")
+      .evaluate((nav) => getComputedStyle(nav).maskImage);
+    expect(mask).toContain("linear-gradient");
     const lights = region(page, SECTION_TITLES.systems).getByRole("button", {
       name: new RegExp(`^(${Object.values(LIGHT_LABELS).join("|")}): `),
     });

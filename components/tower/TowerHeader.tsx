@@ -22,7 +22,8 @@ type Props = {
 
 /**
  * The six section links. Below the wide layout they stay one short row that scrolls sideways
- * (label included), rather than wrapping into tall rows of 44 px targets above the page.
+ * (label included), rather than wrapping into tall rows of 44 px targets above the page; the
+ * row's right edge fades (`.jump-fade`) so it is clear there is more.
  */
 function JumpList() {
   const labelId = useId();
@@ -31,7 +32,7 @@ function JumpList() {
     <nav
       aria-labelledby={labelId}
       data-testid="jump-list"
-      className="-mx-1 flex min-w-0 flex-nowrap items-center gap-x-3 overflow-x-auto px-1 whitespace-nowrap [scrollbar-width:thin] lg:flex-wrap lg:overflow-visible lg:whitespace-normal"
+      className="jump-fade -mx-1 flex min-w-0 flex-nowrap items-center gap-x-3 overflow-x-auto px-1 whitespace-nowrap [scrollbar-width:thin] lg:flex-wrap lg:overflow-visible lg:whitespace-normal"
     >
       <span className="shrink-0">
         <span id={labelId}>{HEADER_TEXT.onThisPage}</span>

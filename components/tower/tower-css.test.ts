@@ -50,6 +50,24 @@ describe("the tower's motion", () => {
   });
 });
 
+describe("the jump list's fade", () => {
+  const block = css.slice(css.indexOf("@media (width < 64rem)"), css.indexOf("/* Paper copies"));
+
+  it("fades the scrolling edge below the wide layout only, with an alpha mask and no colour", () => {
+    expect(block).toMatch(/\.jump-fade\s*\{[^}]*mask-image:\s*linear-gradient\(to right, black/);
+    expect(block).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|var\(--/i);
+  });
+
+  it("never moves, so reduced motion needs nothing", () => {
+    expect(block).not.toMatch(/animation|transition/);
+  });
+
+  it("is on the tower's jump list", () => {
+    const header = readFileSync(new URL("./TowerHeader.tsx", import.meta.url), "utf8");
+    expect(header).toMatch(/data-testid="jump-list"[\s\S]*className="jump-fade /);
+  });
+});
+
 describe("the tower's components", () => {
   it("add no transition or animation of their own beyond the classes above", () => {
     const dir = new URL("./", import.meta.url);

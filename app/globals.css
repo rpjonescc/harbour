@@ -204,6 +204,17 @@ body:has([data-mood="celebrate"]) .wave-layer[data-front] {
   }
 }
 
+/* Below the wide layout the "On this page" row scrolls sideways: its right edge fades out so that
+   shows. The mask is alpha only (no colour), it never moves, and the end padding lets the last
+   link scroll clear of the fade. */
+@media (width < 64rem) {
+  .jump-fade {
+    mask-image: linear-gradient(to right, black calc(100% - 2.5rem), transparent);
+    padding-inline-end: 2.5rem;
+    scroll-padding-inline-end: 2.5rem;
+  }
+}
+
 /* Paper copies carry only the content. */
 @media print {
   [data-wave] {
