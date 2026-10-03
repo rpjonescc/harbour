@@ -9,7 +9,7 @@ import { TREG_REASONS } from "@/lib/explain/treg";
 import { readChecks, type StoredCheck } from "@/lib/external/store";
 import { activeOutsideCheck, outsideCheckRefusal } from "@/lib/jobs/outside-check";
 import type { ProductTracking } from "@/lib/products/config";
-import { siteKey } from "./site";
+import { productDomain, siteKey } from "./site";
 import { collectorObservations } from "./store";
 import {
   type AiAnswer,
@@ -241,7 +241,7 @@ export type OutsideViewInput = {
 
 /** The section's data: what was found, or the plain reason there is nothing. */
 export function outsideView({ db, config, product, tracking, now }: OutsideViewInput): OutsideView {
-  const domain = siteKey(new URL(product.url).hostname);
+  const domain = productDomain(product.url);
   const check = {
     active: activeState(db, product.id),
     refusal: outsideCheckRefusal(db, config, now, product.id, tracking),

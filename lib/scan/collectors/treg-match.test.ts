@@ -18,8 +18,20 @@ describe("productDomain: normalised once, for matching and for the question put 
     ["www", "https://www.example.com/", "example.com"],
     ["a subdomain", "https://docs.example.com/", "docs.example.com"],
     ["a unicode host", "https://B\u00fccher.example/", "xn--bcher-kva.example"],
+    ["repeated trailing dots", "https://example.com../", "example.com"],
+    ["www.com, which is not www on com", "https://www.com/", "www.com"],
+    ["www.www.com", "https://www.www.com/", "www.com"],
+    ["a single label after www", "https://www.localhost/", "www.localhost"],
+    ["a dotted www.com", "https://www.com./", "www.com"],
   ])("%s", (_name, url, domain) => {
     expect(productDomain(url)).toBe(domain);
+  });
+
+  it("does not let every .com count as the site's own when the site is www.com", () => {
+    const own = productDomain("https://www.com/");
+    expect(hostMatches("evil.com", own)).toBe(false);
+    expect(hostMatches("www.com", own)).toBe(true);
+    expect(hostMatches("blog.www.com", own)).toBe(true);
   });
 
   it("matches a listed row for the dotted own domain, and keeps a look-alike out", () => {

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { externalChecks } from "@/lib/db/schema";
 import type { Observation } from "@/lib/scan/types";
 import { openTestDb } from "@/tests/helpers/db";
+import { readOutsideFacts } from "./read-facts";
 import { KEEP_DAYS, pruneExternalChecks, readChecks, saveExternalChecks } from "./store";
 
 const DAY = 24 * 60 * 60_000;
@@ -233,5 +234,27 @@ describe("hygiene of what is kept", () => {
     expect(
       save(db, [ai("Où trouver un café à Brisbane?"), cited(["news.example.org"])]).written,
     ).toBe(2);
+  });
+});
+
+describe("readOutsideFacts for a product whose URL ends in a dot", () => {
+  it("finds the links checks stored under the normalised domain", () => {
+    const db = openTestDb();
+    save(db, [backlinks(0, 3)]);
+    const facts = readOutsideFacts(
+      db,
+      { id: "acme-docs", url: "https://www.docs.example.com./" },
+      [],
+      NOW,
+    );
+    expect(facts.backlinks).toMatchObject({ subject: "docs.example.com", referringDomains: 3 });
+  });
+
+  it("does not take another domain's checks for the site's own", () => {
+    const db = openTestDb();
+    save(db, [{ ...backlinks(0, 3), subject: "com" }]);
+    expect(
+      readOutsideFacts(db, { id: "acme-docs", url: "https://www.com/" }, [], NOW).backlinks,
+    ).toBeNull();
   });
 });

@@ -25,5 +25,13 @@ describe("siteKey", () => {
   it("drops a leading www. and lowercases", () => {
     expect(siteKey("WWW.Example.com")).toBe("example.com");
     expect(siteKey("docs.example.com")).toBe("docs.example.com");
+    expect(siteKey("www.example.com")).toBe("example.com");
+  });
+
+  it("keeps www when dropping it would leave a bare suffix or single label", () => {
+    expect(siteKey("www.com")).toBe("www.com");
+    expect(siteKey("www.localhost")).toBe("www.localhost");
+    expect(siteKey("www.www.com")).toBe("www.com");
+    expect(siteKey("WWW.Com")).toBe("www.com");
   });
 });
