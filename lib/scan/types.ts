@@ -44,15 +44,19 @@ export type SafeFetchOptions = {
    */
   ignoreRobots?: true;
   /**
-   * Overrides the 15 s per-request timeout, honoured only for Google API hosts: PageSpeed
-   * Insights runs Lighthouse before answering, which takes 15–40 s. Ignored for other hosts.
+   * Overrides the 15 s per-request timeout, honoured only for Google API hosts and Treg: PageSpeed
+   * Insights runs Lighthouse before answering (15–40 s) and an AI answer takes about 30 s.
+   * Ignored for other hosts.
    */
   timeoutMs?: number;
   /**
-   * Sends `json` as a POST with the bearer token instead of a GET. Only Google API hosts take
-   * one, and a redirect is refused rather than followed, so the token goes nowhere else.
+   * Sends `json` as a POST instead of a GET, with either the bearer token (only Google API hosts
+   * take one) or custom `x-treg-*` headers (only Treg takes those). A redirect is refused rather
+   * than followed, so the secret goes nowhere else.
    */
-  post?: { json: unknown; bearer: string };
+  post?:
+    | { json: unknown; bearer: string }
+    | { json: unknown; headers: Readonly<Record<string, string>> };
 };
 
 /** Outbound HTTP for collectors: timeouts, redirect and size limits, robots, politeness. */

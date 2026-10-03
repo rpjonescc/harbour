@@ -1,8 +1,9 @@
+import { checkedCustomHeaders } from "./custom-headers";
 import { readCappedBody } from "./fetch-body";
 import { FetchError } from "./fetch-error";
 import { HostLimiter } from "./host-limiter";
 import { sendRequest } from "./http-request";
-import { GOOGLE_API_HOSTS } from "./outbound-hosts";
+import { GOOGLE_API_HOSTS, TREG_HOST } from "./outbound-hosts";
 import { isNonPublicLiteral, publicLookup, type ResolveHost, resolveWithDns } from "./public-host";
 import { createRobotsGate, NO_RULES, robotsForStatus } from "./robots-gate";
 import { sameSite, siteKey } from "./site";
@@ -19,6 +20,11 @@ export type SafeFetchSettings = {
   /** Tests only: lets requests reach 127.0.0.1 / ::1. Private ranges stay refused. */
   allowLoopback: boolean;
   limiter: HostLimiter;
+  /**
+   * The only hosts that take a POST with custom headers (Treg's). Tests point it at the local
+   * fake server; production keeps the default.
+   */
+  customHeaderHosts: readonly string[];
   /** Resolves hostnames before connecting (tests inject fixed answers). */
   resolveHost: ResolveHost;
   /**
@@ -35,6 +41,7 @@ const DEFAULTS: Omit<SafeFetchSettings, "allowedHosts"> = {
   timeoutMs: 15_000,
   maxRedirects: 3,
   allowLoopback: false,
+  customHeaderHosts: [TREG_HOST],
   limiter: sharedHostLimiter,
   resolveHost: resolveWithDns,
   robotsTtlMs: 10 * 60_000,
@@ -49,13 +56,17 @@ function parseHttpUrl(raw: string, base?: URL): URL | null {
   return url.protocol === "http:" || url.protocol === "https:" ? url : null;
 }
 
-/** Request headers, plus the JSON body and bearer token of a POST. */
+/** Request headers, plus the JSON body and the bearer token or custom headers of a POST. */
 function outgoing(options: SafeFetchOptions): { headers: Record<string, string>; body?: string } {
   const headers = { "user-agent": HARBOUR_USER_AGENT, accept: options.accept ?? "*/*" };
   const { post } = options;
   if (!post) return { headers };
-  const auth = { authorization: `Bearer ${post.bearer}`, "content-type": "application/json" };
-  return { headers: { ...headers, ...auth }, body: JSON.stringify(post.json) };
+  const secret =
+    "headers" in post
+      ? checkedCustomHeaders(post.headers)
+      : { authorization: `Bearer ${post.bearer}` };
+  const sent = { ...headers, ...secret, "content-type": "application/json" };
+  return { headers: sent, body: JSON.stringify(post.json) };
 }
 
 function tooLarge(url: URL, bytes: string, maxBytes: number): FetchError {
@@ -80,10 +91,11 @@ export function createSafeFetch(
     return settings.limiter.run(key, options.signal, () => request(url, options));
   }
 
-  /** A per-call timeout counts only for Google API calls (PageSpeed runs Lighthouse first). */
+  /** A per-call timeout counts only for Google API and Treg calls (slow by nature). */
   function timeoutFor(url: URL, options: SafeFetchOptions): number {
-    const google = GOOGLE_API_HOSTS.includes(url.hostname);
-    return google && options.timeoutMs !== undefined ? options.timeoutMs : settings.timeoutMs;
+    const slow =
+      GOOGLE_API_HOSTS.includes(url.hostname) || settings.customHeaderHosts.includes(url.hostname);
+    return slow && options.timeoutMs !== undefined ? options.timeoutMs : settings.timeoutMs;
   }
 
   async function request(url: URL, options: SafeFetchOptions): Promise<Hop> {
@@ -148,16 +160,27 @@ export function createSafeFetch(
     }
   }
 
+  /** A bearer POST goes to Google API hosts only; a custom-header POST to Treg's host only. */
+  function assertPostAllowed(url: URL, options: SafeFetchOptions): void {
+    const { post } = options;
+    if (!post) return;
+    const host = url.hostname;
+    if ("headers" in post) {
+      if (settings.customHeaderHosts.includes(host)) return;
+      throw new FetchError("network", `${host} does not take custom headers`);
+    }
+    if (!GOOGLE_API_HOSTS.includes(host)) {
+      throw new FetchError("network", `${host} is not a Google API host: only those take a POST`);
+    }
+  }
+
   async function follow(raw: string, options: SafeFetchOptions) {
     options.signal?.throwIfAborted();
     const start = parseHttpUrl(raw);
     if (!start) throw new FetchError("network", `Not an http(s) URL: ${raw}`);
     assertAllowedHost(start, "network");
-    if (options.post && !GOOGLE_API_HOSTS.includes(start.hostname)) {
-      const host = start.hostname;
-      throw new FetchError("network", `${host} is not a Google API host: only those take a POST`);
-    }
-    // The bearer token never travels in clear text; tests serve plain http on loopback.
+    assertPostAllowed(start, options);
+    // The secret never travels in clear text; tests serve plain http on loopback.
     if (options.post && start.protocol !== "https:" && !settings.allowLoopback) {
       throw new FetchError("network", `A POST to ${start.hostname} must use https`);
     }

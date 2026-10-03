@@ -1,4 +1,4 @@
-import { GOOGLE_API_HOSTS, outboundHosts } from "./outbound-hosts";
+import { GOOGLE_API_HOSTS, outboundHosts, TREG_HOST } from "./outbound-hosts";
 
 const product = (url: string) => ({
   id: "acme",
@@ -9,7 +9,7 @@ const product = (url: string) => ({
 });
 
 describe("outboundHosts", () => {
-  it("allows each product's apex and www host plus the Google API hosts", () => {
+  it("allows each product's apex and www host plus the Google API hosts and Treg", () => {
     const hosts = outboundHosts([
       product("https://www.example.com/"),
       product("https://acme.example.org"),
@@ -21,6 +21,7 @@ describe("outboundHosts", () => {
         "acme.example.org",
         "www.acme.example.org",
         ...GOOGLE_API_HOSTS,
+        TREG_HOST,
       ].sort(),
     );
   });
@@ -31,5 +32,11 @@ describe("outboundHosts", () => {
       "searchconsole.googleapis.com",
       "www.googleapis.com",
     ]);
+  });
+});
+
+describe("TREG_HOST", () => {
+  it("is exactly treg.to", () => {
+    expect(TREG_HOST).toBe("treg.to");
   });
 });
