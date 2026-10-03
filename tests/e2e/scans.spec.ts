@@ -81,6 +81,9 @@ test("Check now runs a scan and the product page shows its results", async ({ pa
   await expect(
     searchConsole.getByRole("link", { name: /How to connect Google Search Console/ }),
   ).toHaveAttribute("href", /#connect-search-console$/);
+  const indexing = page.getByRole("region", { name: "Pages in Google" });
+  await expect(indexing).toContainText("Search Console isn't connected");
+  await expect(indexing).not.toContainText("In Google:");
   for (const name of ["What AI assistants say about you", "Where you rank on Google"]) {
     const panel = page.getByRole("region", { name });
     await expect(panel.getByText("Not available yet", { exact: true })).toBeVisible();
@@ -168,6 +171,7 @@ test("Sources lists each source's last run and how to connect the missing ones",
   await expect(run("Site setup check")).toContainText("Working");
   await expect(run("Google speed test")).toContainText("Not connected yet");
   await expect(run("Google Search Console")).toContainText("Not connected yet");
+  await expect(run("Google page index check")).toContainText("Needs Google Search Console first");
   await expect(page.getByRole("region", { name: "Fern & Field" })).toContainText("Never checked");
 });
 
