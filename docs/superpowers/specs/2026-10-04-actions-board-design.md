@@ -141,7 +141,8 @@ Where the build differs from, or adds to, the sections above.
 **Screens**
 - `/actions` defaults to the board; `?view=list` is the old list (its Status filter stays there,
   and the board hides it because the columns are the statuses). `?focus=stuck|needs-you` narrows
-  the board and shows "Showing only ..." with **Show everything**.
+  the board and shows "Showing only ..." with **Show everything**; while focused, each column
+  counts the cards it shows and the Parked strip is left out.
 - Moves use native HTML5 drag (pointer only) and the **Move to...** menu button (keyboard and
   touch). A move is optimistic: the card goes to the top of its new column, a refusal puts it back
   and shows the server's sentence, and either way the board refreshes and focus lands on the

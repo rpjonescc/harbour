@@ -12,10 +12,11 @@ const api = vi.hoisted(() => ({ postJson: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => nav }));
 vi.mock("@/lib/auth/client-api", () => api);
 
-function renderBoard(board: BoardData, demo = false) {
+function renderBoard(board: BoardData, demo = false, focused = false) {
   return render(
     <Board
       board={board}
+      focused={focused}
       products={[BOARD_PRODUCT]}
       now={BOARD_NOW}
       locale="en-GB"
@@ -131,5 +132,15 @@ describe("Board", () => {
     expect(api.postJson).not.toHaveBeenCalled();
     expect(nav.refresh).not.toHaveBeenCalled();
     expect(screen.getByRole("region", { name: "Queue, 1 card" })).toBeInTheDocument();
+  });
+
+  it("while focused, counts the cards it shows and leaves the Parked strip out", () => {
+    const board = boardOf([
+      boardCard({ id: 1, stuck: true }),
+      boardCard({ id: 3, column: null, status: "snoozed", snoozedUntil: "2026-10-20" }),
+    ]);
+    renderBoard({ ...board, counts: { ...board.counts, queue: 12 } }, false, true);
+    expect(screen.getByRole("region", { name: "Queue, 1 card" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: PARKED_COPY.name })).toBeNull();
   });
 });

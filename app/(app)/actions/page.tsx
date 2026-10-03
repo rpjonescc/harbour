@@ -51,6 +51,7 @@ export default async function ActionsPage({
       {view === "board" ? (
         <Board
           board={loadBoard(db, { ...filter, focus }, now, products)}
+          focused={focus !== null}
           products={products}
           now={now}
           locale={zone.locale}

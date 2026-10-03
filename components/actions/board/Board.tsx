@@ -12,6 +12,7 @@ import { ParkedStrip } from "./ParkedStrip";
  * The actions board: six columns of cards the owner can drag or move with the Move to… menu,
  * a note when the card cap cut some off, and the Parked strip. Moves and status changes are
  * announced through one shared announcer. `demo` (the /design examples) sends nothing.
+ * `focused` (the Today strip's ?focus=) counts only the cards shown and leaves Parked out.
  */
 export function Board({
   board,
@@ -20,6 +21,7 @@ export function Board({
   locale,
   today,
   demo = false,
+  focused = false,
 }: {
   board: BoardData;
   products: readonly Pick<Product, "id" | "hue">[];
@@ -29,6 +31,7 @@ export function Board({
   /** YYYY-MM-DD in HARBOUR_TIMEZONE, for the snooze range. */
   today: string;
   demo?: boolean;
+  focused?: boolean;
 }) {
   const hues = new Map(products.map((product) => [product.id, product.hue]));
   const views = (cards: BoardData["parked"]): BoardCardView[] =>
@@ -36,14 +39,21 @@ export function Board({
   const columns = Object.fromEntries(
     BOARD_COLUMNS.map((column) => [column, views(board.columns[column])]),
   ) as Record<BoardColumnId, BoardCardView[]>;
+  const counts = focused
+    ? (Object.fromEntries(
+        BOARD_COLUMNS.map((column) => [column, columns[column].length]),
+      ) as Record<BoardColumnId, number>)
+    : board.counts;
   return (
     <ActionAnnouncer>
       <div className="flex flex-col gap-8">
         {board.truncated && (
           <p className="text-sm text-ink-muted">{BOARD_TEXT.truncated(MAX_BOARD_ACTIONS)}</p>
         )}
-        <BoardLanes columns={columns} counts={board.counts} today={today} demo={demo} />
-        <ParkedStrip cards={views(board.parked)} locale={locale} today={today} demo={demo} />
+        <BoardLanes columns={columns} counts={counts} today={today} demo={demo} />
+        {!focused && (
+          <ParkedStrip cards={views(board.parked)} locale={locale} today={today} demo={demo} />
+        )}
       </div>
     </ActionAnnouncer>
   );
