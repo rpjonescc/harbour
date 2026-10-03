@@ -18,11 +18,13 @@ function warnOnce(message: string): void {
 /**
  * Modification time of a changed path. A deleted path has none, so it takes the time of its
  * nearest surviving folder (deleting a file updates its folder), or `now` if even that fails.
+ * A time in the future (clock skew, a copied file) counts as `now`: it must never push a wait
+ * for the brain to be quiet beyond the next check.
  */
 function changedAt(root: string, path: string, now: Date): number {
   for (let p = path; ; p = dirname(p)) {
     try {
-      return lstatSync(join(root, p)).mtimeMs;
+      return Math.min(lstatSync(join(root, p)).mtimeMs, now.getTime());
     } catch {
       if (p === "." || p === "") return now.getTime();
     }

@@ -142,7 +142,8 @@ Phase 2 ships in two parts with separate implementation plans:
   last 3 minutes (newest uncommitted change by mtime; a deletion is dated by its folder).
   The job goes back to `queued` with `not_before` set to when the brain will have been quiet
   for 3 minutes, plus one "Waiting for the brain to be quiet" event; claiming skips jobs that
-  are not yet due.
+  are not yet due. An mtime in the future counts as now, and a job still waiting six hours
+  after it was queued fails with a plain sentence instead of waiting forever.
 - A run whose agent dies while the worker is stopping (systemd stops the whole group) is
   `cancelled` ("Cancelled — the worker was stopped"), not failed.
 
