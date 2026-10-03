@@ -28,7 +28,10 @@ export type TermId =
   | "voice-profile"
   | "pillar"
   | "budget"
-  | "paid-data";
+  | "paid-data"
+  | "research-target"
+  | "passkey"
+  | "digest";
 
 export type GlossaryEntry = {
   word: string;
@@ -153,6 +156,21 @@ export const GLOSSARY: Readonly<Record<TermId, GlossaryEntry>> = {
     meaning:
       "Facts Harbour buys from an outside service, such as the sites that link to you, which count against the budget.",
     more: { href: DOCS_LINKS.costs, label: "Costs and budget" },
+  },
+  "research-target": {
+    word: "Research target",
+    meaning:
+      "A search, question, rival or topic Harbour follows for a product, only once you have said OK to it.",
+  },
+  passkey: {
+    word: "Passkey",
+    meaning:
+      "A way to sign in with your fingerprint, face or screen lock instead of a password, kept safely on each device.",
+  },
+  digest: {
+    word: "Digest",
+    meaning:
+      "A short private summary of yesterday's work on this computer, which Claude reads to suggest post ideas.",
   },
 };
 
