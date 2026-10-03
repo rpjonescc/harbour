@@ -1,5 +1,6 @@
 import type { KeyRow } from "@/lib/settings/key-status";
 import { CLAUDE_CONNECT_STEPS, CLAUDE_PURPOSE } from "./claude";
+import { POSTIZ_CONNECT_STEPS, POSTIZ_PURPOSE } from "./postiz";
 import { SCREENPIPE_CONNECT_STEPS, SCREENPIPE_PURPOSE } from "./screenpipe";
 import { sourceExplanation } from "./sources";
 
@@ -32,6 +33,7 @@ export function keyPhrase(row: Pick<KeyRow, "status" | "inUse">): KeyPhrase {
 export function keyPurpose(id: string): string {
   if (id === "claude") return CLAUDE_PURPOSE;
   if (id === "screenpipe") return SCREENPIPE_PURPOSE;
+  if (id === "postiz") return POSTIZ_PURPOSE;
   return sourceExplanation(id).gives;
 }
 
@@ -39,5 +41,6 @@ export function keyPurpose(id: string): string {
 export function keySteps(id: string): readonly string[] {
   if (id === "claude") return CLAUDE_CONNECT_STEPS;
   if (id === "screenpipe") return SCREENPIPE_CONNECT_STEPS;
+  if (id === "postiz") return POSTIZ_CONNECT_STEPS;
   return sourceExplanation(id).connect;
 }

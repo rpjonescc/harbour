@@ -23,6 +23,28 @@ export function isLoopbackHttpOrigin(value: string): boolean {
   return isLoopbackOrigin(value) && new URL(value).origin === value;
 }
 
+/** A Tailscale address: 100.64.0.0/10. */
+function isTailnetV4(hostname: string): boolean {
+  const match = /^100\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(hostname);
+  return match !== null && Number(match[1]) >= 64 && Number(match[1]) <= 127;
+}
+
+/**
+ * Postiz's backend address: http(s), on this machine or the tailnet (a `*.ts.net` name or a
+ * Tailscale address), with no user, query or fragment. Its key can publish, so it goes nowhere else.
+ */
+export function isPostizUrl(value: string): boolean {
+  if (!URL.canParse(value) || value.includes("?") || value.includes("#")) return false;
+  const { protocol, hostname, username, password } = new URL(value);
+  if (protocol !== "http:" && protocol !== "https:") return false;
+  if (username !== "" || password !== "") return false;
+  return (
+    ["localhost", "127.0.0.1", "[::1]"].includes(hostname) ||
+    /^[a-z0-9-]+(\.[a-z0-9-]+)*\.ts\.net$/.test(hostname) ||
+    isTailnetV4(hostname)
+  );
+}
+
 /** `path` absolute with symlinks resolved, through its nearest existing ancestor if it does not exist yet. */
 function realPath(path: string): string {
   let existing = resolve(path);
@@ -161,6 +183,19 @@ const schema = z
         "HARBOUR_SKILLS_DIR needs a full path: the shell does not expand ~ in .env",
       )
       .default(() => join(homedir(), ".claude", "skills")),
+    // Postiz's backend address (Postiz calls it the backend URL; it ends in /api). Set with the key,
+    // it turns on "Send to Postiz as a draft" for approved pieces. This machine or the tailnet only.
+    HARBOUR_POSTIZ_URL: z
+      .string()
+      .refine(isPostizUrl, {
+        message:
+          "HARBOUR_POSTIZ_URL must be an http(s) address on this machine or your tailnet, like http://127.0.0.1:4007/api",
+      })
+      .transform((v) => v.replace(/\/+$/, ""))
+      .optional(),
+    // Secret: a Postiz API key (Postiz Settings). Worker only. It could publish, so it is guarded
+    // like the Claude token; Harbour only ever creates drafts with it.
+    HARBOUR_POSTIZ_API_KEY: z.string().min(1).optional(),
     // Where nightly backups go; default `<folder of HARBOUR_DB_PATH>/backups`. Never in the brain.
     HARBOUR_BACKUP_DIR: z.string().min(1).optional(),
     // "off" stops the worker queueing the nightly backup (`pnpm backup:now` still works).
@@ -220,6 +255,14 @@ const schema = z
     message:
       "HARBOUR_SKILLS_DIR must not be inside HARBOUR_BRAIN_DIR (the brain is pushed to a remote)",
     path: ["HARBOUR_SKILLS_DIR"],
+  })
+  .refine((c) => !c.HARBOUR_POSTIZ_API_KEY || c.HARBOUR_POSTIZ_URL, {
+    message: "HARBOUR_POSTIZ_URL is needed with HARBOUR_POSTIZ_API_KEY: set both, or neither",
+    path: ["HARBOUR_POSTIZ_URL"],
+  })
+  .refine((c) => !c.HARBOUR_POSTIZ_URL || c.HARBOUR_POSTIZ_API_KEY, {
+    message: "HARBOUR_POSTIZ_API_KEY is needed with HARBOUR_POSTIZ_URL: set both, or neither",
+    path: ["HARBOUR_POSTIZ_API_KEY"],
   })
   .refine((c) => !(c.NODE_ENV === "production" && c.HARBOUR_DEV_IDENTITY), {
     message: "HARBOUR_DEV_IDENTITY must not be set in production",

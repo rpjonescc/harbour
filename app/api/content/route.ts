@@ -4,7 +4,7 @@ import { ContentBody, requestContent } from "@/lib/content/request";
 import { getDb } from "@/lib/db/client";
 import { jsonError } from "@/lib/http/responses";
 import { rejectCrossSite } from "@/lib/http/same-origin";
-import { getContentProducts } from "@/lib/products/catalog";
+import { getContentProducts, getPostizChannels } from "@/lib/products/catalog";
 
 const MAX_REQUEST_CHARS = 100_000;
 
@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       now: new Date(),
       root: config.HARBOUR_BRAIN_DIR,
       products: getContentProducts(),
+      postizChannels: getPostizChannels(),
     },
     body.data,
   );

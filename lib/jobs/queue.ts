@@ -33,7 +33,8 @@ export type JobKind =
   | "content-draft"
   | "content-atomise"
   | "content-gate"
-  | "content-decision";
+  | "content-decision"
+  | "content-postiz";
 export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";
 export type Job = typeof jobs.$inferSelect;
 export type EventKind = "status" | "tool" | "text" | "error";

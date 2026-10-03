@@ -30,6 +30,8 @@ function contentJobLabel(job: Pick<Job, "kind" | "params">, products: readonly N
     return `Check (${GATE_LABEL.get(params.gate ?? "") ?? "unknown"}): ${words}`;
   }
   if (job.kind === "content-decision") return "Saving your decision";
+  if (job.kind === "content-postiz")
+    return `Postiz draft: ${ideaWords(params.pieceId?.split(".")[0])}`;
   return "Content work";
 }
 

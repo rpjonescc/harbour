@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { type Parsed, parseFile } from "./files";
 import { ideaIdSchema, platformSchema, productIdSchema } from "./ids";
+import { channelIdSchema } from "./postiz/channels";
 import { contentSchemas, type PieceContent } from "./shapes";
 import { IDEA_STATES, PIECE_STATES } from "./state";
 
@@ -146,6 +147,11 @@ export const pieceFrontmatter = z.strictObject({
   edited: z.boolean(),
   approvedAt: z.iso.date().nullable(),
   exportPath: text(200).nullable().default(null),
+  // Set by the worker when the approved piece was sent to Postiz as a draft (spec §11).
+  postiz: z
+    .strictObject({ sentAt: z.iso.datetime(), postId: channelIdSchema })
+    .nullable()
+    .default(null),
   // The platform shape, validated against `platform` by parsePieceFile; null for a piece that
   // was not written ("This piece wasn't written").
   content: z.unknown(),

@@ -54,6 +54,14 @@ export function keyStatusRows(
       paid: false,
     },
     {
+      // Connected only with both: the address and the key.
+      id: "postiz",
+      label: "Postiz",
+      status: presence(config, ["HARBOUR_POSTIZ_URL", "HARBOUR_POSTIZ_API_KEY"]),
+      inUse: true,
+      paid: false,
+    },
+    {
       id: "pagespeed",
       label: "PageSpeed Insights",
       status: presence(config, ["HARBOUR_PAGESPEED_API_KEY"]),
