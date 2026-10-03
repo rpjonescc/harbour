@@ -158,7 +158,9 @@ describe("outsideView: results", () => {
       answer("What is Acme?", false, ["a.example.org"], 0),
       answer("Old question?", true, ["old.example.org"], 7),
     ]);
-    expect(view(db).ai).toEqual({
+    expect(
+      view(db, { tracking: { ...TRACKING, questions: ["Who is Acme?", "What is Acme?"] } }).ai,
+    ).toEqual({
       asked: 2,
       named: 1,
       cited: 2,
@@ -215,7 +217,8 @@ describe("outsideView: what the last attempt says", () => {
   it.each([
     [TREG_REASONS.key, "paused_key"],
     [TREG_REASONS.balance, "paused_balance"],
-    [TREG_REASONS.paused, "paused"],
+    [TREG_REASONS.pausedKey, "paused_key"],
+    [TREG_REASONS.pausedBalance, "paused_balance"],
     ["None of the outside-view checks could be completed this time.", "failed"],
   ] as const)("a failed scheduled run %j is the notice %s", (error, notice) => {
     const db = openTestDb();
@@ -278,5 +281,79 @@ describe("outsideView: the check button", () => {
     expect(view(db, { config: config({ HARBOUR_MONTHLY_BUDGET_AUD: "0" }) }).check.refusal).toBe(
       "budget_used_up",
     );
+  });
+});
+
+const summary = (over: Record<string, unknown>): Observation => ({
+  kind: "treg_summary",
+  subject: "docs.example.com",
+  value: {
+    attempted: 4,
+    ok: 4,
+    failed: 0,
+    spentMicroUsd: 18_100,
+    stoppedBy: "done",
+    problems: [],
+    ...over,
+  },
+});
+
+describe("outsideView: a run that answered only part", () => {
+  it.each([
+    [{ stoppedBy: "budget", ok: 2 }, "partial_budget"],
+    [{ stoppedBy: "key", ok: 1 }, "partial_paused"],
+    [{ stoppedBy: "balance", ok: 1 }, "partial_paused"],
+    [{ stoppedBy: "error", ok: 2 }, "partial_error"],
+    [{ stoppedBy: "done", ok: 3, failed: 1 }, "partial_failed"],
+    [{ stoppedBy: "done" }, null],
+  ] as const)("a scheduled run with %j says %s", (tally, notice) => {
+    const db = openTestDb();
+    keep(db, [links(0, 6)]);
+    seedScan(db, {
+      productId: "acme-docs",
+      at: at(0),
+      runs: [{ collector: "treg", status: "ok", observations: [summary(tally)] }],
+    });
+    expect(view(db).notice).toBe(notice);
+  });
+
+  it.each([
+    ["partial:budget", "partial_budget"],
+    ["partial:paused", "partial_paused"],
+    ["partial:error", "partial_error"],
+    ["partial:failed", "partial_failed"],
+    ["ok", null],
+    ["partial:nonsense", null],
+  ] as const)("a manual check with the result %j says %s", (result, notice) => {
+    const db = openTestDb();
+    keep(db, [links(0, 6)]);
+    manualJob(db, 0, "ok", null, result);
+    expect(view(db).notice).toBe(notice);
+  });
+
+  it("a later complete run ends the notice", () => {
+    const db = openTestDb();
+    keep(db, [links(0, 6)]);
+    manualJob(db, 2, "ok", null, "partial:budget");
+    manualJob(db, 0, "ok", null, "ok");
+    expect(view(db).notice).toBeNull();
+  });
+});
+
+describe("outsideView: only what is tracked now", () => {
+  it("counts AI answers to the questions tracked today, not to an old one", () => {
+    const db = openTestDb();
+    keep(db, [
+      answer("Who is Acme?", true, [], 0),
+      answer("A retired question?", true, ["old.example.org"], 0),
+    ]);
+    expect(view(db).ai).toMatchObject({ asked: 1, named: 1, domains: [] });
+    expect(view(db, { tracking: { ...TRACKING, questions: ["Another?"] } }).ai).toBeNull();
+  });
+
+  it("ignores links checks of another domain", () => {
+    const db = openTestDb();
+    keep(db, [{ ...links(0, 9), subject: "old-site.example.org" }]);
+    expect(view(db).links).toBeNull();
   });
 });

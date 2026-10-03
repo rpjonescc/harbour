@@ -74,6 +74,10 @@ export const OUTSIDE_STATES: { label: string; view: OutsideView }[] = [
   { label: "Paused: balance empty", view: { ...READY, notice: "paused_balance" } },
   { label: "Skipped: budget used up", view: { ...READY, notice: "budget" } },
   { label: "The last check didn't work", view: { ...READY, notice: "failed" } },
+  { label: "Partly checked: budget ran out", view: { ...READY, notice: "partial_budget" } },
+  { label: "Partly checked: Treg paused", view: { ...READY, notice: "partial_paused" } },
+  { label: "Partly checked: Treg stopped answering", view: { ...READY, notice: "partial_error" } },
+  { label: "Partly checked: some checks failed", view: { ...READY, notice: "partial_failed" } },
   {
     label: "A check is running",
     view: { ...READY, check: { active: "running", refusal: null } },
@@ -85,7 +89,10 @@ export const OUTSIDE_STATES: { label: string; view: OutsideView }[] = [
   { label: "No searches chosen", view: { ...NOTHING, state: "no_searches", notice: null } },
   { label: "Treg isn't connected", view: { ...NOTHING, state: "not_connected", notice: null } },
   { label: "Not checked yet", view: { ...NOTHING, state: "not_checked", notice: null } },
-  { label: "Not checked: paused", view: { ...NOTHING, state: "not_checked", notice: "paused" } },
+  {
+    label: "Not checked: paused",
+    view: { ...NOTHING, state: "not_checked", notice: "paused_balance" },
+  },
   {
     label: "Not checked: budget used up",
     view: { ...NOTHING, state: "not_checked", notice: "budget" },

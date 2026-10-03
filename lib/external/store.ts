@@ -9,6 +9,7 @@ import {
   aiAnswerValue,
   type Backlinks,
   backlinksValue,
+  host,
   type SerpRank,
   serpRankValue,
   TREG_CHECKS,
@@ -58,6 +59,8 @@ function validRow(observation: Observation): ValidRow | null {
   const value = parsed.data;
   const own = OWN_SUBJECT[kind];
   if (own !== null && value[own] !== subject) return null;
+  // A links check's subject is a host name; the others' subjects were just checked as value.query/question.
+  if (own === null && !host.safeParse(subject).success) return null;
   const checkedAt = new Date(String(value.checkedAt));
   if (Number.isNaN(checkedAt.getTime())) return null;
   if (Buffer.byteLength(JSON.stringify(value)) > MAX_VALUE_BYTES) return null;

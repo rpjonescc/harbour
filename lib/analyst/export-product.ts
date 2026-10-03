@@ -4,7 +4,7 @@ import { proposals, type ScoreBreakdownEntry, scanRuns, scores } from "@/lib/db/
 import { formulaChangedArea } from "@/lib/explain/scoring-notes";
 import { readOutsideFacts } from "@/lib/external/read-facts";
 import { isoDateIn } from "@/lib/format/date";
-import type { Product, ProductKind } from "@/lib/products/catalog";
+import { getTracking, type Product, type ProductKind } from "@/lib/products/catalog";
 import { deriveIssues } from "@/lib/scan/issues";
 import { scanFindings } from "@/lib/scan/product-view";
 import { searchSummary } from "@/lib/scan/search-summary";
@@ -148,7 +148,7 @@ export function productExport(
       observations,
       statuses,
       product.kind,
-      readOutsideFacts(db, product.id, window.now),
+      readOutsideFacts(db, product, getTracking(product.id)?.questions ?? [], window.now),
     ).map((issue) => ({
       id: issue.id,
       title: issue.title,

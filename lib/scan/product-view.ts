@@ -67,7 +67,13 @@ function searchState(observations: ScanObservation[], runs: CollectorRunView[]):
 }
 
 /** The product page's data, all from the scan behind the latest scores. */
-export function productView(db: Db, product: Pick<Product, "id" | "kind">, now: Date): ProductView {
+export function productView(
+  db: Db,
+  product: Pick<Product, "id" | "kind" | "url">,
+  now: Date,
+  /** The AI questions tracked now: older questions' answers are not judged. */
+  questions: readonly string[] = [],
+): ProductView {
   const scores = productScoreTrend(db, product.id, product.kind, now);
   const { observations, runs, statuses } = scanFindings(db, scores.latest?.scanId);
   return {
@@ -78,7 +84,7 @@ export function productView(db: Db, product: Pick<Product, "id" | "kind">, now: 
       observations,
       statuses,
       product.kind,
-      readOutsideFacts(db, product.id, now),
+      readOutsideFacts(db, product, questions, now),
     ),
     actionByRule: ruleActionStatuses(db, product.id),
     pages: pageRows(observations),

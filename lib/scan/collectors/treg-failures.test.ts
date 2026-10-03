@@ -284,28 +284,53 @@ describe("treg collector: hostile input", () => {
 });
 
 describe("treg collector: a key or balance stop ends the run for every product", () => {
-  const PAUSED =
-    "Treg was paused after an earlier check found a problem with the key or the balance. Fix it, then restart Harbour or use Check now.";
+  const PAUSED_KEY =
+    "Treg was paused after an earlier check found its key was refused. Fix the key in .env, then restart Harbour.";
+  const PAUSED_BALANCE =
+    "Treg was paused after an earlier check found its balance empty. Top it up, then use Run this check now.";
   const KEY_SENTENCE =
     "Treg refused Harbour's key: check HARBOUR_TREG_API_KEY in .env, then restart the worker.";
 
   it.each([
-    ["unauthorized", KEY_SENTENCE],
-    ["balance", "Treg says its balance is empty: top it up, then run the check again."],
+    ["unauthorized", KEY_SENTENCE, PAUSED_KEY],
+    [
+      "balance",
+      "Treg says its balance is empty: top it up, then run the check again.",
+      PAUSED_BALANCE,
+    ],
   ] as const)(
-    "after %s the next product makes no call and fails the same way",
-    async (mode, sentence) => {
+    "after %s the next product makes no call and says why it is paused",
+    async (mode, sentence, paused) => {
       const { origin, calls } = await fakeTreg({ mode: (_e, n) => (n === 1 ? mode : "ok") });
       const collector = createTreg(deps(origin));
       const first = await tregRun({ origin, collector });
       expect(first.error?.message).toBe(sentence);
       const second = await tregRun({ origin, collector, product: { id: "other" } });
       // Not "Treg refused": the later run made no call, so it only says why it was paused.
-      expect(second.error?.message).toBe(PAUSED);
+      expect(second.error?.message).toBe(paused);
       expect(calls).toHaveLength(1);
       expect(second.spent.estimates).toEqual([]);
     },
   );
+
+  it("keeps a balance halt through a manual check that answered nothing, and ends it when one answers", async () => {
+    // Call 1: scheduled run, balance. Calls 2 to 4: a manual run where every call fails.
+    // Then a manual run that answers.
+    const { origin } = await fakeTreg({
+      mode: (_e, n) => (n === 1 ? "balance" : n <= 4 ? "server_error" : "ok"),
+    });
+    const collector = createTreg(deps(origin));
+    await tregRun({ origin, collector });
+    const allErrors = await tregRun({ origin, collector, manual: true });
+    expect(allErrors.error?.message).toBe(
+      "None of the outside-view checks could be completed this time.",
+    );
+    // Still held: a scheduled run is paused, and nothing was cleared by the errors.
+    expect((await tregRun({ origin, collector })).error?.message).toBe(PAUSED_BALANCE);
+    const answered = await tregRun({ origin, collector, manual: true });
+    expect(answered.result?.status).toBe("ok");
+    expect((await tregRun({ origin, collector })).result?.status).toBe("ok");
+  });
 
   it("does not halt on a 429: the next product still asks", async () => {
     const { origin, calls } = await fakeTreg({ mode: (_e, n) => (n === 1 ? "rate_limit" : "ok") });
@@ -324,12 +349,12 @@ describe("treg collector: a key or balance stop ends the run for every product",
     const balance = createTreg({ ...deps(origin), clock: () => now });
     await tregRun({ origin, collector: balance });
     now = 23 * 60 * 60_000;
-    expect((await tregRun({ origin, collector: balance })).error?.message).toBe(PAUSED);
+    expect((await tregRun({ origin, collector: balance })).error?.message).toBe(PAUSED_BALANCE);
     now = 24 * 60 * 60_000 + 1;
     expect((await tregRun({ origin, collector: balance })).error?.message).toBe(KEY_SENTENCE);
     // That was call 2, a key refusal: this halt lasts.
     now += 365 * 24 * 60 * 60_000;
-    expect((await tregRun({ origin, collector: balance })).error?.message).toBe(PAUSED);
+    expect((await tregRun({ origin, collector: balance })).error?.message).toBe(PAUSED_KEY);
     expect(calls).toHaveLength(2);
     // A restart is a new collector: it asks again.
     const restarted = createTreg(deps(origin));

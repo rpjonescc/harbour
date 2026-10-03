@@ -7,12 +7,14 @@ export const FEW_SITES_MIN = 5;
 export const AI_QUESTIONS_MIN = 5;
 
 const sites = (n: number) => (n === 1 ? "1 site links" : `${n} sites link`);
+const linkSentence = (n: number) =>
+  n === 0 ? "No sites link to you yet" : `Only ${sites(n)} to you`;
 
 /** The action `few-referring-sites` raises: `n` sites link to the product's domain. */
 export function fewSitesText(n: number) {
   return {
     title: "Other sites rarely link to you",
-    problem: `Only ${sites(n)} to you. Links from other sites are one way search engines and AI assistants decide who to trust.`,
+    problem: `${linkSentence(n)}. Links from other sites are one way search engines and AI assistants decide who to trust.`,
     fix: "List your site on local and industry directories, and ask partners, suppliers and happy customers who mention you to link to it.",
     check: `At least ${FEW_SITES_MIN} sites link to you at the next checks.`,
   };
@@ -37,7 +39,7 @@ export const OUTSIDE_UNKNOWN = {
 
 /** One evidence line: the domain's count and when it was checked. */
 export const linksEvidence = (domain: string, n: number, checkedAt: string) =>
-  `${domain}: ${sites(n)} to it (checked ${checkedAt.slice(0, 10)})`;
+  `${domain}: ${n === 0 ? "no sites link" : sites(n)} to it (checked ${checkedAt.slice(0, 10)})`;
 
 /** One evidence line per question asked, with the week it was checked. */
 export const questionEvidence = (question: string, run: Pick<AiRun, "checkedAt">) =>
@@ -52,12 +54,16 @@ export const OUTSIDE_EMPTY = {
 } as const;
 
 export const OUTSIDE_NOTICE = {
-  paused:
-    "Paused: balance or key. Treg's balance is empty or its key was refused. Fix it, then check again.",
   paused_key: "Paused: balance or key. Treg refused Harbour's key.",
   paused_balance: "Paused: balance or key. Treg's balance is empty.",
   budget: "Skipped: this month's budget is used up. The check runs again when it renews.",
-  failed: "The last check didn't work. Harbour tries again.",
+  failed: "The last check didn't work.",
+  partial_budget:
+    "Partly checked: this month's budget ran out part way, so some checks were not made.",
+  partial_paused:
+    "Partly checked: Treg was paused part way, because its balance is empty or its key was refused.",
+  partial_error: "Partly checked: Treg stopped answering part way.",
+  partial_failed: "Partly checked: some checks didn't work.",
 } as const;
 
 export const OUTSIDE_TITLE = "How the web sees you";
@@ -71,7 +77,8 @@ export const OUTSIDE_PARTS = {
 } as const;
 
 /** "4 sites link to you" / "1 site links to you". */
-export const linkingLine = (n: number) => `${n} ${n === 1 ? "site links" : "sites link"} to you`;
+export const linkingLine = (n: number) =>
+  n === 0 ? "No sites link to you yet" : `${n} ${n === 1 ? "site links" : "sites link"} to you`;
 
 /** The change in sites linking to you since the check before, or null when there was none. */
 export function linkChange(change: number | null): string | null {

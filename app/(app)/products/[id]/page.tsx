@@ -19,7 +19,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   return (
     <ProductOverview
       product={product}
-      view={productView(db, product, now)}
+      view={productView(db, product, now, getTracking(id)?.questions ?? [])}
       outside={outsideView({ db, config, product, tracking: getTracking(id), now })}
       timeZone={config.HARBOUR_TIMEZONE}
       locale={config.HARBOUR_LOCALE}

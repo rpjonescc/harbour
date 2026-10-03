@@ -22,7 +22,7 @@ async function harness(options: FakeTregOptions = {}, capAud = 1) {
   const server = await fakeTreg(options);
   const collector = createTreg({
     tracking: () => TRACKING,
-    baseUrl: () => server.origin,
+    baseUrl: server.origin,
     timeoutMs: 5_000,
     clock: Date.now,
   });
@@ -112,7 +112,7 @@ describe("the outside-check job", () => {
   it("stops at the budget midway and keeps the partial checks", async () => {
     const h = await harness({}, 0.02);
     const { job } = await h.manual();
-    expect(job).toMatchObject({ status: "ok", result: "ok" });
+    expect(job).toMatchObject({ status: "ok", result: "partial:budget" });
     expect(checks(h)).toHaveLength(2);
   });
 
@@ -157,5 +157,53 @@ describe("the outside-check job", () => {
       status: "failed",
       error: "Unknown product",
     });
+  });
+
+  it.each([
+    [
+      "balance empty part way",
+      (_e: string, n: number) => (n >= 3 ? "balance" : "ok"),
+      "partial:paused",
+    ],
+    [
+      "a refused key part way",
+      (_e: string, n: number) => (n >= 3 ? "unauthorized" : "ok"),
+      "partial:paused",
+    ],
+    [
+      "a rate limit part way",
+      (_e: string, n: number) => (n >= 3 ? "rate_limit" : "ok"),
+      "partial:error",
+    ],
+    [
+      "some checks failing",
+      (e: string) => (e.includes("dataforseo") ? "server_error" : "ok"),
+      "partial:failed",
+    ],
+  ] as const)("leaves the result partial for %s", async (_name, mode, result) => {
+    const h = await harness({ mode });
+    const { job } = await h.manual();
+    expect(job).toMatchObject({ status: "ok", result });
+    expect(checks(h).length).toBeGreaterThan(0);
+  });
+
+  it("caps the observations a run may store, as a scan does", async () => {
+    const h = await harness();
+    h.deps.maxObservations = 2;
+    const { job } = await h.manual();
+    expect(job?.status).toBe("failed");
+    expect(job?.error).toBe("Returned 5 observations (limit 2)");
+    expect(checks(h)).toEqual([]);
+  });
+
+  it("words a failed manual check without the schedule's promises", async () => {
+    const h = await harness({ mode: "huge" });
+    const { job } = await h.manual();
+    expect(job?.status).toBe("failed");
+    expect(job?.error).toContain("may have been billed");
+    expect(job?.error).not.toMatch(/next try|tries again|run again/);
+    const limited = await harness({ mode: "rate_limit" });
+    const second = await limited.manual();
+    expect(second.job?.error).not.toMatch(/next try|tries again|run again later/);
   });
 });

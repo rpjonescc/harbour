@@ -184,3 +184,54 @@ describe("the migration", () => {
     expect(sql).not.toMatch(/\b(DROP|ALTER|DELETE|UPDATE)\b/i);
   });
 });
+
+describe("hygiene of what is kept", () => {
+  const cited = (domains: string[]): Observation => {
+    const base = ai("Who is Acme?");
+    return { ...base, value: { ...base.value, citedDomains: domains } };
+  };
+
+  it.each([
+    ["a bidi override", "evil\u202emoc.example"],
+    ["a null character", "a\u0000b.example"],
+    ["a zero-width space", "a\u200bb.example"],
+    ["an uppercase or spaced name", "Not A Host.example"],
+    ["a path", "example.org/page"],
+    ["an empty host", ""],
+  ])("drops an answer whose cited domain has %s", (_name, domain) => {
+    const db = openTestDb();
+    expect(save(db, [cited([domain])])).toEqual({ written: 0, alreadyKept: 0, dropped: 1 });
+    const top = serp("q one", 2);
+    expect(save(db, [{ ...top, value: { ...top.value, topDomains: [domain] } }]).dropped).toBe(1);
+    expect(db.select().from(externalChecks).all()).toEqual([]);
+  });
+
+  it.each([
+    ["a bidi override", "who\u202e is it?"],
+    ["a null character", "a\u0000b"],
+    ["a zero-width space", "a\u200bb"],
+    ["a line break", "a\nb"],
+    ["a tab", "a\tb"],
+  ])("drops a question or search with %s", (_name, text) => {
+    const db = openTestDb();
+    expect(save(db, [ai(text), serp(text, 3)])).toEqual({ written: 0, alreadyKept: 0, dropped: 2 });
+  });
+
+  it("drops a links check whose subject is not a host name", () => {
+    const db = openTestDb();
+    const good = backlinks();
+    expect(
+      save(db, [
+        { ...good, subject: "docs.example.com\u202e" },
+        { ...good, subject: "Docs Example" },
+      ]).dropped,
+    ).toBe(2);
+  });
+
+  it("keeps plain accented text and a real host", () => {
+    const db = openTestDb();
+    expect(
+      save(db, [ai("Où trouver un café à Brisbane?"), cited(["news.example.org"])]).written,
+    ).toBe(2);
+  });
+});

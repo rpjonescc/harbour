@@ -10,13 +10,30 @@ import { readChecks, type StoredCheck } from "@/lib/external/store";
 import { activeOutsideCheck, outsideCheckRefusal } from "@/lib/jobs/outside-check";
 import type { ProductTracking } from "@/lib/products/config";
 import { siteKey } from "./site";
-import type { AiAnswer, Backlinks, SerpRank } from "./treg-shapes";
+import { collectorObservations } from "./store";
+import {
+  type AiAnswer,
+  type Backlinks,
+  PARTIAL_RUNS,
+  type PartialRun,
+  partialOf,
+  type SerpRank,
+  tregSummaryValue,
+} from "./treg-shapes";
 
 const READ_DAYS = 120;
 const MAX_DOMAINS = 5;
 
 export type RankChange = "up" | "down" | "same" | "first";
-export type OutsideNotice = "paused" | "paused_key" | "paused_balance" | "budget" | "failed";
+export type OutsideNotice =
+  | "paused_key"
+  | "paused_balance"
+  | "budget"
+  | "failed"
+  | "partial_budget"
+  | "partial_paused"
+  | "partial_error"
+  | "partial_failed";
 
 export type SearchRow = {
   query: string;
@@ -51,15 +68,29 @@ export type OutsideView = {
   check: { active: "queued" | "running" | null; refusal: OutsideRefusal | null };
 };
 
-type Attempt = { status: "ok" | "failed" | "skipped"; error: string | null; at: number };
+type Attempt = {
+  status: "ok" | "failed" | "skipped";
+  error: string | null;
+  at: number;
+  /** An ok run that did not answer everything, and why. */
+  partial: PartialRun | null;
+};
 
 /** The scheduled run's skips that say nothing about how the last real attempt went. */
 const isCadenceSkip = (error: string | null) =>
   error !== null && (error.startsWith("runs weekly") || error.startsWith("backing off"));
 
+/** How the scan's Treg run fell short, from the tally it stored; null when it answered all. */
+function scanPartial(db: Db, scanId: number): PartialRun | null {
+  const tally = collectorObservations(db, scanId, "treg").find((o) => o.kind === "treg_summary");
+  const parsed = tregSummaryValue.safeParse(tally?.value);
+  return parsed.success ? partialOf(parsed.data) : null;
+}
+
 function scheduledAttempt(db: Db, productId: string): Attempt | null {
   const rows = db
     .select({
+      scanId: collectorRuns.scanId,
       status: collectorRuns.status,
       error: collectorRuns.error,
       at: collectorRuns.finishedAt,
@@ -71,9 +102,14 @@ function scheduledAttempt(db: Db, productId: string): Attempt | null {
     .limit(20)
     .all();
   const row = rows.find((r) => r.status !== "not_configured" && !isCadenceSkip(r.error));
-  return row
-    ? { status: row.status as Attempt["status"], error: row.error, at: row.at.getTime() }
-    : null;
+  if (!row) return null;
+  const partial = row.status === "ok" ? scanPartial(db, row.scanId) : null;
+  return {
+    status: row.status as Attempt["status"],
+    error: row.error,
+    at: row.at.getTime(),
+    partial,
+  };
 }
 
 function manualAttempt(db: Db, productId: string): Attempt | null {
@@ -87,20 +123,22 @@ function manualAttempt(db: Db, productId: string): Attempt | null {
     .filter((job) => job.params.productId === productId);
   const [job] = rows;
   if (!job?.finishedAt) return null;
-  if (job.status === "failed")
-    return { status: "failed", error: job.error, at: job.finishedAt.getTime() };
+  const at = job.finishedAt.getTime();
+  if (job.status === "failed") return { status: "failed", error: job.error, at, partial: null };
   const skipped = job.result === "skipped" || job.result === "not_configured";
-  return { status: skipped ? "skipped" : "ok", error: job.error, at: job.finishedAt.getTime() };
+  const partial = PARTIAL_RUNS.find((p) => job.result === `partial:${p}`) ?? null;
+  return { status: skipped ? "skipped" : "ok", error: job.error, at, partial };
 }
 
 /** What the last attempt (scheduled or by hand, whichever is newer) says is wrong, if anything. */
 function noticeFor(attempt: Attempt | null): OutsideNotice | null {
   if (!attempt) return null;
   if (attempt.status === "skipped") return attempt.error?.startsWith("budget:") ? "budget" : null;
-  if (attempt.status === "ok") return null;
+  if (attempt.status === "ok") return attempt.partial ? `partial_${attempt.partial}` : null;
   if (attempt.error === TREG_REASONS.key) return "paused_key";
   if (attempt.error === TREG_REASONS.balance) return "paused_balance";
-  if (attempt.error === TREG_REASONS.paused) return "paused";
+  if (attempt.error === TREG_REASONS.pausedKey) return "paused_key";
+  if (attempt.error === TREG_REASONS.pausedBalance) return "paused_balance";
   return "failed";
 }
 
@@ -152,7 +190,9 @@ function linksOf(domain: string, rows: StoredCheck<Backlinks>[]): OutsideView["l
   };
 }
 
-function aiOf(rows: StoredCheck<AiAnswer>[]): OutsideView["ai"] {
+/** The latest AI check of the questions tracked now (an old question says nothing about today's). */
+function aiOf(all: StoredCheck<AiAnswer>[], questions: readonly string[]): OutsideView["ai"] {
+  const rows = all.filter((r) => questions.includes(r.subject));
   const [first] = rows;
   if (!first) return null;
   const run = rows.filter((r) => r.checkedAt.getTime() === first.checkedAt.getTime());
@@ -206,7 +246,7 @@ export function outsideView({ db, config, product, tracking, now }: OutsideViewI
     tracking.queries,
     readChecks(db, product.id, "serp_rank", READ_DAYS, now),
   );
-  const ai = aiOf(readChecks(db, product.id, "ai_answer", READ_DAYS, now));
+  const ai = aiOf(readChecks(db, product.id, "ai_answer", READ_DAYS, now), tracking.questions);
   const notice = noticeFor(newer(scheduledAttempt(db, product.id), manualAttempt(db, product.id)));
   const times = [links?.checkedAt, ai?.checkedAt, ...searches.map((s) => s.checkedAt)].flatMap(
     (t) => (t ? [t] : []),

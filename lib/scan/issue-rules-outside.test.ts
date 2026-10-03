@@ -38,7 +38,11 @@ describe("few-referring-sites", () => {
       effort: "medium",
       total: 1,
     });
-    expect(found.issue.problem).toContain(n === 1 ? "Only 1 site links" : `Only ${n} sites link`);
+    expect(found.issue.problem).toContain(
+      { 0: "No sites link to you yet", 1: "Only 1 site links to you" }[n] ??
+        `Only ${n} sites link to you`,
+    );
+    expect(found.issue.problem).not.toContain("Only 0");
     expect(found.issue.locations[0]).toContain("docs.example.com");
   });
 

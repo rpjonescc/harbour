@@ -82,6 +82,24 @@ describe("OutsideViewPanel: with results", () => {
     expect(region().textContent).not.toMatch(/\b0 sites/);
   });
 
+  it("says no sites link to you yet, never 0 sites", () => {
+    draw({
+      ...OUTSIDE_READY,
+      links: { count: 0, change: null, checkedAt: "2026-10-04T06:00:00.000Z" },
+    });
+    expect(region().textContent).toContain("No sites link to you yet");
+    expect(region().textContent).not.toMatch(/\b0 sites/);
+  });
+
+  it("uses no code words in any notice", () => {
+    for (const { view } of OUTSIDE_STATES) {
+      const { container } = draw(view);
+      expect(container.textContent).not.toMatch(
+        /stoppedBy|HTTP \d|budget:|\bGEO\b|backlink|SERP|scan/i,
+      );
+    }
+  });
+
   it("says the AI check hasn't been made rather than 0 of 0", () => {
     draw({ ...OUTSIDE_READY, ai: null });
     expect(region().textContent).not.toContain("0 of 0");
@@ -106,6 +124,10 @@ describe("OutsideViewPanel: notices and empty states", () => {
     ["Paused: balance empty", "Paused: balance or key"],
     ["Skipped: budget used up", "Skipped: this month's budget is used up"],
     ["The last check didn't work", "The last check didn't work"],
+    ["Partly checked: budget ran out", "Partly checked: this month's budget ran out part way"],
+    ["Partly checked: Treg paused", "Partly checked: Treg was paused part way"],
+    ["Partly checked: Treg stopped answering", "Partly checked: Treg stopped answering part way"],
+    ["Partly checked: some checks failed", "Partly checked: some checks didn't work"],
   ])("shows the data and the notice for %s", (label, words) => {
     draw(state(label));
     expect(region().textContent).toContain(words);
