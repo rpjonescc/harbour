@@ -196,7 +196,7 @@ export default defineConfig({
       url: "http://127.0.0.1:3403/login",
       reuseExistingServer: false,
       timeout: 60_000,
-      env: { ...env, HARBOUR_PERSONALITY: "quiet" },
+      env: { ...env, HARBOUR_PERSONALITY: "quiet", HARBOUR_ORIGIN: E2E_QUIET_ORIGIN },
     },
     {
       name: "worker",

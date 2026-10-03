@@ -37,7 +37,7 @@ test("Writing this week's report writes the report and suggests an action", asyn
     page.getByRole("heading", { level: 1, name: `Fake reports/weekly/${week()}.md` }),
   ).toBeVisible();
 
-  await page.goto("/actions?product=acme-docs&status=suggested");
+  await page.goto("/actions?view=list&product=acme-docs&status=suggested");
   const suggestion = page.getByRole("article", { name: SUGGESTION });
   await expect(suggestion).toContainText("Suggested by the weekly report");
   await expect(suggestion.getByRole("button", { name: `Accept: ${SUGGESTION}` })).toBeVisible();
@@ -47,6 +47,6 @@ test("a second run in the same week suggests nothing it already suggested", asyn
   test.setTimeout(120_000);
   const activity = await runWeeklyReport(page);
   await expect(activity.getByText("Imported 0 action(s); 1 already known")).toBeVisible();
-  await page.goto("/actions?product=acme-docs&status=suggested");
+  await page.goto("/actions?view=list&product=acme-docs&status=suggested");
   await expect(page.getByRole("article", { name: SUGGESTION })).toHaveCount(1);
 });
