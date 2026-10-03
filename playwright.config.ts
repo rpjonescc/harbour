@@ -13,6 +13,10 @@ export const E2E_SITE_PORT = 3402;
 export const E2E_SCREENPIPE_PORT = 3404;
 // Fictional: the fake server accepts exactly this bearer key.
 export const E2E_SCREENPIPE_KEY = "e2e-fake-screenpipe-key";
+/** The fake Treg the outside-view specs call (tests/e2e/fake-treg-server.ts): never the real service. */
+export const E2E_TREG_PORT = 3405;
+// Fictional: the fake accepts any key, and the specs check this one never reaches a page.
+export const E2E_TREG_KEY = "e2e-fake-treg-key";
 /** A second web server, with the quiet personality, over the same database and brain. */
 export const E2E_QUIET_ORIGIN = "http://localhost:3403";
 
@@ -51,6 +55,11 @@ const env = {
   // The web process only checks that a key is set; the worker is the one that uses it.
   HARBOUR_SCREENPIPE_URL: `http://127.0.0.1:${E2E_SCREENPIPE_PORT}`,
   HARBOUR_SCREENPIPE_API_KEY: E2E_SCREENPIPE_KEY,
+  // The outside view: a fake Treg on this machine (config refuses the test URL outside test mode)
+  // and a budget, so Run this check now is allowed. Scans of Acme Docs still skip it: no searches.
+  HARBOUR_TREG_API_KEY: E2E_TREG_KEY,
+  HARBOUR_TREG_TEST_URL: `http://127.0.0.1:${E2E_TREG_PORT}`,
+  HARBOUR_MONTHLY_BUDGET_AUD: "10",
   // Fictional token: the agent CLI is the fake below, so nothing is ever sent anywhere.
   HARBOUR_CLAUDE_OAUTH_TOKEN: "e2e-fake-token",
 };
@@ -67,7 +76,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: /(agents|scans|actions|analyst|note|content|settings)\.spec\.ts/,
+      testIgnore: /(agents|scans|actions|analyst|note|content|settings|outside)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     // Agent runs change the brain (new documents, sidebar counts), so they run after the rest.
@@ -131,6 +140,14 @@ export default defineConfig({
       dependencies: ["content"],
       use: { ...devices["Desktop Chrome"] },
     },
+    // Run this check now queues a worker job (paid, to the fake Treg), and the specs leave real
+    // checks in the history, so they run after everything else.
+    {
+      name: "outside",
+      testMatch: /outside\.spec\.ts/,
+      dependencies: ["operations"],
+      use: { ...devices["Desktop Chrome"] },
+    },
   ],
   // Started in order: the fake Screenpipe, the fixture site, then the web server (it migrates the
   // database), then the worker.
@@ -139,6 +156,13 @@ export default defineConfig({
       name: "fake-screenpipe",
       command: "pnpm exec tsx tests/e2e/fake-screenpipe-server.ts",
       url: `http://127.0.0.1:${E2E_SCREENPIPE_PORT}/health`,
+      reuseExistingServer: false,
+      timeout: 30_000,
+    },
+    {
+      name: "fake-treg",
+      command: "pnpm exec tsx tests/e2e/fake-treg-server.ts",
+      url: `http://127.0.0.1:${E2E_TREG_PORT}/health`,
       reuseExistingServer: false,
       timeout: 30_000,
     },

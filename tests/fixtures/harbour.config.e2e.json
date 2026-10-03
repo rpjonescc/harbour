@@ -8,6 +8,19 @@
       }
     }
   },
+  "tracking": {
+    "products": {
+      "fern-and-field": {
+        "queries": ["fern and field", "garden gifts near me", "plant shop brisbane"],
+        "questions": ["Where can I buy native plants?"],
+        "location": "Queensland,Australia"
+      },
+      "lighthouse-cafe": {
+        "queries": ["lighthouse cafe"],
+        "questions": ["Which cafes are good for a long breakfast?"]
+      }
+    }
+  },
   "products": [
     {
       "id": "acme-docs",
