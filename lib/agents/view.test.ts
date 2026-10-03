@@ -75,6 +75,9 @@ describe("jobLabel", () => {
       "Check (facts and platform): five minutes to a first deploy",
     );
     expect(label("content-decision", {})).toBe("Saving your decision");
+    expect(label("content-postiz", { pieceId: `${ideaId}.linkedin`, revision: "3" })).toBe(
+      "Postiz draft: five minutes to a first deploy",
+    );
     expect(label("content-future", {})).toBe("Content work");
     // An inherited property name is not a gate.
     expect(label("content-gate", { ideaId, gate: "constructor" })).toBe(

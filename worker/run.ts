@@ -11,9 +11,13 @@ import { countWaitingIdeas, MAX_WAITING_IDEAS } from "@/lib/content/read/ideas";
 import { readVoice } from "@/lib/content/read/voice";
 import { makeDigestSchedule, makeIdeasSchedule } from "@/lib/content/schedule";
 import { deferForOtherChain } from "@/lib/content/worker/chain-wait";
-import { runContentDecision } from "@/lib/content/worker/decision-job";
 import { runDigestJob } from "@/lib/content/worker/digest-job";
-import { contentRunDeps, decisionDeps, resumeContentChains } from "@/lib/content/worker/wire";
+import {
+  contentRunDeps,
+  isContentWrite,
+  resumeContentChains,
+  runContentWrite,
+} from "@/lib/content/worker/wire";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
 import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
@@ -248,9 +252,8 @@ export async function runWorker(seams?: WorkerTestSeams) {
         job,
       );
       if (pushed !== null) scheduler.pushed(pushed);
-    } else if (job.kind === "content-decision") {
-      const deps = decisionDeps({ db, root, quarantineRoot, config, now });
-      const { pushed } = runContentDecision(deps, job);
+    } else if (isContentWrite(job)) {
+      const { pushed } = await runContentWrite({ db, root, quarantineRoot, config, now }, job);
       if (pushed !== null) scheduler.pushed(pushed);
     } else if (isAgentJobKind(job.kind)) {
       const { pushed } = await runAgentJob(agentDeps(now), job);

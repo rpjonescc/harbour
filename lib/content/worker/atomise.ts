@@ -45,6 +45,7 @@ export function newPieceFront(input: {
     edited: false,
     approvedAt: null,
     exportPath: null,
+    postiz: null,
     content: input.content,
   };
 }
