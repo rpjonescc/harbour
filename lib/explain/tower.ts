@@ -13,8 +13,11 @@ export type LightId =
   | "agents"
   | "spend";
 
-/** How a light is doing. Shown by shape and words as well as colour, never colour alone. */
-export type LightTone = "ok" | "busy" | "watch" | "act" | "off" | "unknown";
+/**
+ * How a light is doing. Shown by shape and words as well as colour, never colour alone. `ready`
+ * is good news waiting for the owner (drafts, new ideas), kept apart from `watch` for problems.
+ */
+export type LightTone = "ok" | "busy" | "ready" | "watch" | "act" | "off" | "unknown";
 
 /** The h2 of each tower section, in reading order. */
 export const SECTION_TITLES = {
@@ -41,6 +44,7 @@ export const LIGHT_LABELS: Readonly<Record<LightId, string>> = {
 export const TONE_WORDS: Readonly<Record<LightTone, string>> = {
   ok: "fine",
   busy: "working",
+  ready: "ready for you",
   watch: "worth a look",
   act: "needs you",
   off: "switched off",

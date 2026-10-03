@@ -42,7 +42,8 @@ explainable breakdowns. The roadmap continues with:
   runs worked."), Content ("3 drafts are ready for you."), Sources ("Every connected data source
   answered at the last check."), Settings ("Everything is set up." or the one thing missing), the
   Second Brain (how many notes, when one last changed, whether all is saved), Devices, research
-  targets and each product.
+  targets and each product. Good news waiting for you (drafts ready, new ideas) has its own
+  mark, a star, so the amber triangle ("worth a look") is kept for problems.
 - **Product pages** — per product: three area cards (Found on Google, Recommended by AI
   assistants, Answer-ready) each with a verdict, the small number and "What's this?", a
   one-line summary, **Check now**, a tab per area listing its sub-scores as plain sentences

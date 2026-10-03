@@ -29,7 +29,7 @@ export function TowerExamples() {
         Illustrative tiles for Acme Docs and Acme Blog. Each tile is its own section on Today.
       </p>
       <Example label="Status lights · every tone, by shape and word">
-        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        <ul className="grid grid-cols-4 gap-2 sm:grid-cols-7">
           {TONES.map((tone) => (
             <li key={tone}>
               <StatusLight tone={tone} label={LIGHT_LABELS.worker} />

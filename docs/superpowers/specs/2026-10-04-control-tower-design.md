@@ -136,12 +136,13 @@ sentence and a link to where to act.
 | Agents | No agent run failed in the last 24 h without a later success of the same kind | "Claude is writing the daily note." / "Nothing running. 3 runs finished today." / "The ideas run didn't finish." | `jobs` running, queued and finished in 24 h; `jobLabel()` | `/agents` |
 | Spend | Cost meter state `ok`, `no-paid-sources` or `no-budget` | "A$4.10 of A$20 this month." / "80% of this month's budget used." / "Budget reached: paid data paused until 1 Nov." | `costMeterView()` | `/settings` |
 
-Each light has one of five tones. Tone is shown by shape and icon as well as colour, never colour alone:
+Each light has one of these tones (`ready` is used only by page verdicts, never by a light). Tone is shown by shape and icon as well as colour, never colour alone:
 
 | Tone | Meaning | Mark |
 |---|---|---|
 | `ok` | Fine | filled circle with a tick |
 | `busy` | Working right now | filled circle with a slow "breathing" ring |
+| `ready` | Good news waiting for you (drafts, new ideas) | star, in the accent colour |
 | `watch` | Worth a look, nothing is lost | triangle |
 | `act` | Needs the owner | diamond with "!" |
 | `off` | Switched off on purpose | hollow circle |
@@ -544,6 +545,9 @@ what is happening" at a glance.
   A run's page keeps its live status line, now styled as its verdict with the same mark.
 - **Tones.** Anything waiting for the owner's decision is `watch` ("worth a look"); `act` is kept
   for something broken (a failed backup); `busy` while work runs; `unknown` before there is data.
+  A verdict that is only good news for the owner (drafts ready, new ideas to pick, and nothing
+  else waiting) is `ready` ("ready for you": a star in the accent colour), so amber stays for
+  problems.
 - **Words explained in place.** Intros are `TermLine`s (`lib/explain/term-line.ts`): fixed text
   with glossary words a `<Term>` explains. New glossary words: research target, passkey, digest.
   New page help: a run's page and the research targets page.

@@ -4,6 +4,7 @@ import { type LightTone, TONE_WORDS } from "@/lib/explain/tower";
 const COLOUR: Readonly<Record<LightTone, string>> = {
   ok: "text-good",
   busy: "text-accent",
+  ready: "text-accent",
   watch: "text-warn",
   act: "text-bad",
   off: "text-ink-muted",
@@ -17,7 +18,10 @@ const INNER = {
   strokeLinejoin: "round",
 } as const;
 
-/** The shape for each tone (spec §4.3): tick, breathing ring, triangle, diamond "!", hollow, "?". */
+/**
+ * The shape for each tone (spec §4.3): tick, breathing ring, star (ready for you), triangle,
+ * diamond "!", hollow, "?".
+ */
 function Shape({ tone }: { tone: LightTone }) {
   switch (tone) {
     case "ok":
@@ -39,6 +43,14 @@ function Shape({ tone }: { tone: LightTone }) {
           />
           <circle cx="8" cy="8" r="4" className="fill-current" />
         </>
+      );
+    case "ready":
+      return (
+        <path
+          d="M8 .7l1.76 4.87 5.18.17-4.09 3.19 1.44 4.98L8 11l-4.29 2.91 1.44-4.98-4.09-3.19 5.18-.17z"
+          className="fill-current"
+          strokeLinejoin="round"
+        />
       );
     case "watch":
       return <path d="M8 1.5L15 14.5H1z" className="fill-current" strokeLinejoin="round" />;

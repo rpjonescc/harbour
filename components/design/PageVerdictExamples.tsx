@@ -27,10 +27,16 @@ const EXAMPLES = [
     ]),
   },
   {
-    label: "Worth a look",
+    label: "Ready for you",
     title: "Content",
     page: "content",
     verdict: contentVerdict({ ...NONE, ready: 3, ideas: 2 }),
+  },
+  {
+    label: "Worth a look",
+    title: "Content",
+    page: "content",
+    verdict: contentVerdict({ ...NONE, "needs-you": 1, ready: 1 }),
   },
   {
     label: "Needs you",

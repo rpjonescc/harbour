@@ -74,22 +74,28 @@ const tabs = (over: Partial<Record<keyof ContentCounts, number>> = {}): ContentC
 });
 
 describe("contentVerdict", () => {
-  it("leads with drafts ready for you", () => {
+  it("leads with drafts ready for you, as good news rather than a problem", () => {
     expect(contentVerdict(tabs({ ready: 3, approved: 2 }))).toEqual({
-      tone: "watch",
+      tone: "ready",
       text: "3 drafts are ready for you.",
+    });
+    expect(contentVerdict(tabs({ ideas: 2 })).tone).toBe("ready");
+  });
+
+  it("puts what needs a look first, worth a look, and says two things at most", () => {
+    expect(contentVerdict(tabs({ "needs-you": 1, ready: 1, ideas: 4 }))).toEqual({
+      tone: "watch",
+      text: "1 thing needs a look from you. 1 draft is ready for you.",
     });
   });
 
-  it("puts what needs a look first, and says two things at most", () => {
-    expect(contentVerdict(tabs({ "needs-you": 1, ready: 1, ideas: 4 })).text).toBe(
-      "1 thing needs a look from you. 1 draft is ready for you.",
-    );
-  });
-
   it("is busy while pieces are written, and calm when nothing waits", () => {
-    expect(contentVerdict(tabs({ writing: 2, ideas: 1 }))).toEqual({
+    expect(contentVerdict(tabs({ writing: 2 }))).toEqual({
       tone: "busy",
+      text: "2 pieces are being written.",
+    });
+    expect(contentVerdict(tabs({ writing: 2, ideas: 1 }))).toEqual({
+      tone: "ready",
       text: "2 pieces are being written. 1 idea is waiting for you to pick.",
     });
     expect(contentVerdict(tabs({ approved: 5 })).tone).toBe("ok");
