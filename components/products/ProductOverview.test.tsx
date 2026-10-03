@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen, within } from "@testing-library/react";
+import { OUTSIDE_NOT_CHECKED } from "@/components/design/outside-example-data";
 import type { Product } from "@/lib/products/catalog";
 import { deriveIssues } from "@/lib/scan/issues";
 import { pageRows } from "@/lib/scan/page-rows";
@@ -102,6 +103,7 @@ const renderPage = (view: ProductView, productOverrides: Partial<Product> = {}) 
     <ProductOverview
       product={{ ...product, ...productOverrides }}
       view={view}
+      outside={OUTSIDE_NOT_CHECKED}
       timeZone="UTC"
       locale="en-GB"
     />,

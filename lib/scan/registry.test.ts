@@ -1,15 +1,16 @@
 import { PAID_SOURCES } from "@/lib/costs/paid-sources";
 import { COLLECTOR_IDS } from "./labels";
-import { COLLECTORS } from "./registry";
+import { COLLECTORS, collectorTimeoutMs } from "./registry";
 
 describe("COLLECTORS", () => {
-  it("runs the crawler first, then readiness (which reads it), PageSpeed, Search Console and indexing", () => {
+  it("runs the crawler first, then readiness (which reads it), PageSpeed, Search Console, indexing and Treg", () => {
     expect(COLLECTORS.map((c) => c.id)).toEqual([
       "crawler",
       "readiness",
       "pagespeed",
       "search-console",
       "indexing",
+      "treg",
     ]);
   });
 
@@ -41,7 +42,16 @@ describe("COLLECTORS", () => {
     ]);
   });
 
-  it("has only free collectors in this phase", () => {
-    expect(COLLECTORS.map((c) => c.paid)).toEqual([false, false, false, false, false]);
+  it("has Treg as its only paid collector, weekly, with no dependencies", () => {
+    const paid = COLLECTORS.filter((c) => c.paid);
+    expect(paid.map((c) => c.id)).toEqual(["treg"]);
+    expect(paid[0]).toMatchObject({ cadence: "weekly" });
+    expect(paid[0]?.dependsOn).toBeUndefined();
+  });
+
+  it("gives the crawler, indexing and Treg 10 minutes, the rest 2", () => {
+    const minutes = (id: string) => collectorTimeoutMs(id) / 60_000;
+    expect(["crawler", "indexing", "treg"].map(minutes)).toEqual([10, 10, 10]);
+    expect(["readiness", "pagespeed", "search-console"].map(minutes)).toEqual([2, 2, 2]);
   });
 });

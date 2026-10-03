@@ -16,6 +16,17 @@
       }
     }
   },
+  "tracking": {
+    "products": {
+      "acme-docs": {
+        "queries": ["acme docs", "best documentation tools for small teams"],
+        "questions": ["What are good tools for writing team documentation?"],
+        "location": "Queensland,Australia",
+        "country": "AU",
+        "languageCode": "en"
+      }
+    }
+  },
   "products": [
     {
       "id": "acme-docs",

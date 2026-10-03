@@ -29,6 +29,8 @@ export type SourcesView = {
   connections: {
     pagespeed: boolean;
     searchConsoleCredentials: boolean;
+    /** Whether Treg's key is set (the outside view). */
+    treg: boolean;
     /** Whether each product names a Search Console property. */
     searchConsoleProducts: Record<string, boolean>;
   };
@@ -67,6 +69,7 @@ export function sourcesView(
     connections: {
       pagespeed: Boolean(config.HARBOUR_PAGESPEED_API_KEY),
       searchConsoleCredentials: Boolean(config.HARBOUR_GSC_CREDENTIALS),
+      treg: Boolean(config.HARBOUR_TREG_API_KEY),
       searchConsoleProducts: Object.fromEntries(
         products.map((p) => [p.id, Boolean(p.searchConsoleProperty)]),
       ),

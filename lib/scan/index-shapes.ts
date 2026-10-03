@@ -24,7 +24,7 @@ export const NOT_INDEXED_STATES: readonly IndexState[] = [
 
 export const MAX_TEXT = 200;
 export const MAX_URL = 2_000;
-const isoTime = z.string().refine((value) => !Number.isNaN(Date.parse(value)));
+export const isoTime = z.string().refine((value) => !Number.isNaN(Date.parse(value)));
 export const httpUrl = z
   .string()
   .refine((value) => /^https?:$/.test(URL.parse(value)?.protocol ?? ""));

@@ -21,6 +21,7 @@ const view: SourcesView = {
   connections: {
     pagespeed: false,
     searchConsoleCredentials: true,
+    treg: false,
     searchConsoleProducts: { "acme-docs": true, "fern-and-field": false },
   },
   products: [

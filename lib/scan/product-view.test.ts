@@ -22,7 +22,7 @@ const gscSummary: Observation = {
   value: { startDate: "2026-09-01", endDate: "2026-09-28" },
 };
 
-const PRODUCT = { id: "acme-docs", kind: "product" as const };
+const PRODUCT = { id: "acme-docs", kind: "product" as const, url: "https://docs.example.com" };
 
 describe("productView", () => {
   it("is empty for a product that was never scanned", () => {

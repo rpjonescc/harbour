@@ -14,6 +14,7 @@ const SECRETS = {
   HARBOUR_SCREENPIPE_API_KEY: "SENTINEL-screenpipe",
   HARBOUR_PAGESPEED_API_KEY: "SENTINEL-pagespeed",
   HARBOUR_GSC_CREDENTIALS: "/srv/harbour-example/SENTINEL-gsc.json",
+  HARBOUR_TREG_API_KEY: "SENTINEL-treg-key",
   HARBOUR_DATAFORSEO_LOGIN: "SENTINEL-dfs-login",
   HARBOUR_DATAFORSEO_PASSWORD: "SENTINEL-dfs-password",
   HARBOUR_OPENAI_API_KEY: "SENTINEL-openai",
@@ -31,6 +32,7 @@ describe("keyStatusRows", () => {
       ["screenpipe", true, false],
       ["pagespeed", true, false],
       ["search-console", true, false],
+      ["treg", true, true],
       ["dataforseo", false, true],
       ["openai", false, true],
       ["perplexity", false, true],
@@ -42,7 +44,7 @@ describe("keyStatusRows", () => {
 
   it("marks set keys present and never exposes a value or path", () => {
     const rows = keyStatusRows(config(SECRETS), () => true);
-    expect(Object.values(status(rows))).toEqual(Array(8).fill("present"));
+    expect(Object.values(status(rows))).toEqual(Array(9).fill("present"));
     const text = JSON.stringify(rows);
     expect(text).not.toContain("SENTINEL");
     expect(text).not.toContain("/srv/harbour-example");
@@ -70,5 +72,18 @@ describe("keyStatusRows", () => {
     expect(connected).toMatchObject({ status: "present", inUse: true, paid: false });
     expect(row({})?.status).toBe("missing");
     expect(JSON.stringify(connected)).not.toContain("sp-test-key");
+  });
+});
+
+describe("the Treg key row", () => {
+  const row = (env: Record<string, string>) =>
+    keyStatusRows(config(env)).find((r) => r.id === "treg");
+
+  it("is Connected or not, in use and paid, and never carries the key", () => {
+    const connected = row({ HARBOUR_TREG_API_KEY: "SENTINEL-treg-key-2" });
+    expect(connected).toMatchObject({ status: "present", inUse: true, paid: true });
+    expect(row({})?.status).toBe("missing");
+    expect(JSON.stringify(connected)).not.toContain("SENTINEL");
+    expect(JSON.stringify(keyStatusRows(config(SECRETS)))).not.toContain("SENTINEL-treg");
   });
 });

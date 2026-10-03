@@ -173,6 +173,10 @@ const schema = z
     HARBOUR_GSC_CREDENTIALS: z.string().min(1).optional(),
     // Monthly cap on paid API spend in AUD; 0 (the default) means no paid calls at all.
     HARBOUR_MONTHLY_BUDGET_AUD: z.coerce.number().min(0).max(10000).multipleOf(0.01).default(0),
+    // Secret: Treg API key (rankings, links and AI answer checks). Worker only. Unset: not connected.
+    HARBOUR_TREG_API_KEY: z.string().min(1).optional(),
+    // Treg charges in US dollars; the ledger and budget are in Australian dollars.
+    HARBOUR_USD_TO_AUD: z.coerce.number().min(1).max(3).default(1.55),
     // Secret: DataForSEO API login. Reserved: read only for its status until its collector exists.
     HARBOUR_DATAFORSEO_LOGIN: z.string().min(1).optional(),
     // Secret: DataForSEO API password. Reserved: read only for its status until its collector exists.

@@ -1,13 +1,11 @@
 import { ACTION_SYNC_FAILED } from "@/lib/actions/sync-error";
 import type { Config } from "@/lib/config";
-import { makeSpend, noSpend, type Spend } from "@/lib/costs/guard";
 import type { Db } from "@/lib/db/client";
 import { addEvent, type EventKind, finishJob, type Job } from "@/lib/jobs/queue";
 import type { Product } from "@/lib/products/catalog";
-import { collectContext } from "./collect-context";
+import { attemptCollector } from "./attempt-collector";
 import { collectorLabel } from "./labels";
-import { collectorTimeoutMs } from "./registry";
-import { runBounded, watchForStop } from "./scan-bounds";
+import { watchForStop } from "./scan-bounds";
 import { skipReason } from "./skip-reason";
 import {
   finishScan,
@@ -49,9 +47,10 @@ export type AfterScoreInput = {
   scanId: number;
   product: Product;
   statuses: Record<string, CollectorStatus>;
+  /** The scan job, for what the step writes on its behalf. */
+  jobId: number;
 };
 
-const MAX_OBSERVATIONS = 20_000;
 const STOPPED = "Worker stopped";
 
 type Scan = {
@@ -84,59 +83,6 @@ function finish(deps: ScanDeps, job: Job, status: "ok" | "failed" | "cancelled",
   }
 }
 
-function spendFor(scan: Scan, collector: Collector): Spend {
-  const { deps } = scan;
-  if (!collector.paid) return noSpend(collector.id);
-  return makeSpend(deps.db, {
-    ...deps.budget,
-    now: deps.now,
-    productId: scan.product.id,
-    collector: collector.id,
-    jobId: scan.job.id,
-    log: (text) => scan.event("error", `${collectorLabel(collector.id)}: ${text}`),
-  });
-}
-
-async function attempt(scan: Scan, collector: Collector): Promise<CollectorResult> {
-  const { deps } = scan;
-  const label = collectorLabel(collector.id);
-  const timeoutMs = (deps.timeoutMs ?? collectorTimeoutMs)(collector.id);
-  const spend = spendFor(scan, collector);
-  const run = runBounded(
-    (signal) =>
-      collector.collect(
-        collectContext({
-          deps,
-          product: scan.product,
-          scanId: scan.scanId,
-          statuses: scan.statuses,
-          log: (text) => scan.event("status", `${label}: ${text}`),
-          signal,
-          spend,
-        }),
-      ),
-    timeoutMs,
-    scan.signal,
-  );
-  let returned = false;
-  try {
-    const result = await run.result;
-    returned = true;
-    // A cost the ledger refused is a pricing bug: fail visibly even if the collector caught it.
-    const lost = spend.failure();
-    if (lost) throw new Error(lost);
-    return result;
-  } catch (error) {
-    if (!run.signal.aborted) throw error;
-    if (scan.signal.aborted && run.signal.reason === scan.signal.reason) scan.interrupted = true;
-    // Prefer why we aborted (timeout, cancel) over the collector's own reaction to it.
-    throw run.signal.reason;
-  } finally {
-    // A run that threw or was abandoned may have sent calls: their reservations stay counted.
-    spend.release(returned ? "returned" : "threw");
-  }
-}
-
 /** Runs one collector and records its outcome; never throws for a collector's own failure. */
 async function runCollector(scan: Scan, collector: Collector): Promise<CollectorStatus> {
   const { deps, scanId } = scan;
@@ -162,11 +108,19 @@ async function runCollector(scan: Scan, collector: Collector): Promise<Collector
       scan.event("status", `${label}: skipped — ${skip}`);
       return "skipped";
     }
-    result = await attempt(scan, collector);
-    const max = deps.maxObservations ?? MAX_OBSERVATIONS;
-    if (result.status === "ok" && result.observations.length > max) {
-      throw new Error(`Returned ${result.observations.length} observations (limit ${max})`);
-    }
+    result = await attemptCollector({
+      deps,
+      collector,
+      product: scan.product,
+      jobId: scan.job.id,
+      scanId,
+      statuses: scan.statuses,
+      signal: scan.signal,
+      event: scan.event,
+      onInterrupted: () => {
+        scan.interrupted = true;
+      },
+    });
   } catch (error) {
     record("failed", message(error));
     scan.event("error", `${label}: failed — ${message(error)}`);
@@ -207,7 +161,7 @@ function scoreAndFinish(scan: Scan, statuses: Record<string, CollectorStatus>) {
   }
   if (status === "failed") return finish(deps, job, "failed", "All collectors failed");
   try {
-    const summary = deps.afterScore?.({ scanId, product: scan.product, statuses });
+    const summary = deps.afterScore?.({ scanId, product: scan.product, statuses, jobId: job.id });
     if (summary) scan.event("status", summary);
   } catch (error) {
     // The scan and its scores stand; the next scan syncs again.

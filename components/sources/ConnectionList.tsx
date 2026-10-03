@@ -8,7 +8,7 @@ import { sourceExplanation, sourceName, sourceStatusPhrase } from "@/lib/explain
 import type { SourcesView } from "@/lib/scan/sources-view";
 
 type Row = {
-  id: "crawler" | "readiness" | "pagespeed" | "search-console";
+  id: "crawler" | "readiness" | "pagespeed" | "search-console" | "treg";
   connected: boolean;
   note: string;
 };
@@ -38,6 +38,7 @@ function rows(view: SourcesView): Row[] {
     { id: "readiness", connected: true, note: gives("readiness") },
     { id: "pagespeed", connected: view.connections.pagespeed, note: gives("pagespeed") },
     searchConsoleRow(view),
+    { id: "treg", connected: view.connections.treg, note: gives("treg") },
   ];
 }
 

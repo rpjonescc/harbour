@@ -8,9 +8,17 @@ export const GOOGLE_API_HOSTS: readonly string[] = [
   "oauth2.googleapis.com",
 ];
 
-/** Every host a scan may contact: each product's apex and www host, plus the Google API hosts. */
+/**
+ * Treg, the pay-per-call data service. Only the `treg` collector calls it: the safe fetch takes a
+ * POST with custom headers for this host alone, and never follows a redirect from it.
+ */
+export const TREG_HOST = "treg.to";
+
+/**
+ * Every host a scan may contact: each product's apex and www host, the Google API hosts and Treg.
+ */
 export function outboundHosts(products: readonly Product[]): ReadonlySet<string> {
-  const hosts = new Set(GOOGLE_API_HOSTS);
+  const hosts = new Set([...GOOGLE_API_HOSTS, TREG_HOST]);
   for (const product of products) {
     const apex = siteKey(new URL(product.url).hostname);
     hosts.add(apex);

@@ -26,7 +26,10 @@ const isPlainText = (value: string) =>
 const PLAIN = "must be plain visible text on one line (no control or hidden characters)";
 
 const productSchema = z.object({
-  id: z.string().regex(/^[a-z0-9-]+$/, "id must be a lowercase slug (a-z, 0-9, -)"),
+  id: z
+    .string()
+    .regex(/^[a-z0-9-]+$/, "id must be a lowercase slug (a-z, 0-9, -)")
+    .max(200, "id must be at most 200 characters"),
   name: z.string().trim().min(1, "name must not be empty").refine(isPlainText, `name ${PLAIN}`),
   url: z.url({ protocol: /^https?$/, message: "url must be an http(s) URL" }),
   hue: z.enum(HUES, { message: `hue must be one of: ${HUES.join(", ")}` }),
@@ -88,10 +91,48 @@ const contentSchema = z.strictObject({
   projects: z.record(productIdSchema, contentProjectSchema).default({}),
 });
 
+// What the weekly outside-view check (Treg) is asked about. Plain text only: it is sent to a
+// search and an AI service, so it carries no control or hidden characters.
+const trackedText = z
+  .string()
+  .trim()
+  .min(3, "a search or question needs at least 3 characters")
+  .max(160, "a search or question may be at most 160 characters")
+  .refine(isPlainText, `a search or question ${PLAIN}`);
+
+function uniqueList(max: number) {
+  return z
+    .array(trackedText)
+    .max(max, `list at most ${max}`)
+    .refine((list) => new Set(list.map((t) => t.toLowerCase())).size === list.length, {
+      message: "list each one once",
+    });
+}
+
+const trackingProductSchema = z.strictObject({
+  queries: uniqueList(8).default([]),
+  questions: uniqueList(5).default([]),
+  location: trackedText.optional(),
+  country: z
+    .string()
+    .regex(/^[A-Z]{2}$/, "country must be an ISO 3166 alpha-2 code like AU")
+    .default("AU"),
+  languageCode: z
+    .string()
+    .regex(/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/, "languageCode must be a code like en or en-GB")
+    .default("en"),
+});
+export type ProductTracking = z.infer<typeof trackingProductSchema>;
+
+const trackingSchema = z.strictObject({
+  products: z.record(productIdSchema, trackingProductSchema).default({}),
+});
+
 const configSchema = z
   .object({
     ownerName: ownerNameSchema.optional(),
     content: contentSchema.optional(),
+    tracking: trackingSchema.optional(),
     products: z
       .array(productSchema)
       .min(1, "list at least one product")
@@ -118,6 +159,15 @@ const configSchema = z
           code: "custom",
           message: `content.products lists "${id}", which is not in products`,
           path: ["content", "products", id],
+        });
+      }
+    }
+    for (const id of Object.keys(config.tracking?.products ?? {})) {
+      if (!ids.has(id)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `tracking.products lists "${id}", which is not in products`,
+          path: ["tracking", "products", id],
         });
       }
     }
@@ -149,6 +199,11 @@ export function parseProductConfig(raw: unknown): ProductConfig {
 export function ownerFirstName(ownerName: string | undefined): string | null {
   // The schema has already trimmed it.
   return ownerName?.split(/\s+/)[0] || null;
+}
+
+/** What to track for a product, or null when `tracking` has no entry for it. */
+export function trackingFor(config: ProductConfig, productId: string): ProductTracking | null {
+  return config.tracking?.products[productId] ?? null;
 }
 
 function readConfigFile(path: string): ProductConfig {

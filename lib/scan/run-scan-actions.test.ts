@@ -103,7 +103,7 @@ describe("runScan action sync", () => {
     const afterScore = run.deps.afterScore;
     if (!first || !afterScore) throw new Error("expected a scan and the worker's sync");
     const statuses = { crawler: "ok", readiness: "ok" } as const;
-    expect(afterScore({ scanId: first.id, product, statuses })).toBe(
+    expect(afterScore({ scanId: first.id, product, statuses, jobId: 1 })).toBe(
       `Actions: not synced — scan ${first.id} is not the latest good scan of Acme Docs`,
     );
     expect(titleActions(run)).toEqual([expect.objectContaining({ status: "done" })]);
@@ -128,6 +128,7 @@ describe("runScan action sync", () => {
       scanId: expect.any(Number),
       product: expect.objectContaining({ id: "acme-docs" }),
       statuses: { crawler: "ok", readiness: "ok" },
+      jobId: job.id,
     });
     expect(getJob(db, job.id)).toMatchObject({
       status: "failed",

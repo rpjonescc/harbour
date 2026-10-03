@@ -18,6 +18,8 @@ const ROOTS = [
   "lib/ops/backup-job.ts",
   "lib/ops/retention.ts",
   "lib/scan/issue-rules.ts",
+  "lib/scan/issue-rules-outside.ts",
+  "lib/scan/outside-view.ts",
 ];
 const WORD = /\b(?:re)?scan(?:s|ned|ning|ner|ners)?\b/i;
 const LITERAL = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g;

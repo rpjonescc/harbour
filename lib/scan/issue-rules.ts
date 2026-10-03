@@ -1,4 +1,5 @@
 import { pagesNotIndexed } from "./issue-rules-indexing";
+import { fewReferringSites, notNamedByAi } from "./issue-rules-outside";
 import { AI_RETRIEVAL_AGENTS } from "./robots";
 import {
   count,
@@ -226,4 +227,6 @@ export const RULES: readonly RuleDef[] = [
   noLlmsTxt,
   noPreferredSources,
   pagesNotIndexed,
+  fewReferringSites,
+  notNamedByAi,
 ];

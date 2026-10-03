@@ -2,8 +2,9 @@ import { and, asc, eq, inArray, lte } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { proposals, type ScoreBreakdownEntry, scanRuns, scores } from "@/lib/db/schema";
 import { formulaChangedArea } from "@/lib/explain/scoring-notes";
+import { readOutsideFacts } from "@/lib/external/read-facts";
 import { isoDateIn } from "@/lib/format/date";
-import type { Product, ProductKind } from "@/lib/products/catalog";
+import { getTracking, type Product, type ProductKind } from "@/lib/products/catalog";
 import { deriveIssues } from "@/lib/scan/issues";
 import { scanFindings } from "@/lib/scan/product-view";
 import { searchSummary } from "@/lib/scan/search-summary";
@@ -143,7 +144,12 @@ export function productExport(
       status,
       evidence,
     })),
-    issues: deriveIssues(observations, statuses, product.kind).map((issue) => ({
+    issues: deriveIssues(
+      observations,
+      statuses,
+      product.kind,
+      readOutsideFacts(db, product, getTracking(product.id)?.questions ?? [], window.now),
+    ).map((issue) => ({
       id: issue.id,
       title: issue.title,
       impact: issue.impact,

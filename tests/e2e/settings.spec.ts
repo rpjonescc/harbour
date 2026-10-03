@@ -134,18 +134,22 @@ test("Connections show status only, never a value", async ({ page }) => {
   await expect(status("Claude token")).toHaveText("Connected");
   await expect(status("PageSpeed Insights")).toHaveText(/^Not connected yet/);
   await expect(status("DataForSEO")).toHaveText("Not available yet");
+  await expect(status("Treg")).toHaveText("Connected");
   // The HTML (including the serialised server components) never carries the token.
   expect(await response?.text()).not.toContain(FAKE_TOKEN);
   expect(await page.content()).not.toContain(FAKE_TOKEN);
 });
 
-test("no budget means no paid calls, on Settings and Today", async ({ page }) => {
+test("with Treg connected and a budget set, Settings and Today show spend against it", async ({
+  page,
+}) => {
+  // The e2e environment connects the fake Treg and sets A$10: nothing is spent until a check runs.
   await page.goto("/settings");
   const budget = settingsRegion(page, "Budget");
-  await expect(budget.getByText("A$0.00 — paid data is switched off")).toBeVisible();
-  await expect(budget.getByText(/^No paid data connected/)).toBeVisible();
+  await expect(budget.getByText("A$10.00 a month")).toBeVisible();
+  await expect(budget.getByText(/^A\$0\.00 of A\$10\.00 this month/)).toBeVisible();
   await page.goto("/");
-  await expect(page.getByRole("main").getByText(/^No paid data connected/)).toBeVisible();
+  await expect(page.getByRole("main").getByText(/^A\$0\.00 of A\$10\.00 this month/)).toBeVisible();
 });
 
 test("keyboard: Tab reaches the Settings links and Back up now with visible focus", async ({

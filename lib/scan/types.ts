@@ -44,15 +44,19 @@ export type SafeFetchOptions = {
    */
   ignoreRobots?: true;
   /**
-   * Overrides the 15 s per-request timeout, honoured only for Google API hosts: PageSpeed
-   * Insights runs Lighthouse before answering, which takes 15–40 s. Ignored for other hosts.
+   * Overrides the 15 s per-request timeout, honoured only for Google API hosts and Treg: PageSpeed
+   * Insights runs Lighthouse before answering (15–40 s) and an AI answer takes about 30 s.
+   * Ignored for other hosts.
    */
   timeoutMs?: number;
   /**
-   * Sends `json` as a POST with the bearer token instead of a GET. Only Google API hosts take
-   * one, and a redirect is refused rather than followed, so the token goes nowhere else.
+   * Sends `json` as a POST instead of a GET, with either the bearer token (only Google API hosts
+   * take one) or custom `x-treg-*` headers (only Treg takes those). A redirect is refused rather
+   * than followed, so the secret goes nowhere else.
    */
-  post?: { json: unknown; bearer: string };
+  post?:
+    | { json: unknown; bearer: string }
+    | { json: unknown; headers: Readonly<Record<string, string>> };
 };
 
 /** Outbound HTTP for collectors: timeouts, redirect and size limits, robots, politeness. */
@@ -83,6 +87,11 @@ export type CollectContext = {
   fetch: SafeFetch;
   /** Becomes a job event. */
   log: (message: string) => void;
+  /**
+   * The owner asked for this run (Run this check now) rather than the schedule: a paid collector
+   * may then try again after a failure that made the schedule back off.
+   */
+  manual: boolean;
   /** Aborted on timeout, job cancel or worker shutdown. */
   signal: AbortSignal;
   /** Results of the collectors that ran before this one in the same scan. */
@@ -113,6 +122,11 @@ export type Collector = {
   paid: boolean;
   /** Collectors whose results this one reads through `ctx.earlier`: they must run before it. */
   dependsOn?: readonly string[];
+  /**
+   * A run that fails with exactly `error` makes the next scans skip this collector for `days`
+   * (with `reason`), instead of retrying at once: for a failure that may have cost money.
+   */
+  backoff?: { error: string; days: number; reason: string };
   /** Throwing means the collector failed. */
   collect(ctx: CollectContext): Promise<CollectorResult>;
 };

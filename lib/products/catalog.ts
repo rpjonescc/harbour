@@ -5,6 +5,8 @@ import {
   loadProductConfig,
   ownerFirstName,
   type ProductKind,
+  type ProductTracking,
+  trackingFor,
 } from "./config";
 import { type ContentProduct, contentProducts } from "./content";
 
@@ -48,6 +50,11 @@ export function productById(id: ProductId): Product {
   const product = getProducts().find((p) => p.id === id);
   if (!product) throw new Error(`Unknown product: ${id}`);
   return product;
+}
+
+/** What the weekly outside-view check tracks for a product, or null when nothing was chosen. */
+export function getTracking(productId: ProductId): ProductTracking | null {
+  return trackingFor(getProductConfig(), productId);
 }
 
 /** Products with content enabled in `harbour.config.json` (an entry under `content.products`). */

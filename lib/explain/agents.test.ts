@@ -29,6 +29,9 @@ describe("Agents words", () => {
       expect(runFailedLine(kind)).toBe(RUN_FAILED_LINE);
     expect(runFailedLine("daily-note")).toBe(NOTE_RUN_FAILED_LINE);
     expect(runFailedLine("scan")).toMatch(/Choose Check now on the product's page\.$/);
+    expect(runFailedLine("outside-check")).toMatch(
+      /Choose Run this check now on the product's page\.$/,
+    );
     expect(runFailedLine("backup")).toMatch(/Choose Back up now in Settings\.$/);
     for (const kind of ["retention", "brain-push", "notes-sync"] as const)
       expect(runFailedLine(kind)).toMatch(/Harbour tries again at the next run\.$/);

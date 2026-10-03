@@ -42,12 +42,12 @@ export function isApiDisabled(google: GoogleError | null): boolean {
 const MAX_MESSAGE = 300;
 
 /**
- * A message cleaned of control and hidden characters and cut to 300 characters, so a verbose
- * or hostile error can't flood or disguise job events.
+ * Text cleaned of control and hidden characters and cut to `max` (300) characters, so a verbose
+ * or hostile error or field can't flood or disguise job events and stored values.
  */
-export function shorten(message: string): string {
+export function shorten(message: string, max = MAX_MESSAGE): string {
   const clean = forTerminal(stripInvisible(message)).replace(/\s+/g, " ").trim();
-  return clean.length > MAX_MESSAGE ? `${clean.slice(0, MAX_MESSAGE)}…` : clean;
+  return clean.length > max ? `${clean.slice(0, max)}…` : clean;
 }
 
 /** JSON.parse that returns null instead of throwing. */
