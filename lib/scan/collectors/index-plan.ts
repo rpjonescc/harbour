@@ -49,18 +49,61 @@ export function earlierSeenSince(previous: readonly Observation[]): string | nul
   return parsed.success ? parsed.data.sitemapSeenSince : null;
 }
 
-/** Never-checked pages first (in sitemap order), then the oldest check; at most `limit`. */
+/**
+ * The pages a Search Console property covers. `sc-domain:d` covers `d` and its subdomains (any
+ * scheme); a URL-prefix property covers pages on the same origin whose path starts with its path.
+ * Anything else, including a lookalike host such as `evilexample.com`, is out of scope.
+ */
+export function pagesInScope(urls: readonly string[], property: string): string[] {
+  const domain = property.startsWith("sc-domain:")
+    ? property.slice("sc-domain:".length).toLowerCase()
+    : null;
+  const prefix = domain === null ? URL.parse(property) : null;
+  return urls.filter((url) => {
+    const page = URL.parse(url);
+    if (!page) return false;
+    if (domain !== null) return page.hostname === domain || page.hostname.endsWith(`.${domain}`);
+    return (
+      prefix !== null && page.origin === prefix.origin && page.pathname.startsWith(prefix.pathname)
+    );
+  });
+}
+
+/** A page that failed this many checks in a row is retried behind every other page. */
+const ROTATE_AFTER_FAILURES = 2;
+
+/** 0 never asked, 1 failed once (retry first), 2 healthy, 3 failing repeatedly (last). */
+function tier(status: IndexStatus | undefined): number {
+  if (!status) return 0;
+  const failures = status.failures ?? 0;
+  if (failures === 0) return 2;
+  return failures < ROTATE_AFTER_FAILURES ? 1 : 3;
+}
+
+/**
+ * Which pages to ask about now, at most `limit`. Order: never-asked pages (sitemap order); pages
+ * whose last check failed once, so a transient failure is retried before routine refreshes; then
+ * the oldest good check first; pages that keep failing go last so a handful of them cannot use
+ * up the run's failure allowance every day and stall the rotation. A page that already failed
+ * today is left out: one retry per page per day, however often a check is started.
+ */
 export function chooseUrls(
   urls: readonly string[],
   known: ReadonlyMap<string, IndexStatus>,
+  now: Date,
   limit = MAX_PER_RUN,
 ): string[] {
-  const checkedAt = (url: string) => {
-    const at = known.get(url)?.checkedAt;
+  const today = now.toISOString().slice(0, 10);
+  const key = (url: string) => {
+    const status = known.get(url);
+    const at = tier(status) % 2 === 1 ? status?.attemptedAt : status?.checkedAt;
     return at === undefined ? Number.NEGATIVE_INFINITY : Date.parse(at);
   };
+  const due = urls.filter((url) => known.get(url)?.attemptedAt?.slice(0, 10) !== today);
   // Array.prototype.sort is stable, so ties keep the sitemap's order.
-  return [...urls].sort((a, b) => checkedAt(a) - checkedAt(b)).slice(0, limit);
+  return due
+    .sort((a, b) => tier(known.get(a)) - tier(known.get(b)) || key(a) - key(b))
+    .slice(0, limit);
 }
 
 /** The run's report over the pages that now have a status. */

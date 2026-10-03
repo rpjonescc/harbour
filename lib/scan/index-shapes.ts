@@ -40,6 +40,10 @@ export const indexStatusValue = z.object({
   robotsTxtState: z.string().max(MAX_TEXT).nullable(),
   pageFetchState: z.string().max(MAX_TEXT).nullable(),
   checkedAt: isoTime,
+  /** Checks of this page that failed since its last good one; absent when none. */
+  failures: z.number().int().positive().optional(),
+  /** When the last failed check was made; present exactly when `failures` is. */
+  attemptedAt: isoTime.optional(),
 });
 export type IndexStatus = z.infer<typeof indexStatusValue>;
 

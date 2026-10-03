@@ -11,6 +11,7 @@ import {
   pages,
   TOKEN,
 } from "@/tests/helpers/url-inspection";
+import { shorten } from "./google-api";
 
 afterEach(cleanCredentials);
 
@@ -76,7 +77,7 @@ describe("indexing collector: failures", () => {
     ["wrong types", { body: inspection({ verdict: 7, coverageState: ["x"] }) }],
     ["an empty verdict", { body: inspection({ verdict: "  ", coverageState: "x" }) }],
     ["a hung request", "hang" as const],
-    ["a network error (or a body over 1 MiB)", "error" as const],
+    ["a network error", "error" as const],
   ])("leaves the page unknown after %s", async (_name, answer) => {
     const api = inspectionApi(() => answer);
     const { result } = await indexingRun({ fetch: api.fetch, urls: pages(1) });
@@ -162,5 +163,15 @@ describe("indexing collector: hostile answers", () => {
       googleCanonical: null,
     });
     expect(value).not.toHaveProperty("extra");
+  });
+});
+
+describe("shorten", () => {
+  it("cleans control and hidden characters and collapses whitespace before cutting", () => {
+    const hostile = `Denied\u202e \u001b[31mred\u200b\n\n${"y".repeat(400)}`;
+    const text = shorten(hostile);
+    expect(hasControlChars(text) || hasInvisible(text)).toBe(false);
+    expect(text).toMatch(/^Denied red y+…$/);
+    expect(text.length).toBeLessThanOrEqual(301);
   });
 });

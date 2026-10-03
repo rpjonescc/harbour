@@ -1,3 +1,4 @@
+import { INDEXING_REASONS } from "@/lib/explain/indexing";
 import type { IndexStatus, StoppedBy } from "../index-shapes";
 import type { CollectContext, Collector, CollectorResult, Observation } from "../types";
 import { gscAccess } from "./gsc-access";
@@ -7,6 +8,7 @@ import {
   chooseUrls,
   earlierSeenSince,
   knownStatuses,
+  pagesInScope,
   sitemapPageUrls,
   summarise,
 } from "./index-plan";
@@ -19,8 +21,6 @@ const MAX_RUN_MS = 8 * 60_000;
 /** Pages in a row that could not be checked before the run stops asking. */
 const MAX_FAILURES_IN_A_ROW = 5;
 
-const NOT_RUN_CRAWLER = "The crawler did not run ok, so there are no sitemap pages to check";
-const NO_SITEMAP = "No sitemap pages were recorded, so there is nothing to check";
 // Fixed sentences: nothing from Google's answers goes into a log line.
 const STOPPED_LOG: Record<Exclude<StoppedBy, null>, string> = {
   quota:
@@ -82,19 +82,22 @@ async function inspectAll(
     lastStart = deps.clock();
     const checkedAt = ctx.now.toISOString();
     const result = await inspectUrl(ctx, access, url, checkedAt);
-    run.checked++;
     if (result.outcome === "quota") {
+      // Refused, so not a page Google answered about.
       run.stoppedBy = "quota";
       return;
     }
+    run.checked++;
     if (result.outcome === "checked") {
       run.statuses.set(url, result.status);
       failures = 0;
       continue;
     }
-    // A page that failed keeps its earlier status (and its old check time, so it is retried
-    // first next run); one never checked is recorded as unknown, not guessed.
-    if (!run.statuses.has(url)) run.statuses.set(url, unknownStatus(checkedAt));
+    // A page that failed keeps its earlier status and check time; one never checked is recorded
+    // as unknown, not guessed. Either way the failure is counted so the queue can rotate it.
+    const earlier = run.statuses.get(url) ?? unknownStatus(checkedAt);
+    const pageFailures = (earlier.failures ?? 0) + 1;
+    run.statuses.set(url, { ...earlier, failures: pageFailures, attemptedAt: checkedAt });
     if (++failures >= MAX_FAILURES_IN_A_ROW) {
       run.stoppedBy = "errors";
       return;
@@ -103,11 +106,21 @@ async function inspectAll(
 }
 
 async function collectWith(deps: IndexingDeps, ctx: CollectContext): Promise<CollectorResult> {
-  if (ctx.earlier.status("crawler") !== "ok") return { status: "skipped", reason: NOT_RUN_CRAWLER };
-  const urls = sitemapPageUrls(ctx.earlier.observations("crawler"));
-  if (urls.length === 0) return { status: "skipped", reason: NO_SITEMAP };
+  if (ctx.earlier.status("crawler") !== "ok") {
+    return { status: "skipped", reason: INDEXING_REASONS.crawlerFailed };
+  }
+  const listed = sitemapPageUrls(ctx.earlier.observations("crawler"));
+  if (listed.length === 0) return { status: "skipped", reason: INDEXING_REASONS.noSitemap };
   const found = await gscAccess(ctx, deps.accessToken);
   if ("notConfigured" in found) return found.notConfigured;
+  // Pages the property doesn't cover would all be refused: leave them out, and say so when none fit.
+  const urls = pagesInScope(listed, found.access.property);
+  if (urls.length === 0) return { status: "not_configured", reason: INDEXING_REASONS.notCovered };
+  if (urls.length < listed.length) {
+    ctx.log(
+      `${listed.length - urls.length} sitemap pages are outside the Search Console property and were not checked`,
+    );
+  }
 
   const previous = ctx.previous.observations("indexing");
   const known = knownStatuses(previous);
@@ -116,7 +129,7 @@ async function collectWith(deps: IndexingDeps, ctx: CollectContext): Promise<Col
     const status = known.get(url);
     if (status) run.statuses.set(url, status);
   }
-  const chosen = chooseUrls(urls, known);
+  const chosen = chooseUrls(urls, known, ctx.now);
   await inspectAll(deps, ctx, found.access, chosen, run);
 
   const summary = summarise({
@@ -128,7 +141,7 @@ async function collectWith(deps: IndexingDeps, ctx: CollectContext): Promise<Col
   });
   if (run.stoppedBy) ctx.log(STOPPED_LOG[run.stoppedBy]);
   ctx.log(
-    `Asked Google about ${run.checked} pages: ${summary.inspected} of ${summary.total} now have a known status`,
+    `Asked Google about ${run.checked} ${run.checked === 1 ? "page" : "pages"}: ${summary.inspected} of ${summary.total} now have a known status`,
   );
   const observations: Observation[] = urls.flatMap((url) => {
     const value = run.statuses.get(url);
