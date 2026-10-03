@@ -5,7 +5,7 @@ import { assertBrainRepoRoot, ownerChanges, unpushedCount } from "./brain-git";
 /** `unpushed` is null when it could not be counted (no upstream branch, or git failed). */
 export type BrainSyncCounts = { unsaved: number; unpushed: number | null };
 export type BrainSyncStatus = {
-  /** Null when git must not run in the brain (missing, or not its own repository root). */
+  /** Null when git must not run in the brain (missing, not its own repository root, or a run is active). */
   sync: BrainSyncCounts | null;
   /** `pending` is null when the interrupted-run records could not be read. */
   recovery: { pending: string[] | null; lastError: string | null };
@@ -31,7 +31,13 @@ function syncCounts(root: string): BrainSyncCounts | null {
   }
 }
 
-/** Unsaved notes, unpushed commits and interrupted-run recovery, for the sync banners. */
+/**
+ * Unsaved notes, unpushed commits and interrupted-run recovery, for the sync banners. While a run
+ * marker is in place (an agent run is active or awaits recovery) no git runs here: the agent may
+ * have changed the brain's git metadata, which only the worker's checks may meet.
+ */
 export function brainSyncStatus(root: string, quarantineRoot: string): BrainSyncStatus {
-  return { sync: syncCounts(root), recovery: recoveryStatus(quarantineRoot) };
+  const recovery = recoveryStatus(quarantineRoot);
+  const runActive = recovery.pending === null || recovery.pending.length > 0;
+  return { sync: runActive ? null : syncCounts(root), recovery };
 }

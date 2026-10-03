@@ -5,12 +5,13 @@ import { makeBrain } from "@/tests/helpers/brain";
 import { makeGitBrain } from "@/tests/helpers/git-brain";
 import { brainSyncStatus, quarantineRootFor } from "./brain-status";
 
-const gitMocks = vi.hoisted(() => ({ failOwnerChanges: false }));
+const gitMocks = vi.hoisted(() => ({ failOwnerChanges: false, ownerChangeCalls: 0 }));
 vi.mock("./brain-git", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./brain-git")>();
   return {
     ...actual,
     ownerChanges: (root: string) => {
+      gitMocks.ownerChangeCalls += 1;
       if (gitMocks.failOwnerChanges) throw new Error("git exploded");
       return actual.ownerChanges(root);
     },
@@ -21,6 +22,7 @@ const cleanups: (() => void)[] = [];
 afterEach(() => {
   for (const cleanup of cleanups.splice(0)) cleanup();
   gitMocks.failOwnerChanges = false;
+  gitMocks.ownerChangeCalls = 0;
   vi.restoreAllMocks();
 });
 const tempDir = () => {
@@ -84,5 +86,17 @@ describe("brainSyncStatus", () => {
       pending: ["7"],
       lastError: "job 7: boom",
     });
+  });
+
+  it("runs no git in the brain while an agent run is active (its marker is in place)", () => {
+    const brain = makeGitBrain({});
+    cleanups.push(brain.cleanup);
+    const quarantine = tempDir();
+    mkdirSync(join(quarantine, "active"));
+    writeFileSync(join(quarantine, "active", "job-9.json"), "{}");
+    const status = brainSyncStatus(brain.root, quarantine);
+    expect(status.sync).toBeNull();
+    expect(status.recovery.pending).toEqual(["9"]);
+    expect(gitMocks.ownerChangeCalls).toBe(0);
   });
 });
