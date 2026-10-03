@@ -3,7 +3,7 @@ import type { Db } from "@/lib/db/client";
 import { actionEvents, actions } from "@/lib/db/schema";
 import { isoDateIn } from "@/lib/format/date";
 import { makeThrottle } from "@/lib/jobs/throttle";
-import type { ActionActor, ActionFields, ActionStatus, NewAction } from "./types";
+import type { ActionActor, ActionFields, ActionStage, ActionStatus, NewAction } from "./types";
 
 /** Events kept per action; older ones are pruned on insert. */
 export const MAX_ACTION_EVENTS = 50;
@@ -57,7 +57,16 @@ export function insertAction(
         })
         .returning({ id: actions.id })
         .get();
-      addActionEvent(t, { actionId: row.id, at: now, actor, from: null, to: action.status, note });
+      addActionEvent(t, {
+        actionId: row.id,
+        at: now,
+        actor,
+        from: null,
+        to: action.status,
+        fromStage: null,
+        toStage: action.stage ?? null,
+        note,
+      });
       return row.id;
     },
     { behavior: "immediate" },
@@ -86,30 +95,53 @@ export function updateActionContent(tx: Db, id: number, content: ActionContent, 
     .run();
 }
 
-/** Changes status with an event; returns false when the row is not in `from` any more (race). */
+/**
+ * Changes status (and board stage) with an event recording both; returns false when the row is
+ * not in `from` any more (race). The stage is cleared unless the caller gives one: only a board
+ * move sets it, every other status change takes the card out of its stage.
+ */
 export function setStatus(
   tx: Db,
   id: number,
   from: ActionStatus,
   to: ActionStatus,
-  opts: { actor: ActionActor; note?: string | null; snoozedUntil?: string | null; now: Date },
+  opts: {
+    actor: ActionActor;
+    note?: string | null;
+    snoozedUntil?: string | null;
+    stage?: ActionStage | null;
+    now: Date;
+  },
 ): boolean {
   return tx.transaction(
     (t) => {
+      const where = and(eq(actions.id, id), eq(actions.status, from));
+      const before = t.select({ stage: actions.stage }).from(actions).where(where).get();
+      if (!before) return false;
+      const toStage = opts.stage ?? null;
       const changed = t
         .update(actions)
         .set({
           status: to,
+          stage: toStage,
           snoozedUntil: to === "snoozed" ? (opts.snoozedUntil ?? null) : null,
           updatedAt: opts.now,
           statusChangedAt: opts.now,
         })
-        .where(and(eq(actions.id, id), eq(actions.status, from)))
+        .where(where)
         .returning({ id: actions.id })
         .all();
       if (changed.length === 0) return false;
-      const note = opts.note ?? null;
-      addActionEvent(t, { actionId: id, at: opts.now, actor: opts.actor, from, to, note });
+      addActionEvent(t, {
+        actionId: id,
+        at: opts.now,
+        actor: opts.actor,
+        from,
+        to,
+        fromStage: before.stage,
+        toStage,
+        note: opts.note ?? null,
+      });
       return true;
     },
     { behavior: "immediate" },

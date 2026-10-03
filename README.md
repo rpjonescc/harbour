@@ -1071,10 +1071,11 @@ reopen or move anything back. It is a tool run on the host, not a worker agent: 
 agents still only suggest.
 
 ```bash
-pnpm actions list [--product <id>] [--status open,in_progress] [--json]
+pnpm actions list [--product <id>] [--status open,in_progress | --column queue,started] [--json]
 pnpm actions show 12
 pnpm actions set 12 in_progress --from open --note "Fixing the page titles in acme/widget#42"
 pnpm actions set 12 snoozed --from open --note "Wait for the redesign" --until 2026-11-01
+pnpm actions move 12 in_review --from started --note "Pull request acme/widget#42 is open"
 pnpm actions link 12 https://github.com/acme/widget/pull/42
 pnpm actions link 12 --clear
 pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles" \
@@ -1085,13 +1086,19 @@ pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles"
 
 - **list** shows suggested, open, in-progress and snoozed actions by default (at most 500), one
   per line: `#id  product  area  status  impact/effort  title  [PR]`. `--status` takes one or more
-  statuses (`suggested`, `open`, `in_progress`, `done`, `snoozed`, `dismissed`); `--json` prints
+  statuses (`suggested`, `open`, `in_progress`, `done`, `snoozed`, `dismissed`); `--column` takes
+  one or more board columns instead (`backlog`, `queue`, `started`, `in_progress`, `in_review`,
+  `done`; snoozed and dismissed actions are in no column); `--json` prints
   `{"note": "...", "actions": [...]}` with the full actions.
 - **show** prints every field, the evidence, the history and the **Hand to Claude** prompt.
 - **set** needs `--from`, the status Claude last saw: if the action changed since, it is
   refused instead of overwritten, as on the board. `--note` (up to 1,000 characters) is
   required: Claude must say why. Snoozing needs `--until`, a date after today in
   `HARBOUR_TIMEZONE` and at most a year ahead.
+- **move** puts an action in another board column. `--from` is the column Claude last saw (`show`
+  prints it): if the card moved since, it is refused. `--note` is required, as for `set`. Moving a
+  new idea accepts it; a card with a pull request cannot go to `in_progress` (it counts as in
+  review), and a new idea cannot go straight to `done`.
 - **link** stores a GitHub pull request URL (`https://github.com/<owner>/<repo>/pull/<number>`,
   nothing else) on the action, or clears it with `--clear`, and notes it in the history.
 - **add** creates a board item by hand, as Claude, and prints `Created action #<id>` and the
@@ -1101,7 +1108,8 @@ pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles"
   `--check` (up to 600 characters each; a plain sentence stands in when left out), `--evidence`
   (up to 8 lines of 300 characters, repeat the option), `--doc` (up to 8 `https://` links, repeat
   the option; the card shows them with the evidence) and `--status` (`open` by default,
-  `suggested`, or `in_progress` for work already handed to an agent). Text is plain: control and
+  `suggested`, or `in_progress` for work already handed to an agent) or `--column` (any column
+  but `done`; not both). Text is plain: control and
   hidden characters are refused. It is refused, naming the existing action, when the product
   already has a to-do, suggested, in-progress or snoozed action with the same title. Scans never
   close or rewrite a hand-made action, and its history starts with "Added by hand through the CLI".

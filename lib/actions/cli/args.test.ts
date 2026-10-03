@@ -22,6 +22,7 @@ describe("parseCliArgs", () => {
       name: "list",
       productId: null,
       statuses: null,
+      columns: null,
       json: false,
     });
     expect(
@@ -30,6 +31,7 @@ describe("parseCliArgs", () => {
       name: "list",
       productId: "acme-docs",
       statuses: ["open", "done"],
+      columns: null,
       json: true,
     });
   });
@@ -148,6 +150,7 @@ describe("parseCliArgs add", () => {
       input: {
         productId: "acme-docs",
         status: "open",
+        stage: null,
         title: "Fix the Acme Docs page titles",
         why: "Pages without titles are skipped.",
         fix: null,

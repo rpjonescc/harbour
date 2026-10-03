@@ -10,6 +10,20 @@ describe("lastStatusActor", () => {
     expect(lastStatusActor([created, started("claude")])).toBe("claude");
     expect(lastStatusActor([created, started("owner"), prLink])).toBe("owner");
   });
+  // A board move between two columns of one status (Backlog to Queue) changes only the stage.
+  it("counts a board move that changes only the stage", () => {
+    const toQueue = {
+      actor: "claude",
+      from: "open",
+      to: "open",
+      fromStage: null,
+      toStage: "queue",
+    } as const;
+    expect(lastStatusActor([created, toQueue])).toBe("claude");
+    expect(lastStatusActor([created, toQueue, { ...prLink, fromStage: null, toStage: null }])).toBe(
+      "claude",
+    );
+  });
   it("counts creation", () => {
     expect(lastStatusActor([created])).toBe("scan");
   });

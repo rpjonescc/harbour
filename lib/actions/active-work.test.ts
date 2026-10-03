@@ -2,6 +2,7 @@ import type { Db } from "@/lib/db/client";
 import { ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { activeWork } from "./active-work";
+import { moveToColumn } from "./move-to-column";
 import { linkPullRequest } from "./pr-link";
 import { insertAction, MAX_ACTION_EVENTS, setStatus } from "./store";
 import type { NewAction } from "./types";
@@ -97,5 +98,22 @@ describe("activeWork", () => {
         statusActor: null,
       },
     ]);
+  });
+
+  it("counts a board move within one status as the latest status change", () => {
+    const db = openTestDb();
+    const id = add(db, { title: "queued by Claude" });
+    const moved = moveToColumn(db, {
+      id,
+      from: "backlog",
+      to: "queue",
+      actor: "claude",
+      note: "Next up",
+      login: "claude",
+      productIds: PRODUCTS,
+      now: at(),
+    });
+    expect(moved).toEqual({ ok: true });
+    expect(activeWork(db, PRODUCTS).map((w) => w.statusActor)).toEqual(["claude"]);
   });
 });

@@ -1,6 +1,8 @@
 import type { Db } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
 import type { Product } from "@/lib/products/catalog";
+import { MOVE_REFUSAL, type MoveRefusal } from "../move-refusal";
+import { moveToColumn } from "../move-to-column";
 import { linkPullRequest } from "../pr-link";
 import { applyStatusChange } from "../status-change";
 import { actionHistory } from "../store";
@@ -41,9 +43,12 @@ function list(deps: CliDeps, cmd: Extract<CliCommand, { name: "list" }>): CliOut
     throw new CliError(`Unknown product: ${cmd.productId} (configured: ${ids.join(", ")})`);
   }
   const products = cmd.productId === null ? ids : [cmd.productId];
-  const { rows, total } = listActions(deps.db, products, cmd.statuses ?? WAITING);
+  const where =
+    cmd.columns === null ? { statuses: cmd.statuses ?? WAITING } : { columns: cmd.columns };
+  const { rows, total } = listActions(deps.db, products, where);
   const more = total - rows.length;
-  const stderr = more > 0 ? `${more} more not shown: narrow with --product or --status\n` : "";
+  const narrow = cmd.columns === null ? "--status" : "--column";
+  const stderr = more > 0 ? `${more} more not shown: narrow with --product or ${narrow}\n` : "";
   if (cmd.json) {
     const printed = { note: DATA_NOTE, actions: rows.map(jsonRow) };
     return { code: 0, stdout: `${JSON.stringify(printed, null, 2)}\n`, stderr };
@@ -100,6 +105,32 @@ function set(deps: CliDeps, cmd: Extract<CliCommand, { name: "set" }>): CliOutpu
   return { code: 0, stdout: `#${cmd.id} ${cmd.from} → ${result.status}${until}\n`, stderr: "" };
 }
 
+function moveRefusal(cmd: Extract<CliCommand, { name: "move" }>, reason: MoveRefusal): string {
+  switch (reason) {
+    case "not_found":
+      return `Action #${cmd.id} not found`;
+    case "stale":
+      return `Action #${cmd.id} is no longer in ${cmd.from}: run "pnpm actions show ${cmd.id}" and decide again`;
+    default:
+      return MOVE_REFUSAL[reason];
+  }
+}
+
+function move(deps: CliDeps, cmd: Extract<CliCommand, { name: "move" }>): CliOutput {
+  const result = moveToColumn(deps.db, {
+    id: cmd.id,
+    from: cmd.from,
+    to: cmd.to,
+    actor: "claude",
+    note: cmd.note,
+    login: "claude",
+    productIds: productIds(deps),
+    now: deps.now,
+  });
+  if (!result.ok) throw new CliError(moveRefusal(cmd, result.reason));
+  return { code: 0, stdout: `#${cmd.id} ${cmd.from} → ${cmd.to}\n`, stderr: "" };
+}
+
 function link(deps: CliDeps, cmd: Extract<CliCommand, { name: "link" }>): CliOutput {
   const result = linkPullRequest(deps.db, {
     id: cmd.id,
@@ -143,6 +174,8 @@ function dispatch(deps: CliDeps, cmd: CliCommand): CliOutput {
       return show(deps, cmd.id);
     case "set":
       return set(deps, cmd);
+    case "move":
+      return move(deps, cmd);
     case "link":
       return link(deps, cmd);
     case "add":

@@ -1,9 +1,10 @@
 import type { actionEvents } from "@/lib/db/schema";
 import type { Product } from "@/lib/products/catalog";
 import { cleanStrings, forTerminal as t } from "@/lib/text/terminal";
+import { boardColumn } from "../board-column";
 import { readDocs, readEvidence } from "../evidence";
 import { actionHandoffPrompt } from "../handoff";
-import type { ActionActor, ActionRow } from "../types";
+import type { ActionActor, ActionRow, ActionStatus } from "../types";
 
 type Event = typeof actionEvents.$inferSelect;
 
@@ -57,9 +58,22 @@ function evidenceLines(stored: unknown): string[] {
   return [`Evidence (${evidence.total}):`, ...items, ...(more > 0 ? [`- …and ${more} more`] : [])];
 }
 
+/**
+ * Where an event left or put the card: its board column when the event touches a stage (the
+ * link is not in the history, so a stageless in-progress card reads as in_progress), else the
+ * status, as before stages existed.
+ */
+function place(status: string, stage: Event["fromStage"], staged: boolean): string {
+  if (!staged) return status;
+  return boardColumn({ status: status as ActionStatus, stage, prUrl: null }) ?? status;
+}
+
 function move(event: Event): string | null {
-  if (event.from === null) return `created as ${event.to}`;
-  return event.from === event.to ? null : `${event.from} → ${event.to}`;
+  const staged = event.fromStage !== null || event.toStage !== null;
+  const to = place(event.to, event.toStage, staged);
+  if (event.from === null) return `created as ${to}`;
+  const from = place(event.from, event.fromStage, staged);
+  return from === to ? null : `${from} → ${to}`;
 }
 
 function historyLine(event: Event): string {
@@ -84,6 +98,7 @@ export function showText(
     `Product: ${t(product.name)} (${t(product.id)})`,
     `Area: ${row.area}  Impact: ${row.impact}  Effort: ${row.effort}`,
     `Status: ${status}`,
+    `Column: ${boardColumn(row) ?? "none (parked)"}`,
     `Source: ${source}`,
     `Pull request: ${t(row.prUrl ?? "none")}`,
     `Created: ${row.createdAt.toISOString()}  Status changed: ${row.statusChangedAt.toISOString()}`,

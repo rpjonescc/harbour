@@ -1,10 +1,12 @@
 import { hasControlChars, hasInvisible } from "@/lib/text/hidden-chars";
+import { type BoardColumnId, columnTarget } from "../board-column";
 import { httpUrl } from "../evidence";
 import { normaliseTitle } from "../store";
-import type { ActionStatus, NewAction } from "../types";
+import type { ActionStage, ActionStatus, NewAction } from "../types";
+import { rejectStatusWithColumn } from "./column-arg";
 import { CliUsageError } from "./usage-error";
 
-/** Options of `add` besides --product and --status, which `list` shares. */
+/** Options of `add` besides --product, --status and --column, which `list` shares. */
 export const ADD_OPTIONS = [
   "title",
   "why",
@@ -33,6 +35,7 @@ export type AddValues = {
 export type AddInput = {
   productId: string;
   status: Extract<ActionStatus, "suggested" | "open" | "in_progress">;
+  stage: ActionStage | null;
   title: string;
   why: string;
   fix: string | null;
@@ -50,6 +53,8 @@ export const MAX_ADD_DOCS = 8;
 export const MAX_ADD_LINE = 300;
 const TEXT_LIMITS = { title: [8, 140], why: [10, 600], fix: [1, 600], check: [1, 600] } as const;
 const STATUSES = ["suggested", "open", "in_progress"] as const;
+/** A new action can start in any column but Done. */
+const COLUMNS = ["backlog", "queue", "started", "in_progress", "in_review"] as const;
 
 function oneOf<T extends string>(flag: string, raw: string | undefined, allowed: readonly T[]): T {
   const found = allowed.find((a) => a === raw);
@@ -109,16 +114,36 @@ function docs(raw: string[] | undefined): string[] {
   return items;
 }
 
+/** Where the new action starts: --column through the board's own target, else --status. */
+function placement(values: {
+  status?: string;
+  column?: string;
+}): Pick<AddInput, "status" | "stage"> {
+  rejectStatusWithColumn(values);
+  if (values.column !== undefined) {
+    const column: BoardColumnId = oneOf("column", values.column, COLUMNS);
+    const { status, stage } = columnTarget(column);
+    // COLUMNS leaves out Done, so the target is never done.
+    if (status === "done") throw new CliUsageError("--column cannot be done");
+    return { status, stage };
+  }
+  const status = values.status === undefined ? "open" : oneOf("status", values.status, STATUSES);
+  return { status, stage: null };
+}
+
 /** Reads and checks the options of `pnpm actions add`; throws CliUsageError for any mistake. */
-export function parseAdd(values: AddValues & { product?: string; status?: string }): AddInput {
+export function parseAdd(
+  values: AddValues & { product?: string; status?: string; column?: string },
+): AddInput {
   if (values.product === undefined) throw new CliUsageError("--product is required");
+  const where = placement(values);
   const title = required("title", values.title);
   if (normaliseTitle(title) === "") {
     throw new CliUsageError("--title must contain letters or numbers");
   }
   return {
     productId: values.product,
-    status: values.status === undefined ? "open" : oneOf("status", values.status, STATUSES),
+    ...where,
     title,
     why: required("why", values.why),
     fix: optional("fix", values.fix),
