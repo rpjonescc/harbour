@@ -48,8 +48,11 @@ test("the Agents page and a run page speak plainly", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Agents" })).toBeVisible();
   await expectPlainLanguage(page);
   await expect(page.getByRole("button", { name: "Find ideas for Acme Docs" })).toBeVisible();
-  // The earlier tests queued runs, so the table has rows.
-  await page.getByRole("table", { name: "Recent runs" }).getByRole("link").first().click();
+  // The earlier tests queued runs, so the list has rows, each said in words, not a job name.
+  const runs = page.getByRole("list", { name: "Recent runs" });
+  await expect(runs.getByRole("link").first()).toHaveText(/\.$/);
+  await expect(runs.getByRole("link").first()).not.toHaveText(/^[A-Z][\w ()-]*: /);
+  await runs.getByRole("link").first().click();
   await expect(page).toHaveURL(/\/agents\/\d+$/);
   await expectPlainLanguage(page);
   await expect(page.getByText(/Technical details \(step-by-step log of the run\)/)).toBeVisible();

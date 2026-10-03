@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { Job } from "@/lib/jobs/queue";
 import { JobList } from "./JobList";
 
@@ -48,6 +48,31 @@ describe("JobList", () => {
       "Claude's ideas from this run weren't saved. Run it again.",
     );
     expect(notices).toHaveLength(1);
-    expect(notices[0]?.closest("tr")).toHaveTextContent("2026-W39");
+    const row = notices[0]?.closest("li");
+    expect(row?.querySelector("a")).toHaveAttribute("href", "/agents/1");
+  });
+
+  it("says each run in plain words, with its job name only under Technical details", () => {
+    const failed = { ...job(3, "2026-W41"), status: "failed" as const };
+    render(
+      <JobList
+        jobs={[failed, job(2, "2026-W40")]}
+        products={[]}
+        timeZone="Europe/London"
+        locale="en-GB"
+      />,
+    );
+    const runs = screen.getByRole("list", { name: "Recent runs" });
+    expect(within(runs).getByRole("link", { name: "Wrote the weekly report." })).toHaveAttribute(
+      "href",
+      "/agents/2",
+    );
+    expect(
+      within(runs).getByRole("link", { name: "Didn't finish writing the weekly report." }),
+    ).toBeInTheDocument();
+    expect(runs).not.toHaveTextContent("Weekly");
+    expect(runs).toHaveTextContent(/Started .* · took 5m 00s/);
+    const details = screen.getByText(/^Technical details/).closest("details");
+    expect(details).toHaveTextContent("(weekly-analyst)");
   });
 });

@@ -234,6 +234,9 @@ your Second Brain:
 - **Find ideas** — one run per product (**Find ideas for Acme Docs**); it reads your
   `products/<id>/notes.md` and writes `products/<id>/discovery.md` and
   `products/<id>/proposals.json`.
+- **Recent runs** — each run in plain words, as Today's feed says it ("Checked Acme Docs.",
+  "Didn't finish writing the weekly report."), with its status, when it started and how long it
+  took. On a phone each run stacks onto two lines. The job names sit under **Technical details**.
 
 Agents run Claude Code on the Harbour PC with your Claude subscription. Run `claude setup-token`
 there, add `HARBOUR_CLAUDE_OAUTH_TOKEN=…` to `.env`, then restart both services
