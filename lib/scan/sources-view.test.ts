@@ -74,6 +74,7 @@ describe("sourcesView", () => {
       ["readiness", null, null],
       ["pagespeed", "failed", "quota exceeded"],
       ["search-console", null, null],
+      ["indexing", null, null],
     ]);
     expect(fern).toMatchObject({ lastScan: null, active: { status: "queued" }, next: "tomorrow" });
   });

@@ -3,12 +3,13 @@ import { COLLECTOR_IDS } from "./labels";
 import { COLLECTORS } from "./registry";
 
 describe("COLLECTORS", () => {
-  it("runs the crawler first, then readiness (which reads it), PageSpeed and Search Console", () => {
+  it("runs the crawler first, then readiness (which reads it), PageSpeed, Search Console and indexing", () => {
     expect(COLLECTORS.map((c) => c.id)).toEqual([
       "crawler",
       "readiness",
       "pagespeed",
       "search-console",
+      "indexing",
     ]);
   });
 
@@ -33,7 +34,14 @@ describe("COLLECTORS", () => {
     expect(paid.sort()).toEqual(named.sort());
   });
 
+  it("runs indexing after the crawler (sitemap pages) and Search Console (its credentials)", () => {
+    expect(COLLECTORS.find((c) => c.id === "indexing")?.dependsOn).toEqual([
+      "crawler",
+      "search-console",
+    ]);
+  });
+
   it("has only free collectors in this phase", () => {
-    expect(COLLECTORS.map((c) => c.paid)).toEqual([false, false, false, false]);
+    expect(COLLECTORS.map((c) => c.paid)).toEqual([false, false, false, false, false]);
   });
 });

@@ -26,7 +26,7 @@ function searchConsoleRow(view: SourcesView): Row {
     ? sourceExplanation("search-console").gives
     : unlinked.length > 0
       ? `${names} ${unlinked.length === 1 ? "isn't" : "aren't"} linked to a Search Console site yet.`
-      : "Every site is linked.";
+      : "Every site is linked. It also checks which pages Google has indexed.";
   return { id: "search-console", connected, note };
 }
 
