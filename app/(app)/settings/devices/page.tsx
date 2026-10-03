@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/explain/PageHeader";
 import { AddDeviceButton } from "@/components/settings/AddDeviceButton";
 import { DeviceList } from "@/components/settings/DeviceList";
 import { Panel } from "@/components/ui/Panel";
@@ -12,13 +13,16 @@ export default async function DevicesPage() {
   const { HARBOUR_TIMEZONE, HARBOUR_LOCALE } = getConfig();
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <header>
-        <h1 className="font-serif text-3xl">Devices</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          The devices that can open Harbour as {session.login}. Each signs in with a passkey: your
-          fingerprint, face or screen lock.
-        </p>
-      </header>
+      <PageHeader
+        title="Devices"
+        page="devices"
+        intro={
+          <p>
+            The devices that can open Harbour as {session.login}. Each signs in with a passkey: your
+            fingerprint, face or screen lock.
+          </p>
+        }
+      />
       <Panel className="px-4">
         <DeviceList devices={devices} timeZone={HARBOUR_TIMEZONE} locale={HARBOUR_LOCALE} />
       </Panel>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/explain/PageHeader";
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { DocsLink } from "@/components/ui/DocsLink";
 import { DOCS_LINKS } from "@/lib/docs-links";
@@ -27,16 +28,21 @@ export function SettingsOverview({
   const { timeZone } = view;
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-serif text-3xl">Settings</h1>
-        <p className="text-sm text-ink-muted">{SETTINGS_INTRO.line}</p>
-        <TechnicalDetails id="settings-files" topic="where settings live">
-          <p>
-            {SETTINGS_INTRO.files}{" "}
-            <DocsLink href={DOCS_LINKS.configuration}>Configuration</DocsLink>
-          </p>
-        </TechnicalDetails>
-      </header>
+      <PageHeader
+        title="Settings"
+        page="settings"
+        intro={
+          <>
+            <p>{SETTINGS_INTRO.line}</p>
+            <TechnicalDetails id="settings-files" topic="where settings live">
+              <p>
+                {SETTINGS_INTRO.files}{" "}
+                <DocsLink href={DOCS_LINKS.configuration}>Configuration</DocsLink>
+              </p>
+            </TechnicalDetails>
+          </>
+        }
+      />
       <ProductsCard
         section={{ anchor: "products" }}
         products={view.products}

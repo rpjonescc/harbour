@@ -3,6 +3,7 @@ import { JobList } from "@/components/agents/JobList";
 import { ResearchRefreshPanel } from "@/components/agents/ResearchRefreshPanel";
 import { RunPanel } from "@/components/agents/RunPanel";
 import { WeeklyAnalystPanel } from "@/components/agents/WeeklyAnalystPanel";
+import { PageHeader } from "@/components/explain/PageHeader";
 import { brainSyncStatus, quarantineRootFor } from "@/lib/agents/brain-status";
 import { refreshPanelView } from "@/lib/agents/refresh-view";
 import { weeklyPanelView } from "@/lib/analyst/panel-view";
@@ -46,10 +47,7 @@ export default async function AgentsPage() {
   );
   return (
     <div className="flex max-w-5xl flex-col gap-6">
-      <header>
-        <h1 className="font-serif text-3xl">Agents</h1>
-        <p className="mt-1 text-sm text-ink-muted">{AGENTS_INTRO}</p>
-      </header>
+      <PageHeader title="Agents" intro={AGENTS_INTRO} page="agents" />
       <BrainStatus status={status} />
       <RunPanel products={products.map(({ id, name }) => ({ id, name }))} tokenSet={tokenSet} />
       <WeeklyAnalystPanel view={weekly} />

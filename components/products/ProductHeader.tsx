@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/explain/PageHeader";
 import { ProductDot } from "@/components/ui/ProductDot";
 import { productSummary } from "@/lib/explain/product-summary";
 import type { Product } from "@/lib/products/catalog";
@@ -28,14 +29,17 @@ export function ProductHeader({
   locale: string;
 }) {
   return (
-    <header className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 font-serif text-3xl">
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        page="product"
+        title={
+          <span className="flex items-center gap-2">
             <ProductDot product={product} />
             {product.name}
-          </h1>
-          <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-ink-muted">
+          </span>
+        }
+        intro={
+          <p className="flex flex-wrap gap-x-3">
             <a href={product.url} className="hover:text-ink hover:underline">
               {product.url}
             </a>
@@ -43,9 +47,10 @@ export function ProductHeader({
               Research targets
             </Link>
           </p>
-        </div>
+        }
+      >
         <ScanNowButton productId={product.id} active={scan.active?.status ?? null} />
-      </div>
+      </PageHeader>
       <ScanStatusNote scan={scan} latest={scores.latest} timeZone={timeZone} locale={locale} />
       <p className="text-base text-ink">
         {productSummary(product.name, scores.latest?.totals ?? null)}
@@ -53,6 +58,6 @@ export function ProductHeader({
       <AreaCards scores={scores} scan={scan} />
       {/* Only product sites lost the Preferred Sources weight, so only theirs moved. */}
       {product.kind === "product" && <ScoringNote change={formulaChange} />}
-    </header>
+    </div>
   );
 }
