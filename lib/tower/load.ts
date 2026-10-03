@@ -6,6 +6,7 @@ import type { ContentScan } from "@/lib/content/read/scan";
 import type { Db } from "@/lib/db/client";
 import type { Briefing } from "@/lib/explain/briefing";
 import { towerHeadlineParts } from "@/lib/explain/tower";
+import { isJobDue } from "@/lib/jobs/queue";
 import { noteEnabled } from "@/lib/note/schedule";
 import { type NoteSlot, noteSlot } from "@/lib/note/view";
 import { backupStatus } from "@/lib/ops/backup-status";
@@ -46,7 +47,7 @@ export type Tower = {
   wins: TileResult<WeekWins>;
   /** The daily note beside Needs you; null data when the personality is quiet. */
   note: TileResult<NoteSlot | null>;
-  /** A check or agent run is queued or running: the page refreshes more often. */
+  /** A check or job is running or due to start: the page refreshes more often. */
   active: boolean;
 };
 
@@ -156,11 +157,15 @@ export function loadTower(
     systemsRead: systems.ok,
   });
   const facts = system.ok ? system.data.facts : null;
+  // A job deferred for later (the owner is editing the brain, another chain runs) is not activity:
+  // counting it would keep the 15 s refresh going until the page pauses itself.
   const active =
     (facts?.checks.some((c) => c.scanning) ?? false) ||
-    (facts ? facts.agents.running.length + facts.agents.queued.length > 0 : false) ||
+    (facts
+      ? facts.agents.running.length > 0 || facts.agents.queued.some((job) => isJobDue(job, now))
+      : false) ||
     (summary.ok && summary.data.scanning) ||
-    (activity.ok && activity.data.running.length > 0);
+    (activity.ok && activity.data.busy);
   return {
     headline: lead,
     subline,

@@ -11,7 +11,7 @@ import { agoPhrase, NOTHING_RAN } from "@/lib/explain/tower";
 import { FEED_SENTENCE } from "@/lib/explain/tower-activity";
 import { formatClock, formatShortDateTime } from "@/lib/format/date";
 import { isAgentJobKind } from "@/lib/jobs/job-kinds";
-import type { Job } from "@/lib/jobs/queue";
+import { isJobDue, type Job } from "@/lib/jobs/queue";
 import { actionHref } from "@/lib/today/from-actions";
 import type { ActivityFacts, CardMove, ScoreRise } from "./activity-data";
 
@@ -35,6 +35,8 @@ export type ActivityFeed = {
   more: number;
   /** The sentence for a day with nothing running or finished; null otherwise. */
   empty: string | null;
+  /** A job runs or is due to start now; a deferred job waiting for later does not count. */
+  busy: boolean;
 };
 
 /** At most this many items show in each group; the rest are counted. */
@@ -154,5 +156,6 @@ export function activityFeed(
     finished: finished.slice(0, FEED_CAP),
     more: Math.max(0, finished.length - FEED_CAP),
     empty: quiet ? NOTHING_RAN(next) : null,
+    busy: facts.running.length > 0 || facts.queued.some((job) => isJobDue(job, now)),
   };
 }

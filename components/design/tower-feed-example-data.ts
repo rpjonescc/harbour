@@ -65,13 +65,13 @@ export const FINISHED_ITEMS: FeedItem[] = [
 
 const feed = (over: Partial<ActivityFeed>): TileResult<ActivityFeed> => ({
   ok: true,
-  data: { running: [], finished: [], more: 0, empty: null, ...over },
+  data: { running: [], finished: [], more: 0, empty: null, busy: false, ...over },
 });
 
 export const FEED_EXAMPLES: { label: string; result: TileResult<ActivityFeed> }[] = [
   {
     label: "What's happening · running, wins first, 3 more",
-    result: feed({ running: RUNNING_ITEMS, finished: FINISHED_ITEMS, more: 3 }),
+    result: feed({ running: RUNNING_ITEMS, finished: FINISHED_ITEMS, more: 3, busy: true }),
   },
   {
     label: "What's happening · nothing running now",
