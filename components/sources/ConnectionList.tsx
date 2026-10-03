@@ -3,6 +3,7 @@ import { DocsLink } from "@/components/ui/DocsLink";
 import { Panel } from "@/components/ui/Panel";
 import { Tag } from "@/components/ui/Tag";
 import { DOCS_LINKS } from "@/lib/docs-links";
+import { ALSO_CHECKS_INDEX } from "@/lib/explain/indexing";
 import { sourceExplanation, sourceName, sourceStatusPhrase } from "@/lib/explain/sources";
 import type { SourcesView } from "@/lib/scan/sources-view";
 
@@ -25,8 +26,8 @@ function searchConsoleRow(view: SourcesView): Row {
   const note = !connections.searchConsoleCredentials
     ? sourceExplanation("search-console").gives
     : unlinked.length > 0
-      ? `${names} ${unlinked.length === 1 ? "isn't" : "aren't"} linked to a Search Console site yet.`
-      : "Every site is linked.";
+      ? `${names} ${unlinked.length === 1 ? "isn't" : "aren't"} linked to a Search Console site yet. ${ALSO_CHECKS_INDEX}`
+      : `Every site is linked. ${ALSO_CHECKS_INDEX}`;
   return { id: "search-console", connected, note };
 }
 

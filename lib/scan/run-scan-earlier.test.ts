@@ -44,4 +44,24 @@ describe("runScan earlier results", () => {
     await first.scan();
     expect(seen[1]).toEqual({ crawler: { status: "failed", observations: [] } });
   });
+
+  it("shows a collector its own latest ok run from before this scan, even after a failed run", async () => {
+    const seen: number[] = [];
+    const reads = (fail: boolean) =>
+      fake("readiness", async (ctx: CollectContext) => {
+        seen.push(ctx.previous.observations("readiness").length);
+        if (fail) throw new Error("boom");
+        return { status: "ok", observations: [page(`/${seen.length}`)] };
+      });
+    const run = setup([reads(false)]);
+    await run.scan();
+    run.deps.collectors = [reads(false)];
+    await run.scan();
+    run.deps.collectors = [reads(true)];
+    await run.scan();
+    run.deps.collectors = [reads(false)];
+    await run.scan();
+    // 0 before anything ran, then each ok run's single page; the failed run changed nothing.
+    expect(seen).toEqual([0, 1, 1, 1]);
+  });
 });

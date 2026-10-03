@@ -1,6 +1,7 @@
 import { type RuleActionStatus, ruleActionStatuses } from "@/lib/actions/views";
 import type { Db } from "@/lib/db/client";
 import type { Product } from "@/lib/products/catalog";
+import { type IndexingState, indexingState } from "./indexing-view";
 import { deriveIssues, type Issue } from "./issues";
 import { type PageRow, pageRows } from "./page-rows";
 import { type SearchSummary, searchSummary } from "./search-summary";
@@ -33,6 +34,8 @@ export type ProductView = {
   actionByRule: Map<string, RuleActionStatus>;
   pages: { rows: PageRow[]; total: number };
   search: SearchState;
+  /** How many sitemap pages Google has added, or why that is not known. */
+  indexing: IndexingState;
 };
 
 /**
@@ -74,5 +77,6 @@ export function productView(db: Db, product: Pick<Product, "id" | "kind">, now: 
     actionByRule: ruleActionStatuses(db, product.id),
     pages: pageRows(observations),
     search: searchState(observations, runs),
+    indexing: indexingState(observations, runs),
   };
 }

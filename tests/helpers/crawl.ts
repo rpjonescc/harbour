@@ -37,6 +37,7 @@ export function crawlContext(url: string, overrides: Partial<CollectContext> = {
     log: () => {},
     signal: new AbortController().signal,
     earlier: { status: () => undefined, observations: () => [] },
+    previous: { observations: () => [] },
     cost: free.cost,
     budget: free.budget,
     ...overrides,

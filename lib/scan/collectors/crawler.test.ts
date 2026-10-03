@@ -1,6 +1,7 @@
-import { crawlContext as context, crawl, NO_HTML } from "@/tests/helpers/crawl";
+import { crawlContext as context, crawl, html, NO_HTML } from "@/tests/helpers/crawl";
 import { fixtureSite } from "@/tests/helpers/fixture-site";
-import { closeSites } from "@/tests/helpers/http-site";
+import { closeSites, site } from "@/tests/helpers/http-site";
+import { createCrawler } from "./crawler";
 
 afterEach(closeSites);
 
@@ -106,5 +107,25 @@ describe("crawler on a recorded site", () => {
     const { pages, site: summary } = await crawl(context(`${origin}/`, {}, 2));
     expect(pages.map((p) => p.subject)).toEqual([`${origin}/`, `${origin}/about`]);
     expect(summary).toMatchObject({ pagesCrawled: 2, limitReached: "pages" });
+  });
+
+  it("records the sitemap's page URLs for the indexing check, capped at the crawl limit", async () => {
+    const { origin } = await fixtureSite("acme-docs");
+    const result = await createCrawler().collect(context(`${origin}/`, {}, 3));
+    if (result.status !== "ok") throw new Error("expected ok");
+    const listed = result.observations.filter((o) => o.kind === "sitemap_urls");
+    expect(listed).toHaveLength(1);
+    const urls = listed.flatMap((o) => o.value.urls as string[]);
+    expect(urls).toHaveLength(3);
+    expect(urls.every((u) => u.startsWith(origin))).toBe(true);
+    // The site summary stays the last observation.
+    expect(result.observations.at(-1)?.kind).toBe("site");
+  });
+
+  it("records no sitemap_urls observation when there is no sitemap", async () => {
+    const { origin } = await site({ "/": html("Home") });
+    const result = await createCrawler().collect(context(`${origin}/`));
+    if (result.status !== "ok") throw new Error("expected ok");
+    expect(result.observations.some((o) => o.kind === "sitemap_urls")).toBe(false);
   });
 });

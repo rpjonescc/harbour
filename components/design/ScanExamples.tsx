@@ -12,6 +12,7 @@ import { ScoreValue } from "@/components/ui/ScoreValue";
 import { Tabs } from "@/components/ui/Tabs";
 import type { RuleActionStatus } from "@/lib/actions/views";
 import { AREAS } from "@/lib/explain/areas";
+import { IndexingExamples } from "./IndexingExamples";
 import {
   EXAMPLE_ISSUE,
   EXAMPLE_PRODUCT,
@@ -110,6 +111,7 @@ export function ScanExamples() {
           },
         ]}
       />
+      <IndexingExamples locale={ZONE.locale} />
       <SearchConsolePanel
         locale={ZONE.locale}
         search={{

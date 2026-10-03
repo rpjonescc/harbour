@@ -892,7 +892,9 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   exact fix and check text and the affected URLs sit under **Technical details**. Issues come from
   the check's raw observations: pages without a title or meta description, broken internal links,
   pages hidden by noindex, AI crawlers blocked in robots.txt, no llms.txt, no FAQ structured data
-  and no Google Preferred Sources button. An issue is raised only from collectors that ran ok in
+  and no Google Preferred Sources button, and (once Search Console is connected and Harbour has known
+  the sitemap for 14 days) at least 3 pages, and a fifth or more of those checked, that Google hasn't
+  added to its search results. An issue is raised only from collectors that ran ok in
   that check: when the crawler or readiness check failed, its issues are unknown rather than fixed.
   The same goes for a page check that found nothing on a partial crawl (stopped at its page or byte
   limit, or some pages could not be fetched or read). **Hand to Claude** copies a prompt with the
@@ -902,7 +904,11 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   dismissed, or done but still found in the last check) with a link to it on the Actions board; an
   issue with no action yet says tracking starts with the next check. **Pages Harbour checked** is a
   one-line verdict; the table of the 50 crawled pages with the most problems sits under **Technical
-  details**. The Google Search Console and paid-data panels say in plain words whether they are
+  details**. **Pages in Google** is its own panel beside **Found on Google**, with one unscored line, such as "In Google: 3 of 53 pages", and a
+  one-sentence explainer; the breakdown by what Google says sits under **Technical details**. Without
+  data it says why ("Search Console isn't connected", "Google's daily limit was reached", "Checking, 20 of 53
+  so far") and never shows 0; pages Google couldn't answer for are listed beside the count.
+  The Google Search Console and paid-data panels say in plain words whether they are
   connected and what they show. Search Console also says how to connect it; the paid-data panels say
   Harbour doesn't collect that data yet. Setting names appear only under **Technical details**
   (Search Console's raw reason), as do its top searches. Actions created before a title was reworded
@@ -1081,6 +1087,21 @@ Then, on the Harbour machine:
    403) means the property is not shared with the credential's account; "Search Console API is
    not enabled" means the Google Cloud project the credential belongs to has not enabled the
    Google Search Console API.
+
+**Page index check.** With the same connection, every daily check also asks Google's URL
+Inspection which of your sitemap pages it has added to its search results (no new setting, and the
+read-only scope already covers it). The crawler records up to `HARBOUR_CRAWL_MAX_PAGES` sitemap
+URLs; the check inspects at most 100 per product per run, never-checked pages first and then the
+oldest check, one request at a time and under one a second, and stops after 8 minutes. A site with
+53 pages is fully checked in one run; one with 500 takes five days, and the product page says how
+far it has got. Only sitemap pages the property covers are checked: a domain property covers
+the host and its subdomains, a URL-prefix property its exact address and path, and if none fit the
+check says the property doesn't cover the site. A page that failed is retried first but at most
+once a day, and goes behind the others after two failures in a row. Each run carries earlier
+results forward, so a page keeps its last known status until it is checked again. If Google says
+the day's quota is used up, Harbour keeps what it has ("wait for tomorrow's check"); a page that
+could not be checked is recorded as unknown, never as not indexed. Job events read `Indexing: Asked Google about 53 pages: 53 of 53 now have a known
+status`, or `Indexing: not connected — …`. Scores are unchanged.
 
 Never set `GOOGLE_SDK_NODE_LOGGING` for the worker: it makes Google's auth library log its
 requests and responses, access tokens included.

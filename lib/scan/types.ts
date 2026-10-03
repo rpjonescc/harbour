@@ -66,6 +66,15 @@ export type EarlierResults = {
   observations(collector: string): Observation[];
 };
 
+/**
+ * What collectors stored in earlier runs for the same product. A collector reads its own id
+ * (this scan has not recorded it yet); use `earlier` for collectors that ran in this scan.
+ */
+export type PreviousResults = {
+  /** What the collector stored in its latest ok run before this scan; empty if it never ran ok. */
+  observations(collector: string): Observation[];
+};
+
 export type CollectContext = {
   /** From harbour.config.json. */
   product: Product;
@@ -78,6 +87,8 @@ export type CollectContext = {
   signal: AbortSignal;
   /** Results of the collectors that ran before this one in the same scan. */
   earlier: EarlierResults;
+  /** Results of earlier scans: a collector that covers a large site a part at a time reads them. */
+  previous: PreviousResults;
   /**
    * Writes a costs row for a paid call already made (product, collector and job filled in). A
    * call that was sent must always be recorded, even when it then fails or errors: record before

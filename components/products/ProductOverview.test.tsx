@@ -26,6 +26,7 @@ const empty: ProductView = {
   actionByRule: new Map(),
   pages: { rows: [], total: 0 },
   search: { state: "none", reason: null },
+  indexing: { state: "empty", why: "waiting", reason: null },
 };
 
 const scanned: ProductView = {
@@ -93,6 +94,7 @@ const scanned: ProductView = {
   ]),
   pages: pageRows(ACME_CRAWL),
   search: { state: "not_configured", reason: "HARBOUR_GSC_CREDENTIALS is not set" },
+  indexing: { state: "empty", why: "not_connected", reason: null },
 };
 
 const renderPage = (view: ProductView, productOverrides: Partial<Product> = {}) =>

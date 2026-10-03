@@ -1,5 +1,7 @@
 /** Shared reading of Google API responses (PageSpeed Insights, Search Console). */
 import { z } from "zod";
+import { stripInvisible } from "@/lib/text/hidden-chars";
+import { forTerminal } from "@/lib/text/terminal";
 
 const googleError = z.object({
   error: z.object({
@@ -39,9 +41,13 @@ export function isApiDisabled(google: GoogleError | null): boolean {
 
 const MAX_MESSAGE = 300;
 
-/** A message cut to 300 characters, so a verbose error can't flood job events. */
+/**
+ * A message cleaned of control and hidden characters and cut to 300 characters, so a verbose
+ * or hostile error can't flood or disguise job events.
+ */
 export function shorten(message: string): string {
-  return message.length > MAX_MESSAGE ? `${message.slice(0, MAX_MESSAGE)}…` : message;
+  const clean = forTerminal(stripInvisible(message)).replace(/\s+/g, " ").trim();
+  return clean.length > MAX_MESSAGE ? `${clean.slice(0, MAX_MESSAGE)}…` : clean;
 }
 
 /** JSON.parse that returns null instead of throwing. */

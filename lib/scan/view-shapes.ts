@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { IndexState } from "./index-shapes";
+import { indexStatusValue, indexSummaryValue } from "./index-shapes";
 import type { ScanObservation } from "./types";
 
 // The observation fields the UI reads, validated at the boundary: stored JSON is external data.
@@ -138,4 +140,31 @@ export function gscWindow(
   observations: readonly ScanObservation[],
 ): z.infer<typeof gscSummary> | null {
   return read(observations, "search-console", "gsc_summary", gscSummary)[0]?.value ?? null;
+}
+
+/** What Google says about the sitemap pages, as the rules and the product page read it. */
+export type CoverageFacts = {
+  /** Every page with a status, once each; "unknown" ones could not be checked. */
+  pages: { url: string; state: IndexState }[];
+  summary: z.infer<typeof indexSummaryValue>;
+  /** The newest check behind any status: "now" for the rules, which have no clock of their own. */
+  asOf: string | null;
+};
+
+/** The indexing check's pages and summary; null without a readable summary (a gap, not a zero). */
+export function indexCoverageFacts(observations: readonly ScanObservation[]): CoverageFacts | null {
+  const summary = read(observations, "indexing", "index_summary", indexSummaryValue)[0]?.value;
+  if (!summary) return null;
+  const rows = read(observations, "indexing", "index_status", indexStatusValue, true);
+  const seen = new Set<string>();
+  const pages = rows.flatMap(({ subject, value }) => {
+    if (seen.has(subject)) return [];
+    seen.add(subject);
+    return [{ url: subject, state: value.state }];
+  });
+  const times = rows.flatMap(({ value }) =>
+    value.state === "unknown" ? [] : [Date.parse(value.checkedAt)],
+  );
+  const asOf = times.length === 0 ? null : new Date(Math.max(...times)).toISOString();
+  return { pages, summary, asOf };
 }

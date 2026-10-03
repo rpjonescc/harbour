@@ -1,3 +1,4 @@
+import { ALSO_CHECKS_INDEX } from "@/lib/explain/indexing";
 import { collectorLabel } from "@/lib/scan/labels";
 import type { CollectorStatus } from "@/lib/scan/types";
 
@@ -88,7 +89,8 @@ export const SOURCES: readonly SourceExplanation[] = [
     id: "search-console",
     name: "Google Search Console",
     gives:
-      "Shows how often Google showed your pages in search, which searches found you and how many people clicked.",
+      "Shows how often Google showed your pages in search, which searches found you and how many people clicked. " +
+      ALSO_CHECKS_INDEX,
     paid: false,
     connect: [
       "Run pnpm gsc:connect on the Harbour machine and sign in with the Google account that can see your sites in Search Console.",
@@ -100,6 +102,20 @@ export const SOURCES: readonly SourceExplanation[] = [
       connected: "Connected",
       notConnected: "Not connected yet",
       failed: "Google didn't send the data in the last check",
+      waiting: "Runs with the next check",
+    },
+  },
+  {
+    id: "indexing",
+    name: "Google page index check",
+    gives:
+      "Asks Google which of your sitemap pages it has added to its search results, up to 100 a day.",
+    paid: false,
+    connect: ["Nothing more to set up: it uses your Google Search Console connection."],
+    status: {
+      connected: "Working",
+      notConnected: "Needs Google Search Console first",
+      failed: "Google didn't answer the page checks in the last check",
       waiting: "Runs with the next check",
     },
   },

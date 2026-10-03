@@ -152,6 +152,11 @@ async function collect(ctx: CollectContext, limits: CrawlLimits): Promise<Collec
     subject,
     value,
   }));
+  if (seeds.urls && seeds.urls.length > 0) {
+    // What the indexing check inspects: capped at the crawl limit, in sitemap order.
+    const urls = seeds.urls.slice(0, crawl.maxPages);
+    observations.push({ kind: "sitemap_urls", subject: start, value: { urls } });
+  }
   observations.push({ kind: "site", subject: start, value: site });
   return { status: "ok", observations };
 }
