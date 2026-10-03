@@ -416,6 +416,10 @@ runs set to 90 days).
   `https://github.com/<owner>/<repo>/pull/<number>` only), set or cleared with
   `pnpm actions link`; linking adds a history entry that keeps the status and an
   `action_pr_linked` audit entry. The card links it in a new tab; Hand to Claude is unchanged.
+- **Notes**: `pnpm actions note <id> --note "…"` adds a history entry as `claude` from the card's
+  status and stage to themselves (never read as a move or a status change, and left out of Today's
+  activity feed) with an `action_noted` audit entry holding only the id. It is how Claude records
+  what it cannot settle and leaves it for the owner.
 - **Hand-made actions**: `pnpm actions add` lets Claude create a board item (source `manual`, no
   rule key, no analyst job, `issue_present` null) to track work it hands to a project's owner
   session. Rule sync reads only `source = rule` rows, so a scan never closes, rewrites or resolves

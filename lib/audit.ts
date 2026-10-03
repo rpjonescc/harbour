@@ -17,6 +17,7 @@ export type AuditEvent =
   | "action_created"
   | "action_status_changed"
   | "action_pr_linked"
+  | "action_noted"
   | "backup_requested"
   | "content_run_requested"
   | "content_decided";

@@ -1,6 +1,6 @@
 // Reads the last day's activity for the tower's feed. I/O only; lib/tower/activity.ts shapes it.
 
-import { and, desc, eq, gte, inArray, isNotNull, not, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, ne, not, or, sql } from "drizzle-orm";
 import type { ActionActor, ActionStage } from "@/lib/actions/types";
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
@@ -76,6 +76,11 @@ function movesSince(db: Db, since: Date, productIds: string[]): CardMove[] {
       and(
         gte(actionEvents.at, since),
         isNotNull(actionEvents.from), // creation is not a move
+        // Nor is an entry that kept the status and stage (a note, a link that moved nothing).
+        or(
+          ne(actionEvents.from, actionEvents.to),
+          sql`${actionEvents.fromStage} IS NOT ${actionEvents.toStage}`,
+        ),
         inArray(actions.productId, productIds),
       ),
     )

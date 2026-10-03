@@ -1242,6 +1242,7 @@ pnpm actions set 12 snoozed --from open --note "Wait for the redesign" --until 2
 pnpm actions move 12 in_review --from started --note "Pull request acme/widget#42 is open"
 pnpm actions link 12 https://github.com/acme/widget/pull/42
 pnpm actions link 12 --clear
+pnpm actions note 12 --note "Pull request acme/widget#42 was closed without merging"
 pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles" \
   --why "Pages without a clear title are skipped by search and AI answers." \
   --area SEO --impact high --effort small --fix "Give each page a title under 60 characters" \
@@ -1267,6 +1268,10 @@ pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles"
 - **link** stores a GitHub pull request URL (`https://github.com/<owner>/<repo>/pull/<number>`,
   nothing else) on the action, or clears it with `--clear`, and notes it in the history. Linking
   a card that is In progress moves it to In review, and its "stuck" clock starts again.
+- **note** records a note (required, up to 1,000 characters) in the action's history as Claude
+  and changes nothing else: the card stays in its column, its "stuck" clock keeps running and the
+  note never counts as a move. Use it for what Claude cannot settle, such as a pull request closed
+  without merging, and leave the decision to you. An unknown id is refused with one line.
 - **add** creates a board item by hand, as Claude, and prints `Created action #<id>` and the
   same text as `show`. Required: `--product` (a configured product id), `--title` (8 to 140
   characters, one line), `--why` (10 to 600), `--area` (`SEO`, `GEO` or `AEO`), `--impact`

@@ -3,6 +3,7 @@ import { isoDateIn } from "@/lib/format/date";
 import type { Product } from "@/lib/products/catalog";
 import { MOVE_REFUSAL, type MoveRefusal } from "../move-refusal";
 import { moveToColumn } from "../move-to-column";
+import { addNote } from "../note";
 import { linkPullRequest } from "../pr-link";
 import { applyStatusChange } from "../status-change";
 import { actionHistory } from "../store";
@@ -146,6 +147,17 @@ function link(deps: CliDeps, cmd: Extract<CliCommand, { name: "link" }>): CliOut
   return { code: 0, stdout: `#${cmd.id} ${done}\n`, stderr: "" };
 }
 
+function note(deps: CliDeps, cmd: Extract<CliCommand, { name: "note" }>): CliOutput {
+  const result = addNote(deps.db, {
+    id: cmd.id,
+    note: cmd.note,
+    productIds: productIds(deps),
+    now: deps.now,
+  });
+  if (!result.ok) throw new CliError(`Action #${cmd.id} not found`);
+  return { code: 0, stdout: `#${cmd.id} note added; the card stays where it is\n`, stderr: "" };
+}
+
 function add(deps: CliDeps, cmd: Extract<CliCommand, { name: "add" }>): CliOutput {
   const ids = productIds(deps);
   if (!ids.includes(cmd.input.productId)) {
@@ -178,6 +190,8 @@ function dispatch(deps: CliDeps, cmd: CliCommand): CliOutput {
       return move(deps, cmd);
     case "link":
       return link(deps, cmd);
+    case "note":
+      return note(deps, cmd);
     case "add":
       return add(deps, cmd);
   }
