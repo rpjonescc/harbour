@@ -94,7 +94,7 @@ export default async function DesignPage() {
       <Section title="Today examples">
         {firstProduct && <TodayExamples product={firstProduct} />}
       </Section>
-      <Section title="The wave">
+      <Section title="Ocean background">
         <WaveExample />
       </Section>
       <Section title="Second Brain examples">

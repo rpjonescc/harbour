@@ -21,14 +21,28 @@ describe("Wave", () => {
     }
   });
 
-  it("draws exactly the layers the contrast test stacks, in the tide tint", () => {
+  it("draws exactly the layers the contrast test checks, each in its ocean token", () => {
     const { container } = render(<Wave />);
     const paths = [...container.querySelectorAll("path")];
-    expect(paths.map((p) => Number(p.getAttribute("fill-opacity")))).toEqual(
-      WAVE_LAYERS.map((l) => l.opacity),
-    );
     expect(paths.map((p) => p.getAttribute("d"))).toEqual(WAVE_LAYERS.map((l) => wavePath(l)));
-    for (const path of paths) expect(path).toHaveClass("fill-accent-soft");
+    expect(paths.map((p) => p.style.fill)).toEqual(WAVE_LAYERS.map((l) => `var(--${l.token})`));
+  });
+
+  it("starts each layer at its own point in its drift and bob, so the crests never line up", () => {
+    const { container } = render(<Wave />);
+    const delays = [...container.querySelectorAll<SVGElement>(".wave-drift")].map((svg) =>
+      svg.style.getPropertyValue("--wave-delay"),
+    );
+    expect(new Set(delays).size).toBe(WAVE_LAYERS.length);
+  });
+
+  it("has nothing to focus or announce: no role, no tab stop, no text", () => {
+    const { container } = render(<Wave />);
+    const wave = container.querySelector("[data-wave]");
+    expect(wave?.querySelector("[role], [tabindex], a, button, title, desc")).toBeNull();
+    for (const svg of container.querySelectorAll("svg")) {
+      expect(svg).toHaveAttribute("focusable", "false");
+    }
   });
 
   it("marks only the front layer, for the celebrate ripple", () => {

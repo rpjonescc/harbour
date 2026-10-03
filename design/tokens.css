@@ -22,6 +22,16 @@
   --tide-300: #6fbfa8;
   --tide-700: #1f6b5a;
   --tide-900: #1d3a33;
+  /* Primitives: sea (the ocean background). Pale enough that every text colour keeps WCAG AA on
+     each one (design/wave-contrast.test.ts): cool sea-glass on paper, deep water at night. */
+  --sea-50: #f0f2ec;
+  --sea-100: #e9f1ed;
+  --sea-200: #e1f0eb;
+  --sea-300: #daeeea;
+  --sea-950: #171b1e;
+  --sea-900: #141f22;
+  --sea-850: #132226;
+  --sea-800: #122428;
   /* Primitives: signal colours */
   --amber-100: #f4e5cf;
   --amber-300: #e0a35c;
@@ -73,6 +83,11 @@
   --warn-soft: var(--amber-100);
   --bad: var(--clay-700);
   --focus: var(--tide-700);
+  /* The ocean background: a fade to the horizon, then far, middle and near water. */
+  --ocean-sky-fade: var(--sea-50);
+  --ocean-1: var(--sea-100);
+  --ocean-2: var(--sea-200);
+  --ocean-3: var(--sea-300);
   /* Floating layers (dialogs, popovers). Exposed to Tailwind as shadow-overlay. */
   --elevation-overlay: 0 12px 32px -8px color-mix(in srgb, var(--paper-900) 22%, transparent);
   --hue-amber: var(--hue-amber-600);
@@ -102,6 +117,10 @@
     --warn-soft: var(--amber-900);
     --bad: var(--clay-300);
     --focus: var(--tide-300);
+    --ocean-sky-fade: var(--sea-950);
+    --ocean-1: var(--sea-900);
+    --ocean-2: var(--sea-850);
+    --ocean-3: var(--sea-800);
     --elevation-overlay: 0 16px 40px -8px color-mix(in srgb, var(--night-950) 70%, transparent);
     --hue-amber: var(--hue-amber-300);
     --hue-violet: var(--hue-violet-300);
@@ -129,6 +148,10 @@
   --warn-soft: var(--amber-900);
   --bad: var(--clay-300);
   --focus: var(--tide-300);
+  --ocean-sky-fade: var(--sea-950);
+  --ocean-1: var(--sea-900);
+  --ocean-2: var(--sea-850);
+  --ocean-3: var(--sea-800);
   --elevation-overlay: 0 16px 40px -8px color-mix(in srgb, var(--night-950) 70%, transparent);
   --hue-amber: var(--hue-amber-300);
   --hue-violet: var(--hue-violet-300);

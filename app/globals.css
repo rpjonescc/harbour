@@ -58,18 +58,27 @@
   }
 }
 
-/* The wave behind the app (components/shell/Wave.tsx). Decorative: no layout, no pointer events. */
+/* The ocean behind every page (components/shell/Wave.tsx). Decorative: no layout, no pointer
+   events, transform-only motion. */
+.wave-sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent, var(--ocean-sky-fade) 45%);
+}
+
 .wave-layer {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
+  /* A slow rise and fall; downwards only, so no gap ever opens along the bottom edge. */
+  animation: wave-bob var(--bob-seconds) ease-in-out var(--bob-delay) infinite alternate;
 }
 
 .wave-drift {
   display: block;
   width: 200%;
   height: 100%;
-  animation: wave-drift var(--wave-seconds) linear infinite;
+  animation: wave-drift var(--wave-seconds) linear var(--wave-delay) infinite;
 }
 
 @keyframes wave-drift {
@@ -78,9 +87,18 @@
   }
 }
 
-/* A celebrating note (its card carries data-mood) makes the front layer ripple once. */
+@keyframes wave-bob {
+  to {
+    transform: translateY(6px);
+  }
+}
+
+/* A celebrating note (its card carries data-mood) makes the front layer ripple once; listed last,
+   the ripple leads while it plays and the bob carries on after. */
 body:has([data-mood="celebrate"]) .wave-layer[data-front] {
-  animation: wave-ripple 5s ease-in-out 1;
+  animation:
+    wave-bob var(--bob-seconds) ease-in-out var(--bob-delay) infinite alternate,
+    wave-ripple 5s ease-in-out 1;
 }
 
 @keyframes wave-ripple {
@@ -89,12 +107,19 @@ body:has([data-mood="celebrate"]) .wave-layer[data-front] {
   }
 }
 
-/* Reduced motion: the wave holds still (the ripple too). The selector for the ripple repeats
-   its rule's, so this wins on specificity. */
+/* Reduced motion: the ocean holds still as a still wave shape (the ripple too). The selector for
+   the ripple repeats its rule's, so this wins on specificity. */
 @media (prefers-reduced-motion: reduce) {
   .wave-drift,
   .wave-layer,
   body:has([data-mood="celebrate"]) .wave-layer[data-front] {
     animation: none;
+  }
+}
+
+/* Paper copies carry only the content. */
+@media print {
+  [data-wave] {
+    display: none;
   }
 }

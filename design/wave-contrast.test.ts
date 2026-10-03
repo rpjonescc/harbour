@@ -1,35 +1,49 @@
 import { themeColour } from "@/tests/helpers/tokens";
-import { contrastRatio, over } from "./contrast";
-import { WAVE_LAYERS } from "./wave";
+import { contrastRatio } from "./contrast";
+import { OCEAN_TOKENS } from "./wave";
 
-// Every text colour the app puts directly on the page background, where the wave can sit behind it.
+// Every text colour the app puts directly on the page background, where the ocean can sit behind it.
 const TEXT = ["ink", "ink-muted", "accent", "good", "warn", "bad"] as const;
 const AA = 4.5;
 
 describe.each(["light", "dark", "system-dark"] as const)(
-  "text over the wave, %s theme",
+  "text over the ocean, %s theme",
   (theme) => {
-    const page = themeColour(theme, "bg");
-    const tide = themeColour(theme, "accent-soft");
-    // Worst case: every layer stacked on the same pixel.
-    const worst = WAVE_LAYERS.reduce((under, layer) => over(under, tide, layer.opacity), page);
+    // Every wave layer is opaque and the fade ends in its token, so each ocean pixel is one of
+    // these colours (or the page between them): the darkest-in-light, lightest-in-dark of them is
+    // the most intense pixel, and checking all of them checks it.
+    it.each(TEXT.flatMap((text) => OCEAN_TOKENS.map((ocean) => [text, ocean] as const)))(
+      "%s on --%s keeps WCAG AA (4.5:1)",
+      (text, ocean) => {
+        expect(
+          contrastRatio(themeColour(theme, text), themeColour(theme, ocean)),
+        ).toBeGreaterThanOrEqual(AA);
+      },
+    );
 
-    it.each(TEXT)("%s keeps WCAG AA (4.5:1) over all layers stacked", (token) => {
-      expect(contrastRatio(themeColour(theme, token), worst)).toBeGreaterThanOrEqual(AA);
+    it("starts from text that passes on the plain page, so the ocean is what is being tested", () => {
+      for (const token of TEXT) {
+        expect(
+          contrastRatio(themeColour(theme, token), themeColour(theme, "bg")),
+        ).toBeGreaterThanOrEqual(AA);
+      }
     });
 
-    it("starts from text that passes on the plain page, so the wave is what is being tested", () => {
-      for (const token of TEXT) {
-        expect(contrastRatio(themeColour(theme, token), page)).toBeGreaterThanOrEqual(AA);
+    it("stays a quiet backdrop: no ocean colour is far from the page (under 1.15:1)", () => {
+      const page = themeColour(theme, "bg");
+      for (const ocean of OCEAN_TOKENS) {
+        expect(contrastRatio(themeColour(theme, ocean), page)).toBeLessThan(1.15);
       }
     });
   },
 );
 
 describe("the check bites", () => {
-  it("fails for a wave that is too strong: muted text under 30% full accent in dark mode", () => {
-    const strong = over(themeColour("dark", "bg"), themeColour("dark", "accent"), 0.3);
-    expect(contrastRatio(themeColour("dark", "ink-muted"), strong)).toBeLessThan(AA);
+  it("fails for an ocean that is too deep: muted text on the border colour used as water", () => {
+    // --line (--paper-300) as a wave: a plausible, slightly too strong choice.
+    expect(
+      contrastRatio(themeColour("light", "ink-muted"), themeColour("light", "line")),
+    ).toBeLessThan(AA);
   });
 
   it("reads the system dark theme as the dark theme (their blocks are kept in sync by hand)", () => {
@@ -43,6 +57,7 @@ describe("the check bites", () => {
       "good",
       "warn",
       "bad",
+      ...OCEAN_TOKENS,
     ]) {
       expect(themeColour("system-dark", token)).toEqual(themeColour("dark", token));
     }
