@@ -20,6 +20,18 @@ describe("content config", () => {
     });
   });
 
+  it("allows the product's own domain, read the way its checks are stored", () => {
+    const hostsFor = (url: string) =>
+      contentProducts(
+        parseProductConfig({
+          products: [{ ...products[0], url }],
+          content: { products: { "acme-docs": { terms: ["acme docs"] } } },
+        }),
+      )[0]?.allowedHosts;
+    expect(hostsFor("https://WWW.docs.example.com./x")).toEqual(["docs.example.com"]);
+    expect(hostsFor("https://www.com/")).toEqual(["www.com"]);
+  });
+
   it("is empty when there is no content block", () => {
     expect(contentProducts(parseProductConfig({ products }))).toEqual([]);
   });

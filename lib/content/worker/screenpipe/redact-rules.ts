@@ -1,4 +1,5 @@
 import { KNOWN_TLDS as TLDS } from "@/lib/content/sanitise";
+import { domainKey } from "@/lib/scan/site";
 import { matchKey, skeleton } from "./canonical";
 
 // The redaction rules for screen text (spec §5.3 step 3): links, emails, numbers, secrets, paths.
@@ -27,13 +28,11 @@ export function replaceOn(text: string, pattern: RegExp, to: Replacement): strin
   return out + text.slice(last);
 }
 
-/** The product's own host in lower case, without scheme, "www." or path; "" when there is none. */
+/** The product's own host without scheme or path, read as domainKey reads it; "" when none. */
 export function bareHost(host: unknown): string {
   if (typeof host !== "string") return "";
-  const cleaned = matchKey(host)
-    .replace(/^[a-z][a-z0-9+.-]*:\/\//, "")
-    .replace(/^www\./, "");
-  return cleaned.split(/[/?#:]/)[0] ?? "";
+  const cleaned = matchKey(host).replace(/^[a-z][a-z0-9+.-]*:\/\//, "");
+  return domainKey(cleaned.split(/[/?#:]/)[0] ?? "");
 }
 
 /**

@@ -2,6 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/lib/db/client";
 import { proposals } from "@/lib/db/schema";
+import { domainKey } from "@/lib/scan/site";
 import { pillarFields } from "./pillars";
 
 const why = z.string().trim().min(1).max(400);
@@ -57,8 +58,8 @@ function norm(s: string): string {
 
 /**
  * Normalised identity used to dedupe. Keys are JSON arrays so separators in
- * the data can't collide. Competitors are keyed by lower-case host without a
- * leading "www." plus the normalised (case-insensitive) path without trailing
+ * the data can't collide. Competitors are keyed by host (domainKey: lower case,
+ * no trailing dots, no leading "www.") plus the normalised (case-insensitive) path without trailing
  * slashes, so example.com/a and example.com/b stay distinct.
  */
 function keyFor(type: ProposalType, value: Record<string, string | undefined>): string {
@@ -68,11 +69,7 @@ function keyFor(type: ProposalType, value: Record<string, string | undefined>): 
   if (type === "pillar") return JSON.stringify(["p", norm(value.key ?? "")]);
   if (URL.canParse(value.url ?? "")) {
     const u = new URL(value.url ?? "");
-    return JSON.stringify([
-      "c",
-      u.hostname.toLowerCase().replace(/^www\./, ""),
-      norm(u.pathname).replace(/\/+$/, ""),
-    ]);
+    return JSON.stringify(["c", domainKey(u.hostname), norm(u.pathname).replace(/\/+$/, "")]);
   }
   return JSON.stringify(["c", norm(value.name ?? ""), ""]);
 }

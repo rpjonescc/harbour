@@ -154,6 +154,9 @@ describe("stricter validation", () => {
     expect(add("https://www.example.com/")).toBe(1);
     expect(add("https://example.com")).toBe(0);
     expect(add("https://EXAMPLE.com/A/")).toBe(0);
+    expect(add("https://example.com./a")).toBe(0);
+    expect(add("https://www.com/")).toBe(1);
+    expect(add("https://com/")).toBe(1);
   });
 
   it("handles edit collisions, rejected items and cross-product access", () => {

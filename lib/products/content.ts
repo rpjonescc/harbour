@@ -1,4 +1,5 @@
 import type { Platform } from "@/lib/content/ids";
+import { productDomain } from "@/lib/scan/site";
 import type { ProductConfig } from "./config";
 
 /**
@@ -17,10 +18,10 @@ export type ContentProduct = {
   allowedHosts: string[];
 };
 
-/** The host of an http(s) URL without a leading "www.", or none when the URL is odd. */
+/** The site's own domain (as its checks store it), or none when the URL is odd. */
 function siteHosts(url: string): string[] {
   if (!URL.canParse(url)) return [];
-  return [new URL(url).hostname.toLowerCase().replace(/^www\./, "")];
+  return [productDomain(url)];
 }
 
 /** The products with content enabled, then the content-only projects, in config order. */
