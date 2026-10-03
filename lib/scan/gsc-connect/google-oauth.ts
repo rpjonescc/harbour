@@ -1,5 +1,8 @@
+import { Readable } from "node:stream";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 import { z } from "zod";
 import { isApiDisabled, readGoogleError, shorten } from "../collectors/google-api";
+import { readCappedBody } from "../fetch-body";
 import type { OAuthClient } from "./client-file";
 
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -24,17 +27,20 @@ function redact(text: string, secrets: string[]): string {
 /** The response's status and body (at most MAX_BYTES), within the timeout; no `cause` on failure. */
 async function request(fetch: Fetch, url: string, init: RequestInit, what: string) {
   let status: number;
-  let body: string;
+  let read: { text: string; truncated: boolean };
   try {
     const response = await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
     status = response.status;
-    body = await response.text();
+    // Streamed and stopped at the cap: an oversized answer is never held whole.
+    read = response.body
+      ? await readCappedBody(Readable.fromWeb(response.body as NodeReadableStream), MAX_BYTES)
+      : { text: "", truncated: false };
   } catch (error) {
     const kind = error instanceof Error && error.name === "TimeoutError" ? "timed out" : "failed";
     throw new Error(`Could not reach ${what}: the request ${kind}.`);
   }
-  if (body.length > MAX_BYTES) throw new Error(`${what} sent an oversized answer.`);
-  return { status, body };
+  if (read.truncated) throw new Error(`${what} sent an oversized answer.`);
+  return { status, body: read.text };
 }
 
 function parseJson(body: string): unknown {

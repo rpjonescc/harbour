@@ -12,7 +12,7 @@ export function BrainStatus({ status }: { status: BrainSyncStatus }) {
         <BrainSyncBanner
           unsaved={sync.unsaved}
           unpushed={sync.unpushed}
-          paused={recovery.pending.length > 0}
+          paused={recovery.pending === null || recovery.pending.length > 0}
         />
       )}
     </>

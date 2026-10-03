@@ -29,11 +29,20 @@ describe("claudeArgs", () => {
 
   it("loads no user settings, hooks, skills or MCP servers", () => {
     expect(value("--setting-sources")).toBe("");
-    expect(JSON.parse(value("--settings") ?? "")).toEqual({ disableAllHooks: true });
+    expect(JSON.parse(value("--settings") ?? "")).toMatchObject({ disableAllHooks: true });
     expect(args).toContain("--disable-slash-commands");
     expect(args).toContain("--strict-mcp-config");
     expect(JSON.parse(value("--mcp-config") ?? "")).toEqual({ mcpServers: {} });
     expect(args).toContain("--no-session-persistence");
+  });
+
+  it("denies file edits to git metadata anywhere under the brain (Edit rules also cover Write)", () => {
+    expect(JSON.parse(value("--settings") ?? "")).toEqual({
+      disableAllHooks: true,
+      permissions: {
+        deny: ["Edit(.git)", "Edit(.git/**)", "Edit(.gitattributes)", "Edit(.gitmodules)"],
+      },
+    });
   });
 
   it("lets a run narrow its tools, and drops the web pre-approvals it was not given", () => {

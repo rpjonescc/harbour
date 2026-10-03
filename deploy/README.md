@@ -40,7 +40,7 @@ Never put `pnpm dev` behind Tailscale Serve (dev mode honours `HARBOUR_DEV_IDENT
 ```bash
 # Not reachable from the LAN (only loopback is bound): expect "connection refused".
 curl -m 3 http://$(hostname -I | awk '{print $1}'):3400/
-# Direct to loopback without identity: expect 403.
+# Direct to loopback (a host name other than HARBOUR_ORIGIN's): expect 403.
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3400/
 ```
 From another tailnet device, `https://<machine>.<tailnet>.ts.net:8444` should show the passkey sign-in.

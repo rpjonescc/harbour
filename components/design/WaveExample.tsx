@@ -1,9 +1,9 @@
 import { Wave } from "@/components/shell/Wave";
 
-/** The wave in a box with text in every colour the page uses over it, to judge by eye. */
+/** The ocean background in a box with text in every colour the page uses over it, to judge by eye. */
 export function WaveExample() {
   return (
-    <div className="relative h-56 overflow-hidden rounded-md border border-line bg-bg">
+    <div className="relative h-72 overflow-hidden rounded-md border border-line bg-bg">
       <Wave placement="preview" />
       <div className="relative z-10 flex flex-col gap-1 p-4">
         <p className="font-serif text-xl">Calm water, steady text</p>
@@ -15,7 +15,8 @@ export function WaveExample() {
           <span className="text-bad">failed</span>: signal colours over the wave.
         </p>
         <p className="text-xs text-ink-muted">
-          Contrast is checked by design/wave-contrast.test.ts; motion stops under reduced motion.
+          Every text colour keeps AA contrast on each ocean colour (design/wave-contrast.test.ts).
+          The water holds still under reduced motion and is left out of print.
         </p>
       </div>
     </div>

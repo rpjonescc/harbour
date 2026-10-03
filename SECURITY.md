@@ -10,7 +10,8 @@ release branches.
 Harbour is a single-owner, self-hosted app reachable only over a Tailscale network.
 
 - **Network exposure.** The web server binds `127.0.0.1` only. Tailscale Serve is the only
-  path in, and it publishes Harbour solely to the owner's tailnet.
+  path in, and it publishes Harbour solely to the owner's tailnet. Requests for any host but
+  `HARBOUR_ORIGIN`'s are refused (DNS-rebinding defence).
 - **Lock 1 — identity.** Tailscale Serve adds the verified `Tailscale-User-Login` header;
   Harbour rejects any login not on its allowlist.
 - **Lock 2 — passkey.** A WebAuthn passkey with user verification is required for every

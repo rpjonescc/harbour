@@ -134,11 +134,12 @@ describe("run gate", () => {
         { path: odd, untracked: true },
       ]);
       commitChanges(b.root, [odd], "odd");
+      const committed = snapshotRun(b.root); // the commit moved a ref: a new run starts here
       write(b, odd, "# Odd 2\n");
-      expect(inspectRun(b.root, snap, research, "all").allowed).toEqual([
+      expect(inspectRun(b.root, committed, research, "all").allowed).toEqual([
         { path: odd, untracked: false },
       ]);
-      discardRun(b.root, snap, quarantine(), "all");
+      discardRun(b.root, committed, quarantine(), "all");
       expect(ownerChanges(b.root)).toEqual([]);
     } finally {
       b.cleanup();

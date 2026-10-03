@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // lib/explain may import values only from itself, lib/scan/labels.ts and
-// lib/scan/scoring/sub-score.ts and the pure lib/text/hidden-chars.ts (plus zod, for validating note frontmatter), so client
+// lib/scan/scoring/sub-score.ts and the pure lib/text/hidden-chars.ts and lib/docs-links.ts (plus zod, for validating note frontmatter), so client
 // components never bundle the database layer.
 const ALLOWED = [
   // Only voice/note.ts uses it. A client component that imports a value from there would bundle
@@ -16,6 +16,7 @@ const ALLOWED = [
   /^@\/lib\/scan\/labels$/,
   /^@\/lib\/scan\/scoring\/sub-score$/,
   /^@\/lib\/text\/hidden-chars$/,
+  /^@\/lib\/docs-links$/,
 ];
 const IMPORT = /^import\s+(?!type\b)(?:[^"']*?\sfrom\s+)?["']([^"']+)["']/gm;
 

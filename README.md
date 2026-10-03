@@ -70,8 +70,13 @@ explainable breakdowns. The roadmap continues with:
 - **A warm friend** — Today opens with a short note an agent writes fresh every morning, in
   the voice of a seasoned, warm, quick-witted friend: it celebrates real wins, is honest and
   kind about bad news and always gives a next step, and on a weekend or late at night says what
-  can wait. A calm wave drifts behind the app. Both are off with `HARBOUR_PERSONALITY=quiet`
-  (see [Daily note](#daily-note)).
+  can wait. Both the note and the [ocean background](#ocean-background) are off with
+  `HARBOUR_PERSONALITY=quiet` (see [Daily note](#daily-note)).
+- **Ocean background** — the lower half of every page, the sign-in page included, is calm water:
+  three soft wave layers rolling slowly behind the content (see
+  [Ocean background](#ocean-background)).
+- **Works on a phone** — on narrow screens the sidebar folds into a top bar with a **Menu**
+  button (Escape closes it), and the page uses the full width without sideways scrolling.
 - **Cost meter** — Today shows this month's paid API spend against your monthly budget, with a
   month-end projection, a warning at 80 % and a pause at 100 %. Until a paid source (Treg, for
   the weekly [outside view](#the-outside-view-treg)) is connected it says "No paid data
@@ -155,6 +160,14 @@ signed-in session:
   `409 brain_unreadable`, `413 too_large` and `429 busy`. Approving writes
   `content/approved/<platform>/<date>-<slug>.md` in the brain (never over an existing file; a clash
   gets `-2` to `-9`); discarding an approved piece removes that file. Nothing is ever posted.
+- `POST /api/content` with `{"action": "send-to-postiz", "pieceId": "<ideaId>.<platform>", "revision": 3, "resend": false}`
+  queues a `content-postiz` job for an approved LinkedIn, Facebook or Instagram piece (as **Send
+  to Postiz as a draft** does); the worker makes the draft in Postiz. It needs `HARBOUR_CONTENT=on`,
+  `HARBOUR_POSTIZ_URL` and `HARBOUR_POSTIZ_API_KEY`, and a channel for that platform. A piece already
+  sent is refused with `409 confirm_resend` (its message asks "Send it again?") unless `resend` is
+  `true`. Other refusals: `404 not_found`, `409 content_off`, `409 postiz_off`, `409 not_supported`,
+  `409 not_approved`, `409 stale`, `409 no_channel`, `409 brain_unreadable`, `429 postiz_busy` (one
+  send at a time) and `429 rate_limited` (five sends an hour).
 - `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
   moves an action to a new status. `from` is the status your page showed: if the action changed
   since, the request is refused (`409 stale`) instead of overwriting it. `to` is `open`,
@@ -228,7 +241,7 @@ new agent runs.
 Discovery results are proposals, not commitments. Open a product in the sidebar and choose
 **Research targets** (`/settings/products/<id>`) to see its proposed keywords, AI questions and
 competitors, each with the agent's reason. **Approve**, **Reject** or **Edit** each one, or
-**Approve all proposed** per list. Re-running discovery never overwrites items you've already
+**Approve all** per list (items waiting for your OK). Choosing **Find ideas** again never overwrites items you've already
 decided on.
 
 For a product with content turned on, discovery also proposes three to five **content
@@ -404,6 +417,8 @@ no links at all: any link is refused.
 | `HARBOUR_SCHEDULED_IDEAS` | `on` | `off` stops Monday 07:00 idea runs; **Find new ideas** still works. |
 | `HARBOUR_CONTENT_DAILY_RUNS` | `24` | Content agent runs per local day (1 to 100), scheduled and manual together. |
 | `HARBOUR_SKILLS_DIR` | `~/.claude/skills` | Where the three skills are installed; must be outside the brain. |
+| `HARBOUR_POSTIZ_URL` | unset | Optional: your Postiz's backend address, on this machine or your tailnet. See below. |
+| `HARBOUR_POSTIZ_API_KEY` | unset | Optional secret: a Postiz API key. Set both or neither. |
 
 **The Content page** (`/content`) has six tabs: Ready for you, Needs you, Ideas, Being written,
 Approved and Discarded. Each idea is a headline and one line; a piece opens to plain text with Copy
@@ -425,8 +440,38 @@ ideas, pieces with a `.gates.json` record of each check, `approved/` exports), s
 the Second Brain viewer or your editor. The Content page only reads; a worker job saves every
 approve, edit and discard and commits just those files. The web process never runs an agent.
 
-**What is not built.** Sending approved pieces to Postiz or any other tool (Harbour never posts),
-images (Instagram gets a written visual brief), analytics and the feedback loop, pruning old
+#### Send to Postiz as a draft
+
+[Postiz](https://postiz.com) is a free, open-source social media scheduler you can run yourself.
+If you do, Harbour can put an approved LinkedIn, Facebook or Instagram piece into it **as a
+draft**, so you can add images, preview it and post it from Postiz. Harbour never schedules,
+publishes or deletes anything there: the client it uses can only list your channels and create a
+draft. It is off until you set it up.
+
+1. In Postiz, connect your social accounts (Postiz calls them channels). Harbour never sees their
+   passwords or tokens.
+2. In Postiz, open **Settings** and create an API key.
+3. In Harbour's `.env`, set `HARBOUR_POSTIZ_URL` to Postiz's backend address (Postiz's own
+   backend URL, which ends in `/api`; for the standard Docker setup on this machine that is
+   `http://127.0.0.1:4007/api`) and `HARBOUR_POSTIZ_API_KEY` to the key. The address must be on this
+   machine or your tailnet, and Harbour never follows a redirect, so the key goes nowhere else.
+4. In `harbour.config.json`, map each platform to a channel id under `content.postiz.channels`
+   (`linkedin`, `facebook`, `instagram`; X, blog posts and website sections are never sent). The
+   ids are in Postiz (or its `GET /public/v1/integrations` answer). See `harbour.config.example.json`.
+5. Restart both services: `systemctl --user restart harbour-web harbour-worker`. Settings then shows
+   Postiz as **Connected**.
+
+On an approved piece the Content page then shows **Send to Postiz as a draft**. Only the piece's
+text is sent (LinkedIn and Facebook: the text and hashtags; Instagram: the caption and hashtags,
+not the visual brief), with no images. The worker checks the channel exists, is switched on and is
+the right kind for the platform, creates the draft, and notes `postiz: { sentAt, postId }` on the
+piece in your brain. Sending a piece again asks first and makes a second draft. At most five sends
+start in any hour, one at a time. If Postiz is down or refuses, the send fails with one sentence
+saying what to do, and the piece stays approved. **The key can publish**, even though Harbour only
+makes drafts with it, so keep it like the Claude token: only in `.env`, used only by the worker.
+
+**What is not built.** Posting or scheduling from Harbour (it never posts), images (Instagram gets
+a written visual brief), analytics and the feedback loop, pruning old
 digests (git history keeps them anyway), a skills panel on the Agents page, and Search Console
 queries as an input to ideas. The design and its known limits are in the
 [content machine spec](docs/superpowers/specs/2026-10-02-content-machine-design.md).
@@ -436,6 +481,9 @@ queries as an input to ideas. The design and its known limits are in the
 Harbour is built to be safe to leave running:
 
 - **Loopback only.** The web server binds `127.0.0.1:3400`; nothing on your LAN can reach it.
+- **One host name.** A request whose `Host` header is not `HARBOUR_ORIGIN`'s host (and port) is
+  rejected with 403, so another site cannot reach Harbour by pointing its own name at it
+  (DNS rebinding). Open Harbour at exactly the address in `HARBOUR_ORIGIN`.
 - **Lock 1 — Tailscale identity.** Tailscale Serve publishes Harbour over HTTPS to your
   tailnet and adds the `Tailscale-User-Login` header. Requests whose login is not on
   `HARBOUR_ALLOWED_LOGINS` are rejected with 403.
@@ -552,7 +600,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility check's crawler fetches per product per check, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
 | `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing checks by itself (the daily 06:00 check and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Write this week's report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
-| `HARBOUR_PERSONALITY` | no | `warm` | `warm` or `quiet`. `quiet` turns off the daily note (its job, its card on Today) and the wave behind the app. See [Daily note](#daily-note). Restart both services after changing it. |
+| `HARBOUR_PERSONALITY` | no | `warm` | `warm` or `quiet`. `quiet` turns off the daily note (its job, its card on Today) and the ocean background on every page. See [Daily note](#daily-note). Restart both services after changing it. |
 | `HARBOUR_NOTE_TIME` | no | `06:30` | The local time, `HH:MM` in `HARBOUR_TIMEZONE`, the worker writes the daily note each day (and catches up on start). Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_NOTE` | no | `on` | `off` stops the worker queueing the daily note by itself; **Write me a fresh one** on Today still queues it. Restart the worker after changing it. |
 | `HARBOUR_CONTENT` | no | `off` | `on` turns on the content machine: the Content page, the daily activity digest, ideas and drafting. Off hides the page and stops every content job. Restart both services after changing it. |
@@ -563,6 +611,8 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_SCHEDULED_IDEAS` | no | `on` | `off` stops Monday 07:00 idea runs; **Find new ideas** on Content still works. |
 | `HARBOUR_CONTENT_DAILY_RUNS` | no | `24` | Content agent runs allowed per local day (1 to 100), scheduled and manual together. |
 | `HARBOUR_SKILLS_DIR` | no | `~/.claude/skills` | Where the `no-ai-slop`, `humanizer` and `atomizer` skills are installed. Must be outside the brain. |
+| `HARBOUR_POSTIZ_URL` | no | unset | Your self-hosted Postiz's backend address, ending in `/api` (for example `http://127.0.0.1:4007/api`). `http` or `https`, on this machine (`127.0.0.1`, `[::1]`, `localhost`) or your tailnet (a `*.ts.net` name or a `100.64.0.0/10` address), with no user, query or fragment. Set it with the key, or neither. See [Send to Postiz as a draft](#send-to-postiz-as-a-draft). Restart both services after changing it. |
+| `HARBOUR_POSTIZ_API_KEY` | no | unset | Secret; a Postiz API key (Postiz Settings). Only the worker uses it, only to list channels and create drafts; Settings shows only Connected or Not connected yet. The key itself could publish, so keep it like the Claude token. |
 | `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_RESEARCH` | no | `on` | `off` stops the worker queueing the monthly research refresh by itself (the first Sunday of each month at 21:00 and the catch-up on start); **Update old research** on **Agents** still queues it by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_BACKUP` | no | `on` | `off` stops the worker queueing the nightly backup by itself (03:15 and the catch-up on start); `pnpm backup:now` still queues one by hand. Restart the worker after changing it. |
@@ -736,14 +786,30 @@ on the same runner, git gate and Claude subscription as the other agents.
 - **Changing the personality** — edit `lib/note/persona/warm-friend.md` (the voice, the honesty
   rules, the format) and bump `NOTE_PROMPT_VERSION` in `lib/note/prompt.ts`. The rules the
   checker enforces are in `lib/explain/voice/`.
-- **Quiet** — `HARBOUR_PERSONALITY=quiet` removes the schedule, the card and the wave.
+- **Quiet** — `HARBOUR_PERSONALITY=quiet` removes the schedule, the card and the ocean background.
 - **Not pruned yet** — old notes stay in the brain (about 400 small files a year).
 
-The wave is inline SVG and CSS only (no script): three faint layers in the tide tint, drifting
-slowly at different speeds, behind the page content and never in the way of a click. It holds
-still under `prefers-reduced-motion: reduce`, browsers do not animate it in a hidden tab, and a
-celebrating note makes the front layer ripple once. A test checks that every text colour keeps
-WCAG AA contrast over all three layers stacked, in light, dark and system dark.
+A celebrating note makes the front wave of the [ocean background](#ocean-background) rise once.
+
+### Ocean background
+
+Harbour is a harbour, so the lower half of every page is water: a soft fade to the horizon and
+three wave layers (far, middle, near), each edged with a thin foam line, rolling sideways and
+bobbing gently, each at its own slow pace (26 to 40 seconds a loop). It sits behind everything: cards, panels and text always stay on
+top and keep their own background, and clicks pass straight through it. It shows on the sign-in
+and setup pages too.
+
+- **Calm by design** — pale sea-glass on the paper theme, deep teal water in the dark. Every text
+  colour keeps WCAG AA contrast (at least 4.5:1, the usual readability bar) on every ocean colour,
+  in light, dark and system dark; a test checks this, so a token change that hurts legibility fails.
+- **Reduced motion** — with *Reduce motion* turned on in your operating system, the waves hold
+  still as a still wave shape.
+- **Cheap** — inline SVG and CSS only, no script; it moves by `transform` alone, browsers do not
+  animate it in a hidden tab, and it is left out of print.
+- **Turning it off** — `HARBOUR_PERSONALITY=quiet` (it also turns off the daily note). There is no
+  separate setting.
+- **Changing it** — colours are the `--ocean-*` tokens in `design/tokens.css`; shape, speed and
+  phase are in `design/wave.ts`. Both are shown on `/design` under *Ocean background*.
 
 ### Monthly research refresh
 
@@ -1363,9 +1429,9 @@ GEO or AEO heading, no `HARBOUR_*` setting name or sub-score key, and not the wo
 
 The note specs choose **Write me a fresh one** against the fake CLI, which reads the fenced facts
 out of its prompt and writes an honest note, and the wave specs check that the wave is hidden from
-assistive technology, passes clicks through and stops under emulated reduced motion.
-`design/wave-contrast.test.ts` computes text contrast over the stacked wave from
-`design/tokens.css`.
+assistive technology, passes clicks through, shows on the sign-in page without widening it, is
+left out of print and stops under emulated reduced motion. `design/wave-contrast.test.ts`
+computes every text colour's contrast on every ocean colour from `design/tokens.css`.
 
 The Playwright projects run in order — the shell and brain specs, then agents, scans, actions, the
 weekly analyst, the note, content and finally operations (Settings) — because each later one changes what the

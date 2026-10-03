@@ -793,6 +793,75 @@ Settings shows "Connected" or "Not connected yet"), and only the worker uses it,
 code path. Exact endpoint names and the draft payload are confirmed against the installed Postiz
 version during planning.
 
+### 11.1 As built (2026-10-04)
+
+Built in `feat/content-postiz` (plan: `docs/superpowers/plans/2026-10-04-content-postiz.md`). Where
+this differs from the text above, this is right.
+
+**The API, as checked.** From docs.postiz.com (public-api: introduction, posts create,
+integrations list, providers) and the source in the installed image (Postiz v1.47.0), read without
+calling the API:
+
+- The self-hosted public API is `<backend>/public/v1`, and the backend is `<origin>/api`. So
+  `HARBOUR_POSTIZ_URL` is the **backend** address, ending in `/api` (`http://127.0.0.1:4007/api` for
+  the standard Docker setup), not a bare origin; Harbour appends `/public/v1`.
+- Auth is the raw key in `Authorization`, with no `Bearer`.
+- `GET /integrations` answers `[{ id, name, identifier, picture, disabled, profile, customer? }]`;
+  `identifier` is the channel's kind (`linkedin`, `linkedin-page`, `facebook`, `instagram`,
+  `instagram-standalone`, …).
+- `POST /posts` takes `{ type, date, shortLink, tags, posts: [{ integration: { id }, value:
+  [{ content, image }], settings: { __type, … } }] }` and answers `[{ postId, integration }]`.
+  For `type: "draft"` Postiz checks only that the post has text or an image (no settings
+  validation), sets `settings.__type` from the channel itself, and starts no publishing workflow.
+- **Rate limit (corrects "30 an hour" above).** Only `POST /public/v1/posts` is throttled, per
+  organisation, `API_LIMIT` per hour: the docs now say 90 by default; this install sets 30.
+- Required settings: LinkedIn (both kinds) and Facebook need only `__type`; Instagram (both kinds)
+  needs `post_type` (`"post"` is sent). YouTube needs `title` and `type`, but Harbour has no YouTube
+  platform, so it is not built.
+
+**Decisions.**
+
+- **Platforms:** LinkedIn, Facebook and Instagram. X is not used; a blog post and a website section
+  are never offered. The channel's kind must match the platform (LinkedIn: `linkedin` or
+  `linkedin-page`; Instagram: `instagram` or `instagram-standalone`).
+- **Text:** exactly the approved piece's post text (`lib/content/postiz/text.ts`): LinkedIn and
+  Facebook the text and hashtags as the Copy button gives them; Instagram the caption and
+  hashtags, never the visual brief. No images (the button's line says so), `shortLink: false`.
+- **Address:** `http:` or `https:`, no user, query or fragment, on loopback (`127.0.0.1`, `[::1]`,
+  `localhost`), a `*.ts.net` name or a Tailscale address (`100.64.0.0/10`); checked in config and
+  again by the client. Redirects are never followed. URL and key are set together or not at all.
+- **Rate:** 10 requests an hour, two per send (channel list, then create): five sends start in any
+  rolling hour, counted from the jobs table at request time and again by the worker. A send that
+  stopped before asking Postiz anything finishes with the result `postiz-not-asked` and does not
+  count; one cut off by a restart does. One send waits at a time.
+- **Job** `content-postiz` (`lib/content/worker/postiz-job.ts`): no model, needs `HARBOUR_CONTENT=on`
+  but not the Claude token. Every check that needs no network comes first (switched on, connected,
+  brain usable, the piece approved at the asked revision, a channel set, not already sent unless
+  `resend`, the cap, no unsaved owner edit to the piece). Then the channel list, then the draft,
+  then `postiz: { sentAt, postId }` is written with the usual revision bump and committed alone
+  (`content: postiz draft <pieceId>`). The commit-and-push is shared with the decision job
+  (`commit-change.ts`).
+- **Failures:** one plain sentence from `lib/explain/postiz.ts`; the piece stays approved. A failure
+  after the draft was asked for that cannot say whether Postiz made it (no answer, a 5xx, an odd or
+  oversize answer) says so and asks the owner to look in Postiz before sending again. A draft made
+  but not noted names its post id.
+- **Settings:** a "Postiz" row, Connected only with both the URL and the key.
+- **`harbour.config.json`:** `content.postiz.channels: { linkedin?, facebook?, instagram? }`, each a
+  channel id (`[A-Za-z0-9_-]{1,64}`); any other key is an error (this replaces §17.1 o).
+
+**Tests:** a fake Postiz on 127.0.0.1 replays answers recorded by hand from the docs
+(`tests/fixtures/postiz/`, fictional ids); no real Postiz is called. The client test reads the
+module's source: its only `type:` literal is `"draft"`, it has no `now` or `schedule` literal, no
+DELETE, PUT or PATCH, and exports only `listChannels`, `createDraft`, `buildDraftRequest` and the
+error class. Sentinel tests keep the key out of the database, events, errors, logs, the brain and
+the Settings rows.
+
+**Residuals.** A worker cut off between Postiz making the draft and the note being committed leaves
+a draft Harbour has no record of (the job is marked failed by startup recovery); sending again
+makes a second one. A Postiz with links stripped by its own provider rules may change the text it
+stores; Harbour sends it unchanged. Whether an Instagram draft without an image is accepted
+when the owner later schedules it in Postiz is Postiz's check, not Harbour's.
+
 ## 12. Schedules, limits, cost and settings
 
 ### 12.1 Schedules (in `HARBOUR_TIMEZONE`)
@@ -856,7 +925,7 @@ installed.
 | `HARBOUR_CONTENT_DAILY_RUNS` | `24` | Integer 1–100. |
 | `HARBOUR_DIGEST_KEEP_DAYS` | `30` | Integer 7–365. |
 | `HARBOUR_SKILLS_DIR` | `~/.claude/skills` (expanded from `HOME`) | Must be an existing directory outside the brain. |
-| `HARBOUR_POSTIZ_URL` | unset | Stretch. http(s) origin; loopback or a tailnet host. |
+| `HARBOUR_POSTIZ_URL` | unset | Stretch. Postiz's backend address (ends in `/api`), http(s), on loopback or the tailnet (§11.1). |
 | `HARBOUR_POSTIZ_API_KEY` | unset | Stretch. Secret. |
 
 `harbour.config.json` (gitignored) gains, validated with zod:
@@ -1103,8 +1172,8 @@ Each is a call made while building, one bullet each.
   new ideas for <product>", "Write this" and "Try again". The Agents page only gains plain job
   labels. There is no "Writing skills" panel and no "skill was updated" note; the hashes are in job
   events and gate results.
-- **o. `content.postiz` in `harbour.config.json` is rejected** (strict schema): an unknown key is
-  loud, not ignored.
+- **o. `content.postiz` in `harbour.config.json`** was rejected until Postiz drafts were built; it
+  now holds `channels` only (§11.1), and any other key is still an error.
 - **p. Piece ids** are `<ideaId>.<platform>` (an idea id has no dot); the API accepts one and splits
   it with zod.
 - **q. Atomise claims** are stored in the piece frontmatter (at most 20) and passed to the facts
@@ -1324,7 +1393,7 @@ report never see a project. A project still needs `products/<id>/notes.md` for i
 
 ### 17.5 Not built
 
-Postiz drafts (§11), the Search Console and approved-target inputs to ideas, a separate
+The Search Console and approved-target inputs to ideas, a separate
 `content-pillars` job, digest pruning and `HARBOUR_DIGEST_KEEP_DAYS`, discarded-piece pruning after
 90 days, the Agents page skills panel and its "skill was updated" note, the "What Harbour noticed"
 panel with "Leave this out", any scheduling other than the daily digest and Monday ideas, images,

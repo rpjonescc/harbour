@@ -1,6 +1,7 @@
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
 import type { ContentProduct } from "@/lib/products/content";
+import type { PostizChannels } from "./postiz/channels";
 
 export type RequestContext = {
   db: Db;
@@ -10,6 +11,8 @@ export type RequestContext = {
   /** The brain folder (read only here) and the products with content on. */
   root: string;
   products: readonly ContentProduct[];
+  /** The Postiz channel per platform (`content.postiz.channels`); none means nothing can be sent. */
+  postizChannels?: PostizChannels;
 };
 export type RequestResult =
   | { ok: true; jobIds: number[] }

@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import type { ProposalRow, ProposalType } from "@/lib/agents/proposals";
 import { postJson } from "@/lib/auth/client-api";
-import { approvalFailure } from "@/lib/explain/approvals";
+import {
+  approvalFailure,
+  emptyProposalsMessage,
+  proposalTypePlural,
+} from "@/lib/explain/approvals";
 import { ProposalItem } from "./ProposalItem";
 
 /** All proposals of one type for a product, with a bulk approve button. */
@@ -43,16 +47,16 @@ export function ProposalList({
         approvalFailure(result.error, result.message ?? "Couldn't approve them all. Try again."),
       );
     const n = result.data.count ?? 0;
-    setAnnouncement(`Approved ${n} ${n === 1 ? type : `${type}s`}`);
+    setAnnouncement(`Approved ${n} ${n === 1 ? type : proposalTypePlural(type)}`);
     router.refresh();
   }
 
   if (items.length === 0) {
     return (
       <Panel className="p-4 text-sm text-ink-muted">
-        No proposals yet — run discovery for {productName} on the{" "}
+        {emptyProposalsMessage(productName)}{" "}
         <Link href="/agents" className="text-accent underline underline-offset-2">
-          Agents page
+          Open the Agents page and choose Find ideas
         </Link>
         .
       </Panel>
@@ -63,11 +67,17 @@ export function ProposalList({
     <Panel className="px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink-muted">
-          {proposed} proposed · {count("approved")} approved · {count("rejected")} rejected
+          {proposed} waiting for your OK · {count("approved")} approved · {count("rejected")}{" "}
+          rejected
         </p>
         {proposed > 0 && (
-          <Button variant="ghost" onClick={approveAll} disabled={busy}>
-            Approve all proposed
+          <Button
+            variant="ghost"
+            onClick={approveAll}
+            disabled={busy}
+            aria-label={`Approve all waiting ${proposalTypePlural(type)}`}
+          >
+            Approve all
           </Button>
         )}
       </div>

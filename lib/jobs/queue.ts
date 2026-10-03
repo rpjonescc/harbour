@@ -9,7 +9,6 @@ import {
   inArray,
   isNotNull,
   isNull,
-  lt,
   lte,
   or,
   type SQL,
@@ -34,7 +33,8 @@ export type JobKind =
   | "content-draft"
   | "content-atomise"
   | "content-gate"
-  | "content-decision";
+  | "content-decision"
+  | "content-postiz";
 export type JobStatus = "queued" | "running" | "ok" | "failed" | "cancelled";
 export type Job = typeof jobs.$inferSelect;
 export type EventKind = "status" | "tool" | "text" | "error";
@@ -48,7 +48,6 @@ export const MAX_EVENTS = 220;
 export const MAX_STREAM_EVENTS = 180;
 const LIMIT_NOTE = "Activity limit reached — further agent steps not recorded";
 const STREAM_KINDS: EventKind[] = ["tool", "text"];
-const STALE_MS = 60_000;
 /** Import attempts per agent run, the run's own included; then the owner must run it again. */
 export const MAX_IMPORT_ATTEMPTS = 3;
 
@@ -73,7 +72,7 @@ export function claimNextJob(db: Db, now = new Date()): Job | null {
       return (
         tx
           .update(jobs)
-          .set({ status: "running", startedAt: now, heartbeatAt: now })
+          .set({ status: "running", startedAt: now })
           .where(and(eq(jobs.id, next.id), eq(jobs.status, "queued")))
           .returning()
           .get() ?? null
@@ -88,18 +87,11 @@ export function deferJob(db: Db, id: number, until: Date): boolean {
   return (
     db
       .update(jobs)
-      .set({ status: "queued", notBefore: until, startedAt: null, heartbeatAt: null })
+      .set({ status: "queued", notBefore: until, startedAt: null })
       .where(and(eq(jobs.id, id), eq(jobs.status, "running")))
       .returning({ id: jobs.id })
       .all().length > 0
   );
-}
-
-export function heartbeat(db: Db, id: number, now = new Date()): void {
-  db.update(jobs)
-    .set({ heartbeatAt: now })
-    .where(and(eq(jobs.id, id), eq(jobs.status, "running")))
-    .run();
 }
 
 /** Moves a running job to a terminal state. Returns false if it was no longer running. */
@@ -147,20 +139,9 @@ export function isCancelRequested(db: Db, id: number): boolean {
   return db.select({ c: jobs.cancelRequested }).from(jobs).where(eq(jobs.id, id)).get()?.c === true;
 }
 
-/** Marks running jobs with a stale heartbeat as failed (the worker died mid-run). */
-export function recoverStaleJobs(db: Db, now = new Date(), staleMs = STALE_MS): number {
-  const cutoff = new Date(now.getTime() - staleMs);
-  return failRunning(
-    db,
-    now,
-    "Worker stopped during run — check the brain repo for partial changes (git status)",
-    or(isNull(jobs.heartbeatAt), lt(jobs.heartbeatAt, cutoff)),
-  ).length;
-}
-
 /**
- * At worker start every running job is orphaned (the worker is the only runner), whatever its
- * heartbeat says. Returns their ids so their partial changes can be recovered.
+ * At worker start every running job is orphaned (the worker is the only runner). Returns their
+ * ids so their partial changes can be recovered.
  */
 export function recoverRunningJobs(db: Db, now = new Date()): number[] {
   const agent = failRunning(

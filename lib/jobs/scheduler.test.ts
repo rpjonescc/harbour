@@ -7,7 +7,7 @@ import { jobs } from "@/lib/db/schema";
 import { openTestDb } from "@/tests/helpers/db";
 import { makeGitBrain } from "@/tests/helpers/git-brain";
 import type { HousekeepingAction } from "./housekeeping";
-import { claimNextJob, enqueueJob, eventsSince, finishJob, getJob, heartbeat } from "./queue";
+import { claimNextJob, enqueueJob, eventsSince, finishJob, getJob } from "./queue";
 import { pendingRecovery, type RecoveryResult, writeRunMarker } from "./run-marker";
 import { makeScheduler, pushRetryDelay } from "./scheduler";
 
@@ -129,7 +129,6 @@ describe("makeScheduler", () => {
     try {
       const id = enqueueJob(db, "research", { topic: "glossary" }, null).id;
       claimNextJob(db);
-      heartbeat(db, id); // fresh: a stale-only check would miss it
       writeRunMarker(quarantineRoot, id, snapshotRun(brain.root));
       writeFileSync(join(brain.root, "partial.md"), "# partial\n");
       makeScheduler({ db, root: brain.root, quarantineRoot, clock: () => 0 }).startup();

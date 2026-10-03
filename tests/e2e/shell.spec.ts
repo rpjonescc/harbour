@@ -158,7 +158,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         "Components",
         "Plain-language examples",
         "Today examples",
-        "The wave",
+        "Ocean background",
       ]) {
         await expect(page.getByRole("heading", { name })).toBeVisible();
       }

@@ -85,13 +85,26 @@ export function removeRunMarker(quarantineRoot: string, jobId: number | string):
   rmSync(markerPath(quarantineRoot, jobId), { force: true });
 }
 
-/** Ids of jobs whose changes still need recovering, oldest first. Empty when there are none. */
+/** The run-marker folder exists but cannot be listed: whether a run needs recovering is unknown. */
+export class RecoveryUnreadable extends Error {
+  constructor(code: string) {
+    super(`Harbour couldn't check for interrupted runs (${code})`);
+    this.name = "RecoveryUnreadable";
+  }
+}
+
+/**
+ * Ids of jobs whose changes still need recovering, oldest first. Empty only when there are none
+ * (no marker folder yet); any other read failure throws `RecoveryUnreadable`, so callers block.
+ */
 export function pendingRecovery(quarantineRoot: string): string[] {
   let names: string[];
   try {
     names = readdirSync(activeDir(quarantineRoot));
-  } catch {
-    return [];
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? "unknown error";
+    if (code === "ENOENT") return [];
+    throw new RecoveryUnreadable(code);
   }
   return names
     .map((name) => MARKER.exec(name)?.[1])
@@ -137,11 +150,16 @@ export type RecoveryResult = {
 
 const errorFile = (quarantineRoot: string) => join(activeDir(quarantineRoot), "recovery-error.txt");
 
-/** Pending recoveries and the last recovery problem, for the UI. */
+/** Pending recoveries (null when they could not be checked) and the last problem, for the UI. */
 export function recoveryStatus(quarantineRoot: string): {
-  pending: string[];
+  pending: string[] | null;
   lastError: string | null;
 } {
+  try {
+    pendingRecovery(quarantineRoot);
+  } catch (error) {
+    return { pending: null, lastError: (error as Error).message };
+  }
   let lastError: string | null = null;
   try {
     lastError = readFileSync(errorFile(quarantineRoot), "utf8").trim() || null;

@@ -1,12 +1,15 @@
 import type { ReactNode } from "react";
 import { ActionExamples } from "@/components/design/ActionExamples";
 import { AgentExamples } from "@/components/design/AgentExamples";
+import { AgentRunExamples } from "@/components/design/AgentRunExamples";
 import { BoardExamples } from "@/components/design/BoardExamples";
 import { BrainExamples } from "@/components/design/BrainExamples";
 import { ContentExamples } from "@/components/design/ContentExamples";
 import { ExplainExamples } from "@/components/design/ExplainExamples";
 import { OpsExamples } from "@/components/design/OpsExamples";
+import { ProposalExamples } from "@/components/design/ProposalExamples";
 import { ScanExamples } from "@/components/design/ScanExamples";
+import { SettingsExamples } from "@/components/design/SettingsExamples";
 import { SourcesExamples } from "@/components/design/SourcesExamples";
 import { TodayExamples } from "@/components/design/TodayExamples";
 import { TokenSwatches } from "@/components/design/TokenSwatches";
@@ -92,7 +95,15 @@ export default async function DesignPage() {
       <Section title="Today examples">
         {firstProduct && <TodayExamples product={firstProduct} />}
       </Section>
-      <Section title="The wave">
+      <Section title="Navigation on a phone">
+        <p className="text-sm">
+          Below the md breakpoint (768px) the sidebar becomes a compact top bar: the Harbour name
+          and a <strong>Menu</strong> button. The menu opens in place under it, focus moves to its
+          first link, Escape closes it and returns focus to the button, and choosing a page closes
+          it. Content gets the full width, with no sideways scrolling.
+        </p>
+      </Section>
+      <Section title="Ocean background">
         <WaveExample />
       </Section>
       <Section title="Second Brain examples">
@@ -109,6 +120,15 @@ export default async function DesignPage() {
       </Section>
       <Section title="Agents examples">
         <AgentExamples />
+      </Section>
+      <Section title="Agent run examples">
+        <AgentRunExamples />
+      </Section>
+      <Section title="Proposal examples">
+        <ProposalExamples />
+      </Section>
+      <Section title="Settings examples">
+        <SettingsExamples />
       </Section>
       <Section title="Sources examples">
         <SourcesExamples productId={getProducts()[0]?.id ?? "acme-docs"} />

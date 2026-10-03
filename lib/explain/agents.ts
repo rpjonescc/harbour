@@ -54,6 +54,8 @@ const RUN_FAILED_NEXT_STEP: Readonly<Partial<Record<JobKind, string>>> = {
   "content-gate": "This step didn't finish. Choose Try again on the Content page.",
   "content-decision":
     "This decision didn't save. Choose Approve, Edit or Discard again on the Content page.",
+  "content-postiz":
+    "This send to Postiz didn't finish. Look in Postiz first, then choose Send to Postiz as a draft on the Content page if the draft isn't there.",
 };
 
 /** The message under a failed run, with the right next step for its kind. */

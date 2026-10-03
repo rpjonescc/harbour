@@ -6,6 +6,7 @@ import type { PieceView } from "@/lib/content/read/view-types";
 import { ApprovePanel } from "./ApprovePanel";
 import { ConfirmDiscard } from "./ConfirmDiscard";
 import { EditPanel } from "./EditPanel";
+import { PostizSend } from "./PostizSend";
 import { STILL_WAITING } from "./savingPoller";
 import { useContentDecision } from "./useContentDecision";
 
@@ -33,17 +34,32 @@ export function PieceActions({ piece }: { piece: PieceView }) {
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
         {decidable && !piece.empty && (
-          <Button variant="ghost" onClick={open("approve")} disabled={piece.saving}>
+          <Button
+            variant="ghost"
+            onClick={open("approve")}
+            disabled={piece.saving}
+            aria-label={`Approve: ${piece.title}`}
+          >
             Approve
           </Button>
         )}
         {decidable && !piece.empty && (
-          <Button variant="ghost" onClick={open("edit")} disabled={piece.saving}>
+          <Button
+            variant="ghost"
+            onClick={open("edit")}
+            disabled={piece.saving}
+            aria-label={`Edit: ${piece.title}`}
+          >
             Edit
           </Button>
         )}
         {piece.tab !== "discarded" && (
-          <Button variant="ghost" onClick={open("discard")} disabled={piece.saving}>
+          <Button
+            variant="ghost"
+            onClick={open("discard")}
+            disabled={piece.saving}
+            aria-label={`Discard: ${piece.title}`}
+          >
             Discard
           </Button>
         )}
@@ -70,6 +86,7 @@ export function PieceActions({ piece }: { piece: PieceView }) {
         <ConfirmDiscard
           question="Discard this piece?"
           confirmLabel="Confirm discard"
+          confirmName={`Confirm discard: ${piece.title}`}
           busy={busy}
           onCancel={close}
           onConfirm={() => send({ action: "discard", ...base }, close)}
@@ -84,6 +101,7 @@ export function PieceActions({ piece }: { piece: PieceView }) {
         </p>
       )}
       {!error && piece.decisionError && <p className="text-sm text-ink">{piece.decisionError}</p>}
+      <PostizSend piece={piece} />
     </div>
   );
 }

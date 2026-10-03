@@ -2,7 +2,7 @@ import { existsSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { claim, reload, setup } from "@/tests/helpers/run-job";
 import { claimNextJob, enqueueJob, eventsSince, type Job } from "./queue";
-import { runAgentJob } from "./run-job";
+import { EDITING_GAVE_UP, runAgentJob } from "./run-job";
 
 function claimAt(deps: { db: Parameters<typeof claimNextJob>[0] }, ms: number): Job {
   const job = claimNextJob(deps.db, new Date(ms));
@@ -53,6 +53,43 @@ describe("runAgentJob while the owner is editing", () => {
       const job = claim(deps);
       await runAgentJob(deps, job);
       expect(reload(deps, job.id).status).toBe("queued");
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("dates an edit with a future modification time as now, so the wait stays short", async () => {
+    const clock = new Date("2026-10-01T12:00:00Z").getTime();
+    const { brain, db, deps } = setup("success", {}, { now: () => new Date(clock) });
+    try {
+      const nextYear = new Date(clock + 365 * 24 * 60 * 60_000);
+      writeFileSync(join(brain.root, "draft.md"), "# draft\n");
+      utimesSync(join(brain.root, "draft.md"), nextYear, nextYear);
+      enqueueJob(db, "research", { topic: "glossary" }, null, new Date(clock));
+      const job = claimAt(deps, clock);
+      await runAgentJob(deps, job);
+      expect(reload(deps, job.id)).toMatchObject({
+        status: "queued",
+        notBefore: new Date(clock + QUIET_MS),
+      });
+    } finally {
+      brain.cleanup();
+    }
+  });
+
+  it("gives up after six hours of waiting, counted from when the job was queued", async () => {
+    const queuedAt = new Date("2026-10-01T06:00:00Z").getTime();
+    const clock = queuedAt + 6 * 60 * 60_000;
+    const { brain, db, deps } = setup("success", {}, { now: () => new Date(clock) });
+    try {
+      writeFileSync(join(brain.root, "draft.md"), "# draft\n"); // edited just now
+      utimesSync(join(brain.root, "draft.md"), new Date(clock), new Date(clock));
+      enqueueJob(db, "research", { topic: "glossary" }, null, new Date(queuedAt));
+      const job = claimAt(deps, clock);
+      expect(await runAgentJob(deps, job)).toEqual({ pushed: null });
+      expect(reload(deps, job.id)).toMatchObject({ status: "failed", error: EDITING_GAVE_UP });
+      expect(eventsSince(db, job.id, 0).map((e) => e.text)).toEqual([EDITING_GAVE_UP]);
+      expect(brain.git("status", "--porcelain")).toContain("draft.md"); // never committed
     } finally {
       brain.cleanup();
     }

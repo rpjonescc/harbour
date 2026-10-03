@@ -1,20 +1,16 @@
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { DocsLink } from "@/components/ui/DocsLink";
 import { Tag } from "@/components/ui/Tag";
-import { DOCS_LINKS } from "@/lib/docs-links";
 import { keyPhrase, keyPurpose, keySteps } from "@/lib/explain/keys";
 import { SETTINGS_PURPOSE } from "@/lib/explain/settings";
+import { sourceSetupLink } from "@/lib/explain/sources";
 import type { KeyRow } from "@/lib/settings/key-status";
 import { type SectionPlacement, SettingsSection } from "./SettingsSection";
 
 const CELL = "py-2 pr-3 align-top";
-const DOCS: Record<string, { href: string; label: string } | undefined> = {
-  pagespeed: { href: DOCS_LINKS.pagespeed, label: "Connect PageSpeed" },
-  "search-console": { href: DOCS_LINKS.searchConsole, label: "Connect Search Console" },
-};
 
 function Setup({ row }: { row: KeyRow }) {
-  const docs = DOCS[row.id];
+  const docs = sourceSetupLink(row.id);
   return (
     <TechnicalDetails id={`connect-${row.id}`} topic={`how to connect ${row.label}`}>
       <ol className="list-decimal pl-4">

@@ -7,23 +7,27 @@ import { runProcess } from "@/lib/agents/process";
 import { makeRefreshSchedule, type QueuedRefresh } from "@/lib/agents/refresh-schedule";
 import { makeAnalystSchedule } from "@/lib/analyst/schedule";
 import { getConfig } from "@/lib/config";
-import { countWaitingIdeas, MAX_WAITING_IDEAS } from "@/lib/content/read/ideas";
-import { readVoice } from "@/lib/content/read/voice";
 import { makeDigestSchedule, makeIdeasSchedule } from "@/lib/content/schedule";
 import { deferForOtherChain } from "@/lib/content/worker/chain-wait";
-import { runContentDecision } from "@/lib/content/worker/decision-job";
 import { runDigestJob } from "@/lib/content/worker/digest-job";
-import { contentRunDeps, decisionDeps, resumeContentChains } from "@/lib/content/worker/wire";
+import { makeIdeasReadiness } from "@/lib/content/worker/ideas-ready";
+import {
+  contentRunDeps,
+  isContentWrite,
+  resumeContentChains,
+  runContentWrite,
+} from "@/lib/content/worker/wire";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
 import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
-import { keepAlive } from "@/lib/jobs/heartbeat";
+import { guardTick } from "@/lib/jobs/guard-tick";
 import { makeImportRetry } from "@/lib/jobs/import-retry";
 import { isAgentJobKind } from "@/lib/jobs/job-kinds";
-import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
+import { claimNextJob, type Job } from "@/lib/jobs/queue";
 import { type RunDeps, runAgentJob } from "@/lib/jobs/run-job";
 import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
 import { makeScheduler } from "@/lib/jobs/scheduler";
+import { runAndSettle } from "@/lib/jobs/settle-job";
 import { failUnknownJob } from "@/lib/jobs/unknown-job";
 import { gatherFacts } from "@/lib/note/gather";
 import { makeNoteSchedule, noteEnabled } from "@/lib/note/schedule";
@@ -37,7 +41,6 @@ import { failInterruptedScans } from "@/lib/scan/store";
 import { type WorkerTestSeams, workerScanDeps } from "@/lib/scan/worker-deps";
 
 const IDLE_MS = 2000;
-const HEARTBEAT_MS = 10_000;
 
 let stopping = false;
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
@@ -51,26 +54,6 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const logQueued = (why: string, scans: readonly QueuedScan[]) => {
   for (const s of scans) console.log(`${why}: queued scan #${s.jobId} for ${s.productId}`);
 };
-
-const warnedIdeas = new Set<string>();
-
-/** A product with a usable voice profile and room in its backlog; an unreadable brain queues nothing. */
-function readyForIdeas(root: string, productId: string): boolean {
-  try {
-    const ready =
-      readVoice(root, productId).state === "ok" &&
-      countWaitingIdeas(root, productId) < MAX_WAITING_IDEAS;
-    warnedIdeas.delete(productId);
-    return ready;
-  } catch {
-    // Once per product until it reads again, not every 30 seconds.
-    if (!warnedIdeas.has(productId)) {
-      warnedIdeas.add(productId);
-      console.warn(`ideas: could not read the brain for ${productId}; skipped`);
-    }
-    return false;
-  }
-}
 
 /**
  * Runs the worker until it is told to stop. `seams` is for the end-to-end tests' own entry point
@@ -129,7 +112,7 @@ export async function runWorker(seams?: WorkerTestSeams) {
     dailyRuns: config.HARBOUR_CONTENT_DAILY_RUNS,
     clock: Date.now,
     productIds: () => getContentProducts().map((p) => p.id),
-    isReady: (id) => readyForIdeas(root, id),
+    isReady: makeIdeasReadiness(root),
   });
   const logIdeas = (why: string, queued: readonly { jobId: number; productId: string }[]) => {
     for (const q of queued)
@@ -248,9 +231,8 @@ export async function runWorker(seams?: WorkerTestSeams) {
         job,
       );
       if (pushed !== null) scheduler.pushed(pushed);
-    } else if (job.kind === "content-decision") {
-      const deps = decisionDeps({ db, root, quarantineRoot, config, now });
-      const { pushed } = runContentDecision(deps, job);
+    } else if (isContentWrite(job)) {
+      const { pushed } = await runContentWrite({ db, root, quarantineRoot, config, now }, job);
       if (pushed !== null) scheduler.pushed(pushed);
     } else if (isAgentJobKind(job.kind)) {
       const { pushed } = await runAgentJob(agentDeps(now), job);
@@ -262,31 +244,41 @@ export async function runWorker(seams?: WorkerTestSeams) {
     }
   };
 
+  // Between jobs only, never during a run. Each is guarded: one failing duty skips only itself.
+  const duties = [
+    guardTick("housekeeping", () => scheduler.tick()),
+    guardTick("scan schedule", () => logQueued("daily", scans.tick())),
+    guardTick("analyst schedule", () => logAnalyst("weekly", analyst.tick())),
+    guardTick("note schedule", () => logNote("daily", notes.tick())),
+    guardTick("digest schedule", () => logDigest("daily", digests.tick())),
+    guardTick("ideas schedule", () => logIdeas("weekly", ideas.tick())),
+    guardTick("research refresh", () => logRefreshes("monthly", refreshes.tick())),
+    guardTick("backup schedule", () => logBackup("nightly", backups.tick())),
+    guardTick("snoozed actions", () => {
+      const woken = snoozes.tick();
+      if (woken > 0) console.log(`woke ${woken} snoozed action(s)`);
+    }),
+    guardTick("import retry", () => {
+      const reimported = imports.tick(); // committed agent output whose import failed
+      if (reimported > 0) console.log(`re-imported the output of ${reimported} agent run(s)`);
+    }),
+  ];
+  const claim = guardTick("job claim", () => claimNextJob(db));
+
   while (!stopping) {
-    scheduler.tick(); // between jobs only: never during a run
-    logQueued("daily", scans.tick());
-    logAnalyst("weekly", analyst.tick());
-    logNote("daily", notes.tick());
-    logDigest("daily", digests.tick());
-    logIdeas("weekly", ideas.tick());
-    logRefreshes("monthly", refreshes.tick());
-    logBackup("nightly", backups.tick());
-    const woken = snoozes.tick();
-    if (woken > 0) console.log(`woke ${woken} snoozed action(s)`);
-    const reimported = imports.tick(); // committed agent output whose import failed
-    if (reimported > 0) console.log(`re-imported the output of ${reimported} agent run(s)`);
-    const job = claimNextJob(db);
+    for (const duty of duties) duty();
+    const job = claim();
     if (!job) {
       await sleep(IDLE_MS);
       continue;
     }
     console.log(`job ${job.id} (${job.kind}) started`);
-    const stopBeat = keepAlive(job.id, () => heartbeat(db, job.id), HEARTBEAT_MS);
-    try {
-      await runJob(job);
-    } finally {
-      stopBeat();
-      console.log(`job ${job.id} finished`);
-    }
+    await runAndSettle(
+      db,
+      job,
+      () => runJob(job),
+      () => new Date(),
+    );
+    console.log(`job ${job.id} finished`);
   }
 }

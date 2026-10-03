@@ -43,6 +43,13 @@ describe("SearchDialog", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("keeps the visible focus ring on the search field", () => {
+    render(<SearchDialog />);
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    const input = screen.getByRole("combobox", { name: "Search the Second Brain" });
+    expect(input.className).not.toMatch(/outline-none/);
+  });
+
   it("closes with Escape and returns focus to the trigger", () => {
     stubFetch(Response.json({ hits: [] }));
     render(<SearchDialog />);
@@ -109,7 +116,9 @@ describe("SearchDialog", () => {
     render(<SearchDialog />);
     fireEvent.click(screen.getByRole("button", { name: /Search/ }));
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "x" } });
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Search failed"));
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("didn't work this time"),
+    );
   });
 
   it("says the Second Brain is unavailable on 409", async () => {
@@ -118,7 +127,7 @@ describe("SearchDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /Search/ }));
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "x" } });
     await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent("Second Brain unavailable"),
+      expect(screen.getByRole("alert")).toHaveTextContent("can't reach the Second Brain"),
     );
   });
 
@@ -138,6 +147,8 @@ describe("SearchDialog", () => {
     render(<SearchDialog />);
     fireEvent.click(screen.getByRole("button", { name: /Search/ }));
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "x" } });
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Search failed"));
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("didn't work this time"),
+    );
   });
 });
