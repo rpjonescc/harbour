@@ -12,6 +12,7 @@ const ROOTS = [
   "lib/settings",
   "lib/note",
   "lib/today",
+  "lib/tower",
   "lib/agents/view.ts",
   "lib/analyst/panel-view.ts",
   "lib/actions/rule-sync.ts",

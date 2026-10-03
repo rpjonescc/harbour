@@ -5,3 +5,4 @@ export * from "./costs";
 export * from "./external-checks";
 export * from "./jobs";
 export * from "./scans";
+export * from "./worker";
