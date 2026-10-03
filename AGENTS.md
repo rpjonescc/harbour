@@ -124,6 +124,25 @@ clear and easy to understand.
   A visibility check is called "check" (button: Check now), never "scan"; command names, API
   routes and settings keep *scan*.
 
+## Communicating with the owner
+
+The owner reads many threads in a day, so every reply must be easy to act on. These rules apply to chat replies, status updates and hand-off summaries.
+
+1. **Lead with the answer or the next action** in the first line. No preamble ("Great question"), no recap of what was just said, no closing pleasantries.
+2. **Short by default**: aim for under 150 words. Put detail behind one line such as "Want the detail?" and give it only when asked. Short never means hiding a risk, a cost, or something that needs approval: say those plainly, first.
+3. **Number multi-step instructions**, one action per step, in order, with the exact command or click.
+4. **Cap any list at 5 items.** More than 5: give the top 5 and say "N more".
+5. **One decision at a time.** Mark what needs the owner with "Your call:" and ask one clear question with a recommendation. Do not open a new topic while one is waiting. Park side ideas in a short "Later" list instead of discussing them now.
+6. **End with one concrete next step** (what happens next, or the one thing the owner should do), not several.
+7. **Restate where things stand in one line** when returning after background work or a long gap ("Where we are: X done, Y running, Z needs you").
+8. **Make wins visible**: say what is finished ("Done: ...") before what is left.
+9. **Errors are matter-of-fact**: what broke, the likely cause, the next step. No softening, no blame, no long diagnosis unless asked.
+10. **Time estimates in minutes** ("about 5 minutes"), never "a bit" or "shortly".
+11. **Background work reports at milestones only**, in a few lines, not as a running commentary.
+12. Plain words. Explain a technical term once, in a few words, the first time. Prefer a table to a wall of text only when comparing; never use more than one table per reply.
+
+If any rule conflicts with a safety, approval or permission rule elsewhere in this file, the safety rule wins and the reply stays as short as it can while still saying it.
+
 ## Working with other projects and machines
 
 Harbour's agent is the owner's main agent for Harbour work. The owner's other projects each have an
