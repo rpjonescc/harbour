@@ -51,6 +51,16 @@ function drag(title: string, to: string) {
   return { transfer, drop: () => fireEvent.drop(zoneOf(to), { dataTransfer: transfer }) };
 }
 
+describe("BoardLanes layout", () => {
+  it("is a positioned, sideways-scrolling container so the cards' absolute spans cannot widen the page", () => {
+    renderLanes();
+    const lanes = region("Queue, 2 cards").parentElement as HTMLElement;
+    expect(lanes.className).toMatch(/\boverflow-x-auto\b/);
+    expect(lanes.className).toMatch(/\brelative\b/);
+    expect(lanes.className).toMatch(/\bmin-w-0\b/);
+  });
+});
+
 describe("BoardLanes moves", () => {
   afterEach(() => vi.resetAllMocks());
 

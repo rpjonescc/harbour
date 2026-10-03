@@ -35,7 +35,9 @@ export default async function ActionsPage({
   const today = isoDateIn(config.HARBOUR_TIMEZONE, now);
   const zone = { timeZone: config.HARBOUR_TIMEZONE, locale: config.HARBOUR_LOCALE };
   return (
-    <div className={`mx-auto flex flex-col gap-6 ${view === "board" ? "max-w-7xl" : "max-w-3xl"}`}>
+    <div
+      className={`mx-auto flex min-w-0 flex-col gap-6 ${view === "board" ? "max-w-7xl" : "max-w-3xl"}`}
+    >
       <PageHeader
         title="Actions"
         page="actions"
