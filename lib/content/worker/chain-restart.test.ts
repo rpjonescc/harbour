@@ -272,4 +272,30 @@ describe("after a restart", () => {
       s.cleanup();
     }
   });
+
+  it("logs the kind of a resume failure, never its message, and records it on the job", async () => {
+    const s = contentSetup(CHAIN_WORKS, beforeAtomise());
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      kick(s, "content-atomise");
+      const job = claim(s.deps);
+      await runAgentJob(s.deps, job); // finished; the next step was never queued
+      const db = new Proxy(s.deps.db, {
+        get: (target, key) =>
+          key === "transaction"
+            ? () => {
+                throw new TypeError("CANARY private words");
+              }
+            : Reflect.get(target, key),
+      });
+      expect(resumeChains({ ...deps(s), db })).toBe(0);
+      const lines = logged.mock.calls.map((call) => call.join(" "));
+      expect(lines.some((line) => line.includes("TypeError"))).toBe(true);
+      expect(lines.join("\n")).not.toContain("CANARY");
+      expect(events(s, job.id)).toContain("couldn't work out the next step");
+    } finally {
+      logged.mockRestore();
+      s.cleanup();
+    }
+  });
 });
