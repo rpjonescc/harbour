@@ -121,6 +121,7 @@ describe("prompt hygiene", () => {
       /invalid date/i,
     );
     expect(() => discoveryPrompt(product, "2026-1-1")).toThrow(/invalid date/i);
+    expect(() => discoveryPrompt(product, "2026-02-31")).toThrow(/invalid date/i);
   });
   it("asks for pillars only when the product has content on", () => {
     expect(discoveryPrompt(product, "2026-10-01")).not.toContain('"pillars"');

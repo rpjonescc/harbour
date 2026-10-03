@@ -110,6 +110,7 @@ describe("buildFactsPack", () => {
         `brain:${NOTES}`,
         "brain:research/gone.md",
         "digest:2026-01-01#t1",
+        "digest:2026-02-31#t1",
       ]);
       expect(pack.map((f) => f.ref)).toEqual(["product:acme-docs", `brain:${NOTES}`]);
     } finally {

@@ -1,4 +1,5 @@
-import { addDays, localTime, parseDay, zonedInstant } from "@/lib/format/zoned-time";
+import { addDays, parseDay } from "@/lib/format/iso-day";
+import { localTime, zonedInstant } from "@/lib/format/zoned-time";
 
 /** The weekly analyst runs on Sundays at 20:00 local time. */
 const SLOT_MINUTE = 20 * 60;

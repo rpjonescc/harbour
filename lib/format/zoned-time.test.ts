@@ -1,5 +1,4 @@
 import {
-  addDays,
   latestDailySlotDay,
   latestMonthlySlot,
   localMoment,
@@ -13,17 +12,6 @@ const LONDON = "Europe/London"; // BST (UTC+1) until 25 October 2026
 const HELSINKI = "Europe/Helsinki"; // 03:00 → 04:00 on 29 March, 04:00 → 03:00 on 25 October 2026
 const SYDNEY = "Australia/Sydney"; // 02:00 AEST → 03:00 AEDT on 4 October 2026
 const SLOT = 3 * 60 + 15;
-
-describe("addDays", () => {
-  it("moves across month and year ends", () => {
-    expect(addDays("2026-10-31", 1)).toBe("2026-11-01");
-    expect(addDays("2027-01-01", -1)).toBe("2026-12-31");
-  });
-
-  it("rejects a malformed day", () => {
-    expect(() => addDays("2026-02-30", 1)).toThrow("Invalid date");
-  });
-});
 
 describe("latestDailySlotDay", () => {
   it("is yesterday before 03:15 local and today from 03:15", () => {

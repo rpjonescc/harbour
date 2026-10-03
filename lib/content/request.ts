@@ -3,7 +3,7 @@ import { audit } from "@/lib/audit";
 import type { Config } from "@/lib/config";
 import { voiceMissingMessage } from "@/lib/explain/content";
 import { isoDateIn } from "@/lib/format/date";
-import { addDays } from "@/lib/format/zoned-time";
+import { addDays } from "@/lib/format/iso-day";
 import { DecisionBody } from "./decision";
 import { ideaIdSchema, productForIdea, productIdSchema } from "./ids";
 import { type ContentKind, DAILY_CAP_MESSAGE, enqueueContent } from "./limits";

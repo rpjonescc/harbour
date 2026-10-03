@@ -1,9 +1,9 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Platform } from "@/lib/content/ids";
-import { contentPaths } from "@/lib/content/paths";
+import { contentPaths, isDigestName } from "@/lib/content/paths";
 import type { Db } from "@/lib/db/client";
-import { addDays } from "@/lib/format/zoned-time";
+import { addDays } from "@/lib/format/iso-day";
 import type { ContentProduct } from "@/lib/products/content";
 import { type FailedStep, ideaActivity, stepSentence } from "./chain-status";
 import { type DecisionStatus, decisionStatus } from "./decisions";
@@ -73,7 +73,7 @@ function ideaView(
 function digestGap(root: string, today: string): boolean {
   try {
     const newest = readdirSync(`${root}/${contentPaths.digestDir}`)
-      .filter((n) => /^\d{4}-\d{2}-\d{2}\.md$/.test(n))
+      .filter(isDigestName)
       .sort()
       .at(-1);
     return newest === undefined || newest.slice(0, 10) < addDays(today, -DIGEST_FRESH_DAYS);

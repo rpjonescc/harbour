@@ -1,14 +1,9 @@
+import { addDays, isIsoDay } from "@/lib/format/iso-day";
 import type { Product } from "@/lib/products/catalog";
 import type { ResearchTopic } from "./topics";
 
 export const PROMPT_VERSION = "2b-v1";
 export const REFRESH_PROMPT_VERSION = "5-v1";
-
-function addDays(isoDate: string, days: number): string {
-  const d = new Date(`${isoDate}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 
 /** Rules every agent prompt ends with. */
 export const RULES = `Rules:
@@ -23,10 +18,9 @@ export function oneLine(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-/** Throws unless `today` is YYYY-MM-DD. */
+/** Throws unless `today` is a real date written YYYY-MM-DD. */
 export function assertDate(today: string): void {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(today))
-    throw new Error(`Invalid date (expected YYYY-MM-DD): ${oneLine(today)}`);
+  if (!isIsoDay(today)) throw new Error(`Invalid date (expected YYYY-MM-DD): ${oneLine(today)}`);
 }
 
 /** One line per product: name, URL and the owner's notes to read. */

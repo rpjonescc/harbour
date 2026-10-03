@@ -1,6 +1,6 @@
 import type { Db } from "@/lib/db/client";
+import { addDays } from "@/lib/format/iso-day";
 import {
-  addDays,
   latestDailySlotDay,
   localMoment,
   localTime,

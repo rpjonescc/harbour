@@ -1,4 +1,5 @@
-import { parseDay, zonedInstant } from "@/lib/format/zoned-time";
+import { parseDay } from "@/lib/format/iso-day";
+import { zonedInstant } from "@/lib/format/zoned-time";
 
 /** Where the agent writes the notes, inside the brain. */
 export const NOTE_DIR = "notes/daily";

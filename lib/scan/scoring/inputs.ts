@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isoDaySchema } from "@/lib/format/iso-day";
 import type { ProductKind } from "@/lib/products/catalog";
 import { collectorLabel } from "../labels";
 import type { CollectorStatus, Observation, ScanObservation, ScoreContext } from "../types";
@@ -76,13 +77,12 @@ const cwv = z.object({
   fieldDataAvailable: z.boolean(),
 });
 
-const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const gscDay = z.object({ date: isoDay, impressions: z.number().nonnegative() });
+const gscDay = z.object({ date: isoDaySchema, impressions: z.number().nonnegative() });
 const gscSummary = z.object({
-  startDate: isoDay,
-  endDate: isoDay,
-  priorStartDate: isoDay,
-  priorEndDate: isoDay,
+  startDate: isoDaySchema,
+  endDate: isoDaySchema,
+  priorStartDate: isoDaySchema,
+  priorEndDate: isoDaySchema,
 });
 
 export type CrawledPage = z.infer<typeof crawledPage>;

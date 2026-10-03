@@ -126,6 +126,7 @@ describe("POST /api/actions/[id]", () => {
   it.each([
     ["today", () => daysAhead(0)],
     ["an impossible date", () => "2026-13-01"],
+    ["a day that does not exist", () => "2026-02-31"],
   ])("409s until_invalid for a snooze until %s", async (_label, until) => {
     const id = seed();
     const response = await send(id, { from: "open", to: "snoozed", until: until() });

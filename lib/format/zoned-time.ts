@@ -1,5 +1,7 @@
 // Local-time slots in an IANA zone, via Intl date parts so clock changes are followed. Pure.
 
+import { addDays, parseDay } from "./iso-day";
+
 const DAY_MS = 24 * 60 * 60_000;
 
 export type LocalTime = { day: string; minute: number };
@@ -54,22 +56,6 @@ export function localTime(timeZone: string, at: Date): LocalTime {
   return { day, minute: hour * 60 + minute };
 }
 
-const toDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-
-/** Midnight UTC of `day` (YYYY-MM-DD) in ms; throws on anything that is not a real date. */
-export function parseDay(day: string): number {
-  const ms = Date.parse(`${day}T00:00:00Z`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(ms) || toDay(ms) !== day) {
-    throw new Error(`Invalid date (expected YYYY-MM-DD): ${day}`);
-  }
-  return ms;
-}
-
-/** `day` moved by `days` calendar days. */
-export function addDays(day: string, days: number): string {
-  return toDay(parseDay(day) + days * DAY_MS);
-}
-
 /** Minutes the zone's clock is ahead of UTC at `ms`. */
 function offsetAt(ms: number, timeZone: string): number {
   const local = localTime(timeZone, new Date(ms));
@@ -109,7 +95,7 @@ export function nextDailySlot(now: Date, timeZone: string, minute: number): Date
 function shiftMonth(month: string, by: number): string {
   const date = new Date(parseDay(`${month}-01`));
   date.setUTCMonth(date.getUTCMonth() + by);
-  return toDay(date.getTime()).slice(0, 7);
+  return date.toISOString().slice(0, 7);
 }
 
 /** The local calendar month containing `now`: { label: "2026-10", start, end } (start inclusive, end exclusive). */

@@ -135,6 +135,10 @@ describe("contentView", () => {
     expect(view({ "content/digests/2026-09-20.md": digestFile("2026-09-20", []) }).digest.gap).toBe(
       true,
     );
+    // A file named for a day that does not exist is not a digest.
+    expect(view({ "content/digests/2026-09-31.md": digestFile("2026-10-01", []) }).digest.gap).toBe(
+      true,
+    );
   });
 
   it("gives each piece clean copy parts, flag lines, and an empty body for a stub", () => {

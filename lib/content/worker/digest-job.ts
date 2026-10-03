@@ -1,4 +1,5 @@
-import { addDays, parseDay, zonedInstant } from "@/lib/format/zoned-time";
+import { addDays, parseDay } from "@/lib/format/iso-day";
+import { zonedInstant } from "@/lib/format/zoned-time";
 import { finish } from "@/lib/jobs/git-jobs";
 import { addEvent, type Job } from "@/lib/jobs/queue";
 import { deferWhileEditing, type RunDeps, runAgentJob } from "@/lib/jobs/run-job";
