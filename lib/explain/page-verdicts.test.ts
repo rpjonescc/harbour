@@ -1,5 +1,6 @@
 import { agentsVerdict, type VerdictRun } from "./agents";
 import { targetsVerdict } from "./approvals";
+import { actionsVerdict, type BoardVerdictFacts } from "./board-verdict";
 import { type BrainFacts, brainVerdict } from "./brain-page";
 import { type ContentCounts, contentVerdict } from "./content";
 import { devicesVerdict } from "./devices";
@@ -258,5 +259,50 @@ describe("productVerdict", () => {
   it("is worth a look when the product needs work, and can't tell before a score", () => {
     expect(productVerdict("Acme Docs", { seo: 30, geo: 40, aeo: 20 }, false).tone).toBe("watch");
     expect(productVerdict("Acme Docs", null, false).tone).toBe("unknown");
+  });
+});
+
+describe("actionsVerdict", () => {
+  const board = (over: Partial<BoardVerdictFacts> = {}): BoardVerdictFacts => ({
+    cards: 12,
+    needsYou: 0,
+    newIdeas: 0,
+    stuck: 0,
+    ...over,
+  });
+
+  it("is calm when nothing waits, and says how many cards are on the board", () => {
+    expect(actionsVerdict(board())).toEqual({
+      tone: "ok",
+      text: "Nothing is waiting for you. 12 cards are on the board.",
+    });
+  });
+
+  it("counts the cards waiting for you, worth a look when they are more than new ideas", () => {
+    expect(actionsVerdict(board({ needsYou: 2, newIdeas: 1 }))).toEqual({
+      tone: "watch",
+      text: "2 cards are waiting for you.",
+    });
+  });
+
+  it("calls new ideas alone good news, ready for you", () => {
+    expect(actionsVerdict(board({ needsYou: 1, newIdeas: 1 }))).toEqual({
+      tone: "ready",
+      text: "1 new idea is waiting for you.",
+    });
+  });
+
+  it("says when cards have stood still, worth a look", () => {
+    expect(actionsVerdict(board({ stuck: 1 }))).toEqual({
+      tone: "watch",
+      text: "Nothing is waiting for you. 1 card has stood still too long.",
+    });
+    expect(actionsVerdict(board({ needsYou: 3, newIdeas: 3, stuck: 2 })).text).toBe(
+      "3 new ideas are waiting for you. 2 cards have stood still too long.",
+    );
+  });
+
+  it("can't tell before the first check puts a card on the board", () => {
+    expect(actionsVerdict(board({ cards: 0 })).tone).toBe("unknown");
   });
 });

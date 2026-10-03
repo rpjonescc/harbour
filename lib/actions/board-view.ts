@@ -64,14 +64,20 @@ export type BoardCard = {
   snoozedUntil: string | null;
 };
 
-export type Board = {
+/** True totals for the product and area filters, ignoring `focus` and the card cap. */
+export type BoardTotals = {
+  /** Cards in each column. */
+  counts: Record<BoardColumnId, number>;
+  /** Stuck cards, and cards that need the owner. */
+  focusCounts: Record<BoardFocus, number>;
+  /** New ideas waiting to be accepted or dismissed (part of the cards that need the owner). */
+  newIdeas: number;
+};
+
+export type Board = BoardTotals & {
   columns: Record<BoardColumnId, BoardCard[]>;
   /** Snoozed cards, and dismissed ones from the last 14 days. */
   parked: BoardCard[];
-  /** Cards in each column for the filters, ignoring `focus` and the card cap. */
-  counts: Record<BoardColumnId, number>;
-  /** Stuck cards and cards that need the owner for the filters, ignoring `focus` and the cap. */
-  focusCounts: Record<BoardFocus, number>;
   /** More cards match than the board shows. */
   truncated: boolean;
 };
@@ -220,6 +226,25 @@ function columnCounts(db: Db, base: SQL | undefined, now: Date): Record<BoardCol
   return counts;
 }
 
+/** The board's totals without loading any card: for the Actions verdict and Today's strip. */
+export function boardTotals(
+  db: Db,
+  filter: Pick<BoardFilter, "productId" | "area">,
+  now: Date,
+  productIds: readonly string[],
+): BoardTotals {
+  const base = scope(filter, productIds);
+  const onBoardNow = and(base, onBoard(now));
+  return {
+    counts: columnCounts(db, base, now),
+    focusCounts: {
+      stuck: total(db, and(onBoardNow, stuckWhere(now))),
+      "needs-you": total(db, and(onBoardNow, needsYouWhere())),
+    },
+    newIdeas: total(db, and(onBoardNow, eq(actions.status, "suggested"))),
+  };
+}
+
 const focusWhere = (focus: BoardFocus | null | undefined, now: Date) =>
   focus === "stuck" ? stuckWhere(now) : focus === "needs-you" ? needsYouWhere() : undefined;
 
@@ -241,12 +266,8 @@ export function loadBoard(
 ): Board {
   const names = new Map(products.map((p) => [p.id, p]));
   const base = scope(filter, [...names.keys()]);
-  const counts = columnCounts(db, base, now);
+  const totals = boardTotals(db, filter, now, [...names.keys()]);
   const onBoardNow = and(base, onBoard(now));
-  const focusCounts = {
-    stuck: total(db, and(onBoardNow, stuckWhere(now))),
-    "needs-you": total(db, and(onBoardNow, needsYouWhere())),
-  };
   const boardWhere = and(onBoardNow, focusWhere(filter.focus, now));
   const rows = fetchRows(db, boardWhere, MAX_BOARD_ACTIONS);
   const parkedRows = filter.focus
@@ -269,10 +290,9 @@ export function loadBoard(
   }
   const parkedTotal = filter.focus ? 0 : total(db, and(base, parkedWhere(now)));
   return {
+    ...totals,
     columns,
     parked,
-    counts,
-    focusCounts,
     truncated: total(db, boardWhere) > rows.length || parkedTotal > parkedRows.length,
   };
 }

@@ -121,7 +121,8 @@ export function exampleBoard(): Board {
     "needs-you": inColumns.filter((c) => c.needsOwner).length,
   };
   const parked = CARDS.filter((c) => c.column === null);
-  return { columns, counts, focusCounts, parked, truncated: false };
+  const newIdeas = inColumns.filter((c) => c.isNewIdea).length;
+  return { columns, counts, focusCounts, newIdeas, parked, truncated: false };
 }
 
 const NAMES: Record<BoardColumnId, string> = {

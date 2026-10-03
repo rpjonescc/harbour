@@ -541,7 +541,9 @@ what is happening" at a glance.
   waits for you first, two parts at most), Sources (`sourcesVerdict`: a data source that didn't
   answer, then checks under way), Settings (`settingsVerdict` over `settingsFacts`: "Everything is
   set up." or the one thing missing), Second Brain (`brainVerdict`: notes, newest change, saved),
-  Devices, research targets and the product page (`productVerdict`, the existing summary).
+  Devices, research targets, the product page (`productVerdict`, the existing summary) and
+  Actions (`actionsVerdict` over `boardTotals`, the whole board's true totals whatever the
+  filters: what waits for you, then cards that stood still).
   A run's page keeps its live status line, now styled as its verdict with the same mark.
 - **Tones.** Anything waiting for the owner's decision is `watch` ("worth a look"); `act` is kept
   for something broken (a failed backup); `busy` while work runs; `unknown` before there is data.

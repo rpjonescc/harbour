@@ -47,6 +47,7 @@ export function boardOf(cards: BoardCard[], over: Partial<Board> = {}): Board {
       stuck: inColumns.filter((card) => card.stuck).length,
       "needs-you": inColumns.filter((card) => card.needsOwner).length,
     },
+    newIdeas: inColumns.filter((card) => card.isNewIdea).length,
     parked: cards.filter((card) => card.column === null),
     truncated: false,
     ...over,

@@ -7,12 +7,18 @@ import { BOARD_HEADING_ID } from "@/components/actions/focus-after-change";
 import { SyncFailureNote } from "@/components/actions/SyncFailureNote";
 import { PageHeader } from "@/components/explain/PageHeader";
 import { approvalsWaiting, syncFailures } from "@/lib/actions/board-notices";
-import { loadBoard, parseActionsView, parseBoardFocus } from "@/lib/actions/board-view";
+import {
+  boardTotals,
+  loadBoard,
+  parseActionsView,
+  parseBoardFocus,
+} from "@/lib/actions/board-view";
 import { actionCounts, boardActions, parseActionFilter } from "@/lib/actions/views";
 import { requireSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
 import { boardSummary } from "@/lib/explain/actions";
+import { actionsVerdict } from "@/lib/explain/board-verdict";
 import { isoDateIn } from "@/lib/format/date";
 import { getProducts } from "@/lib/products/catalog";
 
@@ -35,6 +41,14 @@ export default async function ActionsPage({
   const now = new Date();
   const today = isoDateIn(config.HARBOUR_TIMEZONE, now);
   const zone = { timeZone: config.HARBOUR_TIMEZONE, locale: config.HARBOUR_LOCALE };
+  // The verdict speaks for the whole board, like Today's strip; the filters only narrow the cards.
+  const totals = boardTotals(db, { productId: null, area: null }, now, ids);
+  const verdict = actionsVerdict({
+    cards: Object.values(totals.counts).reduce((sum, n) => sum + n, 0),
+    needsYou: totals.focusCounts["needs-you"],
+    newIdeas: totals.newIdeas,
+    stuck: totals.focusCounts.stuck,
+  });
   return (
     <div
       className={`mx-auto flex min-w-0 flex-col gap-6 ${view === "board" ? "max-w-[110rem]" : "max-w-3xl"}`}
@@ -43,6 +57,7 @@ export default async function ActionsPage({
         title="Actions"
         page="actions"
         titleId={BOARD_HEADING_ID}
+        verdict={verdict}
         intro={
           <>
             <p>Things worth doing to get found more easily. You decide what happens to each.</p>

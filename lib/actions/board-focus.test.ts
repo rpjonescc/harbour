@@ -4,7 +4,7 @@ import { loadWorkStrip } from "@/lib/today/work-strip";
 import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { type BoardColumnId, columnTarget } from "./board-column";
-import { loadBoard } from "./board-view";
+import { boardTotals, loadBoard } from "./board-view";
 import { insertAction } from "./store";
 import type { ActionActor, NewAction } from "./types";
 import { MAX_BOARD_ACTIONS } from "./views";
@@ -98,6 +98,12 @@ describe("the SQL focus counts", () => {
     expect(board.focusCounts).toEqual({
       stuck: cards.filter((c) => c.stuck).length,
       "needs-you": cards.filter((c) => c.needsOwner).length,
+    });
+    expect(board.newIdeas).toBe(1);
+    expect(boardTotals(db, ALL, NOW, ["acme-docs"])).toEqual({
+      counts: board.counts,
+      focusCounts: board.focusCounts,
+      newIdeas: 1,
     });
     for (const focus of ["stuck", "needs-you"] as const) {
       const focused = Object.values(loadBoard(db, { ...ALL, focus }, NOW, PRODUCTS).columns).flat();

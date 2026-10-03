@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { BOARD_COLUMNS, type BoardColumnId, boardColumn } from "@/lib/actions/board-column";
-import { loadBoard } from "@/lib/actions/board-view";
+import { boardTotals } from "@/lib/actions/board-view";
 import { latestStatusChange } from "@/lib/actions/status-actor";
 import { ACTION_STATUSES, type ActionActor, type ActionStatus } from "@/lib/actions/types";
 import { getConfig } from "@/lib/config";
@@ -73,8 +73,12 @@ export function loadWorkStrip(
   timeZone: string = getConfig().HARBOUR_TIMEZONE,
   products: readonly Pick<Product, "id" | "name">[] = getProducts(),
 ): WorkStrip {
-  // Focused, so the query loads only the few cards that need the owner; the counts stay true totals.
-  const board = loadBoard(db, { productId: null, area: null, focus: "needs-you" }, now, products);
+  const board = boardTotals(
+    db,
+    { productId: null, area: null },
+    now,
+    products.map((p) => p.id),
+  );
   return {
     tiles: BOARD_COLUMNS.map((column) => ({
       column,
