@@ -110,6 +110,8 @@ the DOM is the reading order in §1 at every width.
   sentence (what needs you) is the polite live region (§10).
 - **Sub-line**: the long date, "updated HH:MM" (the server render time), and an **On this page**
   jump list of the six sections (in-page links, so the keyboard can jump straight to a section).
+  Below 1024 px the jump list is one row that scrolls sideways, label included, so it never
+  wraps into tall rows of touch targets (polish, 4 October 2026).
 - **What's this page?** at the right (§6.3).
 - The briefing sentence from the plain-language spec moves to lead section (d), where it describes
   the products. It keeps its words and its tests.

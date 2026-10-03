@@ -20,18 +20,26 @@ type Props = {
   active: boolean;
 };
 
+/**
+ * The six section links. Below the wide layout they stay one short row that scrolls sideways
+ * (label included), rather than wrapping into tall rows of 44 px targets above the page.
+ */
 function JumpList() {
   const labelId = useId();
   const sections = Object.keys(TOWER_ANCHORS) as TowerSectionKey[];
   return (
-    <nav aria-labelledby={labelId} className="flex flex-wrap items-center gap-x-3">
-      <span>
+    <nav
+      aria-labelledby={labelId}
+      data-testid="jump-list"
+      className="-mx-1 flex min-w-0 flex-nowrap items-center gap-x-3 overflow-x-auto px-1 whitespace-nowrap [scrollbar-width:thin] lg:flex-wrap lg:overflow-visible lg:whitespace-normal"
+    >
+      <span className="shrink-0">
         <span id={labelId}>{HEADER_TEXT.onThisPage}</span>
         <span aria-hidden="true">:</span>
       </span>
-      <ul className="flex flex-wrap gap-x-3">
+      <ul className="flex shrink-0 gap-x-3 lg:shrink lg:flex-wrap">
         {sections.map((section) => (
-          <li key={section}>
+          <li key={section} className="shrink-0">
             <a
               href={`#${TOWER_ANCHORS[section]}`}
               className={`${TILE_LINK} inline-flex min-h-11 items-center`}
