@@ -6,6 +6,7 @@ import type { PieceView } from "@/lib/content/read/view-types";
 import { ApprovePanel } from "./ApprovePanel";
 import { ConfirmDiscard } from "./ConfirmDiscard";
 import { EditPanel } from "./EditPanel";
+import { PostizSend } from "./PostizSend";
 import { STILL_WAITING } from "./savingPoller";
 import { useContentDecision } from "./useContentDecision";
 
@@ -84,6 +85,7 @@ export function PieceActions({ piece }: { piece: PieceView }) {
         </p>
       )}
       {!error && piece.decisionError && <p className="text-sm text-ink">{piece.decisionError}</p>}
+      <PostizSend piece={piece} />
     </div>
   );
 }

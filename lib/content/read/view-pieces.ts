@@ -1,11 +1,11 @@
-import { PLATFORM_NAMES, pieceId } from "@/lib/content/ids";
+import { PLATFORM_NAMES, type Platform, pieceId } from "@/lib/content/ids";
 import { contentPaths } from "@/lib/content/paths";
 import { copyParts, primaryText, renderPiece } from "@/lib/content/render";
 import { FLAG_WORDS } from "@/lib/explain/content";
 import { type FailedStep, stepSentence } from "./chain-status";
 import type { DecisionStatus } from "./decisions";
 import type { ReadPiece } from "./pieces";
-import type { PieceView, TabId } from "./view-types";
+import type { PieceView, PostizView, TabId } from "./view-types";
 
 const DIRECT: Record<string, TabId> = {
   ready: "ready",
@@ -31,11 +31,31 @@ function failedDecision(decisions: DecisionStatus, id: string, revision: number)
   return failed && failed.revision === String(revision) ? failed.error : null;
 }
 
+/** What the page knows about Postiz: the platforms it can send, its sends, and how to say a time. */
+export type PostizContext = {
+  platforms: readonly Platform[];
+  sends: DecisionStatus;
+  when: (iso: string) => string;
+};
+
+/** The Postiz button's state, offered only on an approved piece of a platform with a channel. */
+function postizView(piece: ReadPiece, id: string, ctx: PostizContext | null): PostizView | null {
+  const { front, content, platform } = piece;
+  if (!ctx || front.state !== "approved" || content === null) return null;
+  if (!ctx.platforms.includes(platform)) return null;
+  return {
+    sentAt: front.postiz ? ctx.when(front.postiz.sentAt) : null,
+    sending: ctx.sends.saving.has(id),
+    error: failedDecision(ctx.sends, id, front.revision),
+  };
+}
+
 /** One piece for the page: plain text, clean copy parts, and the tab its state puts it in. */
 export function pieceView(
   piece: ReadPiece,
   failed: FailedStep | null,
   decisions: DecisionStatus,
+  postiz: PostizContext | null = null,
 ): PieceView {
   const { front, content, platform } = piece;
   const derived = front.state === "drafting" && failed !== null;
@@ -62,6 +82,7 @@ export function pieceView(
     gates: piece.gates,
     claims: front.claims,
     file: contentPaths.piece(front.ideaId, platform),
+    postiz: postizView(piece, id, postiz),
   };
 }
 

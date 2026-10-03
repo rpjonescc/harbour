@@ -16,7 +16,7 @@ export const NOT_ASKED = "postiz-not-asked";
  * Sends that started in the hour before `now`. One that stopped before asking Postiz anything does
  * not count; one cut off by a restart does (it may have asked).
  */
-export function sendsInLastHour(db: Db, now: Date, exceptJobId?: number): number {
+export function sendsInLastHour(db: Pick<Db, "select">, now: Date, exceptJobId?: number): number {
   const row = db
     .select({ n: count() })
     .from(jobs)

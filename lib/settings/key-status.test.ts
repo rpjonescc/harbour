@@ -1,5 +1,6 @@
 import { type Config, parseConfig } from "@/lib/config";
-import { keyStatusRows } from "./key-status";
+import { keyPhrase } from "@/lib/explain/keys";
+import { type KeyRow, keyStatusRows } from "./key-status";
 
 const BASE = {
   HARBOUR_ALLOWED_LOGINS: "owner@example.com",
@@ -12,6 +13,8 @@ const config = (env: Record<string, string> = {}): Config => parseConfig({ ...BA
 const SECRETS = {
   HARBOUR_CLAUDE_OAUTH_TOKEN: "SENTINEL-claude-token",
   HARBOUR_SCREENPIPE_API_KEY: "SENTINEL-screenpipe",
+  HARBOUR_POSTIZ_URL: "http://127.0.0.1:4007/SENTINEL-postiz-url",
+  HARBOUR_POSTIZ_API_KEY: "SENTINEL-postiz",
   HARBOUR_PAGESPEED_API_KEY: "SENTINEL-pagespeed",
   HARBOUR_GSC_CREDENTIALS: "/srv/harbour-example/SENTINEL-gsc.json",
   HARBOUR_TREG_API_KEY: "SENTINEL-treg-key",
@@ -30,6 +33,7 @@ describe("keyStatusRows", () => {
     expect(rows.map((row) => [row.id, row.inUse, row.paid])).toEqual([
       ["claude", true, false],
       ["screenpipe", true, false],
+      ["postiz", true, false],
       ["pagespeed", true, false],
       ["search-console", true, false],
       ["treg", true, true],
@@ -44,7 +48,7 @@ describe("keyStatusRows", () => {
 
   it("marks set keys present and never exposes a value or path", () => {
     const rows = keyStatusRows(config(SECRETS), () => true);
-    expect(Object.values(status(rows))).toEqual(Array(9).fill("present"));
+    expect(Object.values(status(rows))).toEqual(Array(10).fill("present"));
     const text = JSON.stringify(rows);
     expect(text).not.toContain("SENTINEL");
     expect(text).not.toContain("/srv/harbour-example");
@@ -72,6 +76,23 @@ describe("keyStatusRows", () => {
     expect(connected).toMatchObject({ status: "present", inUse: true, paid: false });
     expect(row({})?.status).toBe("missing");
     expect(JSON.stringify(connected)).not.toContain("sp-test-key");
+  });
+});
+
+describe("the Postiz row (spec 11)", () => {
+  const row = (env: Record<string, string>) =>
+    keyStatusRows(config(env)).find((r) => r.id === "postiz");
+
+  it("is Connected only with the address and the key, free, and never carries either", () => {
+    const connected = row({
+      HARBOUR_POSTIZ_URL: SECRETS.HARBOUR_POSTIZ_URL,
+      HARBOUR_POSTIZ_API_KEY: SECRETS.HARBOUR_POSTIZ_API_KEY,
+    });
+    expect(connected).toMatchObject({ status: "present", inUse: true, paid: false });
+    expect(keyPhrase(connected as KeyRow).text).toBe("Connected");
+    expect(row({})?.status).toBe("missing");
+    expect(keyPhrase(row({}) as KeyRow).text).toBe("Not connected yet");
+    expect(JSON.stringify(connected)).not.toContain("SENTINEL");
   });
 });
 

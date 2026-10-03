@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Config } from "@/lib/config";
 import type { Platform } from "@/lib/content/ids";
 
 /** The platforms a Postiz draft is made for. X is not used; a blog post and a website section are not social posts. */
@@ -28,3 +29,17 @@ export const postizConfigSchema = z.strictObject({
   }),
 });
 export type PostizChannels = z.infer<typeof postizConfigSchema>["channels"];
+
+type PostizSettings = Pick<Config, "HARBOUR_POSTIZ_URL" | "HARBOUR_POSTIZ_API_KEY">;
+
+/** Whether Postiz is set up at all: its address and key. The feature is off without them. */
+export const postizConfigured = (config: PostizSettings): boolean =>
+  Boolean(config.HARBOUR_POSTIZ_URL && config.HARBOUR_POSTIZ_API_KEY);
+
+/** The platforms a draft can be sent for now: those with a channel, and none while Postiz is off. */
+export function sendablePlatforms(
+  config: PostizSettings,
+  channels: PostizChannels,
+): PostizPlatform[] {
+  return postizConfigured(config) ? POSTIZ_PLATFORMS.filter((p) => channels[p] !== undefined) : [];
+}

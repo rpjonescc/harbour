@@ -42,6 +42,18 @@ export type PieceView = {
   claims: Claim[];
   /** The piece's brain path, for the Second Brain link. */
   file: string;
+  /** "Send to Postiz as a draft": null when it is not offered for this piece. */
+  postiz: PostizView | null;
+};
+
+/** An approved piece's Postiz state, for its button and line. */
+export type PostizView = {
+  /** When it was last sent, in the owner's words; null when never. */
+  sentAt: string | null;
+  /** A send is queued or running. */
+  sending: boolean;
+  /** Why the newest send of this revision didn't finish. */
+  error: string | null;
 };
 
 export type IdeaView = {
