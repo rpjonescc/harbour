@@ -87,4 +87,20 @@ describe("MoveMenu", () => {
     });
     expect(screen.queryByRole("menu")).toBeNull();
   });
+
+  it("shows the menu in the top layer, so the sideways-scrolling lanes cannot clip it", () => {
+    // jsdom has no popover API; stand in for the browser's.
+    const showPopover = vi.fn();
+    HTMLElement.prototype.showPopover = showPopover;
+    try {
+      const { trigger } = renderMenu();
+      fireEvent.click(trigger);
+      const menu = screen.getByRole("menu", { hidden: true });
+      expect(showPopover).toHaveBeenCalledOnce();
+      expect(menu).toHaveAttribute("popover", "manual");
+      expect(menu.className).toContain("fixed");
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, "showPopover");
+    }
+  });
 });

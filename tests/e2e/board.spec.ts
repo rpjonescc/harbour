@@ -44,6 +44,21 @@ test("the board shows six columns with their counts", async ({ page }) => {
   await expect(card(page, BOARD_CARDS.stuck).getByText("Stuck", { exact: true })).toBeVisible();
 });
 
+test("the move menu of the lowest card is not clipped by the lanes", async ({ page }) => {
+  await page.goto(BOARD);
+  const lowest = cardsIn(page, "Backlog").last();
+  const title = await lowest.getByRole("heading", { level: 3 }).innerText();
+  const menu = await openMoveMenu(page, title);
+  await expect(menu.getByRole("menuitem").last()).toBeInViewport({ ratio: 1 });
+  // The lanes scroll sideways only: an open menu gives them no scrollbar of their own.
+  const lanesOverflow = await column(page, "Backlog").evaluate((section) => {
+    const lanes = section.parentElement;
+    return lanes ? lanes.scrollHeight - lanes.clientHeight : 0;
+  });
+  expect(lanesOverflow).toBe(0);
+  await page.keyboard.press("Escape");
+});
+
 test("Move to… moves a card by keyboard, announces it and returns focus", async ({ page }) => {
   const title = BOARD_CARDS.keyboard;
   await page.goto(BOARD);

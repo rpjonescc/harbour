@@ -1,12 +1,55 @@
 "use client";
 
 import { ArrowRightLeft } from "lucide-react";
-import { type FocusEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  type FocusEvent,
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { BOARD_COLUMNS, type BoardColumnId } from "@/lib/actions/board-column";
 import { BOARD_TEXT, COLUMN_COPY } from "@/lib/explain/board";
 import { COLUMN_ICON } from "./column-icons";
+import { menuPosition } from "./menu-position";
 
 const TARGET = "min-h-11 rounded-sm text-sm";
+
+/**
+ * Shows the open menu in the top layer (a manual popover), placed by its button and kept there as
+ * the page or the lanes scroll: the lanes scroll sideways, so a menu inside them would be clipped.
+ * It stays in the button's place in the DOM, so Tab order and focus checks are unchanged.
+ */
+function useTopLayer(open: boolean) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = menu.current;
+    if (!open || !element) return;
+    // Set here, not in the markup: where the popover API is missing (jsdom) the menu still shows.
+    if (typeof element.showPopover === "function") {
+      element.setAttribute("popover", "manual");
+      element.showPopover();
+    }
+    const place = () => {
+      const box = trigger.current?.getBoundingClientRect();
+      if (!box) return;
+      const { top, left } = menuPosition(box, element.offsetHeight, window.innerHeight);
+      element.style.top = `${top}px`;
+      element.style.left = `${left}px`;
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open]);
+  return { trigger, menu };
+}
 
 /**
  * The keyboard and touch way to move a card: a menu button listing the other columns. Enter or
@@ -24,7 +67,7 @@ export function MoveMenu({
   const [open, setOpen] = useState(false);
   const [first, setFirst] = useState(0);
   const wrapper = useRef<HTMLDivElement>(null);
-  const trigger = useRef<HTMLButtonElement>(null);
+  const { trigger, menu } = useTopLayer(open);
   const items = useRef<(HTMLButtonElement | null)[]>([]);
   const menuId = useId();
   const targets = BOARD_COLUMNS.filter((column) => column !== current);
@@ -95,12 +138,13 @@ export function MoveMenu({
       </button>
       {open && (
         <div
+          ref={menu}
           id={menuId}
           role="menu"
           aria-label={BOARD_TEXT.moveMenu(title)}
           onKeyDown={onMenuKey}
           onBlur={closeOnLeave}
-          className="absolute left-0 z-10 mt-1 flex w-48 flex-col rounded-md border border-line bg-surface p-1 shadow-overlay"
+          className="fixed inset-auto m-0 flex w-48 flex-col rounded-md border border-line bg-surface p-1 text-ink shadow-overlay"
         >
           {targets.map((column, index) => {
             const Icon = COLUMN_ICON[column];
