@@ -1,5 +1,6 @@
 import { Tag } from "@/components/ui/Tag";
 import type { ProposalRow } from "@/lib/agents/proposals";
+import { intentLabel } from "@/lib/explain/approvals";
 
 /** What a proposal says, by type. All text renders as plain text (React escapes it). */
 export function ProposalValue({ item }: { item: ProposalRow }) {
@@ -8,7 +9,7 @@ export function ProposalValue({ item }: { item: ProposalRow }) {
     return (
       <p className="flex flex-wrap items-center gap-2 text-sm">
         <span className="font-medium">{v.term}</span>
-        {v.intent && <Tag tone="neutral">{v.intent}</Tag>}
+        {v.intent && <Tag tone="neutral">{intentLabel(v.intent)}</Tag>}
         {v.location && <span className="text-ink-muted">{v.location}</span>}
       </p>
     );

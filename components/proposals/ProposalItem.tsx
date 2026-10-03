@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import type { ProposalRow } from "@/lib/agents/proposals";
 import { postJson } from "@/lib/auth/client-api";
-import { approvalFailure } from "@/lib/explain/approvals";
+import { approvalFailure, editFailureMessage, proposalStatusLabel } from "@/lib/explain/approvals";
 import { ProposalValue } from "./ProposalValue";
 import { cleanValue, FIELDS, proposalLabel } from "./proposal-fields";
 
@@ -14,7 +14,7 @@ const INPUT = "w-full rounded-sm border border-line bg-surface px-2 py-1 text-sm
 
 function StatusTag({ status }: { status: string }) {
   const tone = status === "proposed" ? "warn" : status === "approved" ? "accent" : "neutral";
-  return <Tag tone={tone}>{status}</Tag>;
+  return <Tag tone={tone}>{proposalStatusLabel(status)}</Tag>;
 }
 
 /** One proposal row with approve / reject / edit controls. */
@@ -57,7 +57,7 @@ export function ProposalItem({
     if (!result.ok) {
       return setError(
         result.error === "invalid_edit" && result.message
-          ? result.message
+          ? editFailureMessage(result.message)
           : approvalFailure(result.error, failure),
       );
     }
@@ -115,7 +115,7 @@ export function ProposalItem({
                 >
                   {field.choices.map((c) => (
                     <option key={c} value={c}>
-                      {c}
+                      {field.choiceLabel ? field.choiceLabel(c) : c}
                     </option>
                   ))}
                 </select>

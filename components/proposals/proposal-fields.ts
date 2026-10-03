@@ -1,22 +1,34 @@
 import type { ProposalType } from "@/lib/agents/proposals";
+import { intentLabel } from "@/lib/explain/approvals";
 
 export const INTENTS = ["informational", "commercial", "transactional", "navigational", "local"];
 
-export type FieldSpec = { name: string; label: string; optional?: boolean; choices?: string[] };
+export type FieldSpec = {
+  name: string;
+  label: string;
+  optional?: boolean;
+  choices?: string[];
+  choiceLabel?: (choice: string) => string;
+};
 
 export const FIELDS: Record<ProposalType, FieldSpec[]> = {
   keyword: [
-    { name: "term", label: "Term" },
-    { name: "intent", label: "Intent", choices: INTENTS },
+    { name: "term", label: "Search phrase" },
+    {
+      name: "intent",
+      label: "What the searcher wants",
+      choices: INTENTS,
+      choiceLabel: intentLabel,
+    },
     { name: "location", label: "Location", optional: true },
   ],
   question: [{ name: "text", label: "Question" }],
   competitor: [
     { name: "name", label: "Name" },
-    { name: "url", label: "URL" },
+    { name: "url", label: "Web address" },
   ],
   pillar: [
-    { name: "key", label: "Short code (used in filenames)" },
+    { name: "key", label: "Short code" },
     { name: "name", label: "Name" },
     { name: "description", label: "Description" },
   ],

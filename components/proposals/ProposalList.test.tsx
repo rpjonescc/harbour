@@ -35,15 +35,17 @@ describe("ProposalList", () => {
   it("renders term, intent, why and status", () => {
     renderList([row({})]);
     expect(screen.getByText("example widgets")).toBeInTheDocument();
-    expect(screen.getByText("commercial")).toBeInTheDocument();
+    expect(screen.getByText("comparing options")).toBeInTheDocument();
     expect(screen.getByText("Buyers search this")).toBeInTheDocument();
-    expect(screen.getByText("proposed", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("Waiting for your OK", { selector: "span" })).toBeInTheDocument();
   });
 
   it("shows the empty state", () => {
     renderList([]);
-    expect(screen.getByText(/No proposals yet/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Agents page" })).toHaveAttribute("href", "/agents");
+    expect(screen.getByText(/Nothing to approve for Acme Docs yet/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Open the Agents page and choose Find ideas" }),
+    ).toHaveAttribute("href", "/agents");
   });
 
   it("approves one item", async () => {
@@ -59,7 +61,7 @@ describe("ProposalList", () => {
   it("approves all proposed", async () => {
     api.postJson.mockResolvedValue({ ok: true, data: { ok: true, count: 1 } });
     renderList([row({})]);
-    fireEvent.click(screen.getByRole("button", { name: "Approve all proposed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approve all waiting keywords" }));
     await vi.waitFor(() =>
       expect(api.postJson).toHaveBeenCalledWith(URL_, { action: "approve-all", type: "keyword" }),
     );
@@ -67,14 +69,16 @@ describe("ProposalList", () => {
 
   it("hides approve-all when nothing is proposed", () => {
     renderList([row({ status: "approved" })]);
-    expect(screen.queryByRole("button", { name: "Approve all proposed" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Approve all waiting keywords" })).toBeNull();
   });
 
   it("saves an edit, omitting an empty location", async () => {
     api.postJson.mockResolvedValue({ ok: true, data: { ok: true } });
     renderList([row({ id: 3 })]);
     fireEvent.click(screen.getByRole("button", { name: 'Edit keyword "example widgets"' }));
-    fireEvent.change(screen.getByLabelText("Term"), { target: { value: "example gadgets" } });
+    fireEvent.change(screen.getByLabelText("Search phrase"), {
+      target: { value: "example gadgets" },
+    });
     fireEvent.click(screen.getByRole("button", { name: 'Save keyword "example widgets"' }));
     await vi.waitFor(() =>
       expect(api.postJson).toHaveBeenCalledWith(URL_, {
@@ -89,12 +93,14 @@ describe("ProposalList", () => {
     api.postJson.mockResolvedValue({
       ok: false,
       error: "invalid_edit",
-      message: "Term is too long",
+      message: "term: Too big: expected string to have <=120 characters",
     });
     renderList([row({})]);
     fireEvent.click(screen.getByRole("button", { name: 'Edit keyword "example widgets"' }));
     fireEvent.click(screen.getByRole("button", { name: 'Save keyword "example widgets"' }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Term is too long");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The search phrase is too long. Shorten it.",
+    );
     expect(nav.refresh).not.toHaveBeenCalled();
   });
 
@@ -122,7 +128,7 @@ describe("ProposalList", () => {
   it("moves focus into the first field on Edit and back to Edit on Cancel", () => {
     renderList([row({})]);
     fireEvent.click(screen.getByRole("button", { name: 'Edit keyword "example widgets"' }));
-    expect(screen.getByLabelText("Term")).toHaveFocus();
+    expect(screen.getByLabelText("Search phrase")).toHaveFocus();
     fireEvent.click(
       screen.getByRole("button", { name: 'Cancel editing keyword "example widgets"' }),
     );
@@ -142,12 +148,12 @@ describe("ProposalList", () => {
   it("Cancel restores the original draft", () => {
     renderList([row({})]);
     fireEvent.click(screen.getByRole("button", { name: 'Edit keyword "example widgets"' }));
-    fireEvent.change(screen.getByLabelText("Term"), { target: { value: "changed" } });
+    fireEvent.change(screen.getByLabelText("Search phrase"), { target: { value: "changed" } });
     fireEvent.click(
       screen.getByRole("button", { name: 'Cancel editing keyword "example widgets"' }),
     );
     fireEvent.click(screen.getByRole("button", { name: 'Edit keyword "example widgets"' }));
-    expect(screen.getByLabelText("Term")).toHaveValue("example widgets");
+    expect(screen.getByLabelText("Search phrase")).toHaveValue("example widgets");
   });
 
   it("rejects an item and announces it", async () => {
@@ -189,11 +195,18 @@ describe("ProposalList", () => {
   it("announces approve-all results and surfaces server messages on failure", async () => {
     api.postJson.mockResolvedValueOnce({ ok: true, data: { ok: true, count: 12 } });
     renderList([row({})]);
-    fireEvent.click(screen.getByRole("button", { name: "Approve all proposed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approve all waiting keywords" }));
     expect(await screen.findByText("Approved 12 keywords")).toBeInTheDocument();
     api.postJson.mockResolvedValueOnce({ ok: false, error: "x", message: "Nope" });
-    fireEvent.click(screen.getByRole("button", { name: "Approve all proposed" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approve all waiting keywords" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Nope");
+  });
+
+  it("labels each Approve all button with its list, and explains an empty list", () => {
+    renderList([row({})]);
+    expect(screen.getByRole("button", { name: "Approve all waiting keywords" })).toHaveTextContent(
+      "Approve all",
+    );
   });
 
   it("shows multi-line validation messages", async () => {
