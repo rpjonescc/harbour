@@ -1128,7 +1128,8 @@ itself, with the meaning of every underlined word.
   the check's raw observations: pages without a title or meta description, broken internal links,
   pages hidden by noindex, indexable pages Google can't quote (**Google can't quote these pages**:
   `nosnippet` or `max-snippet:0` in the robots meta tag or X-Robots-Tag header, or half or more of
-  the page's text inside `data-nosnippet`; up to 5 URLs with the count, no score change), AI search
+  the page's text inside `data-nosnippet` on a `span`, `div` or `section`, the only elements
+  Google honours it on; up to 5 URLs with the count, no score change), AI search
   crawlers blocked in robots.txt (blocking only training crawlers raises nothing) and no Google
   Preferred Sources button (news sites only), and (once Search Console is connected and Harbour has known
   the sitemap for 14 days) at least 3 pages, and a fifth or more of those checked, that Google hasn't

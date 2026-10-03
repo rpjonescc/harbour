@@ -278,7 +278,7 @@ follows it:
   effort): a page must be indexed and allowed to show a snippet to appear in AI Overviews or AI
   Mode. The crawler records `noSnippet` (`nosnippet` or `max-snippet:0` for Google, from the
   robots or googlebot meta tag or the X-Robots-Tag header) and `nosnippetWords` (visible words
-  inside `data-nosnippet`). The rule judges only pages meant to be found (not noindex) and lists
+  inside `data-nosnippet` on a `span`, `div` or `section`; Google ignores it elsewhere). The rule judges only pages meant to be found (not noindex) and lists
   a page with a directive, or with half or more of its words inside `data-nosnippet` (a cookie
   notice is the owner's choice); up to 5 URLs with the count. It changes no score; wording lives
   in `lib/explain/snippets.ts`. Pages crawled before the fields existed are unknown, not clear.
