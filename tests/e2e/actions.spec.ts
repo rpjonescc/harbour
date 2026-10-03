@@ -13,7 +13,7 @@ import { CAFE, GEO_EVIDENCE, SUGGESTED, seedActions } from "./seed-actions";
 test.describe.configure({ mode: "serial" });
 test.beforeAll(() => seedActions());
 
-const CAFE_BOARD = `/actions?product=${CAFE.id}`;
+const CAFE_BOARD = `/actions?view=list&product=${CAFE.id}`;
 /** E2E runs with the default locale. */
 const LOCALE = "en-US";
 
@@ -55,7 +55,7 @@ async function changeStatus(page: Page, title: string, button: string, tag: stri
 test("the sidebar counts open actions and the board groups them, biggest wins first", async ({
   page,
 }) => {
-  await page.goto("/actions");
+  await page.goto("/actions?view=list");
   const { active } = await headerCounts(page);
   // Acme Docs' two scan issues and the café's three rule actions are all open.
   expect(active).toBeGreaterThanOrEqual(5);
@@ -82,7 +82,7 @@ test("the sidebar counts open actions and the board groups them, biggest wins fi
   await expect(acme.getByText("Big win", { exact: true })).toBeVisible();
   await expect(acme.getByText("Waiting for you")).toBeVisible();
 
-  await page.goto("/actions?status=all");
+  await page.goto("/actions?view=list&status=all");
   const high = page.getByRole("region", { name: "Big wins" });
   await expect(page.getByRole("main").getByRole("heading", { level: 2 }).first()).toHaveText(
     "Big wins",
@@ -95,7 +95,7 @@ test("the sidebar counts open actions and the board groups them, biggest wins fi
 });
 
 test("filters narrow the board, live in the URL, and clear", async ({ page }) => {
-  await page.goto("/actions");
+  await page.goto("/actions?view=list");
   await page.getByLabel("Product", { exact: true }).selectOption({ label: CAFE.name });
   await page.getByLabel("Area", { exact: true }).selectOption("GEO");
   await expect(page.getByLabel("Area", { exact: true })).toContainText(
@@ -104,7 +104,9 @@ test("filters narrow the board, live in the URL, and clear", async ({ page }) =>
   await page.getByLabel("Status", { exact: true }).selectOption({ label: "New ideas" });
   await page.getByRole("button", { name: "Apply" }).click();
 
-  await expect(page).toHaveURL(/\/actions\?product=lighthouse-cafe&area=GEO&status=suggested$/);
+  await expect(page).toHaveURL(
+    /\/actions\?product=lighthouse-cafe&area=GEO&status=suggested&view=list$/,
+  );
   const cards = page.getByRole("article");
   await expect(cards).toHaveCount(1);
   await expect(cards).toHaveAccessibleName(SUGGESTED.geo);
@@ -112,7 +114,7 @@ test("filters narrow the board, live in the URL, and clear", async ({ page }) =>
   const clear = page.getByRole("link", { name: "Clear filters" });
   await hydrated(clear);
   await clear.click();
-  await expect(page).toHaveURL(/\/actions$/);
+  await expect(page).toHaveURL(/\/actions\?view=list$/);
   await expect(page.getByLabel("Product", { exact: true })).toHaveValue("");
   await expect(page.getByLabel("Area", { exact: true })).toHaveValue("");
   await expect(page.getByLabel("Status", { exact: true })).toHaveValue("active");
@@ -193,7 +195,7 @@ test("Hand to Claude copies a prompt with the product, fenced evidence and the c
 test("Today lists the top three actions in board order; issues link to their actions", async ({
   page,
 }) => {
-  await page.goto("/actions");
+  await page.goto("/actions?view=list");
   const { active } = await headerCounts(page);
   const top = (await page.getByRole("article").all()).slice(0, 3);
   const titles = await Promise.all(
@@ -286,7 +288,7 @@ test("keyboard: Tab runs from the filters through a card; the snooze form traps 
 });
 
 test("the board renders in light and dark", async ({ page }) => {
-  await page.goto("/actions");
+  await page.goto("/actions?view=list");
   const toggle = page.getByRole("button", { name: /^Theme: / });
   await hydrated(toggle);
   for (const theme of ["light", "dark"]) {

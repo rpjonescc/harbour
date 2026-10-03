@@ -75,7 +75,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: /(agents|scans|actions|analyst|note|content|settings|outside)\.spec\.ts/,
+      testIgnore: /(agents|scans|actions|board|analyst|note|content|settings|outside)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     // Agent runs change the brain (new documents, sidebar counts), so they run after the rest.
@@ -145,6 +145,14 @@ export default defineConfig({
       name: "outside",
       testMatch: /outside\.spec\.ts/,
       dependencies: ["operations"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+    // The board specs seed their own product's cards and move them, so they run after every spec
+    // that counts the board or the worker's queue.
+    {
+      name: "board",
+      testMatch: /board\.spec\.ts/,
+      dependencies: ["outside"],
       use: { ...devices["Desktop Chrome"] },
     },
   ],
