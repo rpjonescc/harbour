@@ -1,3 +1,13 @@
+import { count, isAre, type PageVerdict, sentences } from "./page-verdict";
+import type { TermLine } from "./term-line";
+
+/** The Content page's line under its title. */
+export const CONTENT_INTRO: TermLine = [
+  "Ideas and ",
+  { term: "draft", text: "drafts" },
+  " from your recent work. Nothing is posted until you post it.",
+];
+
 /** The Content page's own words for refusals and failures that the owner can act on. */
 export const voiceMissingMessage = (productName: string) =>
   `Write ${productName}'s voice profile first. The template is on the Content page.`;
@@ -94,3 +104,31 @@ export const EMPTY_TABS: Record<
     why: "You haven't discarded anything.",
   },
 };
+
+/** How many pieces or ideas each Content tab holds, by tab id. */
+export type ContentCounts = Readonly<Record<keyof typeof EMPTY_TABS, number>>;
+
+/** The parts of the Content verdict that may apply, most urgent first. */
+function contentParts(c: ContentCounts): string[] {
+  return [
+    c["needs-you"] > 0 &&
+      `${count(c["needs-you"], "thing")} ${c["needs-you"] === 1 ? "needs" : "need"} a look from you.`,
+    c.ready > 0 && `${count(c.ready, "draft")} ${isAre(c.ready)} ready for you.`,
+    c.writing > 0 && `${count(c.writing, "piece")} ${isAre(c.writing)} being written.`,
+    c.ideas > 0 && `${count(c.ideas, "idea")} ${isAre(c.ideas)} waiting for you to pick.`,
+  ].filter((part): part is string => typeof part === "string");
+}
+
+/** The Content page's verdict: what waits for you first, then what is happening (two at most). */
+export function contentVerdict(c: ContentCounts): PageVerdict {
+  const parts = contentParts(c);
+  if (parts.length === 0) {
+    return {
+      tone: "ok",
+      text: "Nothing is waiting for you. New ideas arrive on Monday mornings, or when you ask.",
+    };
+  }
+  // Anything waiting for the owner is worth a look; otherwise work under way is busy.
+  const tone = c["needs-you"] + c.ready > 0 ? "watch" : c.writing > 0 ? "busy" : "ok";
+  return { tone, text: sentences(...parts.slice(0, 2)) };
+}

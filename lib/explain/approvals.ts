@@ -1,3 +1,16 @@
+import { sentenceCase } from "./job-words";
+import { count, type PageVerdict } from "./page-verdict";
+import type { TermLine } from "./term-line";
+
+/** The research targets page's line under its title. */
+export function targetsIntro(productName: string): TermLine {
+  return [
+    "Each ",
+    { term: "research-target", text: "research target" },
+    ` is something Harbour follows for ${productName}, once you say OK.`,
+  ];
+}
+
 /** "3 research targets waiting for your OK": shared by Settings and the Actions board's note. */
 export function approvalsPhrase(count: number): string {
   return `${count} research ${count === 1 ? "target" : "targets"} waiting for your OK`;
@@ -98,4 +111,15 @@ function editIssue(line: string): string {
 export function editFailureMessage(raw: string): string {
   const lines = [...new Set(raw.split("\n").map(editIssue))];
   return lines.join("\n");
+}
+
+/** The research targets page's verdict: how many wait for the owner's OK, or that none do. */
+export function targetsVerdict(
+  productName: string,
+  waiting: number,
+  approved: number,
+): PageVerdict {
+  if (waiting > 0) return { tone: "watch", text: `${sentenceCase(approvalsPhrase(waiting))}.` };
+  const kept = approved > 0 ? ` ${count(approved, "target")} approved.` : "";
+  return { tone: "ok", text: `Nothing for ${productName} is waiting for your OK.${kept}` };
 }

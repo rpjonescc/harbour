@@ -40,7 +40,9 @@ describe("SettingsOverview", () => {
 
   it("opens with a headline and one plain line, files and settings under Technical details", () => {
     const { container } = renderView();
-    expect(screen.getByText(SETTINGS_INTRO.line)).toBeInTheDocument();
+    const intro = container.querySelector("[data-page-intro] p");
+    expect(intro?.textContent).toMatch(/^What Harbour is set up to do: products, schedules/);
+    expect(screen.getByRole("button", { name: "schedules" })).toBeInTheDocument();
     expect(textOutsideDetails(container)).not.toMatch(/HARBOUR_[A-Z_]+|\.env|harbour\.config/);
     const details = screen.getByText(/where settings live/).closest("details");
     expect(details).toHaveTextContent(SETTINGS_INTRO.files);
@@ -270,5 +272,12 @@ describe("SettingsOverview", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("leads with a verdict: everything set up, or the one thing missing", () => {
+    const { container } = renderView({ ...EXAMPLE_SETTINGS, isDemoConfig: true });
+    expect(container.querySelector("[data-page-verdict]")).toHaveTextContent(
+      /^Harbour is showing the example products/,
+    );
   });
 });

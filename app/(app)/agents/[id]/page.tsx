@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RunActivity } from "@/components/agents/RunActivity";
+import { PageHeader } from "@/components/explain/PageHeader";
 import { jobLabel } from "@/lib/agents/view";
 import { requireSession } from "@/lib/auth/guard";
 import { brainHref } from "@/lib/brain/wikilinks";
@@ -21,13 +22,18 @@ export default async function AgentRunPage({ params }: { params: Promise<{ id: s
   const run = getAgentRun(db, id);
   const files = run?.commitSha ? (run.filesChanged ?? []) : [];
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <Link href="/agents" className="text-sm text-accent hover:underline">
-          ← Back to agents
-        </Link>
-        <h1 className="font-serif text-3xl">{label}</h1>
-      </header>
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <PageHeader
+        title={label}
+        page="run"
+        intro={
+          <p>
+            <Link href="/agents" className="rounded-sm text-accent hover:underline">
+              ← Back to agents
+            </Link>
+          </p>
+        }
+      />
       <RunActivity
         job={{
           id,

@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PageHeader } from "@/components/explain/PageHeader";
+import { TermLine } from "@/components/explain/TermLine";
 import { ProposalList } from "@/components/proposals/ProposalList";
 import { listProposals, type ProposalType } from "@/lib/agents/proposals";
 import { requireSession } from "@/lib/auth/guard";
 import { getDb } from "@/lib/db/client";
+import { targetsIntro, targetsVerdict } from "@/lib/explain/approvals";
 import { getContentProducts, getProducts } from "@/lib/products/catalog";
 
 const SECTIONS: { type: ProposalType; title: string }[] = [
@@ -26,17 +29,32 @@ export default async function ProductProposalsPage({
   // Pillars shape content ideas, so only products with content on have them.
   const contentOn = getContentProducts().some((p) => p.id === id);
   const sections = SECTIONS.filter(({ type }) => type !== "pillar" || contentOn);
+  const shown = sections.flatMap(({ type }) => proposals[type]);
+  const verdict = targetsVerdict(
+    product.name,
+    shown.filter((item) => item.status === "proposed").length,
+    shown.filter((item) => item.status === "approved").length,
+  );
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <header>
-        <h1 className="font-serif text-3xl">{product.name} — research targets</h1>
-        <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-ink-muted">
-          {product.url}
-          <Link href={`/products/${product.id}`} className="text-accent hover:underline">
-            Scores and issues
-          </Link>
-        </p>
-      </header>
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <PageHeader
+        title={`${product.name} — research targets`}
+        page="targets"
+        verdict={verdict}
+        intro={
+          <>
+            <p>
+              <TermLine line={targetsIntro(product.name)} />
+            </p>
+            <p className="flex flex-wrap gap-x-3">
+              {product.url}
+              <Link href={`/products/${product.id}`} className="text-accent hover:underline">
+                Scores and issues
+              </Link>
+            </p>
+          </>
+        }
+      />
       {sections.map(({ type, title }) => (
         <section key={type} aria-labelledby={`${type}-heading`} className="flex flex-col gap-3">
           <h2 id={`${type}-heading`} className="font-serif text-xl">

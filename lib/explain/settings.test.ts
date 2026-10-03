@@ -1,4 +1,5 @@
 import { SETTINGS_INTRO, SETTINGS_PURPOSE } from "./settings";
+import { termLineText } from "./term-line";
 
 describe("Settings words", () => {
   it("gives every section one short, plain line that names no file or setting", () => {
@@ -11,7 +12,7 @@ describe("Settings words", () => {
   });
 
   it("keeps the file names for Technical details, out of the visible line", () => {
-    expect(SETTINGS_INTRO.line).not.toMatch(/HARBOUR_|\.env|\.json/);
+    expect(termLineText(SETTINGS_INTRO.line)).not.toMatch(/HARBOUR_|\.env|\.json/);
     expect(SETTINGS_INTRO.files).toContain(".env");
     expect(SETTINGS_INTRO.files).toContain("harbour.config.json");
   });

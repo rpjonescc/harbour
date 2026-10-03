@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull, max, or } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { brainDocs, brainLinks } from "@/lib/db/schema";
 
@@ -44,4 +44,13 @@ export function recentDocs(db: Db, limit = 10) {
     .orderBy(desc(brainDocs.mtime))
     .limit(limit)
     .all();
+}
+
+/** How many documents the index holds and when the newest one changed (null when there are none). */
+export function brainStats(db: Db): { notes: number; newest: Date | null } {
+  const row = db
+    .select({ notes: count(), newest: max(brainDocs.mtime) })
+    .from(brainDocs)
+    .get();
+  return { notes: row?.notes ?? 0, newest: row?.newest ?? null };
 }

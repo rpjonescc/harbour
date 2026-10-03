@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/explain/PageHeader";
 import { ProductDot } from "@/components/ui/ProductDot";
-import { productSummary } from "@/lib/explain/product-summary";
+import { productVerdict } from "@/lib/explain/product-summary";
 import type { Product } from "@/lib/products/catalog";
 import type { FormulaChange, ScanState, ScoreTrend } from "@/lib/scan/views";
 import { AreaCards } from "./AreaCards";
@@ -10,8 +10,8 @@ import { ScanStatusNote } from "./ScanStatusNote";
 import { ScoringNote } from "./ScoringNote";
 
 /**
- * Product name and links, Check now, where the latest check stands, a one-line summary and the
- * three area cards.
+ * Product name, its verdict and links, Check now, where the latest check stands and the three
+ * area cards.
  */
 export function ProductHeader({
   product,
@@ -32,6 +32,7 @@ export function ProductHeader({
     <div className="flex flex-col gap-4">
       <PageHeader
         page="product"
+        verdict={productVerdict(product.name, scores.latest?.totals ?? null, scan.active !== null)}
         title={
           <span className="flex items-center gap-2">
             <ProductDot product={product} />
@@ -52,9 +53,6 @@ export function ProductHeader({
         <ScanNowButton productId={product.id} active={scan.active?.status ?? null} />
       </PageHeader>
       <ScanStatusNote scan={scan} latest={scores.latest} timeZone={timeZone} locale={locale} />
-      <p className="text-base text-ink">
-        {productSummary(product.name, scores.latest?.totals ?? null)}
-      </p>
       <AreaCards scores={scores} scan={scan} />
       <ScoringNote change={formulaChange} kind={product.kind} />
     </div>

@@ -7,13 +7,15 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 describe("ContentPage", () => {
   it("opens on Ready for you, with counts, the header line and one tab in the tab order", () => {
-    render(<ContentPage view={view()} template={null} />);
+    const { container } = render(<ContentPage view={view()} template={null} />);
     expect(screen.getByRole("heading", { level: 1, name: "Content" })).toBeVisible();
-    expect(
-      screen.getByText(
-        "Ideas and drafts from your recent work. Nothing is posted until you post it.",
-      ),
-    ).toBeVisible();
+    expect(container.querySelector("[data-page-verdict]")).toHaveTextContent(
+      "1 draft is ready for you.",
+    );
+    expect(container.querySelector("[data-page-intro] p")?.textContent).toMatch(
+      /^Ideas and drafts/,
+    );
+    expect(screen.getByRole("button", { name: "drafts" })).toBeVisible();
     const tabs = screen.getAllByRole("tab");
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
     expect(tabs[0]).toHaveTextContent("Ready for you (1)");

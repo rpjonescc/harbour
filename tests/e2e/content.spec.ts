@@ -55,9 +55,10 @@ test("Content starts empty and calm, with the digest gap said in one line", asyn
   await openContent(page);
   await expect(page.getByRole("link", { name: /Content/ }).first()).toBeVisible();
   await expect(page.getByRole("heading", { level: 1, name: "Content" })).toBeVisible();
-  await expect(
-    page.getByText("Ideas and drafts from your recent work. Nothing is posted until you post it."),
-  ).toBeVisible();
+  await expect(page.locator("[data-page-intro]")).toContainText(
+    "from your recent work. Nothing is posted until you post it.",
+  );
+  await expect(page.locator("[data-page-verdict]")).toContainText(/^Nothing is waiting for you\./);
   await expect(page.getByText(/Ideas this week come from your notes only/)).toBeVisible();
   await expect(page.getByRole("tab", { name: /^Ideas \(0\)/ })).toHaveAttribute(
     "aria-selected",
