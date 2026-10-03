@@ -18,6 +18,7 @@ const counted = (
   state: "counted",
   indexed: 3,
   checked: 53,
+  unknown: 0,
   total: 53,
   byState: BY_STATE,
   checkedThrough: "2026-10-01T06:00:00.000Z",
@@ -51,20 +52,20 @@ describe("IndexingPanel", () => {
     const region = panel(counted({ checked: 20, indexed: 1 }));
     expect(within(region).getByText("Checking, 20 of 53 so far")).toBeInTheDocument();
     expect(region).toHaveTextContent("So far, 1 of the 20 pages checked is in Google.");
-    expect(region).not.toHaveTextContent("In Google: 1 of 53");
+    expect(region).not.toHaveTextContent("In Google: 1 of");
   });
 
-  it("shows checking progress, not a zero count, when nothing is known yet", () => {
-    const region = panel(
-      counted({
-        checked: 0,
-        indexed: 0,
-        checkedThrough: null,
-        byState: { ...BY_STATE, indexed: 0 },
-      }),
-    );
-    expect(within(region).getByText("Checking, 0 of 53 so far")).toBeInTheDocument();
-    expect(region).not.toHaveTextContent(/In Google: 0/);
+  it("is done once every page was asked about, and shows pages Google couldn't answer for", () => {
+    const region = panel(counted({ checked: 52, unknown: 1, indexed: 3 }));
+    expect(within(region).getByText("In Google: 3 of 52 pages")).toBeInTheDocument();
+    expect(region).toHaveTextContent("1 page couldn't be checked yet.");
+    expect(region).not.toHaveTextContent(/Checking,/);
+  });
+
+  it("counts pages that could not be checked as asked about while still working through a site", () => {
+    const region = panel(counted({ checked: 15, unknown: 5, indexed: 2 }));
+    expect(within(region).getByText("Checking, 20 of 53 so far")).toBeInTheDocument();
+    expect(region).toHaveTextContent("5 pages couldn't be checked yet.");
   });
 
   it("uses the singular for one page", () => {
@@ -74,7 +75,11 @@ describe("IndexingPanel", () => {
 
   it.each([
     ["not_connected", "Search Console isn't connected"],
+    ["not_covered", "The Search Console property doesn't cover this site's address."],
+    ["crawler_failed", "Harbour couldn't read your site in the last check"],
     ["no_sitemap", "Harbour found no sitemap pages to check."],
+    ["quota", "Google's daily limit was reached; the check continues tomorrow."],
+    ["no_answer", "Google hasn't answered about any page yet."],
     ["failed", "Google didn't answer the page checks in the last check."],
     ["waiting", "Not checked yet: it starts with the next check."],
   ] as const)("says why there is no count (%s) and never shows 0", (why, text) => {

@@ -24,6 +24,9 @@ export const INDEXING_UNKNOWN = {
   tooNew: "Your sitemap is less than 14 days old in Harbour's records: new pages need time",
 } as const;
 
+/** Said wherever Search Console is described, so the page check is never a surprise. */
+export const ALSO_CHECKS_INDEX = "It also checks which pages Google has indexed.";
+
 /** One sentence under the line, always visible. */
 export const INDEXING_ONE_LINER =
   "How many of your pages Google has added to its search results. Pages it hasn't added can't be found there.";
@@ -51,15 +54,34 @@ export const INDEX_STATE_NAMES: Readonly<Record<IndexState, string>> = {
 export const inGoogleLine = (indexed: number, total: number) =>
   `In Google: ${indexed} of ${total} ${total === 1 ? "page" : "pages"}`;
 
+/** What the indexing check records when it does not run; the product page tells these apart. */
+export const INDEXING_REASONS = {
+  crawlerFailed: "The crawler did not run ok, so there are no sitemap pages to check",
+  noSitemap: "No sitemap pages were recorded, so there is nothing to check",
+  notCovered:
+    "The Search Console property doesn't cover this site's address. Use the domain property " +
+    "(sc-domain:…) or the property for the exact address.",
+} as const;
+
 /** Why there is no count, in a sentence that says what happened and what to do. */
 export const INDEXING_EMPTY = {
   notConnected:
     "Search Console isn't connected, so Harbour can't see which pages Google has added.",
+  notCovered:
+    "The Search Console property doesn't cover this site's address. Use the domain property or the property for the exact address.",
+  crawlerFailed:
+    "Harbour couldn't read your site in the last check, so it has no pages to ask Google about. It will try again.",
   noSitemap: "Harbour found no sitemap pages to check.",
   failed: "Google didn't answer the page checks in the last check. Harbour will try again.",
+  quota: "Google's daily limit was reached; the check continues tomorrow.",
+  noAnswer: "Google hasn't answered about any page yet.",
   waiting: "Not checked yet: it starts with the next check.",
 } as const;
 
 /** The line while a large site is still being worked through. */
-export const checkingLine = (checked: number, total: number) =>
-  `Checking, ${checked} of ${total} so far`;
+export const checkingLine = (asked: number, total: number) =>
+  `Checking, ${asked} of ${total} so far`;
+
+/** Pages Google could not answer about, shown beside the count. */
+export const couldntCheckLine = (unknown: number) =>
+  `${unknown} ${unknown === 1 ? "page" : "pages"} couldn't be checked yet.`;

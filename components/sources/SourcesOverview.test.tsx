@@ -75,6 +75,7 @@ describe("SourcesOverview", () => {
     const gsc = within(list).getByText("Google Search Console").closest("li") as HTMLElement;
     expect(gsc).toHaveTextContent("Connected");
     expect(gsc).toHaveTextContent("Fern & Field isn't linked to a Search Console site yet.");
+    expect(gsc).toHaveTextContent("It also checks which pages Google has indexed.");
     expect(textOutsideDetails(container)).not.toMatch(/HARBOUR_[A-Z_]+/);
   });
 

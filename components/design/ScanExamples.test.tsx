@@ -23,17 +23,21 @@ describe("ScanExamples", () => {
 
   it("shows every state of the Pages in Google panel, each with its own heading and Technical details", () => {
     render(<ScanExamples />);
-    expect(screen.getAllByRole("heading", { name: "Pages in Google" })).toHaveLength(6);
+    expect(screen.getAllByRole("heading", { name: "Pages in Google" })).toHaveLength(11);
     for (const text of [
       "In Google: 3 of 53 pages",
       "Checking, 20 of 53 so far",
       "Search Console isn't connected, so Harbour can't see which pages Google has added.",
+      "2 pages couldn't be checked yet.",
       "Harbour found no sitemap pages to check.",
+      "Google's daily limit was reached; the check continues tomorrow.",
+      "Google hasn't answered about any page yet.",
+      "Harbour couldn't read your site in the last check, so it has no pages to ask Google about. It will try again.",
       "Not checked yet: it starts with the next check.",
     ]) {
       expect(screen.getAllByText(text).length).toBeGreaterThan(0);
     }
     const ids = screen.getAllByRole("heading", { name: "Pages in Google" }).map((h) => h.id);
-    expect(new Set(ids).size).toBe(6);
+    expect(new Set(ids).size).toBe(11);
   });
 });

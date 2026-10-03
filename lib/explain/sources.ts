@@ -1,3 +1,4 @@
+import { ALSO_CHECKS_INDEX } from "@/lib/explain/indexing";
 import { collectorLabel } from "@/lib/scan/labels";
 import type { CollectorStatus } from "@/lib/scan/types";
 
@@ -89,7 +90,7 @@ export const SOURCES: readonly SourceExplanation[] = [
     name: "Google Search Console",
     gives:
       "Shows how often Google showed your pages in search, which searches found you and how many people clicked. " +
-      "It also checks which pages Google has indexed.",
+      ALSO_CHECKS_INDEX,
     paid: false,
     connect: [
       "Run pnpm gsc:connect on the Harbour machine and sign in with the Google account that can see your sites in Search Console.",

@@ -3,6 +3,7 @@ import { Explainer } from "@/components/explain/Explainer";
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import {
   checkingLine,
+  couldntCheckLine,
   INDEX_STATE_NAMES,
   INDEXING_EMPTY,
   INDEXING_ONE_LINER,
@@ -11,7 +12,7 @@ import {
 } from "@/lib/explain/indexing";
 import { formatIsoDay } from "@/lib/format/date";
 import { INDEX_STATES } from "@/lib/scan/index-shapes";
-import type { IndexingState } from "@/lib/scan/indexing-view";
+import type { IndexingState, NoCoverage } from "@/lib/scan/indexing-view";
 
 const TITLE = "Pages in Google";
 
@@ -44,34 +45,44 @@ function Breakdown({ counted, locale }: { counted: Counted; locale: string }) {
 }
 
 function CountedBody({ counted, locale }: { counted: Counted; locale: string }) {
-  const done = counted.checked >= counted.total;
-  const line = done
-    ? inGoogleLine(counted.indexed, counted.total)
-    : checkingLine(counted.checked, counted.total);
+  const asked = counted.checked + counted.unknown;
+  // Done once every page was asked about: pages Google couldn't answer for are shown beside the
+  // count, so one page that always fails can't keep the panel at "checking" for ever.
+  const done = asked >= counted.total;
   return (
     <>
-      <p className="font-serif text-2xl">{line}</p>
-      {!done && counted.checked > 0 && (
+      <p className="font-serif text-2xl">
+        {done ? inGoogleLine(counted.indexed, counted.checked) : checkingLine(asked, counted.total)}
+      </p>
+      {!done && (
         <p className="text-sm text-ink-muted">
           So far, {counted.indexed} of the {counted.checked} pages checked{" "}
           {counted.indexed === 1 ? "is" : "are"} in Google.
         </p>
+      )}
+      {counted.unknown > 0 && (
+        <p className="text-sm text-ink-muted">{couldntCheckLine(counted.unknown)}</p>
       )}
       <Breakdown counted={counted} locale={locale} />
     </>
   );
 }
 
+const EMPTY_MESSAGES: Record<NoCoverage, string> = {
+  not_connected: INDEXING_EMPTY.notConnected,
+  not_covered: INDEXING_EMPTY.notCovered,
+  crawler_failed: INDEXING_EMPTY.crawlerFailed,
+  no_sitemap: INDEXING_EMPTY.noSitemap,
+  failed: INDEXING_EMPTY.failed,
+  quota: INDEXING_EMPTY.quota,
+  no_answer: INDEXING_EMPTY.noAnswer,
+  waiting: INDEXING_EMPTY.waiting,
+};
+
 function EmptyBody({ state }: { state: Extract<IndexingState, { state: "empty" }> }) {
-  const message = {
-    not_connected: INDEXING_EMPTY.notConnected,
-    no_sitemap: INDEXING_EMPTY.noSitemap,
-    failed: INDEXING_EMPTY.failed,
-    waiting: INDEXING_EMPTY.waiting,
-  }[state.why];
   return (
     <>
-      <p className="text-sm text-ink">{message}</p>
+      <p className="text-sm text-ink">{EMPTY_MESSAGES[state.why]}</p>
       {state.reason && (
         <TechnicalDetails id="indexing-reason" topic="what Harbour recorded">
           <p>{state.reason}</p>
