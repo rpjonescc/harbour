@@ -7,9 +7,43 @@ const config = parseConfig({
   HARBOUR_ORIGIN: "https://pc.tail.ts.net",
   HARBOUR_RP_ID: "pc.tail.ts.net",
 });
-const me = new Headers({ "Tailscale-User-Login": "owner@example.com" });
+const me = new Headers({ host: "pc.tail.ts.net", "Tailscale-User-Login": "owner@example.com" });
 
 describe("decideGate", () => {
+  it("forbids a request for any host but HARBOUR_ORIGIN's, even with a valid identity", () => {
+    for (const host of ["127.0.0.1:3400", "evil.example.com", "pc.tail.ts.net:8444", null]) {
+      const headers = new Headers(me);
+      if (host === null) headers.delete("host");
+      else headers.set("host", host);
+      expect(decideGate({ headers, pathname: "/", hasSessionCookie: true }, config)).toEqual({
+        kind: "forbid",
+      });
+    }
+    const upper = new Headers(me);
+    upper.set("host", "PC.Tail.ts.net");
+    expect(decideGate({ headers: upper, pathname: "/", hasSessionCookie: true }, config).kind).toBe(
+      "next",
+    );
+  });
+
+  it("matches the origin's port when it has one", () => {
+    const withPort = parseConfig({
+      NODE_ENV: "production",
+      HARBOUR_ALLOWED_LOGINS: "owner@example.com",
+      HARBOUR_ORIGIN: "https://pc.tail.ts.net:8444",
+      HARBOUR_RP_ID: "pc.tail.ts.net",
+    });
+    const headers = new Headers(me);
+    headers.set("host", "pc.tail.ts.net:8444");
+    expect(decideGate({ headers, pathname: "/", hasSessionCookie: true }, withPort).kind).toBe(
+      "next",
+    );
+    headers.set("host", "pc.tail.ts.net");
+    expect(decideGate({ headers, pathname: "/", hasSessionCookie: true }, withPort).kind).toBe(
+      "forbid",
+    );
+  });
+
   it("forbids every path, public or not, without a valid identity", () => {
     for (const pathname of ["/", "/login", "/api/auth/login/options"]) {
       expect(

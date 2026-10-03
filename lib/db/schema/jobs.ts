@@ -23,6 +23,7 @@ export const jobs = sqliteTable(
         "content-atomise",
         "content-gate",
         "content-decision",
+        "content-postiz",
       ],
     }).notNull(),
     params: text("params", { mode: "json" }).$type<Record<string, string>>().notNull(),

@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { commitChanges, ownerChanges, pushBrain } from "@/lib/agents/brain-git";
+import { ownerChanges } from "@/lib/agents/brain-git";
 import { approvedPillars } from "@/lib/agents/pillars";
 import { ideaIdSchema, pieceIdSchema, productForIdea, splitPieceId } from "@/lib/content/ids";
 import { contentPaths, isApprovedPath } from "@/lib/content/paths";
@@ -13,6 +13,7 @@ import { brainRootError, finish, recoveryBlock } from "@/lib/jobs/git-jobs";
 import { CONTENT_AGENT_KINDS } from "@/lib/jobs/job-kinds";
 import { addEvent, type Job, requestCancel } from "@/lib/jobs/queue";
 import type { ContentProduct } from "@/lib/products/content";
+import { commitChange } from "./commit-change";
 import { approve, discardIdea, discardPiece } from "./decision-actions";
 import { edit } from "./decision-edit";
 import {
@@ -21,7 +22,6 @@ import {
   type DecisionContext,
   DecisionRefusal,
 } from "./decision-types";
-import { applyChange } from "./decision-write";
 
 export type DecisionDeps = {
   /** HARBOUR_CONTENT is on: off stops every content job, this one included. */
@@ -178,6 +178,12 @@ function cancelQueuedSteps(deps: DecisionDeps, ideaId: string): void {
   }
 }
 
+const WORDS = {
+  notSaved: NOT_SAVED,
+  notPushed:
+    "The decision is saved here, but it couldn't be pushed to the brain repository yet. Harbour will try again.",
+};
+
 function commit(
   deps: DecisionDeps,
   job: Job,
@@ -185,29 +191,9 @@ function commit(
   change: Change,
   already?: string[],
 ): { pushed: boolean | null } {
-  const { db, root } = deps;
-  const applied = already ? { paths: already, undo: () => undefined } : applyChange(root, change);
-  try {
-    commitChanges(root, applied.paths, change.message);
-  } catch (error) {
-    applied.undo();
-    console.error(`job ${job.id}: the decision's commit failed (${(error as Error).name})`);
-    addEvent(db, job.id, "error", NOT_SAVED, deps.now());
-    finish(db, job.id, "failed", NOT_SAVED, deps.now());
-    return { pushed: null };
-  }
-  addEvent(db, job.id, "status", `Committed ${applied.paths.length} file(s)`, deps.now());
-  const push = pushBrain(root);
-  if (!push.ok) {
-    addEvent(
-      db,
-      job.id,
-      "error",
-      "The decision is saved here, but it couldn't be pushed to the brain repository yet. Harbour will try again.",
-      deps.now(),
-    );
-  }
+  const done = commitChange(deps, job, change, WORDS, already);
+  if (!done.ok) return { pushed: null };
   if (params.action === "discard" && params.ideaId) cancelQueuedSteps(deps, params.ideaId);
-  finish(db, job.id, "ok", null, deps.now());
-  return { pushed: push.ok };
+  finish(deps.db, job.id, "ok", null, deps.now());
+  return { pushed: done.pushed };
 }

@@ -16,6 +16,7 @@ import {
 } from "./read/ideas";
 import { readVoice } from "./read/voice";
 import { requestDecision } from "./request-decision";
+import { PostizBody, requestPostiz } from "./request-postiz";
 import { BRAIN_UNREADABLE, type RequestContext, type RequestResult, refuse } from "./request-types";
 
 const RunBody = z.discriminatedUnion("action", [
@@ -25,7 +26,7 @@ const RunBody = z.discriminatedUnion("action", [
   z.strictObject({ action: z.literal("try-again"), ideaId: ideaIdSchema }),
 ]);
 /** Every action the Content page can request: running a step, or deciding about a piece or idea. */
-export const ContentBody = z.union([RunBody, DecisionBody]);
+export const ContentBody = z.union([RunBody, DecisionBody, PostizBody]);
 export type ContentBody = z.infer<typeof ContentBody>;
 
 /** Checks that every content request needs: the machine is on and the Claude token is set. */
@@ -150,6 +151,12 @@ export function requestContent(ctx: RequestContext, body: ContentBody): RequestR
     // A decision runs no model, so it needs only the machine on, not the Claude token.
     return ctx.config.HARBOUR_CONTENT === "on"
       ? requestDecision(ctx, body)
+      : refuse(409, "content_off");
+  }
+  if (body.action === "send-to-postiz") {
+    // Nor does a Postiz send: it needs the machine on and Postiz set up.
+    return ctx.config.HARBOUR_CONTENT === "on"
+      ? requestPostiz(ctx, body)
       : refuse(409, "content_off");
   }
   const blocked = contentPreconditions(ctx.config);

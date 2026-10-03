@@ -23,6 +23,7 @@ export const piece = (over: Partial<PieceView> = {}): PieceView => ({
   gates: [],
   claims: [],
   file: "content/pieces/acme-docs-20261002-five-minutes/linkedin.md",
+  postiz: null,
   ...over,
 });
 

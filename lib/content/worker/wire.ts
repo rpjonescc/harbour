@@ -1,10 +1,12 @@
 import { approvedPillars } from "@/lib/agents/pillars";
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
+import type { Job } from "@/lib/jobs/queue";
 import type { RunDeps } from "@/lib/jobs/run-job";
-import { getContentProducts, getExcludeApps } from "@/lib/products/catalog";
+import { getContentProducts, getExcludeApps, getPostizChannels } from "@/lib/products/catalog";
 import { type ChainDeps, chainHook, resumeChains } from "./chain-controller";
-import type { DecisionDeps } from "./decision-job";
+import { type DecisionDeps, runContentDecision } from "./decision-job";
+import { type PostizJobDeps, runPostizJob } from "./postiz-job";
 
 type Wiring = { db: Db; root: string; config: Config; now: () => Date };
 
@@ -37,7 +39,7 @@ export function resumeContentChains(w: Wiring): number {
 }
 
 /** What the decision job needs: the brain, where interrupted runs wait, and the products with content on. */
-export const decisionDeps = (w: Wiring & { quarantineRoot: string }): DecisionDeps => ({
+const decisionDeps = (w: Wiring & { quarantineRoot: string }): DecisionDeps => ({
   enabled: w.config.HARBOUR_CONTENT === "on",
   db: w.db,
   root: w.root,
@@ -46,3 +48,28 @@ export const decisionDeps = (w: Wiring & { quarantineRoot: string }): DecisionDe
   timeZone: w.config.HARBOUR_TIMEZONE,
   products: getContentProducts(),
 });
+
+/** What a Postiz send needs: the decision job's brain access, the channels, and Postiz itself (or null). */
+const postizDeps = (w: Wiring & { quarantineRoot: string }): PostizJobDeps => {
+  const { HARBOUR_POSTIZ_URL: baseUrl, HARBOUR_POSTIZ_API_KEY: apiKey } = w.config;
+  return {
+    ...decisionDeps(w),
+    channels: getPostizChannels(),
+    postiz: baseUrl && apiKey ? { baseUrl, apiKey } : null,
+  };
+};
+
+type ContentWrite = Job & { kind: "content-decision" | "content-postiz" };
+
+/** A content job that runs no model and writes the brain itself: a decision or a Postiz send. */
+export const isContentWrite = (job: Job): job is ContentWrite =>
+  job.kind === "content-decision" || job.kind === "content-postiz";
+
+/** Runs a decision or a Postiz send with its deps; `pushed` is null when nothing was committed. */
+export async function runContentWrite(
+  w: Wiring & { quarantineRoot: string },
+  job: ContentWrite,
+): Promise<{ pushed: boolean | null }> {
+  if (job.kind === "content-decision") return runContentDecision(decisionDeps(w), job);
+  return runPostizJob(postizDeps(w), job);
+}

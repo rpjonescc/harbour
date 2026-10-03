@@ -232,10 +232,12 @@ Where the build differs from this spec or fills a gap, and why.
 - **(h) The one retry runs inside the same job,** with the checker's reason fed back and only the
   time the first attempt left. A rejected draft is deleted before the retry, because Claude
   Code's `Write` will not overwrite a file it has not read.
-- **(i) The wave is filled with `--accent-soft`,** not `--accent`: that token is a pale tint in
-  light and a deep one in dark, so three faint layers stacked on one pixel keep every text colour
-  at WCAG AA, which `design/wave-contrast.test.ts` proves in light, dark and system dark. The
-  layers (opacity, speed, shape) are defined once in `design/wave.ts`.
+- **(i) The wave is painted with its own `--ocean-*` tokens** (amended 2026-10-03, superseding
+  the faint `--accent-soft` layers): three opaque layers and a fade, each a colour every text
+  colour keeps WCAG AA on, which `design/wave-contrast.test.ts` proves in light, dark and system
+  dark. It now covers every page, not just the signed-in shell; see "Ocean background" in the
+  plain-language spec. The layers (colour, speed, bob, phase, shape) are defined once in
+  `design/wave.ts`.
 - **(j) The ripple is one CSS rule keyed on `data-mood="celebrate"`** on the note card, which
   moves the front layer once; reduced motion switches it off with the drift.
 - **(k) The hidden-tab pause is the browser's:** no script watches visibility; browsers do not

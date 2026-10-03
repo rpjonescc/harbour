@@ -62,6 +62,10 @@ export type RunDeps = {
 // How long the brain must be unchanged before an agent run starts.
 const QUIET_MS = 3 * 60_000;
 const WAITING = "Waiting for the brain to be quiet (changes in the last 3 minutes)";
+/** A run that has waited this long for the brain to be quiet gives up: something keeps writing. */
+const MAX_EDITING_WAIT_MS = 6 * 60 * 60_000;
+export const EDITING_GAVE_UP =
+  "The brain was still changing after six hours, so this run didn't start. Close anything that keeps editing it, then run it again.";
 
 function describeDuration(ms: number): string {
   return ms >= 60_000 ? `${Math.round(ms / 60_000)} minutes` : `${Math.round(ms / 1000)} seconds`;
@@ -107,12 +111,18 @@ function checkPreconditions(deps: RunDeps, spec: AgentSpec): string {
 
 /**
  * Puts the job back in the queue while the brain changed in the last QUIET_MS (the owner is
- * still editing): an agent run would commit their half-written notes. Returns true if deferred.
+ * still editing): an agent run would commit their half-written notes. After six hours from when
+ * the job was queued it fails instead. Returns true if the job was deferred or failed.
  */
 export function deferWhileEditing(deps: RunDeps, job: Job): boolean {
   const now = deps.now();
   const newest = newestOwnerChange(deps.root, now);
   if (newest === null || now.getTime() - newest >= QUIET_MS) return false;
+  if (now.getTime() - job.createdAt.getTime() >= MAX_EDITING_WAIT_MS) {
+    addEvent(deps.db, job.id, "error", EDITING_GAVE_UP, now);
+    finish(deps.db, job.id, "failed", EDITING_GAVE_UP, now);
+    return true;
+  }
   if (!deferJob(deps.db, job.id, new Date(newest + QUIET_MS))) {
     console.warn(`job ${job.id} was no longer running; not deferred`);
     return true;

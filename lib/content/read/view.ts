@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import type { Platform } from "@/lib/content/ids";
 import { contentPaths } from "@/lib/content/paths";
 import type { Db } from "@/lib/db/client";
 import { addDays } from "@/lib/format/zoned-time";
@@ -7,7 +8,7 @@ import type { ContentProduct } from "@/lib/products/content";
 import { type FailedStep, ideaActivity, stepSentence } from "./chain-status";
 import { type DecisionStatus, decisionStatus } from "./decisions";
 import { type IdeaEntry, scanContent } from "./scan";
-import { pieceView, rollup } from "./view-pieces";
+import { type PostizContext, pieceView, rollup } from "./view-pieces";
 import { type ContentView, type IdeaView, type PieceView, TABS, type TabId } from "./view-types";
 import { readVoice } from "./voice";
 
@@ -104,8 +105,13 @@ export function contentView(input: {
   products: readonly ContentProduct[];
   today: string;
   tokenSet: boolean;
+  /** Set only when Postiz is configured: the platforms with a channel, and how to say a time. */
+  postiz?: { platforms: readonly Platform[]; when: (iso: string) => string };
 }): ContentView {
   const { db, root, products } = input;
+  const postiz: PostizContext | null = input.postiz
+    ? { ...input.postiz, sends: decisionStatus(db, "content-postiz") }
+    : null;
   const scan = scanContent(root, products, { gates: true });
   const activity = ideaActivity(
     db,
@@ -115,7 +121,7 @@ export function contentView(input: {
   const ideas = scan.entries.map((entry) => {
     const state = activity.get(entry.idea.id) ?? { active: false, failed: null };
     const views = (scan.pieces.get(entry.idea.id) ?? []).map((p) =>
-      pieceView(p, state.failed, decisions),
+      pieceView(p, state.failed, decisions, postiz),
     );
     return ideaView(entry, views, state, decisions);
   });

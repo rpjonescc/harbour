@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
+import { SYNC_UNCHECKED } from "@/lib/explain/brain-sync";
 import { BrainSyncBanner } from "./BrainSyncBanner";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
@@ -22,5 +23,11 @@ describe("BrainSyncBanner", () => {
     expect(
       screen.getByText("2 saved changes are waiting to reach GitHub — Harbour keeps retrying"),
     ).toBeInTheDocument();
+  });
+
+  it("says it couldn't check, instead of synced, when the unpushed count is unknown", () => {
+    render(<BrainSyncBanner unsaved={0} unpushed={null} />);
+    expect(screen.getByText(SYNC_UNCHECKED)).toBeInTheDocument();
+    expect(screen.queryByText(/synced/)).not.toBeInTheDocument();
   });
 });

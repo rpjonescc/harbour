@@ -442,8 +442,8 @@ runs set to 90 days).
 - **Missed schedules**: on worker start, any schedule whose last successful run is
   older than its period runs once (catch-up), not once per missed slot. The weekly analyst
   catches up the latest missed Sunday 20:00 slot once (a run created after that slot counts).
-- **Crash safety**: jobs left `running` by a dead worker are detected on start
-  (stale heartbeat) and re-queued.
+- **Crash safety**: jobs left `running` by a dead worker are failed on start, and a job
+  its runner leaves `running` is failed as soon as the runner returns.
 - **Data gaps** are stored and charted as gaps, never zeros.
 - **Bounded resources**: crawler page cap and per-request timeouts; agent
   timeouts and turn caps; captured agent output truncated to a fixed size.

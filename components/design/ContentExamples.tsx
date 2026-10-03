@@ -2,22 +2,15 @@ import { idea, piece, view } from "@/components/content/content-fixtures";
 import { Gaps } from "@/components/content/Gaps";
 import { IdeaCard } from "@/components/content/IdeaCard";
 import { IdeaDiscard } from "@/components/content/IdeaDiscard";
-import { PieceActions } from "@/components/content/PieceActions";
 import { PieceGroup } from "@/components/content/PieceGroup";
 import { PieceView } from "@/components/content/PieceView";
 import { StateTag } from "@/components/content/StateTag";
 import type { TabId } from "@/lib/content/read/view-types";
 import { Example } from "./Example";
+import { PieceWithActions } from "./PieceWithActions";
+import { PostizExamples } from "./PostizExamples";
 
 const STATES: TabId[] = ["ideas", "writing", "ready", "needs-you", "approved", "discarded"];
-
-function PieceWithActions({ piece: p }: { piece: ReturnType<typeof piece> }) {
-  return (
-    <PieceView piece={p}>
-      <PieceActions piece={p} />
-    </PieceView>
-  );
-}
 
 /** Every state of the Content page's components, from fictional data. */
 export function ContentExamples() {
@@ -152,6 +145,7 @@ export function ContentExamples() {
           })}
         />
       </Example>
+      <PostizExamples />
       <Example label="Discard an idea (it asks first)">
         <IdeaCard idea={idea({ id: "acme-docs-20261002-ex-discard", title: "An idea to discard" })}>
           <IdeaDiscard idea={idea({ id: "acme-docs-20261002-ex-discard" })} />

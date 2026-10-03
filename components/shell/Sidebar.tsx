@@ -10,9 +10,10 @@ import type { ThemePreference } from "@/lib/theme";
 import { LogoutButton } from "./LogoutButton";
 import { NavLink } from "./NavLink";
 import { NAV_ITEMS } from "./nav-items";
+import { SidebarMenu } from "./SidebarMenu";
 import { ThemeToggle } from "./ThemeToggle";
 
-/** Left rail: brand, navigation, products, and device controls. */
+/** Left rail (a top bar with a Menu button on narrow screens): navigation, products, devices. */
 export function Sidebar({ theme }: { theme: ThemePreference }) {
   const { products, demo } = getProductConfig();
   const brainNew = brainNewCount();
@@ -42,47 +43,48 @@ export function Sidebar({ theme }: { theme: ThemePreference }) {
     },
   };
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-surface-sunk p-3">
-      <p className="px-2 pb-4 pt-1 font-serif text-xl">Harbour</p>
-      <nav aria-label="Main" className="flex flex-col gap-0.5">
-        {items.map((item) => (
-          <NavLink
-            key={item.label}
-            href={item.href}
-            hrefs={hrefs}
-            badge={item.badge && badges[item.badge]}
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
-      <section aria-labelledby="products-heading" className="mt-6">
-        <h2
-          id="products-heading"
-          className="px-2 pb-1 text-2xs uppercase tracking-widest text-ink-muted"
-        >
-          Products
-        </h2>
-        <ul className="flex flex-col gap-0.5">
-          {products.map((product) => (
-            <li key={product.id}>
-              <NavLink href={`/products/${product.id}`}>
-                <ProductDot product={product} />
-                {product.name}
-              </NavLink>
-            </li>
+    <aside className="shrink-0 border-b border-line bg-surface-sunk p-3 md:flex md:w-56 md:flex-col md:border-b-0 md:border-r">
+      <SidebarMenu>
+        <nav aria-label="Main" className="flex flex-col gap-0.5">
+          {items.map((item) => (
+            <NavLink
+              key={item.label}
+              href={item.href}
+              hrefs={hrefs}
+              badge={item.badge && badges[item.badge]}
+            >
+              {item.label}
+            </NavLink>
           ))}
-        </ul>
-      </section>
-      <div className="mt-auto flex flex-col gap-0.5 border-t border-line pt-3">
-        <ThemeToggle initial={theme} />
-        <LogoutButton />
-        {demo && (
-          <p className="px-2 pt-2 text-2xs text-ink-muted">
-            Demo config — add harbour.config.json to list your products.
-          </p>
-        )}
-      </div>
+        </nav>
+        <section aria-labelledby="products-heading" className="mt-6">
+          <h2
+            id="products-heading"
+            className="px-2 pb-1 text-2xs uppercase tracking-widest text-ink-muted"
+          >
+            Products
+          </h2>
+          <ul className="flex flex-col gap-0.5">
+            {products.map((product) => (
+              <li key={product.id}>
+                <NavLink href={`/products/${product.id}`}>
+                  <ProductDot product={product} />
+                  {product.name}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <div className="mt-auto flex flex-col gap-0.5 border-t border-line pt-3">
+          <ThemeToggle initial={theme} />
+          <LogoutButton />
+          {demo && (
+            <p className="px-2 pt-2 text-2xs text-ink-muted">
+              Demo config — add harbour.config.json to list your products.
+            </p>
+          )}
+        </div>
+      </SidebarMenu>
     </aside>
   );
 }
