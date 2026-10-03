@@ -80,8 +80,8 @@ describe("tracking", () => {
     ["a newline", "acme\ndocs"],
     ["a control character", "acme\u0007docs"],
     ["a tab", "acme\tdocs"],
-    ["a zero-width space", "acme​docs"],
-    ["a bidi override", "acme‮docs"],
+    ["a zero-width space", "acme\u200bdocs"],
+    ["a bidi override", "acme\u202edocs"],
   ])("refuses text with %s, in a search, a question and a location", (_name, text) => {
     expect(() => tracked({ queries: [text] })).toThrow(/plain visible text/);
     expect(() => tracked({ questions: [text] })).toThrow(/plain visible text/);
