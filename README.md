@@ -904,9 +904,10 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
   dismissed, or done but still found in the last check) with a link to it on the Actions board; an
   issue with no action yet says tracking starts with the next check. **Pages Harbour checked** is a
   one-line verdict; the table of the 50 crawled pages with the most problems sits under **Technical
-  details**. **Pages in Google** is one unscored line, such as "In Google: 3 of 53 pages", with a
+  details**. **Pages in Google** is its own panel beside **Found on Google**, with one unscored line, such as "In Google: 3 of 53 pages", and a
   one-sentence explainer; the breakdown by what Google says sits under **Technical details**. Without
-  data it says why ("Search Console isn't connected", "Checking, 20 of 53 so far") and never shows 0.
+  data it says why ("Search Console isn't connected", "Google's daily limit was reached", "Checking, 20 of 53
+  so far") and never shows 0; pages Google couldn't answer for are listed beside the count.
   The Google Search Console and paid-data panels say in plain words whether they are
   connected and what they show. Search Console also says how to connect it; the paid-data panels say
   Harbour doesn't collect that data yet. Setting names appear only under **Technical details**
@@ -1093,7 +1094,10 @@ read-only scope already covers it). The crawler records up to `HARBOUR_CRAWL_MAX
 URLs; the check inspects at most 100 per product per run, never-checked pages first and then the
 oldest check, one request at a time and under one a second, and stops after 8 minutes. A site with
 53 pages is fully checked in one run; one with 500 takes five days, and the product page says how
-far it has got. Each run carries earlier results forward, so a page keeps its last known status
+far it has got. Only sitemap pages the property covers are checked: a domain property covers the
+host and its subdomains, a URL-prefix property its exact address and path, and if none fit the
+check says the property doesn't cover the site. A page that failed is retried first but at most once
+a day, and goes behind the others after two failures in a row. Each run carries earlier results forward, so a page keeps its last known status
 until it is checked again. If Google says the day's quota is used up, Harbour keeps what it has
 ("wait for tomorrow's check"); a page that could not be checked is recorded as unknown, never as
 not indexed. Job events read `Indexing: Asked Google about 53 pages: 53 of 53 now have a known

@@ -60,9 +60,16 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
   action). Resolves when the share falls under the threshold.
 
 ### 2.4 Display
-- Product page, "Found on Google": one unscored line, **"In Google: 3 of 53 pages"**, with the one-sentence
-  explainer and the breakdown inside Technical details. Absent data says why ("Search Console isn't
-  connected" or "checking, 20 of 53 so far"), never "0".
+- Product page: its own **"Pages in Google"** panel beside "Found on Google" (the score card stays
+  unscored by this): one line, **"In Google: 3 of 53 pages"**, with the one-sentence explainer and the
+  breakdown inside Technical details. Absent data says why ("Search Console isn't connected", "the
+  property doesn't cover this site's address", "Google's daily limit was reached; the check continues
+  tomorrow") or how far a large site has got ("Checking, 20 of 53 so far"), never "0". Pages Google
+  couldn't answer for are shown beside the count and count as asked about, so the panel finishes.
+- Scope and queue: only sitemap pages the property covers are checked and counted (a domain property
+  covers the host and its subdomains; a URL-prefix property its origin and path); none in scope means
+  "not connected" with a fixed sentence. A page that failed is retried first, once a day at most; after
+  two failures in a row it goes behind the others.
 - Settings → Sources: the Search Console row gains "also checks which pages Google has indexed".
 - No change to scoring (`FORMULA_VERSION` stays `v2`).
 
