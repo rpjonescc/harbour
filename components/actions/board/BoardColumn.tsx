@@ -31,7 +31,7 @@ export function BoardColumn({
     <section
       aria-label={BOARD_TEXT.columnLabel(column, count)}
       data-column={column}
-      className="flex w-72 shrink-0 flex-col gap-3 rounded-md bg-surface-sunk p-3"
+      className="flex w-72 shrink-0 snap-start scroll-ml-4 flex-col gap-3 rounded-md bg-surface-sunk p-3"
     >
       <header className="flex flex-col gap-1">
         <h2 id={headingId} tabIndex={-1} className="flex items-center gap-2 font-medium text-ink">

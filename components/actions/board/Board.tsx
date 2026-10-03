@@ -46,7 +46,7 @@ export function Board({
     : board.counts;
   return (
     <ActionAnnouncer>
-      <div className="flex flex-col gap-8">
+      <div className="flex min-w-0 flex-col gap-8">
         {board.truncated && (
           <p className="text-sm text-ink-muted">{BOARD_TEXT.truncated(MAX_BOARD_ACTIONS)}</p>
         )}
