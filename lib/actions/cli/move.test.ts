@@ -3,6 +3,7 @@ import { actions, auditLog } from "@/lib/db/schema";
 import { agentAction, analystJob, ruleAction } from "@/tests/helpers/actions";
 import { openTestDb } from "@/tests/helpers/db";
 import { BOARD_COLUMNS, boardColumn } from "../board-column";
+import { MOVE_REFUSAL } from "../move-refusal";
 import { actionEventsFor, insertAction } from "../store";
 import { ACTION_STAGES, ACTION_STATUSES, type NewAction } from "../types";
 import { parseCliArgs, USAGE } from "./args";
@@ -104,7 +105,7 @@ describe("pnpm actions move", () => {
 
   it.each([
     ["stale", "in_progress", `is no longer in in_progress: run "pnpm actions show`],
-    ["same column", "backlog", "The card is already in that column."],
+    ["same column", "backlog", MOVE_REFUSAL.same_column],
   ])("refuses a %s move with exit code 1", (_label, from, message) => {
     const { add, run } = setup();
     const id = add();

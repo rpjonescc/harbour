@@ -45,7 +45,8 @@ function statusesFor(filter: ActionFilter["status"]): readonly ActionStatus[] {
   return [filter];
 }
 
-const impactRank = sql`CASE ${actions.impact} WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`;
+/** SQL rank for impact: high 0, medium 1, low 2. */
+export const impactRank = sql`CASE ${actions.impact} WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`;
 const startedFirst = sql`CASE WHEN ${actions.status} = 'in_progress' THEN 0 ELSE 1 END`;
 const effortRank = sql`CASE ${actions.effort} WHEN 'small' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END`;
 /** Board order: impact high → low, in progress first, effort small → large, then oldest. */
