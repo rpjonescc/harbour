@@ -28,4 +28,22 @@ describe("PageHeader", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Second Brain" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
   });
+
+  it("leads with the page's verdict under the title, its mark beside the words", () => {
+    render(
+      <PageHeader
+        title="Agents"
+        page="agents"
+        verdict={{ tone: "ok", text: "Nothing is running. The last 5 runs worked." }}
+      />,
+    );
+    const verdict = document.querySelector("[data-page-verdict]");
+    expect(verdict).toHaveTextContent("Nothing is running. The last 5 runs worked.");
+    expect(verdict?.querySelector('svg[aria-hidden="true"]')).toHaveAttribute("data-tone", "ok");
+  });
+
+  it("has no verdict line when the page gives none", () => {
+    render(<PageHeader title="Design" page="design" />);
+    expect(document.querySelector("[data-page-verdict]")).toBeNull();
+  });
 });

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { makeBrain } from "@/tests/helpers/brain";
 import { openTestDb } from "@/tests/helpers/db";
 import { reindexAll } from "./indexer";
-import { backlinks, isNewDoc, markViewed, newDocPaths, recentDocs } from "./views";
+import { backlinks, brainStats, isNewDoc, markViewed, newDocPaths, recentDocs } from "./views";
 
 describe("view state", () => {
   it("treats never-viewed and changed-since-viewed documents as new", () => {
@@ -47,6 +47,29 @@ describe("view state", () => {
       markViewed(db, "a.md", new Date(Date.now() + 60_000));
       expect(isNewDoc(db, "a.md")).toBe(false);
       expect(isNewDoc(db, "missing.md")).toBe(false);
+    } finally {
+      brain.cleanup();
+    }
+  });
+});
+
+describe("brainStats", () => {
+  it("counts the notes and finds the newest change, or none in an empty index", () => {
+    const db = openTestDb();
+    expect(brainStats(db)).toEqual({ notes: 0, newest: null });
+    const brain = makeBrain({ "a.md": "# A", "b.md": "# B" });
+    try {
+      const later = new Date("2026-10-03T08:00:00Z");
+      utimesSync(join(brain.root, "b.md"), later, later);
+      utimesSync(
+        join(brain.root, "a.md"),
+        new Date("2026-10-01T08:00:00Z"),
+        new Date("2026-10-01T08:00:00Z"),
+      );
+      reindexAll(db, brain.root);
+      const stats = brainStats(db);
+      expect(stats.notes).toBe(2);
+      expect(stats.newest?.getTime()).toBe(later.getTime());
     } finally {
       brain.cleanup();
     }

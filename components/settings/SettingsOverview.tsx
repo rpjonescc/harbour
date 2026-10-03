@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/explain/PageHeader";
 import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
+import { TermLine } from "@/components/explain/TermLine";
 import { DocsLink } from "@/components/ui/DocsLink";
 import { DOCS_LINKS } from "@/lib/docs-links";
-import { SETTINGS_INTRO, SETTINGS_PURPOSE } from "@/lib/explain/settings";
+import { SETTINGS_INTRO, SETTINGS_PURPOSE, settingsVerdict } from "@/lib/explain/settings";
+import { settingsFacts } from "@/lib/settings/verdict-facts";
 import type { SettingsView } from "@/lib/settings/view";
 import { BackupCard } from "./BackupCard";
 import { BudgetCard } from "./BudgetCard";
@@ -31,9 +33,12 @@ export function SettingsOverview({
       <PageHeader
         title="Settings"
         page="settings"
+        verdict={settingsVerdict(settingsFacts(view))}
         intro={
           <>
-            <p>{SETTINGS_INTRO.line}</p>
+            <p>
+              <TermLine line={SETTINGS_INTRO.line} />
+            </p>
             <TechnicalDetails id="settings-files" topic="where settings live">
               <p>
                 {SETTINGS_INTRO.files}{" "}

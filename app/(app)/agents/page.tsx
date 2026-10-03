@@ -4,13 +4,16 @@ import { ResearchRefreshPanel } from "@/components/agents/ResearchRefreshPanel";
 import { RunPanel } from "@/components/agents/RunPanel";
 import { WeeklyAnalystPanel } from "@/components/agents/WeeklyAnalystPanel";
 import { PageHeader } from "@/components/explain/PageHeader";
+import { TermLine } from "@/components/explain/TermLine";
+import { Panel } from "@/components/ui/Panel";
 import { brainSyncStatus, quarantineRootFor } from "@/lib/agents/brain-status";
 import { refreshPanelView } from "@/lib/agents/refresh-view";
 import { weeklyPanelView } from "@/lib/analyst/panel-view";
 import { requireSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
-import { AGENT_PURPOSE, AGENTS_INTRO } from "@/lib/explain/agents";
+import { AGENT_PURPOSE, AGENTS_INTRO, agentsVerdict } from "@/lib/explain/agents";
+import { jobWords } from "@/lib/explain/job-words";
 import { importsGivenUp, listJobs } from "@/lib/jobs/queue";
 import { getNamedProducts, getProducts } from "@/lib/products/catalog";
 
@@ -25,6 +28,10 @@ export default async function AgentsPage() {
     quarantineRootFor(config.HARBOUR_DB_PATH),
   );
   const jobs = listJobs(db);
+  const named = getNamedProducts();
+  const verdict = agentsVerdict(
+    jobs.map((job) => ({ status: job.status, doing: jobWords(job, named).doing })),
+  );
   const weekly = weeklyPanelView(
     db,
     {
@@ -46,25 +53,45 @@ export default async function AgentsPage() {
     new Date(),
   );
   return (
-    <div className="flex max-w-5xl flex-col gap-6">
-      <PageHeader title="Agents" intro={AGENTS_INTRO} page="agents" />
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <PageHeader
+        title="Agents"
+        page="agents"
+        verdict={verdict}
+        intro={
+          <p>
+            <TermLine line={AGENTS_INTRO} />{" "}
+            <a href="#recent-runs" className="rounded-sm text-accent hover:underline">
+              See recent runs
+            </a>
+          </p>
+        }
+      />
       <BrainStatus status={status} />
       <RunPanel products={products.map(({ id, name }) => ({ id, name }))} tokenSet={tokenSet} />
       <WeeklyAnalystPanel view={weekly} />
       <ResearchRefreshPanel view={refresh} />
-      <section className="flex flex-col gap-3">
-        <h2 className="font-serif text-xl">Recent runs</h2>
+      <section
+        id="recent-runs"
+        aria-labelledby="recent-runs-heading"
+        className="flex scroll-mt-4 flex-col gap-3"
+      >
+        <h2 id="recent-runs-heading" className="font-serif text-xl">
+          Recent runs
+        </h2>
         <p className="text-sm text-ink-muted">{AGENT_PURPOSE.recent}</p>
-        <JobList
-          jobs={jobs}
-          products={getNamedProducts()}
-          timeZone={config.HARBOUR_TIMEZONE}
-          locale={config.HARBOUR_LOCALE}
-          importsGivenUp={importsGivenUp(
-            db,
-            jobs.map((job) => job.id),
-          )}
-        />
+        <Panel className="px-4 py-2">
+          <JobList
+            jobs={jobs}
+            products={named}
+            timeZone={config.HARBOUR_TIMEZONE}
+            locale={config.HARBOUR_LOCALE}
+            importsGivenUp={importsGivenUp(
+              db,
+              jobs.map((job) => job.id),
+            )}
+          />
+        </Panel>
       </section>
     </div>
   );

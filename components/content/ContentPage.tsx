@@ -1,8 +1,16 @@
 import { EmptyState } from "@/components/explain/EmptyState";
 import { PageHeader } from "@/components/explain/PageHeader";
+import { TermLine } from "@/components/explain/TermLine";
 import { Tabs } from "@/components/ui/Tabs";
 import type { ContentView, TabId } from "@/lib/content/read/view-types";
-import { CAP_NOTES, EMPTY_TABS, FOLDER_ERROR } from "@/lib/explain/content";
+import {
+  CAP_NOTES,
+  CONTENT_INTRO,
+  type ContentCounts,
+  contentVerdict,
+  EMPTY_TABS,
+  FOLDER_ERROR,
+} from "@/lib/explain/content";
 import { Gaps } from "./Gaps";
 import { IdeaCard } from "./IdeaCard";
 import { IdeaDiscard } from "./IdeaDiscard";
@@ -43,14 +51,32 @@ function TabPanel({ view, id }: { view: ContentView; id: TabId }) {
   );
 }
 
+/** Each tab's count, for the page's verdict. */
+function tabCounts(view: ContentView): ContentCounts {
+  const of = (id: TabId) => view.tabs.find((tab) => tab.id === id)?.count ?? 0;
+  return {
+    ready: of("ready"),
+    "needs-you": of("needs-you"),
+    ideas: of("ideas"),
+    writing: of("writing"),
+    approved: of("approved"),
+    discarded: of("discarded"),
+  };
+}
+
 /** The Content page: a headline, one line, the calm gaps, and six tabs. */
 export function ContentPage({ view, template }: { view: ContentView; template: string | null }) {
   return (
-    <div className="flex max-w-3xl flex-col gap-5">
+    <div className="mx-auto flex max-w-4xl flex-col gap-5">
       <PageHeader
         title="Content"
-        intro="Ideas and drafts from your recent work. Nothing is posted until you post it."
         page="content"
+        verdict={contentVerdict(tabCounts(view))}
+        intro={
+          <p>
+            <TermLine line={CONTENT_INTRO} />
+          </p>
+        }
       />
       <div className="flex flex-wrap items-center gap-3">
         <RunButton

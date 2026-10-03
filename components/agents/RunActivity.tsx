@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { LightMark } from "@/components/tower/StatusLight";
 import { Button } from "@/components/ui/Button";
 import { formatDuration, isActive } from "@/lib/agents/view";
 import { postJson } from "@/lib/auth/client-api";
-import { RUN_HEADLINE, runFailedLine } from "@/lib/explain/agents";
+import { RUN_HEADLINE, RUN_TONE, runFailedLine } from "@/lib/explain/agents";
 import { RunLog } from "./RunLog";
 import type { RunEvent, RunJob } from "./run-types";
 import { useRunPolling } from "./useRunPolling";
@@ -61,13 +62,16 @@ export function RunActivity({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-ink">
+        <p data-run-verdict className="flex items-start gap-2 text-lg text-ink">
+          <span className="flex h-7 items-center">
+            <LightMark tone={RUN_TONE[job.status]} />
+          </span>
           {/* Only the status is announced; the ticking elapsed time would be read every second. */}
           <span aria-live="polite">
             {RUN_HEADLINE[job.status]}
             {cancelState === "requested" && active && " — stopping…"}
           </span>
-          <span className="text-ink-muted"> · {elapsed}</span>
+          <span className="self-center text-sm text-ink-muted">{elapsed}</span>
         </p>
         {active && (
           <Button

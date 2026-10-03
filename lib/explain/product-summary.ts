@@ -1,5 +1,6 @@
 import type { AreaKey, AreaValues } from "@/lib/scan/views";
 import { AREA_ORDER, AREAS } from "./areas";
+import type { PageVerdict } from "./page-verdict";
 import { averageScore, verdictFor } from "./verdict";
 
 /**
@@ -29,4 +30,21 @@ export function productSummary(name: string, totals: AreaValues<number | null> |
   }
   if (scored.length < AREA_ORDER.length) parts.push("Some scores are still missing data.");
   return parts.join(" ");
+}
+
+/**
+ * The Product page's verdict: the summary above, with a light that is busy while a check runs,
+ * worth a look when the product needs work, and "can't tell" before its first score.
+ */
+export function productVerdict(
+  name: string,
+  totals: AreaValues<number | null> | null,
+  checking: boolean,
+): PageVerdict {
+  const text = productSummary(name, totals);
+  if (checking) return { tone: "busy", text: `${text} Checking it now.` };
+  const scores = AREA_ORDER.map((key) => totals?.[key] ?? null).filter((s) => s !== null);
+  const mean = averageScore(scores);
+  if (mean === null) return { tone: "unknown", text };
+  return { tone: verdictFor(mean).tone === "weak" ? "watch" : "ok", text };
 }

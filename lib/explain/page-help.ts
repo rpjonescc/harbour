@@ -9,8 +9,10 @@ export type PageId =
   | "product"
   | "content"
   | "agents"
+  | "run"
   | "brain"
   | "settings"
+  | "targets"
   | "sources"
   | "devices"
   | "design";
@@ -99,7 +101,7 @@ export const PAGE_HELP: Readonly<Record<PageId, PageHelpCopy>> = {
       "A voice profile keeps each product's drafts sounding like the product.",
     ],
     firstStep: "Open Ready for you and read the first draft.",
-    terms: ["draft", "voice-profile", "pillar", "second-brain"],
+    terms: ["draft", "digest", "voice-profile", "pillar", "second-brain"],
   },
   agents: {
     purpose:
@@ -111,6 +113,18 @@ export const PAGE_HELP: Readonly<Record<PageId, PageHelpCopy>> = {
     ],
     firstStep: "Look at Recent runs: anything that didn't finish says why and what to do.",
     terms: ["agent", "run", "worker", "schedule", "second-brain"],
+  },
+  run: {
+    purpose:
+      "This page follows one run from start to finish: whether it worked, what it did and which notes it changed.",
+    howToRead: [
+      "The line at the top says whether the run is waiting, running, done or didn't finish.",
+      "If it didn't finish, the line under it says what to do next.",
+      "Technical details hold the step-by-step log.",
+      "Files changed links to each note the run wrote.",
+    ],
+    firstStep: "Read the top line; if the run didn't finish, follow the step under it.",
+    terms: ["run", "agent", "second-brain"],
   },
   brain: {
     purpose:
@@ -133,7 +147,18 @@ export const PAGE_HELP: Readonly<Record<PageId, PageHelpCopy>> = {
       "To change something, follow the steps under Technical details.",
     ],
     firstStep: "Look for a card that says something isn't working, and follow its steps.",
-    terms: ["schedule", "backup", "budget", "paid-data", "worker"],
+    terms: ["schedule", "backup", "budget", "paid-data", "worker", "research-target"],
+  },
+  targets: {
+    purpose:
+      "Research targets are the searches, questions, rivals and topics Harbour follows for one product; nothing is followed until you say OK.",
+    howToRead: [
+      "The line at the top says how many targets wait for your OK.",
+      "Each section holds one kind of target, with its counts at the top.",
+      "Approve, Reject or Edit each one; Approve all takes a whole section at once.",
+    ],
+    firstStep: "Read the first target waiting for your OK and decide.",
+    terms: ["research-target", "agent", "pillar"],
   },
   sources: {
     purpose: "Sources shows where each score's data comes from, and whether it is working.",
@@ -152,7 +177,7 @@ export const PAGE_HELP: Readonly<Record<PageId, PageHelpCopy>> = {
       "Add a device to sign in from a new phone or computer.",
     ],
     firstStep: "Remove any device you no longer use.",
-    terms: [],
+    terms: ["passkey"],
   },
   design: {
     purpose: "The design page shows every part of Harbour's look, with made-up examples.",

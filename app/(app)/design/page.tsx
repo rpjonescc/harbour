@@ -7,6 +7,7 @@ import { BrainExamples } from "@/components/design/BrainExamples";
 import { ContentExamples } from "@/components/design/ContentExamples";
 import { ExplainExamples } from "@/components/design/ExplainExamples";
 import { OpsExamples } from "@/components/design/OpsExamples";
+import { PageVerdictExamples } from "@/components/design/PageVerdictExamples";
 import { ProposalExamples } from "@/components/design/ProposalExamples";
 import { ScanExamples } from "@/components/design/ScanExamples";
 import { SettingsExamples } from "@/components/design/SettingsExamples";
@@ -98,6 +99,9 @@ export default async function DesignPage() {
       </Section>
       <Section title="Terms and page help">
         <TermExamples />
+      </Section>
+      <Section title="Page verdicts">
+        <PageVerdictExamples />
       </Section>
       <Section title="Today examples">
         {firstProduct && <TodayExamples product={firstProduct} />}

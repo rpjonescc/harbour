@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { LightMark } from "@/components/tower/StatusLight";
 import type { PageId } from "@/lib/explain/page-help";
+import type { PageVerdict } from "@/lib/explain/page-verdict";
 import { PageHelp } from "./PageHelp";
 
 type Props = {
@@ -7,6 +9,8 @@ type Props = {
   /** One plain line (or a few short blocks) under the title. */
   intro?: ReactNode;
   page: PageId;
+  /** The page's one-line verdict from real data: is it OK, what needs you, what is happening. */
+  verdict?: PageVerdict;
   /** Controls shown at the right, before "What's this page?" (Check now, search). */
   children?: ReactNode;
   /** Gives the h1 an id and makes it focusable, for pages that move focus back to it. */
@@ -15,8 +19,19 @@ type Props = {
   titleLevel?: 1 | 2;
 };
 
-/** Every page's header: the h1, an optional intro, and "What's this page?" at the right. */
-export function PageHeader({ title, intro, page, children, titleId, titleLevel = 1 }: Props) {
+/**
+ * Every page's header: the h1, the page's verdict, an optional intro, and "What's this page?" at
+ * the right.
+ */
+export function PageHeader({
+  title,
+  intro,
+  page,
+  verdict,
+  children,
+  titleId,
+  titleLevel = 1,
+}: Props) {
   const Title = titleLevel === 1 ? "h1" : "h2";
   return (
     <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
@@ -24,6 +39,14 @@ export function PageHeader({ title, intro, page, children, titleId, titleLevel =
         <Title id={titleId} tabIndex={titleId ? -1 : undefined} className="font-serif text-3xl">
           {title}
         </Title>
+        {verdict && (
+          <p data-page-verdict className="mt-2 flex items-start gap-2 text-lg text-ink">
+            <span className="flex h-7 items-center">
+              <LightMark tone={verdict.tone} />
+            </span>
+            <span>{verdict.text}</span>
+          </p>
+        )}
         {intro && (
           <div data-page-intro className="mt-1 flex flex-col gap-1 text-sm text-ink-muted">
             {intro}

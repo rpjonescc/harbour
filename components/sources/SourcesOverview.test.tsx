@@ -110,4 +110,12 @@ describe("SourcesOverview", () => {
       "Check running now",
     );
   });
+
+  it("leads with a verdict: the source that didn't answer, and what is being checked", () => {
+    const { container } = render(<SourcesOverview view={view} locale="en-GB" />);
+    expect(container.querySelector("[data-page-verdict]")).toHaveTextContent(
+      "Google Search Console didn't answer at the last check. Harbour tries again at the next check. Checking Fern & Field now.",
+    );
+    expect(screen.getByRole("button", { name: "data source" })).toBeInTheDocument();
+  });
 });

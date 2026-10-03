@@ -1,11 +1,22 @@
 import type { JobKind, JobStatus } from "@/lib/jobs/queue";
+import { sentenceCase } from "./job-words";
+import { count, type PageVerdict, sentences } from "./page-verdict";
+import type { TermLine } from "./term-line";
+import type { LightTone } from "./tower";
 import { NOTE_RUN_FAILED_LINE } from "./voice/fallback";
 
 // A fixed note text: it lives with the note texts so their tone rules cover it.
 export { NOTE_RUN_FAILED_LINE };
 
-export const AGENTS_INTRO =
-  "Claude's background work, saved to your Second Brain. One job runs at a time.";
+export const AGENTS_INTRO: TermLine = [
+  "Each ",
+  { term: "agent", text: "agent" },
+  " is Claude doing one job in the background, saved to your ",
+  { term: "second-brain", text: "Second Brain" },
+  ". One ",
+  { term: "run", text: "run" },
+  " happens at a time.",
+];
 
 export const AGENT_PURPOSE = {
   research: "Claude reads up on a topic and writes it into your Second Brain.",
@@ -31,6 +42,15 @@ export const RUN_HEADLINE: Readonly<Record<JobStatus, string>> = {
   ok: "Done",
   failed: "Didn't finish",
   cancelled: "Stopped",
+};
+
+/** The light beside a run's headline: busy while it waits or runs, worth a look if it failed. */
+export const RUN_TONE: Readonly<Record<JobStatus, LightTone>> = {
+  queued: "busy",
+  running: "busy",
+  ok: "ok",
+  failed: "watch",
+  cancelled: "off",
 };
 
 export const RUN_FAILED_LINE =
@@ -65,3 +85,45 @@ export function runFailedLine(kind: JobKind): string {
 
 /** Names the log's Technical details for screen readers. */
 export const RUN_LOG_TOPIC = "step-by-step log of the run";
+
+/** How many finished runs the Agents verdict looks back over. */
+const RECENT_RUNS = 5;
+
+/** A run as the Agents verdict reads it: its status and, for a running one, what it is doing. */
+export type VerdictRun = { status: JobStatus; doing: string };
+
+/** "Nothing is running." or what is running now, with how many wait behind it. */
+function runningNow(runs: readonly VerdictRun[]): string {
+  const running = runs.find((run) => run.status === "running");
+  const waiting = runs.filter((run) => run.status === "queued").length;
+  const behind = waiting > 0 ? ` ${count(waiting, "more run")} waiting.` : "";
+  if (running) return `${sentenceCase(running.doing)} now.${behind}`;
+  if (waiting > 0) return `${count(waiting, "run")} waiting to start.`;
+  return "Nothing is running.";
+}
+
+/** How the last few finished runs went: all worked, some didn't finish, or some were stopped. */
+function lastRuns(finished: readonly VerdictRun[]): string {
+  if (finished.length === 0) return "No runs yet: start one with the buttons below.";
+  const failed = finished.filter((run) => run.status === "failed").length;
+  const n = finished.length;
+  const last = n === 1 ? "the last run" : `the last ${n} runs`;
+  if (failed > 0) {
+    return n === 1 ? "The last run didn't finish." : `${failed} of ${last} didn't finish.`;
+  }
+  if (finished.every((run) => run.status === "ok")) {
+    return `${sentenceCase(last)} worked.`;
+  }
+  return `${sentenceCase(last)} finished or were stopped.`;
+}
+
+/** The Agents page's verdict, from its runs newest first. */
+export function agentsVerdict(runs: readonly VerdictRun[]): PageVerdict {
+  const active = runs.some((run) => run.status === "running" || run.status === "queued");
+  const finished = runs
+    .filter((run) => run.status === "ok" || run.status === "failed" || run.status === "cancelled")
+    .slice(0, RECENT_RUNS);
+  const failed = finished.some((run) => run.status === "failed");
+  const tone = failed ? "watch" : active ? "busy" : "ok";
+  return { tone, text: sentences(runningNow(runs), lastRuns(finished)) };
+}

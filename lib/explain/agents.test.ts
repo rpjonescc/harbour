@@ -8,6 +8,7 @@ import {
   RUN_HEADLINE,
   runFailedLine,
 } from "./agents";
+import { termLineText } from "./term-line";
 
 const STATUSES: JobStatus[] = ["queued", "running", "ok", "failed", "cancelled"];
 
@@ -65,7 +66,7 @@ describe("Agents words", () => {
       "content-decision",
     ] as const;
     const lines = [
-      AGENTS_INTRO,
+      termLineText(AGENTS_INTRO),
       ...Object.values(AGENT_PURPOSE),
       RUN_FAILED_LINE,
       ...kinds.map(runFailedLine),

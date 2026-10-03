@@ -55,9 +55,18 @@ describe("PageHelp", () => {
   });
 
   it("leaves out the words section on a page with no special words", () => {
-    const { button, panel } = renderHelp("devices");
-    fireEvent.click(button);
-    expect(panel).not.toHaveTextContent("Words on this page");
+    // Every page lists words today, so this stands in a page that has none for one render.
+    const help = PAGE_HELP as Record<string, (typeof PAGE_HELP)["devices"]>;
+    const devices = help.devices;
+    if (!devices) throw new Error("devices help is missing");
+    help.devices = { ...devices, terms: [] };
+    try {
+      const { button, panel } = renderHelp("devices");
+      fireEvent.click(button);
+      expect(panel).not.toHaveTextContent("Words on this page");
+    } finally {
+      help.devices = devices;
+    }
   });
 
   it("opens on ?, but not while typing in a field", () => {
