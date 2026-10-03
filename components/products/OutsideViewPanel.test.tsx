@@ -160,6 +160,16 @@ describe("OutsideViewPanel: notices and empty states", () => {
     expect(region().textContent).not.toMatch(/\b\d+ sites? link|Position \d/);
   });
 
+  it("names the settings file only under Technical details", () => {
+    draw(state("No searches chosen"));
+    const details = region().querySelector("details");
+    expect(details).toHaveTextContent("harbour.config.json");
+    const outside = region().cloneNode(true) as HTMLElement;
+    for (const d of outside.querySelectorAll("details")) d.remove();
+    expect(outside.textContent).not.toContain("harbour.config.json");
+    expect(outside.textContent).toContain("Harbour's settings file");
+  });
+
   it("offers the button only once searches are chosen and Treg is connected", () => {
     draw(state("No searches chosen"));
     expect(screen.queryByRole("button", { name: "Run this check now" })).toBeNull();

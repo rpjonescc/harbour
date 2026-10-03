@@ -1,11 +1,13 @@
 import { useId } from "react";
 import { Explainer } from "@/components/explain/Explainer";
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { Tag } from "@/components/ui/Tag";
 import {
   OUTSIDE_EMPTY,
   OUTSIDE_NOTICE,
   OUTSIDE_ONE_LINER,
   OUTSIDE_PARTS,
+  OUTSIDE_SETUP_TECH,
   OUTSIDE_TITLE,
 } from "@/lib/explain/outside";
 import type { OutsideView } from "@/lib/scan/outside-view";
@@ -46,6 +48,11 @@ export function OutsideViewPanel({
         {notice && state === "ready" && <Tag tone="warn">{OUTSIDE_NOTICE[notice]}</Tag>}
       </div>
       {empty && <p className="text-sm text-ink">{empty}</p>}
+      {state === "no_searches" && (
+        <TechnicalDetails id={`${idPrefix}-setup`} topic={OUTSIDE_SETUP_TECH.topic}>
+          <p className="text-ink-muted">{OUTSIDE_SETUP_TECH.text}</p>
+        </TechnicalDetails>
+      )}
       {state === "ready" && <OutsideFindings view={view} locale={locale} idPrefix={idPrefix} />}
       <Explainer topic={OUTSIDE_TITLE} oneLiner={OUTSIDE_ONE_LINER} parts={OUTSIDE_PARTS} />
       {state !== "no_searches" && state !== "not_connected" && (
