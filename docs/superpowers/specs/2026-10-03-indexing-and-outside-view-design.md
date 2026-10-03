@@ -95,7 +95,16 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
   keyword and question proposals from the database is a later option (not in this version).
 - Three checks per product, each independent (one failing never hides the others):
   1. **Backlinks** — `serpstat.web.backlinks.summary` for the product's registrable domain
-     (about US$0.0025). Observation `backlinks`: `{ referringDomains, backlinks, dofollow, rank, provider }`.
+     (about US$0.0025). Observation `backlinks`: `{ referringDomains, backlinks, dofollow, rank, provider,
+     ownDomainExcluded? }`. The summary counts the site's own pages linking to each other as a linking domain,
+     so when `referring_domains` is 25 or fewer (and above 0) one more call, `serpstat.web.linking_domains.list`
+     (`SerpstatBacklinksProcedure.getRefDomains`, `size` = that count, US$0.0005 a row, at most US$0.0125),
+     lists them; rows whose `domain_from` is the product's domain or a subdomain are dropped (exact label
+     matching, no look-alikes), `referringDomains` is the outside rows, `backlinks` the summary's minus the dropped
+     rows' `ref_pages` (never below 0) and `ownDomainExcluded` is true. Above 25 the summary stands
+     (`ownDomainExcluded: false`; a self-link is then a rounding error). If the list call fails the summary counts
+     are kept, the check stays ok and the run's tally notes a problem code. Older rows without the field still
+     parse as "not excluded"; a change since the last check is shown only between checks counted the same way.
   2. **Search position** — `dataforseo.google.serp.organic`, `depth 30`, for each query
      (about US$0.006 each). Observation `serp_rank`: `{ query, position | null, url | null, topDomains[≤ 5],
      checkedAt }`. `null` means *not found in the top 30*, said that way; it is never turned into 31 or 0.
@@ -119,8 +128,8 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
 - **Price control:** every call carries `X-Treg-Route-Max-Cost` (a hard cap per call, from a per-endpoint
   constant with headroom), is preceded by `budget.allow(estimate)` and followed by `cost.record(actual)` from
   the response header. A call refused by the budget ends the run with a recorded partial result. Spend: a full run
-  (1 backlinks call, 8 searches, 5 questions) is 2,500 + 8×6,000 + 5×3,600 = 68,500 µUSD, up to about US$0.07 per
-  product per week (≈ A$1.4 a month for three products, ≈ A$2.1 at the price ceilings); `HARBOUR_MONTHLY_BUDGET_AUD`
+  (1 backlinks call, 8 searches, 5 questions) is 2,500 + 8×6,000 + 5×3,600 = 68,500 µUSD, plus up to 12,500 µUSD for the links list, up to about US$0.08 per
+  product per week (≈ A$1.6 a month for three products, ≈ A$2.45 at the price ceilings); `HARBOUR_MONTHLY_BUDGET_AUD`
   bounds the worst case. A key or balance stop ends the run for every product: a key stop lasts until the worker restarts, a balance stop for 24 hours;
   calls that may have been billed and came to nothing delay the next try by 2 days.
 - Provider ids are pinned in one table with the price headroom and a fixed-sentence failure for an unknown id
