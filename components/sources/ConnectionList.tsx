@@ -2,9 +2,13 @@ import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { DocsLink } from "@/components/ui/DocsLink";
 import { Panel } from "@/components/ui/Panel";
 import { Tag } from "@/components/ui/Tag";
-import { DOCS_LINKS } from "@/lib/docs-links";
-import { ALSO_CHECKS_INDEX } from "@/lib/explain/indexing";
-import { sourceExplanation, sourceName, sourceStatusPhrase } from "@/lib/explain/sources";
+import {
+  searchConsoleLinkNote,
+  sourceExplanation,
+  sourceName,
+  sourceSetupLink,
+  sourceStatusPhrase,
+} from "@/lib/explain/sources";
 import type { SourcesView } from "@/lib/scan/sources-view";
 
 type Row = {
@@ -13,21 +17,13 @@ type Row = {
   note: string;
 };
 
-const DOCS: Partial<Record<Row["id"], { href: string; label: string }>> = {
-  pagespeed: { href: DOCS_LINKS.pagespeed, label: "Connect PageSpeed" },
-  "search-console": { href: DOCS_LINKS.searchConsole, label: "Connect Search Console" },
-};
-
 function searchConsoleRow(view: SourcesView): Row {
   const { connections } = view;
   const unlinked = view.products.filter((p) => !connections.searchConsoleProducts[p.productId]);
   const connected = connections.searchConsoleCredentials && unlinked.length < view.products.length;
-  const names = unlinked.map((p) => p.name).join(" and ");
   const note = !connections.searchConsoleCredentials
     ? sourceExplanation("search-console").gives
-    : unlinked.length > 0
-      ? `${names} ${unlinked.length === 1 ? "isn't" : "aren't"} linked to a Search Console site yet. ${ALSO_CHECKS_INDEX}`
-      : `Every site is linked. ${ALSO_CHECKS_INDEX}`;
+    : searchConsoleLinkNote(unlinked.map((p) => p.name));
   return { id: "search-console", connected, note };
 }
 
@@ -48,7 +44,7 @@ export function ConnectionList({ view }: { view: SourcesView }) {
     <Panel className="px-4">
       <ul aria-label="Connections" className="divide-y divide-line">
         {rows(view).map((row) => {
-          const docs = DOCS[row.id];
+          const docs = sourceSetupLink(row.id);
           return (
             <li key={row.id} className="flex flex-col gap-1 py-3">
               <p className="flex flex-wrap items-center gap-2">

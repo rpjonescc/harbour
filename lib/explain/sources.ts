@@ -1,3 +1,4 @@
+import { DOCS_LINKS } from "@/lib/docs-links";
 import { ALSO_CHECKS_INDEX } from "@/lib/explain/indexing";
 import { collectorLabel } from "@/lib/scan/labels";
 import type { CollectorStatus } from "@/lib/scan/types";
@@ -214,3 +215,26 @@ export function sourceTrouble(failures: readonly { collector: string }[]): strin
   if (ids.length === 1) return `${sourceName(only)} had a problem in the last check`;
   return `${ids.length} data sources had a problem in the last check`;
 }
+
+const SETUP_DOCS: Record<string, { href: string; label: string }> = {
+  pagespeed: { href: DOCS_LINKS.pagespeed, label: "Connect PageSpeed" },
+  "search-console": { href: DOCS_LINKS.searchConsole, label: "Connect Search Console" },
+};
+
+/** The setup guide link for a source that needs one (label and public docs address). */
+export function sourceSetupLink(id: string): { href: string; label: string } | undefined {
+  return SETUP_DOCS[id];
+}
+
+/** Says which sites still need linking to Search Console, or that every site is linked. */
+export function searchConsoleLinkNote(unlinkedNames: readonly string[]): string {
+  if (unlinkedNames.length === 0) return `Every site is linked. ${ALSO_CHECKS_INDEX}`;
+  const verb = unlinkedNames.length === 1 ? "isn't" : "aren't";
+  return `${unlinkedNames.join(" and ")} ${verb} linked to a Search Console site yet. ${ALSO_CHECKS_INDEX}`;
+}
+
+/** The note under failed sources: what it means for scores, and what happens next. */
+export const SOURCE_TROUBLE_NOTE =
+  "Scores that use this data are marked as missing some data until it works again. Harbour tries again in the next check; if it keeps happening,";
+
+export const SOURCE_TROUBLE_LINK = "check your data sources";

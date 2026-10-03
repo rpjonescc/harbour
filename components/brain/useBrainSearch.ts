@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import type { SearchHit } from "@/lib/brain/search";
+import { brainSearchFailure } from "@/lib/explain/brain-search";
 
 const DEBOUNCE_MS = 150;
 const searchResponse = z.object({
@@ -19,8 +20,7 @@ const searchResponse = z.object({
 class BrainUnavailable extends Error {}
 
 function describe(cause: unknown): string {
-  if (cause instanceof BrainUnavailable) return "Second Brain unavailable";
-  return cause instanceof Error ? `Search failed (${cause.message})` : "Search failed";
+  return brainSearchFailure(cause instanceof BrainUnavailable);
 }
 
 /** Debounced, cancellable search against /api/brain/search. */

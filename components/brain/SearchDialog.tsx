@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { SearchHit } from "@/lib/brain/search";
 import { brainHref } from "@/lib/brain/wikilinks";
+import { BRAIN_SEARCH_EMPTY } from "@/lib/explain/brain-search";
 import { useBrainSearch } from "./useBrainSearch";
 
 const APPLE = /mac|iphone|ipad|ipod/i;
@@ -89,7 +90,7 @@ export function SearchDialog() {
     : loading
       ? "Searching…"
       : query.trim() && hits.length === 0
-        ? "No results"
+        ? BRAIN_SEARCH_EMPTY
         : null;
 
   return (
@@ -134,7 +135,7 @@ export function SearchDialog() {
               }}
               onKeyDown={onInputKey}
               placeholder="Search notes…"
-              className="w-full border-b border-line bg-surface px-4 py-3 text-base outline-none"
+              className="w-full border-b border-line bg-surface px-4 py-3 text-base focus-visible:-outline-offset-2"
             />
             <div
               id={listId}
