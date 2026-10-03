@@ -35,14 +35,16 @@ describe("sourcesView", () => {
       ...BASE,
       HARBOUR_PAGESPEED_API_KEY: "AIza-test-not-a-real-key",
       HARBOUR_GSC_CREDENTIALS: "/srv/harbour/gsc.json",
+      HARBOUR_TREG_API_KEY: "SENTINEL-treg-key",
     });
     const view = sourcesView(openTestDb(), products, config, T0);
     expect(view.connections).toEqual({
       pagespeed: true,
       searchConsoleCredentials: true,
+      treg: true,
       searchConsoleProducts: { "acme-docs": true, "fern-and-field": false },
     });
-    expect(JSON.stringify(view)).not.toMatch(/AIza|gsc\.json/);
+    expect(JSON.stringify(view)).not.toMatch(/AIza|gsc\.json|SENTINEL/);
   });
 
   it("gives the schedule and, per product, the last scan, next scan and each source's last run", () => {
@@ -75,6 +77,7 @@ describe("sourcesView", () => {
       ["pagespeed", "failed", "quota exceeded"],
       ["search-console", null, null],
       ["indexing", null, null],
+      ["treg", null, null],
     ]);
     expect(fern).toMatchObject({ lastScan: null, active: { status: "queued" }, next: "tomorrow" });
   });

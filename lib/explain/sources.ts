@@ -29,10 +29,10 @@ const PAID_STATUS = {
 };
 const ASKED = "when asked your customers' questions.";
 
-/** What every paid source says today: there is no collector for it yet. */
+/** What a paid source with no collector says: it is not collected yet. */
 export const NOT_COLLECTED_YET = "Harbour doesn't collect this data yet.";
 
-/** Paid sources have no collector yet (lib/costs/paid-sources), so connecting is a later step. */
+/** Paid sources without a collector (lib/costs/paid-sources): connecting is a later step. */
 function paidSteps(settings: string): string[] {
   return [
     NOT_COLLECTED_YET,
@@ -117,6 +117,25 @@ export const SOURCES: readonly SourceExplanation[] = [
       notConnected: "Needs Google Search Console first",
       failed: "Google didn't answer the page checks in the last check",
       waiting: "Runs with the next check",
+    },
+  },
+  {
+    id: "treg",
+    name: "Outside view (Treg)",
+    gives:
+      "Rankings, links and AI answer checks: once a week, how many other sites link to you, where you rank on Google for the searches you chose and whether ChatGPT names or cites you.",
+    paid: true,
+    connect: [
+      "Get a key from Treg (treg.to) and add it to .env as HARBOUR_TREG_API_KEY.",
+      "Set a monthly budget in .env with HARBOUR_MONTHLY_BUDGET_AUD: A$10 is plenty.",
+      'Choose the searches and questions to track for each product under "tracking" in harbour.config.json.',
+      RESTART_WORKER,
+    ],
+    status: {
+      connected: "Connected",
+      notConnected: "Not set up yet",
+      failed: "Didn't answer in the last check",
+      waiting: "Runs once a week, within your monthly budget: waiting for the next run",
     },
   },
   {

@@ -104,6 +104,7 @@ export const EXAMPLE_SOURCES: SourcesView = {
   connections: {
     pagespeed: false,
     searchConsoleCredentials: true,
+    treg: true,
     searchConsoleProducts: { "acme-docs": true },
   },
   products: [
@@ -123,6 +124,12 @@ export const EXAMPLE_SOURCES: SourcesView = {
           finishedAt: AT,
         },
         { collector: "search-console", status: "skipped", error: "ran today", finishedAt: AT },
+        {
+          collector: "treg",
+          status: "skipped",
+          error: "runs weekly; last ran 2026-09-28",
+          finishedAt: AT,
+        },
       ],
     },
   ],

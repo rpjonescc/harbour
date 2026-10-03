@@ -18,8 +18,9 @@ describe("SOURCES", () => {
     for (const id of COLLECTOR_IDS) expect(() => sourceExplanation(id)).not.toThrow();
   });
 
-  it("has an entry for every data source, free and paid, in order", () => {
-    expect(SOURCES.map((s) => s.id)).toEqual([...COLLECTOR_IDS, ...PAID_SOURCES.map((p) => p.id)]);
+  it("has an entry for every data source, free and paid, in order (a paid collector once)", () => {
+    const ids = [...new Set([...COLLECTOR_IDS, ...PAID_SOURCES.map((p) => p.id)])];
+    expect(SOURCES.map((s) => s.id)).toEqual(ids);
     expect(SOURCES.filter((s) => s.paid).map((s) => s.id)).toEqual(PAID_SOURCES.map((p) => p.id));
   });
 

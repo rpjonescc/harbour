@@ -217,6 +217,13 @@ export const EXAMPLE_SETTINGS: SettingsView = {
       paid: false,
     },
     {
+      id: "treg",
+      label: "Treg",
+      status: "present",
+      inUse: true,
+      paid: true,
+    },
+    {
       id: "openai",
       label: "OpenAI",
       status: "missing",
