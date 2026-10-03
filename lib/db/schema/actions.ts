@@ -20,8 +20,9 @@ export const actions = sqliteTable(
     effort: text("effort", { enum: ["small", "medium", "large"] }).notNull(),
     evidence: text("evidence", { mode: "json" }).$type<Evidence>().notNull(),
     docs: text("docs", { mode: "json" }).$type<string[]>().notNull(),
-    source: text("source", { enum: ["rule", "agent"] }).notNull(),
-    // The rule id; set iff source = rule.
+    source: text("source", { enum: ["rule", "agent", "manual"] }).notNull(),
+    // "manual": added by hand through the CLI; it has no rule key and no job, so a scan never
+    // touches it. The rule id is set iff source = rule.
     ruleKey: text("rule_key"),
     // The agent job that suggested it; set iff source = agent.
     sourceJobId: integer("source_job_id").references(() => jobs.id),

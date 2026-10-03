@@ -6,6 +6,7 @@ import { applyStatusChange } from "../status-change";
 import { actionHistory } from "../store";
 import { MAX_SNOOZE_DAYS } from "../transitions";
 import { ACTION_STATUSES, type ActionStatus } from "../types";
+import { addAction } from "./add";
 import { type CliCommand, CliUsageError, parseCliArgs, USAGE } from "./args";
 import { DATA_NOTE, jsonRow, listLine, showText } from "./format";
 import { findAction, listActions } from "./queries";
@@ -51,11 +52,15 @@ function list(deps: CliDeps, cmd: Extract<CliCommand, { name: "list" }>): CliOut
   return { code: 0, stdout: `${lines.join("\n")}\n`, stderr };
 }
 
-function show(deps: CliDeps, id: number): CliOutput {
+function shown(deps: CliDeps, id: number): string {
   const row = findAction(deps.db, id, productIds(deps));
   const product = deps.products.find((p) => p.id === row?.productId);
   if (!row || !product) throw new CliError(`Action #${id} not found`);
-  return { code: 0, stdout: `${showText(row, product, actionHistory(deps.db, id))}\n`, stderr: "" };
+  return showText(row, product, actionHistory(deps.db, id));
+}
+
+function show(deps: CliDeps, id: number): CliOutput {
+  return { code: 0, stdout: `${shown(deps, id)}\n`, stderr: "" };
 }
 
 function refusal(cmd: Extract<CliCommand, { name: "set" }>, error: string, today: string): string {
@@ -110,6 +115,24 @@ function link(deps: CliDeps, cmd: Extract<CliCommand, { name: "link" }>): CliOut
   return { code: 0, stdout: `#${cmd.id} ${done}\n`, stderr: "" };
 }
 
+function add(deps: CliDeps, cmd: Extract<CliCommand, { name: "add" }>): CliOutput {
+  const ids = productIds(deps);
+  if (!ids.includes(cmd.input.productId)) {
+    throw new CliError(`Unknown product: ${cmd.input.productId} (configured: ${ids.join(", ")})`);
+  }
+  const result = addAction(deps.db, cmd.input, deps.now);
+  if (!result.ok) {
+    throw new CliError(
+      `Action #${result.duplicateOf} already has this title for ${cmd.input.productId}: run "pnpm actions show ${result.duplicateOf}"`,
+    );
+  }
+  return {
+    code: 0,
+    stdout: `Created action #${result.id}\n\n${shown(deps, result.id)}\n`,
+    stderr: "",
+  };
+}
+
 function dispatch(deps: CliDeps, cmd: CliCommand): CliOutput {
   switch (cmd.name) {
     case "help":
@@ -122,6 +145,8 @@ function dispatch(deps: CliDeps, cmd: CliCommand): CliOutput {
       return set(deps, cmd);
     case "link":
       return link(deps, cmd);
+    case "add":
+      return add(deps, cmd);
   }
 }
 

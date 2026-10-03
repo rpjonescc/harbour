@@ -7,6 +7,7 @@ import { STATUS_COLUMN } from "@/lib/explain/actions";
 export const SOURCE_LABEL = {
   rule: "Found by a check",
   agent: "Suggested by the weekly report",
+  manual: "Added by hand by Claude",
 } as const;
 
 /** Who made a change, in the card's history. */

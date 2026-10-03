@@ -370,6 +370,14 @@ runs set to 90 days).
   `https://github.com/<owner>/<repo>/pull/<number>` only), set or cleared with
   `pnpm actions link`; linking adds a history entry that keeps the status and an
   `action_pr_linked` audit entry. The card links it in a new tab; Hand to Claude is unchanged.
+- **Hand-made actions**: `pnpm actions add` lets Claude create a board item (source `manual`, no
+  rule key, no analyst job, `issue_present` null) to track work it hands to a project's owner
+  session. Rule sync reads only `source = rule` rows, so a scan never closes, rewrites or resolves
+  one. The title must differ from any not-done, not-dismissed action of the product; the history
+  starts with actor `claude` and a note saying it was added by hand; an `action_created` audit
+  entry holds the id, product and status, never the text. Web links given with `--doc` are stored
+  as linked evidence, because the `docs` column holds brain paths. Hand to Claude fences a
+  hand-made action's text as unchecked, like the analyst's.
 - Done actions are re-verified by the next scan where a rule exists; if the
   condition persists the action reopens with a note.
 

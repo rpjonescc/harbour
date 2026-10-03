@@ -955,6 +955,10 @@ pnpm actions set 12 in_progress --from open --note "Fixing the page titles in ac
 pnpm actions set 12 snoozed --from open --note "Wait for the redesign" --until 2026-11-01
 pnpm actions link 12 https://github.com/acme/widget/pull/42
 pnpm actions link 12 --clear
+pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles" \
+  --why "Pages without a clear title are skipped by search and AI answers." \
+  --area SEO --impact high --effort small --fix "Give each page a title under 60 characters" \
+  --evidence "https://docs.example.com/start has no title" --doc https://example.com/title-guide
 ```
 
 - **list** shows suggested, open, in-progress and snoozed actions by default (at most 500), one
@@ -968,6 +972,17 @@ pnpm actions link 12 --clear
   `HARBOUR_TIMEZONE` and at most a year ahead.
 - **link** stores a GitHub pull request URL (`https://github.com/<owner>/<repo>/pull/<number>`,
   nothing else) on the action, or clears it with `--clear`, and notes it in the history.
+- **add** creates a board item by hand, as Claude, and prints `Created action #<id>` and the
+  same text as `show`. Required: `--product` (a configured product id), `--title` (8 to 140
+  characters, one line), `--why` (10 to 600), `--area` (`SEO`, `GEO` or `AEO`), `--impact`
+  (`high`, `medium` or `low`) and `--effort` (`small`, `medium` or `large`). Optional: `--fix` and
+  `--check` (up to 600 characters each; a plain sentence stands in when left out), `--evidence`
+  (up to 8 lines of 300 characters, repeat the option), `--doc` (up to 8 `https://` links, repeat
+  the option; the card shows them with the evidence) and `--status` (`open` by default,
+  `suggested`, or `in_progress` for work already handed to an agent). Text is plain: control and
+  hidden characters are refused. It is refused, naming the existing action, when the product
+  already has a to-do, suggested, in-progress or snoozed action with the same title. Scans never
+  close or rewrite a hand-made action, and its history starts with "Added by hand through the CLI".
 
 Only actions of products in `harbour.config.json` are found. Errors print one line and exit
 non-zero. The output is the actions' own content, never settings or secrets. Because titles,
