@@ -896,7 +896,9 @@ week the worker's `treg` collector makes up to three kinds of paid call to
    your own pages linking to each other as a linking domain, so for a site with 25 linking domains
    or fewer Harbour makes one more call that lists them (US$0.0005 a row, at most US$0.0125) and
    leaves your own domain and its subdomains out. The page then says "(your own pages not counted)".
-   If that call fails the first count is kept without it, and the product page does not say so.
+   One odd row does not spoil the list: a row that is not a plain host name is left out and counted
+   in the run's tally, a missing page count is 0 and a domain listed twice counts once. If the call
+   fails, or no row can be read, the first count is kept without it and the product page does not say so.
 2. **Where you rank**: your position on Google for each search you chose, looking down to
    position 30 (about US$0.006 each). "Not in the top 30" is stored as such, never as a number.
 3. **AI answers**: whether ChatGPT names or cites your site when asked each question you chose

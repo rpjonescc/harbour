@@ -370,3 +370,15 @@ describe("outsideView: only what is tracked now", () => {
     expect(view(db).links).toBeNull();
   });
 });
+
+describe("outsideView: a product whose URL ends in a dot", () => {
+  it("reads back the checks stored under its normalised domain", () => {
+    const db = openTestDb();
+    keep(db, [links(0, 6)]);
+    const found = view(db, {
+      product: { id: "acme-docs", url: "https://www.docs.example.com../" },
+    });
+    expect(found.links).toMatchObject({ count: 6, ownExcluded: false });
+    expect(found.state).toBe("ready");
+  });
+});

@@ -1,5 +1,5 @@
 import type { Db } from "@/lib/db/client";
-import { siteKey } from "@/lib/scan/site";
+import { productDomain, siteKey } from "@/lib/scan/site";
 import { buildOutsideFacts, type OutsideFacts } from "./facts";
 import { readChecks } from "./store";
 
@@ -16,7 +16,7 @@ export function readOutsideFacts(
   questions: readonly string[] | null,
   now: Date,
 ): OutsideFacts {
-  const domain = siteKey(new URL(product.url).hostname);
+  const domain = productDomain(product.url);
   const backlinks = readChecks(db, product.id, "backlinks", READ_DAYS, now).filter(
     (row) => siteKey(row.subject) === domain,
   );

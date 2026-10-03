@@ -2,12 +2,75 @@ import {
   cleanHost,
   hostMatches,
   hostOfUrl,
+  listedHost,
   mentionsProduct,
   normalisedUrl,
   productDomain,
 } from "./treg-match";
 
-describe("productDomain", () => {
+describe("productDomain: normalised once, for matching and for the question put to Treg", () => {
+  it.each([
+    ["a plain URL", "https://example.com", "example.com"],
+    ["a dotted host", "https://example.com./", "example.com"],
+    ["a dotted www host", "https://www.example.com./path", "example.com"],
+    ["upper case", "https://EXAMPLE.Com/", "example.com"],
+    ["a port", "https://example.com:8443/x", "example.com"],
+    ["www", "https://www.example.com/", "example.com"],
+    ["a subdomain", "https://docs.example.com/", "docs.example.com"],
+    ["a unicode host", "https://B\u00fccher.example/", "xn--bcher-kva.example"],
+    ["repeated trailing dots", "https://example.com../", "example.com"],
+    ["www.com, which is not www on com", "https://www.com/", "www.com"],
+    ["www.www.com", "https://www.www.com/", "www.com"],
+    ["a single label after www", "https://www.localhost/", "www.localhost"],
+    ["a dotted www.com", "https://www.com./", "www.com"],
+  ])("%s", (_name, url, domain) => {
+    expect(productDomain(url)).toBe(domain);
+  });
+
+  it("does not let every .com count as the site's own when the site is www.com", () => {
+    const own = productDomain("https://www.com/");
+    expect(hostMatches("evil.com", own)).toBe(false);
+    expect(hostMatches("www.com", own)).toBe(true);
+    expect(hostMatches("blog.www.com", own)).toBe(true);
+  });
+
+  it("matches a listed row for the dotted own domain, and keeps a look-alike out", () => {
+    const own = productDomain("https://example.com./");
+    expect(hostMatches("example.com", own)).toBe(true);
+    expect(hostMatches("blog.example.com", own)).toBe(true);
+    expect(hostMatches("notexample.com", own)).toBe(false);
+  });
+});
+
+describe("listedHost", () => {
+  it.each([
+    ["Example.ORG", "example.org"],
+    ["www.example.org", "example.org"],
+    ["example.org.", "example.org"],
+    ["caf\u00e9.example.org", "xn--caf-dma.example.org"],
+  ])("reads %s as %s", (raw, host) => {
+    expect(listedHost(raw)).toBe(host);
+  });
+
+  it.each([
+    5,
+    null,
+    undefined,
+    {},
+    "",
+    "a b.example",
+    "ex\u202eample.org",
+    "a\u0000b",
+    "a.example/x",
+    "a.example:80",
+    "u@a.example",
+    "x".repeat(254),
+  ])("refuses %j", (raw) => {
+    expect(listedHost(raw)).toBeNull();
+  });
+});
+
+describe("productDomain (www)", () => {
   it("is the product URL's host without a leading www", () => {
     expect(productDomain("https://www.docs.example.com/path")).toBe("docs.example.com");
     expect(productDomain("https://Docs.Example.com")).toBe("docs.example.com");

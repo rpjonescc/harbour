@@ -99,7 +99,8 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
      ownDomainExcluded? }`. The summary counts the site's own pages linking to each other as a linking domain,
      so when `referring_domains` is 25 or fewer (and above 0) one more call, `serpstat.web.linking_domains.list`
      (`SerpstatBacklinksProcedure.getRefDomains`, `size` = that count, US$0.0005 a row, at most US$0.0125),
-     lists them; rows whose `domain_from` is the product's domain or a subdomain are dropped (exact label
+     lists them (one odd row never spoils the list: unicode names are matched in punycode, a row that is not a
+     plain host is dropped and counted in the tally, a missing page count is 0, a domain twice is one); rows whose `domain_from` is the product's domain or a subdomain are dropped (exact label
      matching, no look-alikes), `referringDomains` is the outside rows, `backlinks` the summary's minus the dropped
      rows' `ref_pages` (never below 0) and `ownDomainExcluded` is true. Above 25 the summary stands
      (`ownDomainExcluded: false`; a self-link is then a rounding error). If the list call fails the summary counts
