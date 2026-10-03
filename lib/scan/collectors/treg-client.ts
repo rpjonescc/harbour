@@ -1,3 +1,4 @@
+import { MAX_CALL_MICRO_AUD } from "@/lib/costs/budget";
 import { usdMicroToAudMicro } from "@/lib/costs/currency";
 import { FetchError } from "../fetch-error";
 import type { TregProblem } from "../treg-shapes";
@@ -9,8 +10,6 @@ import { ceilingHeaderValue, ceilingMicroUsd, type Endpoint } from "./treg-endpo
 export const TREG_TIMEOUT_MS = 90_000;
 /** A call's answer is a few KiB; 1 MiB leaves room without trusting it. */
 export const TREG_MAX_BYTES = 1024 * 1024;
-/** A charge above US$1 for one call cannot be real (the ceiling stops at US$0.05). */
-const MAX_PLAUSIBLE_COST_MICRO_USD = 1_000_000;
 
 /** What one run of the collector shares: the key, the rate and what has been spent so far. */
 export type TregRun = {
@@ -33,19 +32,25 @@ export type CallOutcome<Out> =
 
 const failed = (problem: TregProblem): CallOutcome<never> => ({ kind: "failed", problem });
 
-/** Records what a call cost: the ledger takes micro-AUD, the run's tally micro-USD. */
+/**
+ * Records what a call cost: the ledger takes micro-AUD, the run's tally micro-USD. Every call the
+ * budget allowed is settled exactly once, so no reservation is left to count as spend.
+ */
 function settle(run: TregRun, microUsd: number): void {
   run.spentMicroUsd += microUsd;
-  const amountMicroAud = usdMicroToAudMicro(microUsd, run.rate);
+  const amountMicroAud = Math.min(usdMicroToAudMicro(microUsd, run.rate), MAX_CALL_MICRO_AUD);
   run.ctx.cost.record({ provider: "treg", units: 1, amountMicroAud });
+}
+
+/** A call known not to have been billed: its reservation is settled at zero, not left counted. */
+function settleFree(run: TregRun): void {
+  run.ctx.cost.record({ provider: "treg", units: 0, amountMicroAud: 0 });
 }
 
 /** The charge Treg reports in micro-USD, or null when the header is missing or not a plain count. */
 function reportedCost(headers: Record<string, string>): number | null {
   const raw = headers["x-treg-cost-micro"];
-  if (raw === undefined || !/^\d{1,9}$/.test(raw)) return null;
-  const micro = Number(raw);
-  return micro <= MAX_PLAUSIBLE_COST_MICRO_USD ? micro : null;
+  return raw !== undefined && /^\d{1,9}$/.test(raw) ? Number(raw) : null;
 }
 
 /** Whether a 402 is the per-call ceiling refusal (nothing charged) rather than an empty balance. */
@@ -115,6 +120,7 @@ export async function callEndpoint<In, Out>(
     if (ctx.signal.aborted) throw error;
     const { problem, maybeBilled } = transportProblem(error);
     if (maybeBilled) settle(run, estimate);
+    else settleFree(run);
     return failed(problem);
   }
   const reported = reportedCost(response.headers);
@@ -124,6 +130,9 @@ export async function callEndpoint<In, Out>(
     settle(run, estimate);
   } else if (reported !== null && (ok || reported > 0)) {
     settle(run, reported);
+  } else {
+    // An answer that carries no charge: nothing was billed.
+    settleFree(run);
   }
   if (!ok) return refusal(response.status, response.body);
   const parsed = parseJson(response.body);

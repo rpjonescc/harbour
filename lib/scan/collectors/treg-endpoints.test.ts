@@ -36,6 +36,7 @@ describe("the endpoint table", () => {
     }
     expect(ceilingHeaderValue(3_750)).toBe("0.00375");
     expect(ceilingHeaderValue(50_000)).toBe("0.05");
+    expect(ceilingHeaderValue(1_000_000)).toBe("1");
   });
 });
 

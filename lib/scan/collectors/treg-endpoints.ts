@@ -21,7 +21,7 @@ export function ceilingMicroUsd(estimateMicroUsd: number): number {
 
 /** Micro-USD as the plain USD decimal the `X-Treg-Route-Max-Cost` header takes, e.g. "0.00375". */
 export function ceilingHeaderValue(microUsd: number): string {
-  return (microUsd / 1_000_000).toFixed(6).replace(/0+$/, "");
+  return (microUsd / 1_000_000).toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 export type Endpoint<In, Out> = {
