@@ -20,6 +20,11 @@ export function spentBetween(db: Db, start: Date, end: Date): number {
   return sumBetween(db, start, end);
 }
 
+/** `spentBetween` for one collector's calls (e.g. "treg"). */
+export function collectorSpentBetween(db: Db, collector: string, start: Date, end: Date): number {
+  return sumBetween(db, start, end, eq(costs.collector, collector));
+}
+
 /** The part of `spentBetween` that is still only a reservation (estimate, not confirmed). */
 export function unconfirmedBetween(db: Db, start: Date, end: Date): number {
   return sumBetween(db, start, end, eq(costs.status, "reserved"));

@@ -1,4 +1,5 @@
 import { type Config, parseConfig } from "@/lib/config";
+import { recordCost } from "@/lib/costs/ledger-write";
 import { jobs } from "@/lib/db/schema";
 import type { ProductTracking } from "@/lib/products/config";
 import { openTestDb } from "@/tests/helpers/db";
@@ -117,7 +118,7 @@ describe("requestOutsideCheck", () => {
     }
     expect(request(at(22))).toEqual({ ok: false, reason: "daily_cap" });
     expect(request(at(25))).toMatchObject({ ok: true, created: true });
-    expect(OUTSIDE_CHECK_LIMITS).toEqual({ gapMs: 6 * HOUR, perDay: 3 });
+    expect(OUTSIDE_CHECK_LIMITS).toMatchObject({ gapMs: 6 * HOUR, perDay: 3, perDayAll: 4 });
   });
 
   it("counts each product on its own", () => {
@@ -143,5 +144,112 @@ describe("requestOutsideCheck", () => {
       ok: false,
       reason: "budget_used_up",
     });
+  });
+});
+
+describe("spend protection", () => {
+  const spend = (
+    db: ReturnType<typeof setup>["db"],
+    micro: number,
+    when: Date,
+    collector = "treg",
+  ) =>
+    recordCost(
+      db,
+      {
+        provider: "treg",
+        collector,
+        productId: "acme-docs",
+        units: 1,
+        amountMicroAud: micro,
+        jobId: null,
+      },
+      when,
+    );
+
+  it("allows 4 checks a day across all products, then says so", () => {
+    const { request, finish } = setup();
+    const at = (hours: number) => new Date(DAY_START + hours * HOUR);
+    for (const [h, product] of [
+      [0.5, "p-one"],
+      [1, "p-two"],
+      [7, "p-one"],
+      [7.5, "p-two"],
+    ] as const) {
+      expect(request(at(h), product)).toMatchObject({ ok: true, created: true });
+      finish(at(h));
+    }
+    expect(request(at(13), "p-three")).toEqual({ ok: false, reason: "daily_cap_all" });
+    // Tomorrow it starts again.
+    expect(request(at(25), "p-three")).toMatchObject({ ok: true, created: true });
+  });
+
+  it("returns an active check before the all-products limit", () => {
+    const { request, finish } = setup();
+    const at = (hours: number) => new Date(DAY_START + hours * HOUR);
+    for (const [h, product] of [
+      [0.5, "p-one"],
+      [1, "p-two"],
+      [7, "p-one"],
+    ] as const) {
+      request(at(h), product);
+      finish(at(h));
+    }
+    expect(request(at(7.5), "p-two")).toMatchObject({ ok: true, created: true });
+    expect(request(at(8), "p-two")).toMatchObject({ ok: true, created: false });
+    expect(request(at(9), "p-three")).toEqual({ ok: false, reason: "daily_cap_all" });
+  });
+
+  it("counts the local day, not 24 hours, across a daylight saving change", () => {
+    // Sydney moves its clocks forward on 4 Oct 2026: that day runs 3 Oct 14:00 UTC to 4 Oct 13:00 UTC
+    // (23 hours), and the next one starts at 13:00 UTC.
+    const { request, finish } = setup({ config: config({ HARBOUR_TIMEZONE: "Australia/Sydney" }) });
+    const utc = (iso: string) => new Date(iso);
+    const ask = (iso: string) => {
+      const result = request(utc(iso));
+      finish(utc(iso));
+      return result;
+    };
+    // Three on 3 Oct, local time: the limit for that day.
+    for (const iso of ["2026-10-03T01:00:00Z", "2026-10-03T07:10:00Z", "2026-10-03T13:20:00Z"]) {
+      expect(ask(iso)).toMatchObject({ ok: true, created: true });
+    }
+    expect(request(utc("2026-10-03T13:50:00Z"))).toEqual({ ok: false, reason: "too_soon" });
+    // Yesterday's three do not count against 4 Oct, though they are inside 24 hours.
+    for (const iso of ["2026-10-03T19:30:00Z", "2026-10-04T01:40:00Z", "2026-10-04T07:50:00Z"]) {
+      expect(ask(iso)).toMatchObject({ ok: true, created: true });
+    }
+    // 13:55 UTC on the 4th is already 5 Oct locally: a new day, though the last 24 hours hold three.
+    expect(ask("2026-10-04T13:55:00Z")).toMatchObject({ ok: true, created: true });
+  });
+
+  it("refuses once Treg has used 70 % of the month's budget, exactly at the edge", () => {
+    // Budget A$10 is 10,000,000 micro-AUD: 70 % is 7,000,000.
+    const below = setup();
+    spend(below.db, 6_999_999, NOW);
+    expect(below.request(NOW)).toMatchObject({ ok: true, created: true });
+    const edge = setup();
+    spend(edge.db, 7_000_000, NOW);
+    expect(edge.request(NOW)).toEqual({ ok: false, reason: "budget_kept" });
+  });
+
+  it("counts only Treg, and only this month", () => {
+    const { db, request } = setup();
+    spend(db, 9_000_000, NOW, "other-collector");
+    spend(db, 9_000_000, new Date("2026-09-20T00:00:00Z"));
+    expect(request(NOW)).toMatchObject({ ok: true, created: true });
+  });
+
+  it("says the budget is used up before it says it is kept", () => {
+    const { db, request } = setup();
+    spend(db, 10_000_000, NOW);
+    expect(request(NOW)).toEqual({ ok: false, reason: "budget_used_up" });
+  });
+
+  it("returns an active check even when the share is reached", () => {
+    const { db, request } = setup();
+    expect(request(NOW)).toMatchObject({ created: true });
+    spend(db, 8_000_000, NOW);
+    expect(request(new Date(NOW.getTime() + 1_000))).toMatchObject({ ok: true, created: false });
   });
 });

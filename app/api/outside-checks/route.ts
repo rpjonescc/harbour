@@ -9,8 +9,9 @@ import { rejectCrossSite } from "@/lib/http/same-origin";
 import { requestOutsideCheck } from "@/lib/jobs/outside-check";
 import { getProducts, getTracking } from "@/lib/products/catalog";
 
-// Nothing but the product: any other key is refused.
-const Body = z.strictObject({ productId: z.string().min(1).max(40) });
+// Nothing but the product, named as the config names it (a lowercase slug, at most 200 characters):
+// any other key is refused.
+const Body = z.strictObject({ productId: z.string().regex(/^[a-z0-9-]{1,200}$/) });
 const MAX_BODY = 1_000;
 
 /** "Run this check now": queues an outside-view check of one product (never runs it here). */
@@ -42,23 +43,31 @@ export async function POST(request: Request) {
     tracking: getTracking(productId),
   });
   if (!result.ok) {
-    // The message is fixed text: it never carries anything from the request.
-    const status = result.reason === "too_soon" || result.reason === "daily_cap" ? 429 : 409;
-    return Response.json(
-      { error: result.reason, message: OUTSIDE_CHECK_REFUSALS[result.reason] },
-      { status },
-    );
-  }
-  if (result.created) {
+    // Refused requests are audited too, with why; the message is fixed text with nothing from the request.
     audit(
       db,
       {
         login: session.login,
         event: "outside_check_requested",
-        detail: { productId, jobId: result.id },
+        detail: { productId, refused: result.reason },
       },
       now,
     );
+    const status =
+      result.reason === "too_soon" || result.reason.startsWith("daily_cap") ? 429 : 409;
+    return Response.json(
+      { error: result.reason, message: OUTSIDE_CHECK_REFUSALS[result.reason] },
+      { status },
+    );
   }
+  audit(
+    db,
+    {
+      login: session.login,
+      event: "outside_check_requested",
+      detail: { productId, jobId: result.id, created: result.created },
+    },
+    now,
+  );
   return Response.json({ jobId: result.id, created: result.created });
 }

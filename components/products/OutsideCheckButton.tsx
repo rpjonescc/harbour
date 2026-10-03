@@ -13,12 +13,13 @@ import {
 
 type Active = "queued" | "running" | null;
 
-const isRefusal = (code: string): code is OutsideRefusal => code in OUTSIDE_CHECK_REFUSALS;
+const isRefusal = (code: string): code is OutsideRefusal =>
+  Object.hasOwn(OUTSIDE_CHECK_REFUSALS, code);
 
 /**
- * Asks the worker for an outside-view check of the product. Disabled while one is on its way or
- * when the page already knows it would be refused (the reason is shown beside it); a refusal
- * from the server is shown in plain words too.
+ * Asks the worker for an outside-view check of the product. Disabled while one is on its way. When
+ * the page already knows a check would be refused, the reason is shown beside the button but the
+ * owner may still try (the server decides, and says why in plain words).
  */
 export function OutsideCheckButton({
   productId,
@@ -61,9 +62,8 @@ export function OutsideCheckButton({
     router.refresh();
   }
 
-  const why = active
-    ? OUTSIDE_CHECK_NOTES.already
-    : note || (refusal ? OUTSIDE_CHECK_REFUSALS[refusal] : "");
+  const waiting = note || OUTSIDE_CHECK_NOTES.already;
+  const why = active ? waiting : note || (refusal ? OUTSIDE_CHECK_REFUSALS[refusal] : "");
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Button onClick={check} disabled={busy || active !== null}>

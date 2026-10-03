@@ -10,6 +10,10 @@ export const OUTSIDE_CHECK_REFUSALS = {
     "This month's budget for paid checks is used up (or not set), so this check can't run. It can run again next month, or raise the budget.",
   too_soon: "This product was checked in the last 6 hours. Try again later.",
   daily_cap: "This product has already been checked 3 times today. Try again tomorrow.",
+  daily_cap_all:
+    "4 checks have already been made today across all your products. Try again tomorrow.",
+  budget_kept:
+    "The rest of this month's budget is kept for the weekly checks, so this check can't run now.",
 } as const;
 
 export type OutsideRefusal = keyof typeof OUTSIDE_CHECK_REFUSALS;

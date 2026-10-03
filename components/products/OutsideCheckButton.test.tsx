@@ -54,6 +54,27 @@ describe("OutsideCheckButton", () => {
     expect(button()).toBeEnabled();
   });
 
+  it.each(["toString", "constructor", "__proto__"])(
+    "treats the inherited name %s as an unknown error, not a message",
+    async (error) => {
+      api.postJson.mockResolvedValue({ ok: false, error });
+      draw();
+      fireEvent.click(button());
+      expect(await screen.findByRole("status")).toHaveTextContent(
+        "Harbour couldn't start the check",
+      );
+    },
+  );
+
+  it("keeps saying Checking now while the check it started is on its way", async () => {
+    api.postJson.mockResolvedValue({ ok: true, data: { jobId: 4, created: true } });
+    const { rerender } = draw();
+    fireEvent.click(button());
+    expect(await screen.findByRole("status")).toHaveTextContent("Checking now.");
+    rerender(<OutsideCheckButton productId="acme-docs" active="queued" refusal={null} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Checking now.");
+  });
+
   it("is disabled, saying why, while a check is queued or running", () => {
     draw({ active: "running" });
     expect(button()).toBeDisabled();

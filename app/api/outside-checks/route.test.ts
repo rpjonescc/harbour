@@ -1,4 +1,5 @@
 import { type Config, parseConfig } from "@/lib/config";
+import { recordCost } from "@/lib/costs/ledger-write";
 import { auditLog, jobs } from "@/lib/db/schema";
 import { openTestDb } from "@/tests/helpers/db";
 import { POST } from "./route";
@@ -27,10 +28,12 @@ vi.mock("@/lib/products/catalog", () => ({
       hue: "amber",
       kind: "product",
     },
+    { id: LONG_ID, name: "Long", url: "https://long.example.com", hue: "blue", kind: "product" },
   ],
   getTracking: () => mocks.tracking,
 }));
 
+const LONG_ID = `a-product-whose-id-is-longer-than-forty-characters-${"x".repeat(20)}`;
 const ORIGIN = "https://harbour.example.ts.net";
 const env = (more: Record<string, string> = {}): Config =>
   parseConfig({
@@ -80,7 +83,9 @@ describe("POST /api/outside-checks", () => {
     ["an extra key", { productId: "acme-docs", extra: 1 }],
     ["a non-string product", { productId: 5 }],
     ["an empty product", { productId: "" }],
-    ["a very long product", { productId: "a".repeat(41) }],
+    ["a very long product", { productId: "a".repeat(201) }],
+    ["a capitalised product", { productId: "Acme-Docs" }],
+    ["a product with a space", { productId: "acme docs" }],
     ["an array", [ok]],
     ["null", null],
     ["not JSON", "{nope"],
@@ -97,11 +102,13 @@ describe("POST /api/outside-checks", () => {
   });
 
   it("refuses an unknown product without echoing it", async () => {
-    const response = await POST(post({ productId: "SENTINEL-product" }));
+    const response = await POST(post({ productId: "sentinel-product" }));
     expect(response.status).toBe(400);
     const text = await response.text();
     expect(text).toBe('{"error":"unknown_product"}');
+    expect(text).not.toContain("sentinel");
     expect(queued()).toEqual([]);
+    expect(db().select().from(auditLog).all()).toEqual([]);
   });
 
   it("queues a check once, audited once, and reports the existing one on a second click", async () => {
@@ -115,12 +122,13 @@ describe("POST /api/outside-checks", () => {
     const again = await POST(post(ok));
     expect(await again.json()).toEqual({ jobId, created: false });
     expect(queued()).toHaveLength(1);
+    // Every accepted request is audited, as for a scan: the second says nothing new was queued.
     const audits = db().select().from(auditLog).all();
-    expect(audits).toHaveLength(1);
-    expect(audits[0]).toMatchObject({
-      event: "outside_check_requested",
-      detail: { productId: "acme-docs", jobId },
-    });
+    expect(audits.map((a) => a.detail)).toEqual([
+      { productId: "acme-docs", jobId, created: true },
+      { productId: "acme-docs", jobId, created: false },
+    ]);
+    expect(audits.every((a) => a.event === "outside_check_requested")).toBe(true);
   });
 
   it.each([
@@ -148,9 +156,58 @@ describe("POST /api/outside-checks", () => {
       expect(body.message.length).toBeGreaterThan(20);
       expect(JSON.stringify(body)).not.toMatch(/acme|SENTINEL|HARBOUR_[A-Z_]*=/);
       expect(queued()).toEqual([]);
-      expect(db().select().from(auditLog).all()).toEqual([]);
+      // A refusal is audited too, with why and nothing else from the request.
+      expect(db().select().from(auditLog).all()).toMatchObject([
+        { event: "outside_check_requested", detail: { productId: "acme-docs", refused: error } },
+      ]);
     },
   );
+
+  it("accepts a product id of any length the config allows", async () => {
+    const response = await POST(post({ productId: LONG_ID }));
+    expect(response.status).toBe(200);
+    expect(queued()[0]?.params).toEqual({ productId: LONG_ID });
+  });
+
+  it("refuses when Treg has used 70 % of the budget, in plain words, with 409", async () => {
+    recordCost(
+      db(),
+      {
+        provider: "treg",
+        collector: "treg",
+        productId: "acme-docs",
+        units: 1,
+        amountMicroAud: 7_000_000,
+        jobId: null,
+      },
+      new Date(),
+    );
+    const response = await POST(post(ok));
+    expect(response.status).toBe(409);
+    const body = (await response.json()) as { error: string; message: string };
+    expect(body.error).toBe("budget_kept");
+    expect(body.message).toContain("kept for the weekly checks");
+    expect(queued()).toEqual([]);
+  });
+
+  it("answers 429 once 4 checks were made today across the products", async () => {
+    const now = Date.now();
+    for (const [i, id] of ["p-1", "p-2", "p-3", "p-4"].entries()) {
+      db()
+        .insert(jobs)
+        .values({
+          kind: "outside-check",
+          params: { productId: id },
+          dedupeKey: `k${i}`,
+          status: "ok",
+          createdAt: new Date(now - (i + 1) * 60_000),
+        })
+        .run();
+    }
+    const response = await POST(post(ok));
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({ error: "daily_cap_all" });
+  });
 
   it("answers 429 for a check made in the last 6 hours", async () => {
     const first = await POST(post(ok));

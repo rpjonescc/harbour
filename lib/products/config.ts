@@ -26,7 +26,10 @@ const isPlainText = (value: string) =>
 const PLAIN = "must be plain visible text on one line (no control or hidden characters)";
 
 const productSchema = z.object({
-  id: z.string().regex(/^[a-z0-9-]+$/, "id must be a lowercase slug (a-z, 0-9, -)"),
+  id: z
+    .string()
+    .regex(/^[a-z0-9-]+$/, "id must be a lowercase slug (a-z, 0-9, -)")
+    .max(200, "id must be at most 200 characters"),
   name: z.string().trim().min(1, "name must not be empty").refine(isPlainText, `name ${PLAIN}`),
   url: z.url({ protocol: /^https?$/, message: "url must be an http(s) URL" }),
   hue: z.enum(HUES, { message: `hue must be one of: ${HUES.join(", ")}` }),
