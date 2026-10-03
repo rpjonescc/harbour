@@ -3,6 +3,7 @@ import { AREAS } from "@/lib/explain/areas";
 import type { Product } from "@/lib/products/catalog";
 import type { ProductView } from "@/lib/scan/product-view";
 import { AREA_KEYS } from "@/lib/scan/views";
+import { IndexingPanel } from "./IndexingPanel";
 import { IssueList } from "./IssueList";
 import { PagesTable } from "./PagesTable";
 import { PaidSourcePanels } from "./PaidSourcePanels";
@@ -60,6 +61,7 @@ export function ProductOverview({
         locale={locale}
       />
       <PagesTable rows={view.pages.rows} total={view.pages.total} />
+      <IndexingPanel indexing={view.indexing} locale={locale} />
       <SearchConsolePanel search={view.search} locale={locale} />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <PaidSourcePanels />

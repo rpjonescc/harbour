@@ -1,4 +1,5 @@
 import { AreaCards } from "@/components/products/AreaCards";
+import { IndexingPanel } from "@/components/products/IndexingPanel";
 import { IssueItem } from "@/components/products/IssueItem";
 import { PagesTable } from "@/components/products/PagesTable";
 import { PaidSourcePanels } from "@/components/products/PaidSourcePanels";
@@ -12,6 +13,7 @@ import { ScoreValue } from "@/components/ui/ScoreValue";
 import { Tabs } from "@/components/ui/Tabs";
 import type { RuleActionStatus } from "@/lib/actions/views";
 import { AREAS } from "@/lib/explain/areas";
+import type { IndexingState } from "@/lib/scan/indexing-view";
 import {
   EXAMPLE_ISSUE,
   EXAMPLE_PRODUCT,
@@ -31,6 +33,43 @@ const ISSUE_STATES: { label: string; action: RuleActionStatus | null }[] = [
   { label: "Done, still found", action: { id: 3, status: "done", snoozedUntil: null, who: null } },
   { label: "Snoozed", action: { id: 4, status: "snoozed", snoozedUntil: "2026-10-20", who: null } },
   { label: "Not tracked yet", action: null },
+];
+
+const BY_STATE = {
+  indexed: 3,
+  discovered_not_indexed: 40,
+  crawled_not_indexed: 6,
+  unknown_to_google: 2,
+  blocked: 1,
+  other: 1,
+  unknown: 0,
+};
+const COUNTED = {
+  state: "counted",
+  indexed: 3,
+  checked: 53,
+  total: 53,
+  byState: BY_STATE,
+  checkedThrough: "2026-10-01T06:00:00.000Z",
+} as const;
+
+/** Every state of the "Pages in Google" panel. */
+const INDEXING_STATES: { label: string; indexing: IndexingState }[] = [
+  { label: "Every page checked", indexing: COUNTED },
+  { label: "Still checking a large site", indexing: { ...COUNTED, checked: 20, indexed: 1 } },
+  {
+    label: "Search Console not connected",
+    indexing: { state: "empty", why: "not_connected", reason: null },
+  },
+  {
+    label: "No sitemap pages",
+    indexing: { state: "empty", why: "no_sitemap", reason: "No sitemap pages were recorded" },
+  },
+  {
+    label: "Google didn't answer",
+    indexing: { state: "empty", why: "failed", reason: "Search Console refused access (HTTP 403)" },
+  },
+  { label: "Not checked yet", indexing: { state: "empty", why: "waiting", reason: null } },
 ];
 
 /** Fictional product-page states for checking the scan components in both themes. */
@@ -110,6 +149,14 @@ export function ScanExamples() {
           },
         ]}
       />
+      {INDEXING_STATES.map(({ label, indexing }) => (
+        <div key={label} className="flex flex-col gap-1">
+          <p className="text-2xs uppercase tracking-widest text-ink-muted">
+            Pages in Google · {label}
+          </p>
+          <IndexingPanel indexing={indexing} locale={ZONE.locale} />
+        </div>
+      ))}
       <SearchConsolePanel
         locale={ZONE.locale}
         search={{

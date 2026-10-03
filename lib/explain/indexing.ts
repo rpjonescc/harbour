@@ -1,3 +1,4 @@
+import type { FourParts } from "@/lib/explain/four-parts";
 import type { IndexState } from "@/lib/scan/index-shapes";
 
 // What "is Google indexing my pages?" says in plain words: the action text and the product page.
@@ -28,13 +29,12 @@ export const INDEXING_ONE_LINER =
   "How many of your pages Google has added to its search results. Pages it hasn't added can't be found there.";
 
 /** The four parts behind "What's this?". */
-export const INDEXING_PARTS = {
-  what: "Harbour asks Google about the pages in your sitemap, up to 100 a day, and counts the ones it has added to its search results.",
-  matters:
-    "A page Google hasn't added can't appear in search, so nobody finds it however good it is.",
-  do: "If many pages are missing, make each one clearly different and useful, link to it from other pages and earn links from other sites.",
-  check: "The count rises as Google adds pages. New pages can take a few weeks.",
-} as const;
+export const INDEXING_PARTS: FourParts = {
+  what: "The number of pages in your sitemap that Google has added to its search results. Harbour asks Google about up to 100 pages a day.",
+  why: "A page Google hasn't added can't appear in search, so nobody finds it however good it is.",
+  todo: "If many pages are missing, make each one clearly different and useful, link to it from your other pages and earn links from other sites. New pages can take a few weeks.",
+  worth: "Pages Google has added are the ones that can bring visitors from search.",
+};
 
 /** The plain name of each state, for the breakdown inside Technical details. */
 export const INDEX_STATE_NAMES: Readonly<Record<IndexState, string>> = {
