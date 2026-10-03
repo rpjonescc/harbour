@@ -1,3 +1,4 @@
+import { ideaWords } from "@/lib/explain/job-words";
 import type { Job } from "@/lib/jobs/queue";
 import { describeStamp, isNoteStamp } from "@/lib/note/stamp";
 import { RESEARCH_TOPICS } from "./topics";
@@ -11,11 +12,6 @@ const GATE_LABEL = new Map([
   ["humanizer", "humanizer"],
   ["facts", "facts and platform"],
 ]);
-
-/** "acme-docs-20261002-five-minutes" becomes "five minutes". */
-function ideaWords(ideaId: string | undefined): string {
-  return (ideaId ?? "").replace(/^[a-z0-9-]+?-\d{8}-/, "").replaceAll("-", " ");
-}
 
 function contentJobLabel(job: Pick<Job, "kind" | "params">, products: readonly Named[]): string {
   const { params } = job;

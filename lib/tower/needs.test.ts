@@ -13,7 +13,7 @@ const quiet: NeedsFacts = {
 const fine: Light[] = [
   { id: "worker", tone: "ok", sentence: "The worker is running.", href: "/x" },
 ];
-const board = { count: 0, href: "/actions?view=board&focus=needs-you", lines: [] };
+const board = { count: 0, href: "/actions?view=board&focus=needs-you" };
 const facts = (over: Partial<NeedsFacts>): NeedsFacts => ({ ...quiet, ...over });
 
 describe("needsYou", () => {
@@ -103,8 +103,8 @@ describe("needsYou", () => {
         "1 research target for Acme Docs is waiting for your OK.",
         "/settings/products/acme-docs",
       ],
-      ["run", "A run didn't finish: Find ideas: Acme Blog.", "/agents/3"],
-      ["run", "A run didn't finish: Weekly report: 2026-W40.", "/agents/4"],
+      ["run", "Didn't finish finding ideas for Acme Blog.", "/agents/3"],
+      ["run", "Didn't finish writing the weekly report.", "/agents/4"],
     ]);
     expect(items[1]?.button.label).toBe("See what happened");
     expect(items[1]?.since).toEqual(ago(5 * HOUR));

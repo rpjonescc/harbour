@@ -1,8 +1,9 @@
 // The Schedules, Agents and Spend lights (split from system.ts to keep each module small). Pure.
 
-import { jobLabel, type Named } from "@/lib/agents/view";
+import type { Named } from "@/lib/agents/view";
 import { formatAud } from "@/lib/costs/budget";
 import type { CostMeterView } from "@/lib/costs/meter-view";
+import { jobWords } from "@/lib/explain/job-words";
 import { budgetReachedLine, NO_BUDGET, NO_PAID_DATA, spendOfBudget } from "@/lib/explain/spend";
 import type { LightTone } from "@/lib/explain/tower";
 import { agoPhrase } from "@/lib/explain/tower";
@@ -56,15 +57,15 @@ export function scheduleLight(schedules: readonly ScheduleFact[], words: Words):
 
 /** Fine when no agent run failed in 24 h without a later success; busy while one runs. */
 export function agentsLight(agents: SystemFacts["agents"], products: readonly Named[]): Shaped {
-  const label = (job: (typeof agents.running)[number]) => jobLabel(job, products);
+  const doing = (job: (typeof agents.running)[number]) => jobWords(job, products).doing;
   if (agents.failedUnretried.length > 0) {
-    return { tone: "watch", sentence: AGENTS_SENTENCE.failed(agents.failedUnretried.map(label)) };
+    return { tone: "watch", sentence: AGENTS_SENTENCE.failed(agents.failedUnretried.map(doing)) };
   }
   const [running] = agents.running;
   if (running !== undefined) {
     return {
       tone: "busy",
-      sentence: AGENTS_SENTENCE.running(label(running), agents.queued.length),
+      sentence: AGENTS_SENTENCE.running(doing(running), agents.queued.length),
     };
   }
   if (agents.queued.length > 0) {

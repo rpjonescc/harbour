@@ -1,6 +1,8 @@
 // The sentence under each of the tower's system lights. The shaper (lib/tower/system.ts) decides
 // the tone; these say what it means, in plain words, leading with the point.
 
+import { sentenceCase } from "./job-words";
+
 const DAY = 24 * 60 * 60_000;
 
 /** The calendar day of `at` in `timeZone`, as "2026-10-02". */
@@ -72,13 +74,12 @@ export const AGENTS_SENTENCE = {
     if (finishedToday === 0) return "Nothing running.";
     return `Nothing running. ${finishedToday} ${finishedToday === 1 ? "run" : "runs"} finished today.`;
   },
-  running: (label: string, waiting: number) =>
-    `Running now: ${label}.${waiting > 0 ? ` ${waiting} more waiting.` : ""}`,
+  /** `doing` from jobWords: "checking Acme Docs". */
+  running: (doing: string, waiting: number) =>
+    `${sentenceCase(doing)}.${waiting > 0 ? ` ${waiting} more waiting.` : ""}`,
   waiting: (n: number) => `${n} ${n === 1 ? "run is" : "runs are"} waiting to start.`,
-  failed: (labels: readonly string[]) =>
-    labels.length === 1
-      ? `A run didn't finish (${labels[0]}).`
-      : `${labels.length} runs didn't finish.`,
+  failed: (doing: readonly string[]) =>
+    doing.length === 1 ? `Didn't finish ${doing[0]}.` : `${doing.length} runs didn't finish.`,
 } as const;
 
 export const SPEND_SENTENCE = {

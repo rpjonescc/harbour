@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { claimNextJob, enqueueJob } from "@/lib/jobs/queue";
 import { recordWorkerBeat } from "@/lib/ops/worker-beat";
@@ -49,6 +50,29 @@ describe("loadTower", () => {
       "acme-blog",
     ]);
     expect(tower.active).toBe(false);
+  });
+
+  it("isolates the daily note: a database it can't read fails only the note tile", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    // Past the sample (a sample Today shows the fixed note without reading anything).
+    vi.mocked(todaySummary).mockImplementationOnce(() => {
+      throw new Error("no summary");
+    });
+    db.run(sql.raw("ALTER TABLE jobs RENAME TO jobs_hidden_note_test"));
+    try {
+      const config = towerConfig(dir, { HARBOUR_PERSONALITY: "warm" });
+      const tower = loadTower(db, config, PRODUCT_ROWS, t0, []);
+      expect(tower.note).toEqual({ ok: false, detail: expect.stringContaining("jobs") });
+      expect(error).toHaveBeenCalledWith(expect.stringContaining('tower tile "note" failed'));
+    } finally {
+      db.run(sql.raw("ALTER TABLE jobs_hidden_note_test RENAME TO jobs"));
+    }
+  });
+
+  it("has no note under the quiet personality", () => {
+    const config = towerConfig(dir, { HARBOUR_PERSONALITY: "quiet" });
+    const tower = loadTower(db, config, PRODUCT_ROWS, t0, []);
+    expect(tower.note).toEqual({ ok: true, data: null });
   });
 
   it("keeps the other tiles when one reader throws, and logs the failure once", () => {

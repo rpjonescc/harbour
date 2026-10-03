@@ -31,7 +31,7 @@ export const NOTE_MESSAGES = {
   starting: "Starting…",
   rejected: "That note didn't pass Harbour's checks, so nothing was shown. You can try again.",
   noToken: "Notes need Claude to be connected. The setup steps are on the Agents page.",
-  unavailable: "Harbour couldn't read today's note. The briefing below is still up to date.",
+  unavailable: "Harbour couldn't read today's note. Everything else on this page is up to date.",
   rateLimited: (noteTime: string | null) =>
     noteTime === null
       ? "That's plenty of notes for one day. You can ask again tomorrow."

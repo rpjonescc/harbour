@@ -1196,8 +1196,9 @@ six columns that read left to right as the job's life.
 | In review | Finished, and waiting for a look (a job with a pull request is always here) |
 | Done | Finished in the last 14 days |
 
-Each card says what the job is, why it matters, who is on it, what it waits for, what happens next
-and the last move. A card says **Stuck** when nothing has changed for more than 7 days in Started or
+Each card is short: what the job is, why it matters (two lines), the project and one line saying
+who has it and what it waits for. **Details** on the card opens what happens next and the last move;
+the ⇄ button is **Move to…**. A card says **Stuck** when nothing has changed for more than 7 days in Started or
 In progress, or more than 3 days in In review. Each column has a "What's this?" that explains it.
 **Snoozed** cards and cards **dismissed** in the last 14 days are not columns: they sit in the
 **Parked** strip under the board, where **Bring back now** or **Restore to Backlog** puts them back.
@@ -1211,8 +1212,9 @@ column except that a new idea cannot go straight to Done: **Accept** it first (t
 Done out for a new idea), or move it to Queue.
 
 **The Today strip.** Today's **Where the work is** band shows a tile per column with its count, a
-bar of how the jobs are spread, how many are stuck, how many need you (new ideas, pull requests
-waiting for a look, and your own work in Started, In progress or In review) and what moved today.
+bar of how the jobs are spread, one line saying how many are stuck, one line saying how many need you
+(new ideas, pull requests waiting for a look, and your own work in Started, In progress or In review)
+and what moved today. It only counts what needs you: the list itself is Today's **Needs you**.
 Each tile opens that column on the board; **See the stuck jobs** and **See what needs you** open the
 board narrowed to those cards, with a line at the top and a **Show everything** link to clear it.
 

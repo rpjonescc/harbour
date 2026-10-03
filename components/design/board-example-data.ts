@@ -150,14 +150,7 @@ const NEEDS_HREF = "/actions?view=board&focus=needs-you";
 
 export const NORMAL_STRIP: WorkStrip = strip([5, 3, 1, 2, 1, 4], {
   stuck: { count: 0, href: STUCK_HREF },
-  needsYou: {
-    count: 2,
-    href: NEEDS_HREF,
-    lines: [
-      "Answer “how do I install Acme Docs?” on the setup page. Waiting for you to accept or dismiss it.",
-      "Shorten the home page title. Waiting for your OK on the pull request.",
-    ],
-  },
+  needsYou: { count: 2, href: NEEDS_HREF },
   movedToday: {
     count: 2,
     lastLine: "Claude moved “Fix the broken link in the setup guide” to Started.",
@@ -166,23 +159,13 @@ export const NORMAL_STRIP: WorkStrip = strip([5, 3, 1, 2, 1, 4], {
 
 const BUSY_STRIP: WorkStrip = strip([24, 9, 4, 6, 7, 18], {
   stuck: { count: 3, href: STUCK_HREF },
-  needsYou: {
-    count: 8,
-    href: NEEDS_HREF,
-    lines: [
-      "Add structured data to the changelog. Nothing has changed for more than 7 days.",
-      "Shorten the home page title. Waiting for your OK on the pull request.",
-      "Add a FAQ to the setup page. Waiting for you to accept or dismiss it.",
-      "Compress the hero image. Waiting for your OK on the pull request.",
-      "Link the pricing page from the docs menu. Waiting for you to accept or dismiss it.",
-    ],
-  },
+  needsYou: { count: 8, href: NEEDS_HREF },
   movedToday: { count: 6, lastLine: "You moved “Add a FAQ to the setup page” to Queue." },
 });
 
 const CLEAR_STRIP: WorkStrip = strip([0, 0, 0, 0, 0, 0], {
   stuck: { count: 0, href: STUCK_HREF },
-  needsYou: { count: 0, href: NEEDS_HREF, lines: [] },
+  needsYou: { count: 0, href: NEEDS_HREF },
   movedToday: { count: 0, lastLine: null },
 });
 

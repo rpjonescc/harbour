@@ -230,6 +230,9 @@ test.describe("on a phone", () => {
       return [...bar.children].filter((s) => s.getBoundingClientRect().right > edge + 1).length;
     });
     expect(clipped).toBe(0);
+    // The jump links are one short row that scrolls sideways, not tall wrapped rows.
+    const jump = await page.getByTestId("jump-list").boundingBox();
+    expect(jump?.height ?? 0).toBeLessThanOrEqual(60);
     const lights = region(page, SECTION_TITLES.systems).getByRole("button", {
       name: new RegExp(`^(${Object.values(LIGHT_LABELS).join("|")}): `),
     });
@@ -249,6 +252,22 @@ test.describe("on a phone", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(
       false,
     );
+  });
+});
+
+test.describe("on a tablet", () => {
+  test.use({ viewport: { width: 768, height: 1024 } });
+
+  test("the work strip's Stuck and Needs you lines keep their words on a line or two", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const strip = page.getByRole("region", { name: SECTION_TITLES.work });
+    for (const name of ["See the stuck jobs", "See what needs you"]) {
+      const line = strip.getByRole("listitem").filter({ has: page.getByRole("link", { name }) });
+      const box = await line.boundingBox();
+      expect(box?.height ?? 0).toBeLessThanOrEqual(100);
+    }
   });
 });
 

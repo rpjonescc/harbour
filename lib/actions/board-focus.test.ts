@@ -59,10 +59,6 @@ describe("stuck and needs-you past the card cap", () => {
     const strip = loadWorkStrip(db, NOW, "Europe/London", PRODUCTS);
     expect(strip.stuck.count).toBe(1);
     expect(strip.needsYou.count).toBe(2);
-    expect(strip.needsYou.lines.map((line) => line.split(".")[0])).toEqual([
-      "stuck, mine",
-      "review, no PR",
-    ]);
   });
 
   it("a focused board shows those cards", () => {

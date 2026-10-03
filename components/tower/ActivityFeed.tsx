@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TechnicalDetails } from "@/components/explain/TechnicalDetails";
 import { Panel } from "@/components/ui/Panel";
 import { Tag } from "@/components/ui/Tag";
 import { type LightTone, SECTION_TITLES } from "@/lib/explain/tower";
@@ -26,27 +27,20 @@ function FeedRow({ item }: { item: FeedItem }) {
       <span className="flex h-5 items-center">
         <LightMark tone={MARK[item.kind]} />
       </span>
-      <span className="min-w-0 flex-1">
+      <span className="flex min-w-0 flex-1 flex-col items-start">
         {item.href ? (
           <Link href={item.href} className={TILE_LINK}>
             {item.sentence}
           </Link>
         ) : (
-          item.sentence
-        )}{" "}
-        <span className="whitespace-nowrap text-xs text-ink-muted">{item.ago}</span>
-        {item.kind === "win" && (
-          <>
-            {" "}
-            <Tag tone="good">{FEED_TEXT.win}</Tag>
-          </>
+          <span>{item.sentence}</span>
         )}
-        {item.isNew && (
-          <>
-            {" "}
-            <Tag>{FEED_TEXT.isNew}</Tag>
-          </>
-        )}
+        {/* Its own line: when and the tags never wrap into the sentence. */}
+        <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-ink-muted">{item.ago}</span>
+          {item.kind === "win" && <Tag tone="good">{FEED_TEXT.win}</Tag>}
+          {item.isNew && <Tag>{FEED_TEXT.isNew}</Tag>}
+        </span>
       </span>
     </li>
   );
@@ -66,6 +60,21 @@ function Group({ title, items, none }: { title: string; items: FeedItem[]; none:
         </ul>
       )}
     </div>
+  );
+}
+
+/** The jobs' names as the Agents page and the queue know them: codes stay out of the feed's face. */
+function JobNames({ items }: { items: FeedItem[] }) {
+  const named = items.filter((item) => item.technical !== null);
+  if (named.length === 0) return null;
+  return (
+    <TechnicalDetails id="tower-activity" topic={FEED_TEXT.technicalTopic}>
+      <ul className="flex flex-col gap-1 font-mono text-ink-muted">
+        {named.map((item) => (
+          <li key={item.id}>{item.technical}</li>
+        ))}
+      </ul>
+    </TechnicalDetails>
   );
 }
 
@@ -90,6 +99,7 @@ function FeedPanel({ feed }: { feed: Feed }) {
           </Link>
         </p>
       )}
+      <JobNames items={[...running, ...feed.finished]} />
     </Panel>
   );
 }

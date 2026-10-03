@@ -6,6 +6,8 @@ import type { ContentScan } from "@/lib/content/read/scan";
 import type { Db } from "@/lib/db/client";
 import type { Briefing } from "@/lib/explain/briefing";
 import { towerHeadlineParts } from "@/lib/explain/tower";
+import { noteEnabled } from "@/lib/note/schedule";
+import { type NoteSlot, noteSlot } from "@/lib/note/view";
 import { backupStatus } from "@/lib/ops/backup-status";
 import { getContentProducts, type Product } from "@/lib/products/catalog";
 import type { ContentProduct } from "@/lib/products/content";
@@ -42,6 +44,8 @@ export type Tower = {
   isSample: boolean;
   activity: TileResult<ActivityFeed>;
   wins: TileResult<WeekWins>;
+  /** The daily note beside Needs you; null data when the personality is quiet. */
+  note: TileResult<NoteSlot | null>;
   /** A check or agent run is queued or running: the page refreshes more often. */
   active: boolean;
 };
@@ -86,6 +90,22 @@ function runwayCards(ctx: Ctx, summary: TodaySummary, content: () => ContentScan
   });
 }
 
+/** The note card's slot. Without a token the worker skips the scheduled note, so none is promised. */
+function readNote({ db, config, now }: Ctx, isSample: boolean): NoteSlot | null {
+  const tokenSet = Boolean(config.HARBOUR_CLAUDE_OAUTH_TOKEN);
+  return noteSlot({
+    db,
+    personality: config.HARBOUR_PERSONALITY,
+    isSample,
+    root: config.HARBOUR_BRAIN_DIR,
+    timeZone: config.HARBOUR_TIMEZONE,
+    noteTime: config.HARBOUR_NOTE_TIME,
+    scheduled: noteEnabled(config) && tokenSet,
+    tokenSet,
+    now,
+  });
+}
+
 /** Everything the tower shows, each tile isolated: a throw becomes that tile's plain failure. */
 export function loadTower(
   db: Db,
@@ -124,6 +144,8 @@ export function loadTower(
     weekWins(winsFacts(db, config, products, now, content()), products, timeZone, locale),
   );
 
+  const note = loadTile("note", () => readNote(ctx, summary.ok && summary.data.isSample));
+
   const lights = systems.ok ? systems.data : null;
   const trouble = lights ? troubleLights(lights.lights) : null;
   const { lead, subline } = towerHeadlineParts({
@@ -150,6 +172,7 @@ export function loadTower(
     isSample: summary.ok && summary.data.isSample,
     activity,
     wins,
+    note,
     active,
   };
 }

@@ -13,6 +13,8 @@ const ALLOWED = [
   // Pure board modules (no database): the column ids and the refusal sentences.
   /^@\/lib\/actions\/board-column$/,
   /^@\/lib\/actions\/move-refusal$/,
+  // The research topics: plain data, so a job's words can name the note it wrote.
+  /^@\/lib\/agents\/topics$/,
   /^@\/lib\/scan\/labels$/,
   /^@\/lib\/scan\/scoring\/sub-score$/,
   /^@\/lib\/text\/hidden-chars$/,

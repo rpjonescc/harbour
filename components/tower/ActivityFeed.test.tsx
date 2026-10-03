@@ -6,6 +6,7 @@ import {
   RUNNING_ITEMS,
 } from "@/components/design/tower-feed-example-data";
 import { NOTHING_RAN, TILE_FAILED } from "@/lib/explain/tower";
+import { textOutsideDetails } from "@/tests/helpers/plain-text";
 import { ActivityFeed } from "./ActivityFeed";
 
 const [busy, idle, quiet] = FEED_EXAMPLES.map((e) => e.result);
@@ -25,7 +26,7 @@ describe("ActivityFeed", () => {
     const rows = within(listUnder("Running now")).getAllByRole("listitem");
     expect(rows).toHaveLength(RUNNING_ITEMS.length);
     for (const row of rows) expect(row.querySelector("svg")).toHaveAttribute("data-tone", "busy");
-    expect(rows[0]).toHaveTextContent("Running now: Checking Acme Docs.");
+    expect(rows[0]).toHaveTextContent("Checking Acme Docs.");
     expect(rows[0]).toHaveTextContent("4 min ago");
   });
 
@@ -52,6 +53,25 @@ describe("ActivityFeed", () => {
     expect(fresh).toHaveClass("tower-new");
     expect(older).not.toHaveTextContent("new");
     expect(older).not.toHaveClass("tower-new");
+  });
+
+  it("keeps the runs' technical names under Technical details, off the feed's face", () => {
+    if (!busy) throw new Error("missing example");
+    const { container } = render(<ActivityFeed result={busy} />);
+    const details = container.querySelector("details");
+    expect(details).toHaveTextContent("Weekly report: 2026-W40 (weekly-analyst)");
+    expect(textOutsideDetails(container)).not.toMatch(/weekly-analyst|\(scan\)|Check \(/);
+  });
+
+  it("puts when and the tags on their own line under the sentence", () => {
+    if (!busy) throw new Error("missing example");
+    render(<ActivityFeed result={busy} />);
+    const [first] = within(listUnder("Finished")).getAllByRole("listitem");
+    const when = within(first as HTMLElement).getByText("just now");
+    expect(when.parentElement).toHaveTextContent(/^just now\s*win\s*new$/);
+    expect(when.parentElement?.contains(within(first as HTMLElement).getByRole("link"))).toBe(
+      false,
+    );
   });
 
   it("says when nothing is running but things finished", () => {

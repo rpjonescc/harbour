@@ -50,4 +50,13 @@ describe("TowerHeader", () => {
       "?",
     );
   });
+
+  it("keeps the jump links one sideways-scrolling row below the wide layout", () => {
+    renderHeader("Nothing else needs you.");
+    const nav = screen.getByRole("navigation", { name: "On this page" });
+    expect(nav.className).toMatch(/(^| )flex-nowrap( |$)/);
+    expect(nav.className).toContain("overflow-x-auto");
+    expect(nav.className).toContain("lg:flex-wrap");
+    expect(nav.querySelectorAll("a")).toHaveLength(6);
+  });
 });

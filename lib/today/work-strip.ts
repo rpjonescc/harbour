@@ -6,18 +6,16 @@ import { ACTION_STATUSES, type ActionActor, type ActionStatus } from "@/lib/acti
 import { getConfig } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
 import { actionEvents, actions } from "@/lib/db/schema";
-import { COLUMN_COPY, movedTodayLine, needsYouLine } from "@/lib/explain/board";
+import { COLUMN_COPY, movedTodayLine } from "@/lib/explain/board";
 import { localMoment, zonedInstant } from "@/lib/format/zoned-time";
 import { getProducts, type Product } from "@/lib/products/catalog";
 
-/** At most this many "Needs you" lines show on Today; the tile says how many more. */
-export const NEEDS_LINES = 5;
 const MOVE_SCAN_LIMIT = 200;
 
 export type WorkStrip = {
   tiles: { column: BoardColumnId; name: string; count: number; href: string }[];
   stuck: { count: number; href: string };
-  needsYou: { count: number; href: string; lines: string[] };
+  needsYou: { count: number; href: string };
   movedToday: { count: number; lastLine: string | null };
 };
 
@@ -67,7 +65,7 @@ function movedToday(db: Db, now: Date, timeZone: string, productIds: string[]) {
 
 /**
  * The Today "Where the work is" band: true column counts, how many cards are stuck or need the
- * owner (with plain lines for the first few), and what moved since midnight in `timeZone`.
+ * owner (the tower's own "Needs you" lists them), and what moved since midnight in `timeZone`.
  */
 export function loadWorkStrip(
   db: Db,
@@ -75,11 +73,8 @@ export function loadWorkStrip(
   timeZone: string = getConfig().HARBOUR_TIMEZONE,
   products: readonly Pick<Product, "id" | "name">[] = getProducts(),
 ): WorkStrip {
-  // Focused on needs-you: the counts stay true totals, and the columns hold the cards to word.
+  // Focused, so the query loads only the few cards that need the owner; the counts stay true totals.
   const board = loadBoard(db, { productId: null, area: null, focus: "needs-you" }, now, products);
-  const needs = BOARD_COLUMNS.flatMap((column) =>
-    board.columns[column].map((card) => ({ column, card })),
-  );
   return {
     tiles: BOARD_COLUMNS.map((column) => ({
       column,
@@ -88,13 +83,7 @@ export function loadWorkStrip(
       href: BOARD_HREF,
     })),
     stuck: { count: board.focusCounts.stuck, href: `${BOARD_HREF}&focus=stuck` },
-    needsYou: {
-      count: board.focusCounts["needs-you"],
-      href: `${BOARD_HREF}&focus=needs-you`,
-      lines: needs
-        .slice(0, NEEDS_LINES)
-        .map(({ column, card }) => needsYouLine(card.title, column, card)),
-    },
+    needsYou: { count: board.focusCounts["needs-you"], href: `${BOARD_HREF}&focus=needs-you` },
     movedToday: movedToday(
       db,
       now,

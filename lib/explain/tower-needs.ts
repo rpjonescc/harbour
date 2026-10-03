@@ -19,7 +19,8 @@ export const NEED_SENTENCE = {
   contentReady: (count: number) => `${count} ${n(count, "draft is", "drafts are")} ready for you.`,
   approvals: (count: number, productName: string) =>
     `${count} research ${n(count, "target", "targets")} for ${productName} ${n(count, "is", "are")} waiting for your OK.`,
-  run: (label: string) => `A run didn't finish: ${label}.`,
+  /** `doing` from jobWords: "finding ideas for Acme Blog". */
+  run: (doing: string) => `Didn't finish ${doing}.`,
 } as const;
 
 /** The button's accessible name: its label, then what it is for ("Review: …"). */

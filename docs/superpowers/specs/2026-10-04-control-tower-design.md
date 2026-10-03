@@ -110,6 +110,8 @@ the DOM is the reading order in §1 at every width.
   sentence (what needs you) is the polite live region (§10).
 - **Sub-line**: the long date, "updated HH:MM" (the server render time), and an **On this page**
   jump list of the six sections (in-page links, so the keyboard can jump straight to a section).
+  Below 1024 px the jump list is one row that scrolls sideways, label included, so it never
+  wraps into tall rows of touch targets (polish, 4 October 2026).
 - **What's this page?** at the right (§6.3).
 - The briefing sentence from the plain-language spec moves to lead section (d), where it describes
   the products. It keeps its words and its tests.
@@ -204,7 +206,9 @@ The whole card is not a link (that would make one huge accessible name). Its hea
 
 A calm feed for the last 24 hours, in two groups:
 
-- **Running now**: queued and running jobs, each a sentence from `jobLabel()` ("Checking Acme Docs",
+- **Running now**: queued and running jobs, each a sentence from `jobWords()` in
+  `lib/explain/job-words.ts` (polish: was `jobLabel()`, whose "Check (humanizer): …" read as jargon;
+  the label and job kind now sit only under the feed's Technical details) ("Checking Acme Docs",
   "Claude is drafting a post for Acme Blog") with a `busy` light and "started 4 min ago".
 - **Finished**: up to 5 items, **wins first** (a job that succeeded and produced something, a card
   moved to Done, a score rise), then ordinary finishes, then failures last, each with its plain
@@ -334,7 +338,7 @@ never breaks the page.
 | Needs you | `needsFacts(db, config, now)` | `needsYou(facts, lights, board)` | `actionCounts`, `approvalsWaiting`, `scanContent` |
 | Work | Board's `loadWorkStrip` | — | — |
 | Runways | `runwayFacts(db, config, product, now)` | `runwayCard(facts, now)` | `productToday`, `topActiveActions`, `scanState` + `scanFindings` + `indexingState`, `outsideView`, `scanContent`, `weeklyScoreChanges` |
-| Activity | `activityFacts(db, now)` | `activityFeed(facts, now)` | `jobLabel`, `RUN_HEADLINE` |
+| Activity | `activityFacts(db, now)` | `activityFeed(facts, now)` | `jobWords` (plain), `jobLabel` (Technical details only) |
 | Wins | `winsFacts(db, config, now)` | `weekWins(facts, now)` | `weeklyScoreChanges`, `verdictFor`, `formulaChangedArea` |
 
 `weeklyScoreChanges(db, productId, kind, now)` is new in `lib/scan/views.ts`: each area's latest score and
@@ -494,9 +498,13 @@ Board was merged in first. Where it differs from the sections above:
 - **Runway cards (§4.6).** Highlights are `<Term>`s. A gap's reason is left out when the check
   line already says the same words ("Not checked yet." once). Before the first check the cards
   show the sample verdicts under the sample banner while "checked" stays real.
-- **Work strip (§4.5).** Inserted unchanged in `#tower-work`; if it can't be read a "Where the
+- **Work strip (§4.5).** Inserted in `#tower-work`; if it can't be read a "Where the
   work is" section says so, so there are always six h2s. On a phone the flow bar's segments wrap
-  instead of clipping; Stuck and Needs you keep their own height.
+  instead of clipping. Polish (4 October): the strip's Needs you is no longer a second list. Stuck
+  and Needs you are one line each (a count and a link to the board's `focus=stuck` /
+  `focus=needs-you`), side by side, so an empty Stuck no longer leaves a hole beside a long list.
+  The board's filter, not the section above, is the link target: the section is already on screen,
+  and the filter is the one place that holds every card behind the count.
 - **Motion (§11).** Breathing ring 2.4 s and new-item tint 1.2 s, both tokens
   (`--duration-breathe`, `--duration-settle`), both off under reduced motion.
 - **Night (§13).** New primitives for night; contrast tests cover ink, muted ink, accent and the
@@ -513,5 +521,8 @@ Board was merged in first. Where it differs from the sections above:
   the worker table for one render, so the real reader throws inside the real loader). There is no
   axe check: it would be a new dependency, and contrast is proved by the token tests instead.
 - **Not built yet:** the "new" tint on Needs-you items; one shared `productToday` read per render
-  (it is read three times; bounded by the product count); the daily note is not behind `loadTile`
-  (it already catches an unreadable folder, but a database error there would still fail the page).
+  (it is read three times; bounded by the product count).
+- **Daily note isolation (polish, 4 October).** The note is a tile of `loadTower` behind
+  `loadTile("note")`. An unreadable folder still shows the card's own "couldn't read today's note"
+  line; a database error now fails only the note, with "Harbour couldn't read the daily note just
+  now…" and the error under Technical details.
