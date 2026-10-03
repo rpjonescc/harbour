@@ -10,6 +10,7 @@ import { ProposalExamples } from "@/components/design/ProposalExamples";
 import { ScanExamples } from "@/components/design/ScanExamples";
 import { SettingsExamples } from "@/components/design/SettingsExamples";
 import { SourcesExamples } from "@/components/design/SourcesExamples";
+import { TermExamples } from "@/components/design/TermExamples";
 import { TodayExamples } from "@/components/design/TodayExamples";
 import { TokenSwatches } from "@/components/design/TokenSwatches";
 import { WaveExample } from "@/components/design/WaveExample";
@@ -90,6 +91,9 @@ export default async function DesignPage() {
       </Section>
       <Section title="Plain-language examples">
         <ExplainExamples />
+      </Section>
+      <Section title="Terms and page help">
+        <TermExamples />
       </Section>
       <Section title="Today examples">
         {firstProduct && <TodayExamples product={firstProduct} />}
