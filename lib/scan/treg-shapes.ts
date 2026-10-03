@@ -73,6 +73,7 @@ export const TREG_PROBLEMS = [
   "unreadable",
   "rejected",
   "network",
+  "rows_dropped",
 ] as const;
 export type TregProblem = (typeof TREG_PROBLEMS)[number];
 

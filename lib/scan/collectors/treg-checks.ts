@@ -75,9 +75,7 @@ async function outsideLinks(run: TregRun, domain: string, summary: Summary): Pro
   });
   if (listed.kind === "stop") return keep(false, { stopAfter: listed.why });
   if (listed.kind === "failed") return keep(false, { note: listed.problem });
-  const { rows } = listed.value;
-  // The list says exactly the domains the summary counted: none at all cannot be right.
-  if (rows.length === 0) return keep(false, { note: "unreadable" });
+  const { rows, dropped } = listed.value;
   const own = rows.filter((row) => hostMatches(row.host, domain));
   const ownPages = own.reduce((sum, row) => sum + row.pages, 0);
   const backlinks = Math.max(0, summary.backlinks - ownPages);
@@ -90,6 +88,7 @@ async function outsideLinks(run: TregRun, domain: string, summary: Summary): Pro
       dofollow: Math.min(summary.dofollow, backlinks),
       ownDomainExcluded: true,
     },
+    ...(dropped > 0 ? { note: "rows_dropped" as const, noteCount: dropped } : {}),
   };
 }
 
@@ -172,7 +171,9 @@ export async function runChecks(
       // A check that kept a usable result but lost a part says so, without being a failed check.
       if (outcome.note) {
         const reason = outcome.note;
-        tally.problems.push({ check: task.check, subject: task.subject.slice(0, 160), reason });
+        const detail = outcome.noteCount === undefined ? "" : ` (${outcome.noteCount})`;
+        const subject = `${task.subject.slice(0, 150)}${detail}`;
+        tally.problems.push({ check: task.check, subject, reason });
       }
       if (outcome.stopAfter) {
         tally.stoppedBy = outcome.stopAfter;

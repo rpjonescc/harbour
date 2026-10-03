@@ -16,9 +16,9 @@ const LIST = "serpstat.web.linking_domains.list";
 const TRACKING = { queries: [], questions: ["Who is Acme?"], country: "AU", languageCode: "en" };
 const row = (domain_from: string, ref_pages: number) => ({ domain_from, ref_pages });
 
-async function links(answers: Answers, mode?: FakeTregOptions["mode"]) {
+async function links(answers: Answers, mode?: FakeTregOptions["mode"], product?: { url: string }) {
   const server = await fakeTreg({ answers, mode });
-  const run = await tregRun({ origin: server.origin, tracking: TRACKING });
+  const run = await tregRun({ origin: server.origin, tracking: TRACKING, product });
   const [found] = observed(run.result, "backlinks");
   return { server, run, value: backlinksValue.parse(found?.value) };
 }
@@ -74,15 +74,6 @@ describe("backlinks: the site's own domain is not an outside site", () => {
       linkingRows: [row(DOMAIN, 5), row("a.example.org", 0)],
     });
     expect(value).toMatchObject({ referringDomains: 1, backlinks: 0, dofollow: 0 });
-  });
-
-  it("does not let a hidden character hide the site's own domain", async () => {
-    const { value } = await links({
-      referringDomains: 2,
-      backlinks: 8,
-      linkingRows: [row(`docs.exam\u200bple.com`, 3), row("a.example.org", 5)],
-    });
-    expect(value).toMatchObject({ referringDomains: 1, backlinks: 5 });
   });
 
   it("makes no list call for a site with more than 25 linking domains", async () => {
@@ -141,7 +132,6 @@ describe("backlinks: the list call goes wrong", () => {
   it.each([
     ["no rows", []],
     ["a row that is not readable", [{ domain_from: 5, ref_pages: 1 }]],
-    ["a row with a negative page count", [row("a.example.org", -1)]],
   ])("treats %s as unreadable, never as outside", async (_name, rows) => {
     const { value } = await links({
       referringDomains: 1,
@@ -232,5 +222,130 @@ describe("history written before the own domain was left out", () => {
     const parsed = backlinksValue.parse(old);
     expect(parsed.ownDomainExcluded).toBeUndefined();
     expect(backlinksValue.safeParse({ ...old, ownDomainExcluded: "yes" }).success).toBe(false);
+  });
+});
+
+describe("backlinks: one odd row does not spoil the list", () => {
+  const summary = (value: Awaited<ReturnType<typeof links>>["run"]) =>
+    tregSummaryValue.parse(observed(value.result, "treg_summary")[0]?.value);
+
+  it("matches a unicode own domain through its punycode form, and keeps a unicode outsider", async () => {
+    const { value, server } = await links(
+      {
+        referringDomains: 3,
+        backlinks: 20,
+        linkingRows: [
+          row("B\u00fccher.example", 6),
+          row("caf\u00e9.example.org", 4),
+          row("a.example.org", 5),
+        ],
+      },
+      undefined,
+      { url: "https://b\u00fccher.example/" },
+    );
+    expect(value).toMatchObject({ referringDomains: 2, backlinks: 14, ownDomainExcluded: true });
+    const list = server.calls.find((c) => c.endpoint === LIST);
+    // Asked for the punycode name, the one the site's own URL has.
+    expect(JSON.stringify(list?.json)).toContain("xn--bcher-kva.example");
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["a string", "12"],
+    ["negative", -4],
+    ["fractional", 2.5],
+    ["huge", 1e30],
+    ["null", null],
+  ])("counts a row whose page count is %s as a domain with 0 pages", async (_name, pages) => {
+    const { value } = await links({
+      referringDomains: 2,
+      backlinks: 10,
+      linkingRows: [
+        { domain_from: "a.example.org", ref_pages: pages as never },
+        row("b.example.org", 10),
+      ],
+    });
+    expect(value).toMatchObject({ referringDomains: 2, backlinks: 10, ownDomainExcluded: true });
+  });
+
+  it("subtracts nothing for an own row with an odd page count", async () => {
+    const { value } = await links({
+      referringDomains: 2,
+      backlinks: 10,
+      linkingRows: [{ domain_from: DOMAIN, ref_pages: "many" as never }, row("b.example.org", 10)],
+    });
+    expect(value).toMatchObject({ referringDomains: 1, backlinks: 10 });
+  });
+
+  it("drops rows that are not a plain host, counts them, and never quotes them", async () => {
+    const hostile = [
+      { domain_from: 5, ref_pages: 1 },
+      { domain_from: null, ref_pages: 1 },
+      { domain_from: { a: 1 }, ref_pages: 1 },
+      "not an object",
+      null,
+      row("evil\u202emoc.example", 1),
+      row("a\u0000b.example", 1),
+      row("zero\u200bwidth.example", 1),
+      row("two words.example", 1),
+      row("example.org/path", 1),
+      row("example.org:8080", 1),
+      row("user@example.org", 1),
+      row("", 1),
+      row("x".repeat(300), 1),
+    ];
+    const rows = [row("a.example.org", 5), ...hostile];
+    const { value, run } = await links({
+      referringDomains: 15,
+      backlinks: 50,
+      linkingRows: rows as never,
+    });
+    expect(value).toMatchObject({ referringDomains: 1, ownDomainExcluded: true });
+    const tally = summary(run);
+    expect(tally.problems).toEqual([
+      { check: "backlinks", subject: `${DOMAIN} (14)`, reason: "rows_dropped" },
+    ]);
+    expect(tally).toMatchObject({ ok: 2, failed: 0 });
+    expect(JSON.stringify(tally)).not.toMatch(/evil|zero|words|8080|user@/);
+  });
+
+  it("counts a domain once, whatever the case and www, adding its pages", async () => {
+    const { value } = await links({
+      referringDomains: 4,
+      backlinks: 20,
+      linkingRows: [
+        row("a.example.org", 5),
+        row("A.Example.ORG", 5),
+        row("www.a.example.org", 5),
+        row("b.example.org", 5),
+      ],
+    });
+    expect(value).toMatchObject({ referringDomains: 2, backlinks: 20 });
+  });
+
+  it("uses only the rows that were asked for", async () => {
+    const { value } = await links({
+      referringDomains: 2,
+      backlinks: 20,
+      linkingRows: [
+        row("a.example.org", 5),
+        row("b.example.org", 5),
+        row("c.example.org", 5),
+        row(DOMAIN, 5),
+      ],
+    });
+    expect(value).toMatchObject({ referringDomains: 2, ownDomainExcluded: true });
+  });
+
+  it("falls back to the summary, noting unreadable, when every row is junk", async () => {
+    const { value, run } = await links({
+      referringDomains: 2,
+      backlinks: 9,
+      linkingRows: [{ domain_from: 1, ref_pages: 1 }, row("evil\u202e.example", 1)] as never,
+    });
+    expect(value).toMatchObject({ referringDomains: 2, backlinks: 9, ownDomainExcluded: false });
+    expect(summary(run).problems).toEqual([
+      { check: "backlinks", subject: DOMAIN, reason: "unreadable" },
+    ]);
   });
 });

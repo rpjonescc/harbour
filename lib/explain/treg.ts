@@ -30,6 +30,7 @@ export const TREG_PROBLEM_TEXT: Readonly<Record<TregProblem, string>> = {
   unreadable: "The answer could not be read",
   rejected: "The service refused this check",
   network: "The service could not be reached",
+  rows_dropped: "Some linking sites in the list could not be read and were left out",
 };
 
 /**

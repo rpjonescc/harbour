@@ -31,6 +31,8 @@ export type CallOutcome<Out> =
       value: Out;
       /** A part of the check that failed but left a usable result (a fixed code). */
       note?: TregProblem;
+      /** How many things the note is about (rows left out), a number never text. */
+      noteCount?: number;
       /** A reason to end the run, found by that part. */
       stopAfter?: "budget" | "balance" | "key" | "error";
     }

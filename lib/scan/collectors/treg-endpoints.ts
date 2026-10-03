@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { type AiAnswer, type Backlinks, SERP_DEPTH, type SerpRank } from "../treg-shapes";
-import { cleanHost, hostMatches, hostOfUrl, normalisedUrl } from "./treg-match";
+import { cleanHost, hostMatches, hostOfUrl, listedHost, normalisedUrl } from "./treg-match";
 
 // The one table of Treg endpoints Harbour calls: id, price, how to ask and how to read the answer.
 // Prices are what `treg catalog get <id>` quotes; they change only with a code change. Every
@@ -85,17 +85,21 @@ export const MAX_LISTED_DOMAINS = 25;
 export const LINKING_ROW_MICRO_USD = 500;
 
 type LinkingIn = { domain: string; rows: number };
-type LinkingOut = { rows: { host: string; pages: number }[] };
+/** The distinct linking hosts with their page counts, and how many list rows could not be read. */
+type LinkingOut = { rows: { host: string; pages: number }[]; dropped: number };
 
-// The rows are `{domain_from, ref_pages, domainRank}`; the list sits under result.data. A row that
-// is not readable fails the whole answer: it could be the site's own, and a guess would count it.
-const linkingRow = z.object({
-  domain_from: z.string().min(1).max(253),
-  ref_pages: count,
-});
+// The rows are `{domain_from, ref_pages, domainRank}`; the list sits under result.data. One odd row
+// does not spoil the list: a row whose domain is not a plain host is dropped and counted (never
+// quoted), a missing or odd page count is 0, and the same domain twice is one domain.
 const linkingAnswer = z.object({
   result: z.object({ data: z.array(z.unknown()).max(MAX_ITEMS) }),
 });
+
+/** A page count, or 0 when the row has none that makes sense. */
+const pagesOf = (raw: unknown): number => {
+  const parsed = count.safeParse(raw);
+  return parsed.success ? parsed.data : 0;
+};
 
 export const LINKING_DOMAINS: Endpoint<LinkingIn, LinkingOut> = {
   id: "serpstat.web.linking_domains.list",
@@ -107,17 +111,23 @@ export const LINKING_DOMAINS: Endpoint<LinkingIn, LinkingOut> = {
     id: "1",
     params: { query: domain, size: rows },
   }),
-  parse(body) {
+  parse(body, { rows: asked }) {
     const parsed = linkingAnswer.safeParse(body);
     if (!parsed.success) return null;
-    const rows: LinkingOut["rows"] = [];
-    for (const raw of parsed.data.result.data) {
-      const row = linkingRow.safeParse(raw);
-      const host = row.success ? cleanHost(row.data.domain_from) : null;
-      if (!row.success || host === null) return null;
-      rows.push({ host, pages: row.data.ref_pages });
+    const byHost = new Map<string, number>();
+    let dropped = 0;
+    // Only as many rows as were asked for: more than that is not the answer to this question.
+    for (const raw of parsed.data.result.data.slice(0, asked)) {
+      const row = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
+      const host = listedHost(row.domain_from);
+      if (host === null) {
+        dropped += 1;
+        continue;
+      }
+      byHost.set(host, (byHost.get(host) ?? 0) + pagesOf(row.ref_pages));
     }
-    return { rows };
+    if (byHost.size === 0) return null;
+    return { rows: [...byHost].map(([host, pages]) => ({ host, pages })), dropped };
   },
 };
 
