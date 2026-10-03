@@ -152,8 +152,10 @@ export function resumeChains(deps: ChainDeps): number {
   for (const job of newest.values()) {
     try {
       if (afterContentJob(deps, job)) queued += 1;
-    } catch {
+    } catch (error) {
       // One idea whose files cannot be read must not stop the others; its job keeps its record.
+      // Only the error's kind is logged: its message could carry a path or a piece's own words.
+      console.error(`job ${job.id}: resuming its chain failed (${(error as Error).name})`);
       addEvent(
         deps.db,
         job.id,

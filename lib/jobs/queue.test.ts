@@ -1,7 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sql } from "drizzle-orm";
 import { migrateDb, openDb } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import { openTestDb } from "@/tests/helpers/db";
@@ -14,14 +13,12 @@ import {
   finishJob,
   getAgentRun,
   getJob,
-  heartbeat,
   importsGivenUp,
   isCancelRequested,
   listJobs,
   MAX_EVENTS,
   MAX_STREAM_EVENTS,
   recoverRunningJobs,
-  recoverStaleJobs,
   requestCancel,
 } from "./queue";
 
@@ -66,27 +63,13 @@ describe("job queue", () => {
     expect(requestCancel(db, running, at(4))).toBe("not-active");
   });
 
-  it("fails running jobs whose heartbeat went stale", () => {
-    const db = openTestDb();
-    const id = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
-    claimNextJob(db, t0);
-    heartbeat(db, id, at(10_000));
-    expect(recoverStaleJobs(db, at(30_000))).toBe(0);
-    expect(recoverStaleJobs(db, at(80_000))).toBe(1);
-    expect(getJob(db, id)).toMatchObject({
-      status: "failed",
-      error: expect.stringMatching(/worker stopped/i),
-    });
-  });
-
-  it("recovers every running job at worker start, even with a fresh heartbeat", () => {
+  it("recovers every running job at worker start", () => {
     const db = openTestDb();
     const agent = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
     const sync = enqueueJob(db, "notes-sync", {}, null, t0).id;
     const queued = enqueueJob(db, "research", { topic: "b" }, null, t0).id;
     claimNextJob(db, t0);
     claimNextJob(db, t0);
-    heartbeat(db, agent, at(1000));
     expect(recoverRunningJobs(db, at(1001))).toEqual([agent, sync]);
     expect(getJob(db, agent)).toMatchObject({
       status: "failed",
@@ -156,7 +139,7 @@ describe("job queue transitions", () => {
     expect(getJob(db, id)?.status).toBe("cancelled");
     const failed = enqueueJob(db, "research", { topic: "b" }, null, t0).id;
     claimNextJob(db, t0);
-    recoverStaleJobs(db, at(120_000));
+    recoverRunningJobs(db, at(120_000));
     expect(finishJob(db, failed, "ok", null, at(130_000))).toBe(false);
     expect(getJob(db, failed)?.status).toBe("failed");
   });
@@ -171,7 +154,6 @@ describe("job queue transitions", () => {
       status: "queued",
       notBefore: at(60_000),
       startedAt: null,
-      heartbeatAt: null,
     });
     expect(claimNextJob(db, at(1))?.id).toBe(push);
     expect(claimNextJob(db, at(59_999))).toBeNull();
@@ -186,14 +168,6 @@ describe("job queue transitions", () => {
     const a = enqueueJob(db, "research", { x: "1", y: "2" }, null, t0);
     const b = enqueueJob(db, "research", { y: "2", x: "1" }, null, t0);
     expect(b).toEqual({ id: a.id, created: false });
-  });
-
-  it("treats a running job with no heartbeat as stale", () => {
-    const db = openTestDb();
-    const id = enqueueJob(db, "research", { topic: "a" }, null, t0).id;
-    claimNextJob(db, t0);
-    db.run(sql`UPDATE jobs SET heartbeat_at = NULL WHERE id = ${id}`);
-    expect(recoverStaleJobs(db, at(1))).toBe(1);
   });
 
   it("stays consistent across two connections to one file", () => {

@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
-import { readFileSync, statSync } from "node:fs";
+import { lstatSync } from "node:fs";
 import { join } from "node:path";
 import { eq, or, sql } from "drizzle-orm";
 import type { Db } from "@/lib/db/client";
 import { brainDocs, brainLinks } from "@/lib/db/schema";
+import { readBoundedBytes } from "@/lib/note/bounded-read";
 import { MAX_DOC_BYTES, titleFor } from "./docs";
 import { splitFrontmatter } from "./frontmatter";
 import { filePaths, listTree, TREE_LIMIT } from "./tree";
@@ -27,7 +28,8 @@ function replaceLinks(tx: Tx, path: string, body: string, linkIndex: LinkIndex) 
  * Brings brain_docs, brain_fts and brain_links in line with the files on disk.
  * Unchanged files (same content hash) are skipped, except that links are re-resolved
  * for every document when files were added or removed. Files over MAX_DOC_BYTES are left
- * out of the index and reported in `skipped`.
+ * out of the index and reported in `skipped`, as is a file that is no longer a regular file
+ * when it is read (swapped for a symlink after the listing): nothing is read through a link.
  */
 export function reindexAll(
   db: Db,
@@ -37,7 +39,8 @@ export function reindexAll(
   const tree = listTree(root, limit);
   if (tree.truncated) throw new Error("Brain tree truncated; index unchanged");
   const allPaths = filePaths(tree.nodes);
-  const sizes = new Map(allPaths.map((path) => [path, statSync(join(root, path))]));
+  // lstat: a path that became a symlink is measured, never followed.
+  const sizes = new Map(allPaths.map((path) => [path, lstatSync(join(root, path))]));
   const skipped = allPaths.filter((path) => (sizes.get(path)?.size ?? 0) > MAX_DOC_BYTES);
   const paths = allPaths.filter((path) => !skipped.includes(path));
   const present = new Set(paths);
@@ -56,11 +59,16 @@ export function reindexAll(
 
   db.transaction((tx) => {
     for (const path of paths) {
-      const absolute = join(root, path);
-      const text = readFileSync(absolute, "utf8");
+      // One no-follow descriptor, capped: a symlink or a file grown past the cap reads as null.
+      const bytes = readBoundedBytes(join(root, path), MAX_DOC_BYTES);
+      if (bytes === null) {
+        skipped.push(path);
+        continue;
+      }
+      const text = bytes.toString("utf8");
       const hash = createHash("sha256").update(text).digest("hex");
       const { frontmatter, body } = splitFrontmatter(text);
-      const mtime = sizes.get(path)?.mtime ?? statSync(absolute).mtime;
+      const mtime = sizes.get(path)?.mtime ?? lstatSync(join(root, path)).mtime;
       const prior = existing.get(path);
       if (prior?.hash === hash) {
         if (prior.mtime.getTime() !== mtime.getTime()) {

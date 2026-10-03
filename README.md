@@ -436,6 +436,9 @@ queries as an input to ideas. The design and its known limits are in the
 Harbour is built to be safe to leave running:
 
 - **Loopback only.** The web server binds `127.0.0.1:3400`; nothing on your LAN can reach it.
+- **One host name.** A request whose `Host` header is not `HARBOUR_ORIGIN`'s host (and port) is
+  rejected with 403, so another site cannot reach Harbour by pointing its own name at it
+  (DNS rebinding). Open Harbour at exactly the address in `HARBOUR_ORIGIN`.
 - **Lock 1 — Tailscale identity.** Tailscale Serve publishes Harbour over HTTPS to your
   tailnet and adds the `Tailscale-User-Login` header. Requests whose login is not on
   `HARBOUR_ALLOWED_LOGINS` are rejected with 403.

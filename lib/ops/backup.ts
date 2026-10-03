@@ -121,7 +121,7 @@ export async function runBackup(db: Db, opts: BackupOptions): Promise<BackupResu
   try {
     // Created private before any byte is copied; "wx" refuses anything already at that path.
     closeSync(openSync(partial, "wx", 0o600));
-    // Steps run on setImmediate, so the worker's heartbeat keeps beating; a write by another
+    // Steps run on setImmediate, so the event loop stays responsive; a write by another
     // connection restarts the copy at the next step, which the deadline bounds.
     const progress = await connectionOf(db).backup(partial, {
       progress: () => {

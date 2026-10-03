@@ -38,7 +38,12 @@ export function brainRootError(root: string): string | null {
 
 /** Why brain writes must wait: an interrupted agent run's changes are not recovered yet. */
 export function recoveryBlock(quarantineRoot: string): string | null {
-  const pending = pendingRecovery(quarantineRoot);
+  let pending: string[];
+  try {
+    pending = pendingRecovery(quarantineRoot);
+  } catch (error) {
+    return `${(error as Error).message}, so nothing was written. Check that Harbour can read the quarantine folder next to its database, then run it again.`;
+  }
   if (pending.length === 0) return null;
   return `A previous run's changes are still being recovered (job ${pending.join(", ")}) — this resumes automatically once they are in quarantine`;
 }

@@ -134,14 +134,16 @@ Phase 2 ships in two parts with separate implementation plans:
   commit_sha, pushed, stdout_tail, stderr_tail)`,
   `agent_run_events(id, run_id, at, kind, text)`.
 - Status flow: `queued → running → ok | failed | cancelled`. The worker claims one job
-  at a time with an atomic update; heartbeat every 10s. On start, any `running` job
-  whose heartbeat is older than 60s is marked `failed` ("worker stopped during run").
+  at a time with an atomic update. The worker is the only runner: a job its runner leaves
+  `running` is marked `failed` as soon as the runner returns, and on start every `running`
+  job is marked `failed` ("worker stopped during run"). (`heartbeat_at` is no longer written.)
 - The web process only inserts jobs and sets `cancel_requested`; it never spawns agents.
 - **Quiet brain:** an agent job is not started while anything in the brain changed in the
   last 3 minutes (newest uncommitted change by mtime; a deletion is dated by its folder).
   The job goes back to `queued` with `not_before` set to when the brain will have been quiet
   for 3 minutes, plus one "Waiting for the brain to be quiet" event; claiming skips jobs that
-  are not yet due.
+  are not yet due. An mtime in the future counts as now, and a job still waiting six hours
+  after it was queued fails with a plain sentence instead of waiting forever.
 - A run whose agent dies while the worker is stopping (systemd stops the whole group) is
   `cancelled` ("Cancelled — the worker was stopped"), not failed.
 
@@ -245,7 +247,7 @@ Phase 2 ships in two parts with separate implementation plans:
   frontmatter valid/invalid, wiki-link resolution (resolved, ambiguous, broken),
   sanitisation (script, event handler, style, iframe removed).
 - **Search:** index build, watcher update, snippet highlighting; dialog keyboard flow.
-- **Worker:** fake clock for heartbeat and stale-job recovery; atomic claim; cancel.
+- **Worker:** jobs left running are failed; atomic claim; cancel.
 - **Runner:** fake `claude` binary replaying recorded stream-json fixtures — success,
   timeout, cancel, write outside allowed area (restored, run failed), invalid
   proposals (nothing imported), push failure (commit kept, banner shown).

@@ -127,4 +127,21 @@ describe("listSites", () => {
     expect(error.message).toMatch(/HTTP 403.*Google Search Console API/);
     expect(error.message).not.toContain("access-x");
   });
+
+  it("stops reading an oversized answer at the cap instead of reading it whole", async () => {
+    const chunk = new Uint8Array(64 * 1024).fill(32);
+    let pulled = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += chunk.byteLength;
+        if (pulled > 16 * 1024 * 1024)
+          controller.close(); // a safety stop for the old behaviour
+        else controller.enqueue(chunk);
+      },
+    });
+    const fetch = vi.fn(async () => new Response(endless, { status: 200 }));
+    const error = await failure(listSites(fetch, "access-x"));
+    expect(error.message).toMatch(/oversized/);
+    expect(pulled).toBeLessThan(1024 * 1024);
+  });
 });
