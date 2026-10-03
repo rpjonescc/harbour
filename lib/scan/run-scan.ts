@@ -227,7 +227,7 @@ function recordCrash(scan: Scan, error: unknown) {
     scan.event("error", `Scan failed: ${message(error)}`);
     finish(deps, job, "failed", message(error));
   } catch (recordError) {
-    // The job keeps "running" until heartbeat recovery or the next worker start fails it.
+    // The worker fails a job left "running" once this runner returns (runAndSettle).
     console.error(`job ${job.id}: could not record the scan failure`, recordError);
   }
 }

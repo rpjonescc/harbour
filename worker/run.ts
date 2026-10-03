@@ -17,13 +17,13 @@ import { contentRunDeps, decisionDeps, resumeContentChains } from "@/lib/content
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
 import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
-import { keepAlive } from "@/lib/jobs/heartbeat";
 import { makeImportRetry } from "@/lib/jobs/import-retry";
 import { isAgentJobKind } from "@/lib/jobs/job-kinds";
-import { claimNextJob, heartbeat, type Job } from "@/lib/jobs/queue";
+import { claimNextJob, type Job } from "@/lib/jobs/queue";
 import { type RunDeps, runAgentJob } from "@/lib/jobs/run-job";
 import { makeScanSchedule, type QueuedScan } from "@/lib/jobs/scan-schedule";
 import { makeScheduler } from "@/lib/jobs/scheduler";
+import { runAndSettle } from "@/lib/jobs/settle-job";
 import { failUnknownJob } from "@/lib/jobs/unknown-job";
 import { gatherFacts } from "@/lib/note/gather";
 import { makeNoteSchedule, noteEnabled } from "@/lib/note/schedule";
@@ -37,7 +37,6 @@ import { failInterruptedScans } from "@/lib/scan/store";
 import { type WorkerTestSeams, workerScanDeps } from "@/lib/scan/worker-deps";
 
 const IDLE_MS = 2000;
-const HEARTBEAT_MS = 10_000;
 
 let stopping = false;
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
@@ -281,12 +280,12 @@ export async function runWorker(seams?: WorkerTestSeams) {
       continue;
     }
     console.log(`job ${job.id} (${job.kind}) started`);
-    const stopBeat = keepAlive(job.id, () => heartbeat(db, job.id), HEARTBEAT_MS);
-    try {
-      await runJob(job);
-    } finally {
-      stopBeat();
-      console.log(`job ${job.id} finished`);
-    }
+    await runAndSettle(
+      db,
+      job,
+      () => runJob(job),
+      () => new Date(),
+    );
+    console.log(`job ${job.id} finished`);
   }
 }
