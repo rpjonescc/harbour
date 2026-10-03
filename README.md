@@ -70,8 +70,13 @@ explainable breakdowns. The roadmap continues with:
 - **A warm friend** — Today opens with a short note an agent writes fresh every morning, in
   the voice of a seasoned, warm, quick-witted friend: it celebrates real wins, is honest and
   kind about bad news and always gives a next step, and on a weekend or late at night says what
-  can wait. A calm wave drifts behind the app. Both are off with `HARBOUR_PERSONALITY=quiet`
-  (see [Daily note](#daily-note)).
+  can wait. Both the note and the [ocean background](#ocean-background) are off with
+  `HARBOUR_PERSONALITY=quiet` (see [Daily note](#daily-note)).
+- **Ocean background** — the lower half of every page, the sign-in page included, is calm water:
+  three soft wave layers rolling slowly behind the content (see
+  [Ocean background](#ocean-background)).
+- **Works on a phone** — on narrow screens the sidebar folds into a top bar with a **Menu**
+  button (Escape closes it), and the page uses the full width without sideways scrolling.
 - **Cost meter** — Today shows this month's paid API spend against your monthly budget, with a
   month-end projection, a warning at 80 % and a pause at 100 %. Until a paid source (Treg, for
   the weekly [outside view](#the-outside-view-treg)) is connected it says "No paid data
@@ -555,7 +560,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_CRAWL_MAX_PAGES` | no | `200` | Most pages the visibility check's crawler fetches per product per check, 1 to 500. The crawler stays on the product's origin, honours `robots.txt`, and fetches at most two pages at a time, at least 500 ms apart. |
 | `HARBOUR_SCHEDULED_SCANS` | no | `on` | `off` stops the worker queueing checks by itself (the daily 06:00 check and the catch-up on start); `pnpm scan:now` still queues them by hand. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_ANALYST` | no | `on` | `off` stops the worker queueing the weekly analyst by itself (Sundays at 20:00 and the catch-up on start); **Write this week's report now** and `pnpm analyst:now` still queue it by hand. Restart the worker after changing it. |
-| `HARBOUR_PERSONALITY` | no | `warm` | `warm` or `quiet`. `quiet` turns off the daily note (its job, its card on Today) and the wave behind the app. See [Daily note](#daily-note). Restart both services after changing it. |
+| `HARBOUR_PERSONALITY` | no | `warm` | `warm` or `quiet`. `quiet` turns off the daily note (its job, its card on Today) and the ocean background on every page. See [Daily note](#daily-note). Restart both services after changing it. |
 | `HARBOUR_NOTE_TIME` | no | `06:30` | The local time, `HH:MM` in `HARBOUR_TIMEZONE`, the worker writes the daily note each day (and catches up on start). Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_NOTE` | no | `on` | `off` stops the worker queueing the daily note by itself; **Write me a fresh one** on Today still queues it. Restart the worker after changing it. |
 | `HARBOUR_CONTENT` | no | `off` | `on` turns on the content machine: the Content page, the daily activity digest, ideas and drafting. Off hides the page and stops every content job. Restart both services after changing it. |
@@ -739,14 +744,30 @@ on the same runner, git gate and Claude subscription as the other agents.
 - **Changing the personality** — edit `lib/note/persona/warm-friend.md` (the voice, the honesty
   rules, the format) and bump `NOTE_PROMPT_VERSION` in `lib/note/prompt.ts`. The rules the
   checker enforces are in `lib/explain/voice/`.
-- **Quiet** — `HARBOUR_PERSONALITY=quiet` removes the schedule, the card and the wave.
+- **Quiet** — `HARBOUR_PERSONALITY=quiet` removes the schedule, the card and the ocean background.
 - **Not pruned yet** — old notes stay in the brain (about 400 small files a year).
 
-The wave is inline SVG and CSS only (no script): three faint layers in the tide tint, drifting
-slowly at different speeds, behind the page content and never in the way of a click. It holds
-still under `prefers-reduced-motion: reduce`, browsers do not animate it in a hidden tab, and a
-celebrating note makes the front layer ripple once. A test checks that every text colour keeps
-WCAG AA contrast over all three layers stacked, in light, dark and system dark.
+A celebrating note makes the front wave of the [ocean background](#ocean-background) rise once.
+
+### Ocean background
+
+Harbour is a harbour, so the lower half of every page is water: a soft fade to the horizon and
+three wave layers (far, middle, near), each edged with a thin foam line, rolling sideways and
+bobbing gently, each at its own slow pace (26 to 40 seconds a loop). It sits behind everything: cards, panels and text always stay on
+top and keep their own background, and clicks pass straight through it. It shows on the sign-in
+and setup pages too.
+
+- **Calm by design** — pale sea-glass on the paper theme, deep teal water in the dark. Every text
+  colour keeps WCAG AA contrast (at least 4.5:1, the usual readability bar) on every ocean colour,
+  in light, dark and system dark; a test checks this, so a token change that hurts legibility fails.
+- **Reduced motion** — with *Reduce motion* turned on in your operating system, the waves hold
+  still as a still wave shape.
+- **Cheap** — inline SVG and CSS only, no script; it moves by `transform` alone, browsers do not
+  animate it in a hidden tab, and it is left out of print.
+- **Turning it off** — `HARBOUR_PERSONALITY=quiet` (it also turns off the daily note). There is no
+  separate setting.
+- **Changing it** — colours are the `--ocean-*` tokens in `design/tokens.css`; shape, speed and
+  phase are in `design/wave.ts`. Both are shown on `/design` under *Ocean background*.
 
 ### Monthly research refresh
 
@@ -1319,9 +1340,9 @@ GEO or AEO heading, no `HARBOUR_*` setting name or sub-score key, and not the wo
 
 The note specs choose **Write me a fresh one** against the fake CLI, which reads the fenced facts
 out of its prompt and writes an honest note, and the wave specs check that the wave is hidden from
-assistive technology, passes clicks through and stops under emulated reduced motion.
-`design/wave-contrast.test.ts` computes text contrast over the stacked wave from
-`design/tokens.css`.
+assistive technology, passes clicks through, shows on the sign-in page without widening it, is
+left out of print and stops under emulated reduced motion. `design/wave-contrast.test.ts`
+computes every text colour's contrast on every ocean colour from `design/tokens.css`.
 
 The Playwright projects run in order — the shell and brain specs, then agents, scans, actions, the
 weekly analyst, the note, content and finally operations (Settings) — because each later one changes what the
