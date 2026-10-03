@@ -17,6 +17,7 @@ import { contentRunDeps, decisionDeps, resumeContentChains } from "@/lib/content
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
 import { runNotesSyncJob, runPushJob } from "@/lib/jobs/git-jobs";
+import { guardTick } from "@/lib/jobs/guard-tick";
 import { makeImportRetry } from "@/lib/jobs/import-retry";
 import { isAgentJobKind } from "@/lib/jobs/job-kinds";
 import { claimNextJob, type Job } from "@/lib/jobs/queue";
@@ -261,20 +262,30 @@ export async function runWorker(seams?: WorkerTestSeams) {
     }
   };
 
+  // Between jobs only, never during a run. Each is guarded: one failing duty skips only itself.
+  const duties = [
+    guardTick("housekeeping", () => scheduler.tick()),
+    guardTick("scan schedule", () => logQueued("daily", scans.tick())),
+    guardTick("analyst schedule", () => logAnalyst("weekly", analyst.tick())),
+    guardTick("note schedule", () => logNote("daily", notes.tick())),
+    guardTick("digest schedule", () => logDigest("daily", digests.tick())),
+    guardTick("ideas schedule", () => logIdeas("weekly", ideas.tick())),
+    guardTick("research refresh", () => logRefreshes("monthly", refreshes.tick())),
+    guardTick("backup schedule", () => logBackup("nightly", backups.tick())),
+    guardTick("snoozed actions", () => {
+      const woken = snoozes.tick();
+      if (woken > 0) console.log(`woke ${woken} snoozed action(s)`);
+    }),
+    guardTick("import retry", () => {
+      const reimported = imports.tick(); // committed agent output whose import failed
+      if (reimported > 0) console.log(`re-imported the output of ${reimported} agent run(s)`);
+    }),
+  ];
+  const claim = guardTick("job claim", () => claimNextJob(db));
+
   while (!stopping) {
-    scheduler.tick(); // between jobs only: never during a run
-    logQueued("daily", scans.tick());
-    logAnalyst("weekly", analyst.tick());
-    logNote("daily", notes.tick());
-    logDigest("daily", digests.tick());
-    logIdeas("weekly", ideas.tick());
-    logRefreshes("monthly", refreshes.tick());
-    logBackup("nightly", backups.tick());
-    const woken = snoozes.tick();
-    if (woken > 0) console.log(`woke ${woken} snoozed action(s)`);
-    const reimported = imports.tick(); // committed agent output whose import failed
-    if (reimported > 0) console.log(`re-imported the output of ${reimported} agent run(s)`);
-    const job = claimNextJob(db);
+    for (const duty of duties) duty();
+    const job = claim();
     if (!job) {
       await sleep(IDLE_MS);
       continue;

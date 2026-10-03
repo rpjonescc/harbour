@@ -38,6 +38,21 @@ describe("runAndSettle", () => {
     expect(getJob(second.db, second.job.id)?.status).toBe("queued");
   });
 
+  it("fails a job whose runner threw with the real reason, and does not throw", async () => {
+    const { db, job } = claimed();
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const boom = async () => {
+        throw new TypeError("collector exploded");
+      };
+      await expect(runAndSettle(db, job, boom, now)).resolves.toBeUndefined();
+      expect(getJob(db, job.id)).toMatchObject({ status: "failed", error: "collector exploded" });
+      expect(String(error.mock.calls[0]?.[0])).toContain("TypeError: collector exploded");
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it("never throws when the job cannot be read or written", async () => {
     const { db, job } = claimed();
     connectionOf(db).close(); // the database itself is what failed

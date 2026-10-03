@@ -139,7 +139,8 @@ export function isCancelRequested(db: Db, id: number): boolean {
 }
 
 /**
- * At worker start every running job is orphaned (the worker is the only runner). Returns their ids so their partial changes can be recovered.
+ * At worker start every running job is orphaned (the worker is the only runner). Returns their
+ * ids so their partial changes can be recovered.
  */
 export function recoverRunningJobs(db: Db, now = new Date()): number[] {
   const agent = failRunning(

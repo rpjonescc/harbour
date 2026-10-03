@@ -5,13 +5,15 @@ import { addEvent, finishJob, type Job } from "./queue";
 export const LEFT_RUNNING =
   "Stopped without recording a result. Run it again; if this keeps happening, check the worker log.";
 
-const describe = (error: unknown) =>
+/** `Name: message` for the worker log (no stack: one line per failure). */
+export const describeError = (error: unknown) =>
   error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 
 /**
  * Runs one claimed job, then fails it if it is still 'running'. The worker is the only runner,
  * so a job left running after its runner returned (e.g. the runner's own failure record hit a
- * busy database) would otherwise wait for the next worker start. Never throws.
+ * busy database) would otherwise wait for the next worker start. A runner that throws fails its
+ * job with the real reason instead of stopping the worker. Never throws.
  */
 export async function runAndSettle(
   db: Db,
@@ -19,13 +21,21 @@ export async function runAndSettle(
   run: () => Promise<void>,
   now: () => Date,
 ): Promise<void> {
-  await run();
+  let reason = LEFT_RUNNING;
   try {
-    if (!finishJob(db, job.id, "failed", LEFT_RUNNING, now())) return;
+    await run();
+  } catch (error) {
+    console.error(`job ${job.id} (${job.kind}) crashed: ${describeError(error)}`);
+    reason = error instanceof Error ? error.message : String(error);
+  }
+  try {
+    if (!finishJob(db, job.id, "failed", reason, now())) return;
     console.warn(`job ${job.id} (${job.kind}) was left running; failed it`);
-    addEvent(db, job.id, "error", LEFT_RUNNING, now());
+    addEvent(db, job.id, "error", reason, now());
   } catch (error) {
     // The next worker start fails it (recoverRunningJobs).
-    console.error(`job ${job.id}: could not record that it was left running: ${describe(error)}`);
+    console.error(
+      `job ${job.id}: could not record that it was left running: ${describeError(error)}`,
+    );
   }
 }
