@@ -75,6 +75,8 @@ explainable breakdowns. The roadmap continues with:
 - **Ocean background** — the lower half of every page, the sign-in page included, is calm water:
   three soft wave layers rolling slowly behind the content (see
   [Ocean background](#ocean-background)).
+- **Works on a phone** — on narrow screens the sidebar folds into a top bar with a **Menu**
+  button (Escape closes it), and the page uses the full width without sideways scrolling.
 - **Cost meter** — Today shows this month's paid API spend against your monthly budget, with a
   month-end projection, a warning at 80 % and a pause at 100 %. Until a paid source (Treg, for
   the weekly [outside view](#the-outside-view-treg)) is connected it says "No paid data

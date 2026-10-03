@@ -94,6 +94,14 @@ export default async function DesignPage() {
       <Section title="Today examples">
         {firstProduct && <TodayExamples product={firstProduct} />}
       </Section>
+      <Section title="Navigation on a phone">
+        <p className="text-sm">
+          Below the md breakpoint (768px) the sidebar becomes a compact top bar: the Harbour name
+          and a <strong>Menu</strong> button. The menu opens in place under it, focus moves to its
+          first link, Escape closes it and returns focus to the button, and choosing a page closes
+          it. Content gets the full width, with no sideways scrolling.
+        </p>
+      </Section>
       <Section title="Ocean background">
         <WaveExample />
       </Section>
