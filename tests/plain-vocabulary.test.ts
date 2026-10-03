@@ -119,7 +119,9 @@ describe("plain vocabulary", () => {
     for (const word of ["Scan", "Scans", "scanning", "scanned"]) {
       expect(offencesIn(`const label = "${word}";`)).toHaveLength(1);
     }
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the input is source text holding a template
     expect(offencesIn('const t = `${n} ${plural(n, "scan")}`;')).toHaveLength(1);
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the input is source text holding a template
     expect(offencesIn("const t = `first line\nsecond ${x} scan`;")).toHaveLength(1);
   });
 

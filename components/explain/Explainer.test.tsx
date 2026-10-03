@@ -62,16 +62,14 @@ describe("Explainer", () => {
 
   it("gives each explainer on a page its own button name", () => {
     render(
-      <>
-        {AREA_ORDER.map((key) => (
-          <Explainer
-            key={key}
-            topic={AREAS[key].name}
-            oneLiner={AREAS[key].oneLiner}
-            parts={AREAS[key].parts}
-          />
-        ))}
-      </>,
+      AREA_ORDER.map((key) => (
+        <Explainer
+          key={key}
+          topic={AREAS[key].name}
+          oneLiner={AREAS[key].oneLiner}
+          parts={AREAS[key].parts}
+        />
+      )),
     );
     const names = screen.getAllByRole("button").map((button) => button.textContent);
     expect(new Set(names).size).toBe(3);

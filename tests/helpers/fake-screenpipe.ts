@@ -80,7 +80,10 @@ function fault(mode: FakeMode, res: ServerResponse, firstBody: string): boolean 
     res.end();
     return true;
   }
-  if (mode === "garbage") return json(res, 200, { nothing: "useful" }), true;
+  if (mode === "garbage") {
+    json(res, 200, { nothing: "useful" });
+    return true;
+  }
   if (mode === "bad-json") {
     res.writeHead(200, { "content-type": "application/json" });
     res.end("{not json");
