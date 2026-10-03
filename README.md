@@ -572,7 +572,6 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_MONTHLY_BUDGET_AUD` | no | `0` | Monthly cap on paid API spend in Australian dollars, 0 to 10000 in whole cents (e.g. `60` or `12.50`). `0` means no paid calls at all. See [Costs and budget](#costs-and-budget). Restart both services after changing it. |
 | `HARBOUR_TREG_API_KEY` | no | unset | Secret key for Treg, the pay-per-call service behind the weekly outside view (links to you, where you rank, whether AI assistants name you). Only the worker reads it; Settings shows only Connected or Not connected yet. Needs a monthly budget and a `tracking` list. See [The outside view](#the-outside-view-treg) and [Costs and budget](#costs-and-budget). |
 | `HARBOUR_USD_TO_AUD` | no | `1.55` | US dollars to Australian dollars, 1 to 3. Treg charges in US dollars; this converts both the amount reserved before a call and the charge recorded after it into the AUD ledger and budget. |
-| `HARBOUR_TREG_TEST_URL` | tests only | unset | An `http` origin on `127.0.0.1`, `[::1]` or `localhost` where the end-to-end tests run a fake Treg, so no test ever calls the real service. Refused unless `HARBOUR_TEST_MODE=1`. Never set it yourself. |
 | `HARBOUR_DATAFORSEO_LOGIN` | no | unset | Not used yet — reserved for the DataForSEO login of the future rankings and SERP collectors. Secret: only whether it is set will ever be shown (on Settings), never its value. |
 | `HARBOUR_DATAFORSEO_PASSWORD` | no | unset | Not used yet — reserved for the DataForSEO password of the future rankings and SERP collectors. Secret: only whether it is set will ever be shown (on Settings), never its value. |
 | `HARBOUR_OPENAI_API_KEY` | no | unset | Not used yet — reserved for the future AI-engines collector (ChatGPT search). Secret: only whether it is set will ever be shown (on Settings), never its value. |
@@ -949,13 +948,19 @@ is shown as plain text, never as a link.
 **Run this check now** (owner only) asks the worker for a check of that product right away, beside
 the weekly one. It is a normal job (`outside-check`, shown on Agents as "Check how the web sees
 you") that runs only the Treg collector through the same budget guard. It does not make a scan, so
-scores are untouched. Limits, counted per product from the jobs table: a second click while one is
-queued or running returns the same job; otherwise at most **one check every 6 hours and 3 a day**.
-A refused request says why in plain words (no searches chosen, Treg not connected, this month's
+scores are untouched. Limits, counted from the jobs table in your local day: a second click while one is queued or running
+returns the same job (before any limit); otherwise at most **one check per product every 6 hours,
+3 per product a day and 4 a day across all products**, and none once Treg has used **70 % of this
+month's budget** (the rest is kept for the weekly checks). A manual check does not count as the weekly
+run: the scheduled check still runs when it is due. A refused request says why in plain words (no searches chosen, Treg not connected, this month's
 budget used up, too soon, daily limit). A manual check ignores the weekly rhythm and the two-day
 wait after a failed paid run, but never the budget. If Treg refused the key the worker stays paused
 until it restarts; an empty balance pauses it for a day, and a manual check ignores that pause (you
-may have topped up) and ends it when it works.
+may have topped up) and ends it when at least one of its checks is answered.
+
+When a run answers only part (the budget ran out, Treg was paused, it stopped answering, or some
+checks didn't work) the section says "Partly checked: …" and why. The Actions board catches up at the
+next scan's rule sync after a manual check; the product page's issue list judges the history at once.
 
 Results are kept in the `external_checks` table (one row per links, position or AI check, written by
 the worker after the check, only if it passes its shape; 400 days, pruned by the nightly retention
@@ -1291,7 +1296,7 @@ runs, commits, pushes and discovery approvals are tested end to end without a re
 It also serves the fictional Acme Docs fixture site (`tests/fixtures/sites/acme-docs`) on
 `http://127.0.0.1:3402` (keep ports 3401 to 3405 free; 3403 is a second web server with
 `HARBOUR_PERSONALITY=quiet` for the note specs, 3404 a fake Screenpipe for the content specs and
-3405 a fake Treg for the outside-view specs, which `HARBOUR_TREG_TEST_URL` points the worker at, so
+3405 a fake Treg for the outside-view specs, which the end-to-end worker (`tests/e2e/worker.ts`) points at, so
 the real service is never called), and the E2E product config
 (`tests/fixtures/harbour.config.e2e.json`) points Acme Docs at it. Scheduled checks are off; the
 scan specs choose **Check now** and check the product page, Sources and Today on the real results.

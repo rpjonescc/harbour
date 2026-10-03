@@ -108,6 +108,14 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
      `server`, `timeout`, `unreadable`, `rejected`, `network`), never provider text. A run in which no check was
      answered is a failed run (retried at the next daily scan), not a week's success; a budget refusal before any
      call is a skip. After three failures in a row, or 8 minutes, the run stops and keeps what it has.
+  A key refusal or an empty balance (HTTP 401/403/402) halts the collector for **every product**, held in the
+  worker's memory: a refused key until the worker restarts (the owner fixes it and restarts), an empty balance
+  for 24 hours (it may be topped up). Later runs fail at once with a sentence saying why, and make no call; a
+  rate limit (429) stays per product. A **manual** check respects a key halt, ignores a balance halt, and ends
+  it when at least one of its checks is answered.
+  A run that answers only part says why on the page: the tally (`stoppedBy`, failures) is kept (the scan's
+  `treg_summary` for a scheduled run, the job's result `partial:<why>` for a manual one) and the section shows
+  "Partly checked: …" (budget ran out, Treg paused, Treg stopped answering, some checks didn't work).
 - **Price control:** every call carries `X-Treg-Route-Max-Cost` (a hard cap per call, from a per-endpoint
   constant with headroom), is preceded by `budget.allow(estimate)` and followed by `cost.record(actual)` from
   the response header. A call refused by the budget ends the run with a recorded partial result. Spend: a full run
@@ -119,12 +127,19 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
   or a retired endpoint; the weekly run logs the endpoint list it used.
 - All response text is untrusted data: validated with zod, strings capped, never rendered as markup.
 
-### 3.2a "Check now"
-- Besides the weekly run, the product page has a **Check now** button (owner only, same-origin POST, both
-  locks, audited) that enqueues an `outside-check` job for that product. The worker runs only the `treg`
-  collector for it, through the same budget guard, and stores the results as usual.
-- Limits: one check per product per 6 hours (a second click while one is queued returns the existing job),
-  and at most 3 manual checks per product per day. A refused or partial run says why in plain words.
+### 3.2a "Run this check now"
+- Besides the weekly run, the product page has a **Run this check now** button (owner only, same-origin POST,
+  session, audited, refusals audited too) that enqueues an `outside-check` job for that product. It is not
+  called "Check now" because the page already has a **Check now** for the scan. The worker runs only the
+  `treg` collector for it, through the same collector runner, spend guard and result checks as a scan, and
+  writes the results straight to `external_checks`. It makes **no scan** (a scan row would become the latest
+  scan and blank the page's scores), so the Actions board catches up at the next scan's rule sync; the product
+  page's issue list judges the history at once. It skips the weekly cadence and the two-day wait after a failed
+  paid run, never the budget, and **does not count as the weekly run**: the scheduled check still runs when due.
+- Limits (a second click while one is queued or running returns the existing job, before any limit): per
+  product one check per 6 hours and 3 per local day; **4 per local day across all products**; and no manual
+  check once this month's Treg spend has reached **70 % of `HARBOUR_MONTHLY_BUDGET_AUD`** (the rest is kept
+  for the weekly checks). A refused or partial run says why in plain words.
 - The first run after the feature ships is a manual baseline, so the owner sees real numbers immediately.
 
 ### 3.3 History
@@ -136,15 +151,20 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
 ### 3.4 Rules (actions only)
 - `few-referring-sites`: fewer than **5** referring domains → area GEO ("Other sites rarely mention you"),
   fix points to listing on local and industry sites and asking partners to link; resolves at 5 or more.
-- `not-named-by-ai`: at least 5 AI questions checked in total over two consecutive weeks and **none** name or
-  cite the site → area GEO ("AI assistants don't mention you yet"); resolves when any does.
+- `not-named-by-ai`: at least 5 AI questions checked in total over "two consecutive weeks" and **none** name or
+  cite the site → area GEO ("AI assistants don't mention you yet"); resolves when any does. As built, the
+  window is the checks within the 14 days up to the latest AI check, which must span at least 5 days (two
+  checks on one day are not two weeks); only the questions tracked now count. Fewer than 5 questions, or one
+  week only, is `unknown`. `few-referring-sites` judges the latest links check of the product's current domain.
 - Both are `unknown` while the data is missing or the budget skipped the run. Wording follows the plain-language
   rules; codes only in Technical details.
 
 ### 3.5 Display
 - Product page, new section **"How the web sees you"** (plain, one sentence visible, detail on request):
   sites linking to you, your position for each chosen search with the change since last week, and the
-  AI check ("ChatGPT named you in 1 of 5 answers; sites it cited: …"). Unmeasured → says so.
+  AI check ("ChatGPT named you in 1 of 5 answers; sites it cited: …"). Unmeasured → says so, in plain words
+  ("Not checked yet", "No searches chosen yet", "Treg isn't connected", "Paused: balance or key", "Skipped:
+  this month's budget is used up", "Partly checked: …"), never as a zero.
 - Settings → Sources: a Treg row (what it gives Harbour, how to connect, status) and the spend meter as today.
 - Scoring unchanged in this version. The GEO and AEO "not connected" placeholders from the original design
   stay at weight 0; a formula `v3` that weights these is a separate, later decision.
