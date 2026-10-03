@@ -18,6 +18,7 @@ import { loadWorkStrip, type WorkStrip } from "@/lib/today/work-strip";
 import { type ActivityFeed, activityFeed } from "./activity";
 import { activityFacts } from "./activity-data";
 import { towerContentScan } from "./content-data";
+import { type IndexingReader, indexingReader } from "./indexing-reads";
 import { loadTile, type TileResult } from "./load-tile";
 import { type NeedItem, needsYou } from "./needs";
 import { needsFacts } from "./needs-data";
@@ -73,6 +74,8 @@ type Ctx = {
   products: readonly Product[];
   now: Date;
   contentProducts: readonly ContentProduct[];
+  /** The render's scan reader: the product cards and the wins share each scan's read. */
+  indexing: IndexingReader;
 };
 
 /** One card per product; before the first check the verdicts are the labelled sample's. */
@@ -82,7 +85,7 @@ function runwayCards(ctx: Ctx, summary: TodaySummary, content: () => ContentScan
   const contentIds = new Set(ctx.contentProducts.map((p) => p.id));
   return products.map((product) => {
     const scan = contentIds.has(product.id) ? content() : null;
-    const facts = runwayFacts(db, config, product, scan, now);
+    const facts = runwayFacts(db, config, product, scan, now, undefined, ctx.indexing);
     const sample = summary.isSample
       ? summary.scores.find((row) => row.productId === product.id)
       : undefined;
@@ -115,7 +118,7 @@ export function loadTower(
   now: Date,
   contentProducts: readonly ContentProduct[] = getContentProducts(),
 ): Tower {
-  const ctx: Ctx = { db, config, products, now, contentProducts };
+  const ctx: Ctx = { db, config, products, now, contentProducts, indexing: indexingReader(db) };
   const { HARBOUR_TIMEZONE: timeZone, HARBOUR_LOCALE: locale } = config;
   const content = once(() => towerContentScan(config, contentProducts));
 
@@ -142,7 +145,12 @@ export function loadTower(
     activityFeed(activityFacts(db, products, config, now), products, now, timeZone, locale),
   );
   const wins = loadTile("wins", () =>
-    weekWins(winsFacts(db, config, products, now, content()), products, timeZone, locale),
+    weekWins(
+      winsFacts(db, config, products, now, content(), ctx.indexing),
+      products,
+      timeZone,
+      locale,
+    ),
   );
 
   const note = loadTile("note", () => readNote(ctx, summary.ok && summary.data.isSample));

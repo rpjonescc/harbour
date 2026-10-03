@@ -9,10 +9,9 @@ import { isoDateIn } from "@/lib/format/date";
 import { addDays } from "@/lib/format/iso-day";
 import { zonedInstant } from "@/lib/format/zoned-time";
 import type { Product } from "@/lib/products/catalog";
-import { indexingState } from "@/lib/scan/indexing-view";
-import { scanFindings } from "@/lib/scan/product-view";
 import { AREA_KEYS, type AreaKey, weeklyScoreChanges } from "@/lib/scan/views";
 import { approvedSince } from "./content-counts";
+import { type IndexingReader, indexingReader } from "./indexing-reads";
 
 export type WinsFacts = {
   /** The last 7 local days, oldest first: cards finished each day, and how many had a PR. */
@@ -59,7 +58,12 @@ function doneByDay(db: Db, productIds: string[], days: string[], timeZone: strin
 }
 
 /** Google's indexed count from the newest good check at or before `until`; null when unknown. */
-function indexedAt(db: Db, productId: string, until: Date): number | null {
+function indexedAt(
+  db: Db,
+  indexing: IndexingReader,
+  productId: string,
+  until: Date,
+): number | null {
   const scan = db
     .select({ id: scanRuns.id })
     .from(scanRuns)
@@ -73,14 +77,14 @@ function indexedAt(db: Db, productId: string, until: Date): number | null {
     .orderBy(desc(scanRuns.id))
     .get();
   if (!scan) return null;
-  const { observations, runs } = scanFindings(db, scan.id);
-  const state = indexingState(observations, runs);
+  const state = indexing(scan.id);
   return state.state === "counted" ? state.indexed : null;
 }
 
 /**
  * The week's wins: cards finished per local day, score rises against 7 days ago, pages newly in
- * Google, and content approved. `content` is the render's one content read (null when off).
+ * Google, and content approved. `content` is the render's one content read (null when off);
+ * `indexing` is the render's scan reader, shared with the product cards.
  */
 export function winsFacts(
   db: Db,
@@ -88,6 +92,7 @@ export function winsFacts(
   products: readonly Product[],
   now: Date,
   content: ContentScan | null,
+  indexing: IndexingReader = indexingReader(db),
 ): WinsFacts {
   const timeZone = config.HARBOUR_TIMEZONE;
   const today = isoDateIn(timeZone, now);
@@ -110,7 +115,8 @@ export function winsFacts(
       });
     }),
     indexedGain: products.flatMap((product) => {
-      const [from, to] = [indexedAt(db, product.id, weekAgo), indexedAt(db, product.id, now)];
+      const from = indexedAt(db, indexing, product.id, weekAgo);
+      const to = indexedAt(db, indexing, product.id, now);
       return from !== null && to !== null && to > from ? [{ productId: product.id, from, to }] : [];
     }),
     approvedPieces: content === null ? null : approvedSince(content, days[0] ?? today),
