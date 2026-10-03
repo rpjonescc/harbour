@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UPDATES_PAUSED } from "@/lib/explain/tower";
-import { HEADER_TEXT } from "@/lib/explain/tower-tiles";
-import { TILE_LINK } from "./link-styles";
+import { UpdatesPaused } from "./UpdatesPaused";
 import { useVisibleRefresh } from "./useVisibleRefresh";
 
 /** Every minute while the tab is visible; every 15 s while a check or agent run is going. */
@@ -23,17 +21,5 @@ export function VisibleRefresh({ active }: { active: boolean }) {
     max: MAX_REFRESHES,
     onPaused: () => setPaused(true),
   });
-  if (!paused) return null;
-  return (
-    <p className="flex flex-wrap items-center gap-x-2 text-sm text-ink-muted">
-      {UPDATES_PAUSED}
-      <button
-        type="button"
-        onClick={() => window.location.reload()}
-        className={`${TILE_LINK} min-h-11 cursor-pointer`}
-      >
-        {HEADER_TEXT.reload}
-      </button>
-    </p>
-  );
+  return paused ? <UpdatesPaused /> : null;
 }

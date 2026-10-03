@@ -96,11 +96,18 @@ export const NEED_ITEMS: NeedItem[] = [
 
 export const NEEDS_EXAMPLES: {
   label: string;
-  result: TileResult<{ items: NeedItem[]; more: number }>;
+  result: TileResult<{ items: NeedItem[]; more: number; moreHref?: string }>;
 }[] = [
   {
     label: "Needs you · five, and 2 more",
     result: { ok: true, data: { items: NEED_ITEMS, more: 2 } },
+  },
+  {
+    label: "Needs you · five, and 3 more waiting in one place (a link)",
+    result: {
+      ok: true,
+      data: { items: NEED_ITEMS, more: 3, moreHref: "/actions?view=board&focus=needs-you" },
+    },
   },
   {
     label: "Needs you · one thing",

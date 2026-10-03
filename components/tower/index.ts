@@ -9,6 +9,7 @@ export { TileFailed } from "./TileFailed";
 export { TowerHeader } from "./TowerHeader";
 export { TOWER_ANCHORS, TowerSection, type TowerSectionKey } from "./TowerSection";
 export { TowerView } from "./TowerView";
+export { UpdatesPaused } from "./UpdatesPaused";
 export { VisibleRefresh } from "./VisibleRefresh";
 export { WeekBars } from "./WeekBars";
 export { WinsPanel } from "./WinsPanel";
