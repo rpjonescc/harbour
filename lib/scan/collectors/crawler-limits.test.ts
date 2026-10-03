@@ -118,6 +118,18 @@ describe("crawler pages", () => {
     expect(pages[0]?.value).toMatchObject({ noindex: true, robotsMeta: null });
   });
 
+  it("flags an X-Robots-Tag header that stops Google quoting the page", async () => {
+    const { origin } = await site({
+      "/": html('<a href="/quiet">Quiet</a>', { "x-robots-tag": "googlebot: max-snippet:0" }),
+      "/quiet": html("Quiet", { "x-robots-tag": "otherbot: nosnippet" }),
+    });
+    const { pages } = await crawl(context(`${origin}/`));
+    const noSnippetOf = (path: string) =>
+      pages.find((p) => p.subject === `${origin}${path}`)?.value.noSnippet;
+    expect(noSnippetOf("/")).toBe(true);
+    expect(noSnippetOf("/quiet")).toBe(false);
+  });
+
   it("reads each X-Robots-Tag header on its own", async () => {
     const twoHeaders: Handler = (_req, res) => {
       res.setHeader("content-type", "text/html");

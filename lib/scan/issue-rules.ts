@@ -1,6 +1,7 @@
 import { RETIRED_RULE_NOTES, TRAINING_ONLY_NOTE } from "@/lib/explain/rule-notes";
 import { pagesNotIndexed } from "./issue-rules-indexing";
 import { fewReferringSites, notNamedByAi } from "./issue-rules-outside";
+import { snippetsBlocked } from "./issue-rules-snippets";
 import { AI_RETRIEVAL_AGENTS } from "./robots";
 import {
   count,
@@ -185,6 +186,7 @@ export const RULES: readonly RuleDef[] = [
   missingDescription,
   brokenLinks,
   noindex,
+  snippetsBlocked,
   aiCrawlersBlocked,
   noFaqSchema,
   noLlmsTxt,

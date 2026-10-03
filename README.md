@@ -1075,8 +1075,11 @@ the Treg address is fixed in code and Harbour refuses to follow a redirect from 
   rule titles in `lib/scan/issue-rules.ts`, such as "AI assistants can't read your site"); the
   exact fix and check text and the affected URLs sit under **Technical details**. Issues come from
   the check's raw observations: pages without a title or meta description, broken internal links,
-  pages hidden by noindex, AI search crawlers blocked in robots.txt (blocking only training
-  crawlers raises nothing) and no Google Preferred Sources button (news sites only), and (once Search Console is connected and Harbour has known
+  pages hidden by noindex, indexable pages Google can't quote (**Google can't quote these pages**:
+  `nosnippet` or `max-snippet:0` in the robots meta tag or X-Robots-Tag header, or half or more of
+  the page's text inside `data-nosnippet`; up to 5 URLs with the count, no score change), AI search
+  crawlers blocked in robots.txt (blocking only training crawlers raises nothing) and no Google
+  Preferred Sources button (news sites only), and (once Search Console is connected and Harbour has known
   the sitemap for 14 days) at least 3 pages, and a fifth or more of those checked, that Google hasn't
   added to its search results. An issue is raised only from collectors that ran ok in
   that check: when the crawler or readiness check failed, its issues are unknown rather than fixed.

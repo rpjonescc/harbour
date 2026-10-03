@@ -1,3 +1,4 @@
+import { snippetBlock } from "./snippets";
 import type { ScanObservation } from "./types";
 import { crawledPages, isHtmlPage, type PageFacts } from "./view-shapes";
 
@@ -15,6 +16,7 @@ function problemsOf(page: PageFacts): string[] {
   if (page.h1Count === 0) problems.push("No main heading");
   if (page.h1Count !== null && page.h1Count > 1) problems.push(`${page.h1Count} main headings`);
   if (page.noindex) problems.push("Hidden from search");
+  else if (snippetBlock(page)) problems.push("Google can't quote it");
   return problems;
 }
 

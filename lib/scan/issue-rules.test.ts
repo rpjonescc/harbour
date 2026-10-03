@@ -55,6 +55,11 @@ const CASES: { id: string; present: ScanObservation[]; unknownFacts: ScanObserva
     unknownFacts: [crawlSite()],
   },
   {
+    id: "snippets-blocked",
+    present: [htmlPage("/", { noSnippet: true })],
+    unknownFacts: [crawlSite()],
+  },
+  {
     id: "ai-crawlers-blocked",
     present: [
       readiness({ robotsTxt: { state: "ok", aiCrawlerAccess: { PerplexityBot: "blocked" } } }),
@@ -76,9 +81,9 @@ const CASES: { id: string; present: ScanObservation[]; unknownFacts: ScanObserva
 describe("RULES", () => {
   it("has the page rules in order, the retired ones among them, then the outside-view rules", () => {
     expect(RULES.map((r) => r.id)).toEqual([
-      ...CASES.slice(0, 5).map((c) => c.id),
+      ...CASES.slice(0, 6).map((c) => c.id),
       ...RETIRED,
-      ...CASES.slice(5).map((c) => c.id),
+      ...CASES.slice(6).map((c) => c.id),
       "few-referring-sites",
       "not-named-by-ai",
     ]);
@@ -101,6 +106,7 @@ describe("RULES", () => {
       "missing-description": [["crawler"], "medium", tech],
       "broken-links": [["crawler"], "medium", tech],
       noindex: [["crawler"], "small", tech],
+      "snippets-blocked": [["crawler"], "small", ["research/aeo/aeo-and-ai-overviews.md"]],
       "ai-crawlers-blocked": [["readiness"], "small", llms],
       "no-faq-schema": [[], "small", []],
       "no-llms-txt": [[], "small", []],

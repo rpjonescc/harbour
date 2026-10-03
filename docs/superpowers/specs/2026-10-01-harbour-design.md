@@ -192,7 +192,7 @@ Collectors write raw observations only; they never compute scores.
 
 | Collector | Source | Measures |
 |---|---|---|
-| `crawler` | Own HTTP crawler (sitemap-seeded, capped at 500 pages/site) | status codes, titles/descriptions, headings, canonical, robots meta, schema.org types, internal links, broken links |
+| `crawler` | Own HTTP crawler (sitemap-seeded, capped at 500 pages/site) | status codes, titles/descriptions, headings, canonical, robots meta, snippet directives (`nosnippet`, `max-snippet:0`, words inside `data-nosnippet`), schema.org types, internal links, broken links |
 | `pagespeed` | PageSpeed Insights API (free) | Core Web Vitals on key pages (mobile) |
 | `readiness` | Own checks | robots.txt rules for Googlebot and AI crawlers (GPTBot, OAI-SearchBot, PerplexityBot, ClaudeBot, Google-Extended), sitemap validity, `llms.txt` presence (measured, not counted from formula v3), FAQ/HowTo (measured, not counted from v3)/Organization/LocalBusiness schema presence, NAP consistency (local businesses), Google Preferred Sources button/deeplink and regularly updated content section |
 | `search-console` | GSC API, read-only scope (service account, or the owner's own OAuth sign-in via `pnpm gsc:connect`) | daily clicks, impressions, CTR, position; top queries and pages; new queries |
@@ -238,9 +238,9 @@ auto-resolves when the condition clears.
 
 v1's rules are the eight issue rules: `missing-title`, `missing-description`,
 `broken-links`, `noindex`, `ai-crawlers-blocked`, `no-faq-schema`, `no-llms-txt` and
-`no-preferred-sources` (formula v3 retired `no-faq-schema` and `no-llms-txt`, and
-`ai-crawlers-blocked` no longer fires for training crawlers alone: see §5.5). "Keyword dropped > 5 positions" waits for the rankings
-collector; "sitemap 404" is part of the `seo.indexability` score, not a separate rule
+`no-preferred-sources`. Formula v3 retired `no-faq-schema` and `no-llms-txt`, stopped
+`ai-crawlers-blocked` firing for training crawlers alone, and added `snippets-blocked` (see
+§5.5). "Keyword dropped > 5 positions" waits for the rankings collector; "sitemap 404" is part of the `seo.indexability` score, not a separate rule
 yet. Each rule judges a scan as present, clear or unknown; auto-resolve happens only
 when the rule's collectors ran ok (unknown never creates, resolves or reopens an
 action). Dismissed actions stay dismissed while the issue persists and reopen if it
@@ -274,6 +274,14 @@ follows it:
   crawlers are blocked, and is always high impact when it fires.
 - The analyst export carries each sub-score's weight, and the prompt says not to suggest work on
   a weight-0 sub-score.
+- New rule `snippets-blocked` ("Google can't quote these pages", AEO, medium impact, small
+  effort): a page must be indexed and allowed to show a snippet to appear in AI Overviews or AI
+  Mode. The crawler records `noSnippet` (`nosnippet` or `max-snippet:0` for Google, from the
+  robots or googlebot meta tag or the X-Robots-Tag header) and `nosnippetWords` (visible words
+  inside `data-nosnippet`). The rule judges only pages meant to be found (not noindex) and lists
+  a page with a directive, or with half or more of its words inside `data-nosnippet` (a cookie
+  notice is the owner's choice); up to 5 URLs with the count. It changes no score; wording lives
+  in `lib/explain/snippets.ts`. Pages crawled before the fields existed are unknown, not clear.
 
 **What the owner sees on the first check after deploy.** GEO and Answer-ready scores move once,
 on every product (no SEO change). `formulaChangedArea` knows v3 changed `geo` and `aeo` for both

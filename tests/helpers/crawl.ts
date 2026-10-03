@@ -80,4 +80,6 @@ export const NO_HTML = {
   preferredSourcesLink: null,
   questionHeadings: null,
   conciseAnswers: null,
+  noSnippet: null,
+  nosnippetWords: null,
 };

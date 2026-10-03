@@ -37,12 +37,15 @@ export const GEO_EVIDENCE = "The home page opens with a slogan, not the café's 
 const atCafe = (o: ScanObservation): ScanObservation =>
   JSON.parse(JSON.stringify(o).replaceAll(ORIGIN, CAFE_URL));
 
-// The café's home page has no meta description and its robots.txt blocks PerplexityBot (an AI
-// search agent) and GPTBot (training only, which raises nothing). It has no llms.txt and no FAQ
-// markup, which raise nothing either since formula v3.
-const CRAWL = [htmlPage("/", { descriptionLength: 0 }), crawlSite({ brokenInternalLinks: [] })].map(
-  atCafe,
-);
+// The café's home page has no meta description, its menu page tells Google not to quote it, and
+// its robots.txt blocks PerplexityBot (an AI search agent) and GPTBot (training only, which
+// raises nothing). It has no llms.txt and no FAQ markup, which raise nothing either since
+// formula v3.
+const CRAWL = [
+  htmlPage("/", { descriptionLength: 0 }),
+  htmlPage("/menu", { noSnippet: true }),
+  crawlSite({ brokenInternalLinks: [] }),
+].map(atCafe);
 const READINESS = [
   readiness({
     robotsTxt: {

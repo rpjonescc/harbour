@@ -18,6 +18,13 @@ export type PageFacts = QuestionFacts & {
   robotsMeta: string | null;
   /** From the robots meta tag only; the crawler adds the X-Robots-Tag header. */
   noindex: boolean;
+  /**
+   * nosnippet or max-snippet:0 for Google, from the robots or googlebot meta tag; the crawler
+   * adds the X-Robots-Tag header. Google can't quote such a page in results or AI answers.
+   */
+  noSnippet: boolean;
+  /** Words of visible text inside data-nosnippet elements, which Google won't quote. */
+  nosnippetWords: number;
   /** <html lang>. */
   lang: string | null;
   /** schema.org types in JSON-LD (top level and @graph), sorted and unique. */
@@ -56,12 +63,14 @@ const VALUED_DIRECTIVES = new Set([
 const OUR_AGENTS = new Set(["harbourbot", "googlebot"]);
 
 /**
- * Whether a robots meta value or X-Robots-Tag header keeps the page out of the index. An
- * agent prefix ("otherbot: noindex, nofollow") scopes the directives after it, up to the next
- * prefix; only unscoped directives and those for HarbourBot or Googlebot count. Pass each
- * X-Robots-Tag header on its own: an agent prefix scopes only the header it is in.
+ * The directives in a robots meta value or X-Robots-Tag header that apply to this crawl's
+ * verdict, lower case, with "max-snippet: 0" written "max-snippet:0". An agent prefix
+ * ("otherbot: noindex, nofollow") scopes the directives after it, up to the next prefix; only
+ * unscoped directives and those for HarbourBot or Googlebot count. Pass each X-Robots-Tag header
+ * on its own: an agent prefix scopes only the header it is in.
  */
-export function hasNoindex(directives: string): boolean {
+function applicableDirectives(directives: string): string[] {
+  const found: string[] = [];
   let agent: string | null = null;
   for (const part of directives.toLowerCase().split(",")) {
     let directive = part.trim();
@@ -72,12 +81,23 @@ export function hasNoindex(directives: string): boolean {
       agent = name;
       directive = directive.slice(colon + 1).trim();
     }
-    const applies = agent === null || OUR_AGENTS.has(agent);
+    if (agent !== null && !OUR_AGENTS.has(agent)) continue;
     // Some sites separate directives with spaces rather than commas.
-    const tokens = directive.split(/\s+/);
-    if (applies && tokens.some((t) => t === "noindex" || t === "none")) return true;
+    found.push(...directive.replace(/\s*:\s*/g, ":").split(/\s+/));
   }
-  return false;
+  return found;
+}
+
+/** Whether a robots meta value or X-Robots-Tag header keeps the page out of the index. */
+export function hasNoindex(directives: string): boolean {
+  return applicableDirectives(directives).some((t) => t === "noindex" || t === "none");
+}
+
+/** Whether a robots meta value or X-Robots-Tag header stops Google quoting the page. */
+export function blocksSnippets(directives: string): boolean {
+  return applicableDirectives(directives).some(
+    (t) => t === "nosnippet" || /^max-snippet:0+$/.test(t),
+  );
 }
 
 function collapse(text: string): string | null {
@@ -147,11 +167,21 @@ function hasFaqMicrodata(root: HTMLElement): boolean {
     .some((el) => /\/FAQPage$/i.test((el.getAttribute("itemtype") ?? "").trim()));
 }
 
+const wordsIn = (el: HTMLElement) =>
+  el.structuredText.split(/\s+/).filter((word) => word.length > 0).length;
+
 /** Words of visible body text; removes hidden elements from `root`, so call it last. */
 function visibleWordCount(root: HTMLElement): number {
   for (const el of root.querySelectorAll(HIDDEN_TEXT)) el.remove();
-  const body = root.querySelector("body") ?? root;
-  return body.structuredText.split(/\s+/).filter((word) => word.length > 0).length;
+  return wordsIn(root.querySelector("body") ?? root);
+}
+
+/** Visible words inside outermost data-nosnippet elements; call after visibleWordCount. */
+function nosnippetWordCount(root: HTMLElement): number {
+  return root
+    .querySelectorAll("[data-nosnippet]")
+    .filter((el) => !el.parentNode?.closest("[data-nosnippet]"))
+    .reduce((n, el) => n + wordsIn(el), 0);
 }
 
 /** Extracts page facts from HTML served at `pageUrl` (the final URL after redirects). */
@@ -162,6 +192,7 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
   const title = documentTitle(root);
   const metaDescription = metaContent(root, "description");
   const robotsMeta = metaContent(root, "robots");
+  const googlebotMeta = metaContent(root, "googlebot");
   const blocks = root
     .querySelectorAll("script")
     .filter((el) => el.getAttribute("type")?.trim().toLowerCase() === "application/ld+json")
@@ -178,6 +209,7 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
     canonical: canonicalOf(root, base),
     robotsMeta,
     noindex: robotsMeta !== null && hasNoindex(robotsMeta),
+    noSnippet: [robotsMeta, googlebotMeta].some((meta) => meta !== null && blocksSnippets(meta)),
     lang: collapse(root.querySelector("html")?.getAttribute("lang") ?? ""),
     jsonLdTypes: jsonLd.types,
     invalidJsonLd: jsonLd.invalid,
@@ -190,6 +222,8 @@ export function extractPage(html: string, pageUrl: string): PageFacts {
     imagesMissingAlt: images.filter((img) => !img.hasAttribute("alt")).length,
     links,
     ...questionFacts(root),
+    // Both read the tree after hidden elements are removed, in this order.
     wordCount: visibleWordCount(root),
+    nosnippetWords: nosnippetWordCount(root),
   };
 }

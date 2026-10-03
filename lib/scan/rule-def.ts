@@ -61,11 +61,16 @@ export function topicPath(id: string): string {
 }
 
 /**
- * A rule from its metadata and check; a finding with no locations means nothing is wrong. With
+ * A rule from its metadata and check; a finding with no locations means nothing is wrong, and
+ * at most `maxLocations` (default 20) are kept beside the total. With
  * `gap`, a clear outcome becomes unknown when the facts may be incomplete: clear resolves the
  * owner's action, while a problem found on the pages that were crawled is real either way.
  */
-export function rule(meta: Omit<RuleDef, "evaluate">, check: Check, gap?: Gap): RuleDef {
+export function rule(
+  { maxLocations = MAX_LOCATIONS, ...meta }: Omit<RuleDef, "evaluate"> & { maxLocations?: number },
+  check: Check,
+  gap?: Gap,
+): RuleDef {
   const clear = (facts: Facts) => {
     const reason = gap?.(facts);
     return reason ? { unknown: reason } : "clear";
@@ -83,7 +88,7 @@ export function rule(meta: Omit<RuleDef, "evaluate">, check: Check, gap?: Gap): 
         ...fields,
         effort: meta.effort,
         docs: [...meta.docs],
-        locations: locations.slice(0, MAX_LOCATIONS),
+        locations: locations.slice(0, maxLocations),
         total: locations.length,
       };
     },

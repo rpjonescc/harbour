@@ -18,6 +18,8 @@ function page(path: string, status: number, title: string | null, ms = 10): Craw
     canonical: null,
     robotsMeta: null,
     noindex: null,
+    noSnippet: null,
+    nosnippetWords: null,
     lang: null,
     jsonLdTypes: null,
     invalidJsonLd: null,

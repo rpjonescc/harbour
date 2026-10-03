@@ -20,6 +20,7 @@ describe("crawler on a recorded site", () => {
     const noNews = {
       ...{ articleDatePublished: null, preferredSourcesLink: false },
       ...{ questionHeadings: 0, conciseAnswers: 0 },
+      ...{ noSnippet: false, nosnippetWords: 0 },
     };
     expect(pages).toEqual([
       page("/", {

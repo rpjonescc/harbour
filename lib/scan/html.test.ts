@@ -1,4 +1,4 @@
-import { extractPage, hasNoindex } from "./html";
+import { blocksSnippets, extractPage, hasNoindex } from "./html";
 
 const PAGE_URL = "https://docs.example.com/guide/start";
 
@@ -184,5 +184,50 @@ describe("hasNoindex", () => {
     ["", false],
   ])("%s → %s", (value, expected) => {
     expect(hasNoindex(value)).toBe(expected);
+  });
+});
+
+describe("blocksSnippets", () => {
+  it.each([
+    ["nosnippet", true],
+    ["max-snippet:0", true],
+    ["max-snippet: 0", true],
+    ["index, follow, max-snippet:0", true],
+    ["googlebot: nosnippet", true],
+    ["otherbot: nosnippet", false],
+    ["otherbot: nosnippet, googlebot: max-snippet:0", true],
+    ["max-snippet:-1", false],
+    ["max-snippet:50", false],
+    ["noindex", false],
+    ["", false],
+  ])("%s → %s", (value, expected) => {
+    expect(blocksSnippets(value)).toBe(expected);
+  });
+});
+
+describe("extractPage snippet directives", () => {
+  it("reads nosnippet from the robots or googlebot meta tag", () => {
+    const robots = doc('<meta name="robots" content="index, nosnippet">', "<p>Hi</p>");
+    const googlebot = doc('<meta name="googlebot" content="max-snippet:0">', "<p>Hi</p>");
+    const other = doc('<meta name="otherbot" content="nosnippet">', "<p>Hi</p>");
+    expect(extractPage(robots, PAGE_URL).noSnippet).toBe(true);
+    expect(extractPage(googlebot, PAGE_URL).noSnippet).toBe(true);
+    expect(extractPage(other, PAGE_URL).noSnippet).toBe(false);
+  });
+
+  it("counts the visible words inside data-nosnippet once, however deeply nested", () => {
+    const html = doc(
+      "",
+      "<p>one two three four</p><div data-nosnippet>five six <span data-nosnippet>seven</span>" +
+        "<script>var hidden = 1;</script></div>",
+    );
+    expect(extractPage(html, PAGE_URL)).toMatchObject({ wordCount: 7, nosnippetWords: 3 });
+  });
+
+  it("reports no hidden words when nothing is marked", () => {
+    expect(extractPage(doc("", "<p>plain page</p>"), PAGE_URL)).toMatchObject({
+      noSnippet: false,
+      nosnippetWords: 0,
+    });
   });
 });
