@@ -6,6 +6,7 @@ import { PieceGroup } from "@/components/content/PieceGroup";
 import { PieceView } from "@/components/content/PieceView";
 import { StateTag } from "@/components/content/StateTag";
 import type { TabId } from "@/lib/content/read/view-types";
+import { STUB_FALLBACK } from "@/lib/explain/content";
 import { Example } from "./Example";
 import { PieceWithActions } from "./PieceWithActions";
 import { PostizExamples } from "./PostizExamples";
@@ -116,8 +117,7 @@ export function ContentExamples() {
             tab: "needs-you",
             empty: true,
             copy: [],
-            needsYou:
-              "This piece wasn't written. Discard it; the idea's other pieces are unaffected.",
+            needsYou: STUB_FALLBACK,
           })}
         />
       </Example>

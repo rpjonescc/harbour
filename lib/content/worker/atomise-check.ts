@@ -3,6 +3,7 @@ import { PLATFORM_NAMES, type Platform, platformSchema } from "@/lib/content/ids
 import { isTooDeep, sanitiseContent, sanitiseText } from "@/lib/content/sanitise";
 import { claimSchema } from "@/lib/content/schema";
 import { contentSchemas, type PieceContent } from "@/lib/content/shapes";
+import { STUB_FALLBACK } from "@/lib/explain/content";
 import { safeReason } from "@/lib/explain/voice/note";
 import type { FactItem } from "./facts-pack";
 
@@ -99,7 +100,7 @@ export function makeOne(
   if (!piece)
     return {
       content: null,
-      stub: "This piece wasn't written. Discard it; the idea's other pieces are unaffected.",
+      stub: STUB_FALLBACK,
       stripped: false,
     };
   if (piece.content === null || typeof piece.content !== "object" || Array.isArray(piece.content)) {
