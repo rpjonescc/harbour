@@ -43,11 +43,16 @@ export function useBoardMoves({
   const board = useBoardAnnouncer();
   const [moved, setMoved] = useState<Moved>({});
   const [arrived, setArrived] = useState<number | null>(null);
-  // Fresh cards from the server are the truth: pending placements end with them.
+  // Cards whose move is still waiting for the server's answer.
+  const [pending, setPending] = useState<ReadonlySet<number>>(new Set());
+  // Fresh cards from the server are the truth for every answered move. A move still waiting keeps
+  // its placement: an earlier move's refresh can land first and would put the card back.
   const [seen, setSeen] = useState(columns);
   if (seen !== columns) {
     setSeen(columns);
-    setMoved({});
+    setMoved((was) =>
+      Object.fromEntries(Object.entries(was).filter(([id]) => pending.has(Number(id)))),
+    );
   }
   if (!board) throw new Error("The board's moves need an ActionAnnouncer around them.");
   const { announce, alert, afterChange } = board;
@@ -61,12 +66,18 @@ export function useBoardMoves({
     if (demo) return announce(DEMO_NOTE);
     const snapshot = snapshotBoard(card.id);
     setMoved((was) => ({ ...was, [card.id]: to }));
+    setPending((was) => new Set(was).add(card.id));
     setArrived(card.id);
     const body = { moveFrom: from, moveTo: to };
     const result = await postJson<{ id: number; column: BoardColumnId }>(
       `/api/actions/${card.id}`,
       body,
     );
+    setPending((was) => {
+      const now = new Set(was);
+      now.delete(card.id);
+      return now;
+    });
     if (result.ok) {
       announce(BOARD_TEXT.moved(card.title, to));
     } else {
