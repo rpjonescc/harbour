@@ -6,7 +6,8 @@ export type BrainSyncCounts = { unsaved: number; unpushed: number };
 export type BrainSyncStatus = {
   /** Null when git must not run in the brain (missing, or not its own repository root). */
   sync: BrainSyncCounts | null;
-  recovery: { pending: string[]; lastError: string | null };
+  /** `pending` is null when the interrupted-run records could not be read. */
+  recovery: { pending: string[] | null; lastError: string | null };
 };
 
 /** Where discarded agent changes are kept: next to the database, outside the brain. */

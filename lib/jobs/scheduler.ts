@@ -45,9 +45,26 @@ export function makeScheduler(deps: SchedulerDeps) {
     }
   };
 
+  /** True when a run may need recovering: an unreadable marker folder counts (recovery reports it). */
+  const mayNeedRecovery = () => {
+    try {
+      return pendingRecovery(quarantineRoot).length > 0;
+    } catch {
+      return true;
+    }
+  };
+
   const recoverNow = () => {
     const now = clock();
-    const result = recover(root, quarantineRoot);
+    let result: ReturnType<typeof recover>;
+    try {
+      result = recover(root, quarantineRoot);
+    } catch (error) {
+      // Brain writes stay blocked (recoveryBlock, housekeeping); retried in 10 minutes.
+      console.error(`recovery could not run: ${(error as Error).message}`);
+      nextRecoveryAt = now + RETRY_MS;
+      return;
+    }
     for (const r of result.recovered) {
       const text = `Recovered: ${r.quarantined.length} file(s) moved to quarantine (${r.dir})`;
       console.log(`job ${r.jobId}: ${text}`);
@@ -76,7 +93,12 @@ export function makeScheduler(deps: SchedulerDeps) {
     startup() {
       const orphaned = recoverRunningJobs(db, new Date(clock()));
       if (orphaned.length > 0) console.warn(`recovered ${orphaned.length} interrupted job(s)`);
-      const pending = new Set(pendingRecovery(quarantineRoot));
+      let pending = new Set<string>();
+      try {
+        pending = new Set(pendingRecovery(quarantineRoot));
+      } catch {
+        // Only the "recovering this run" notes are skipped: recoverNow below reports the problem.
+      }
       for (const id of orphaned) {
         if (pending.has(String(id))) jobEvent(String(id), "Worker restarted: recovering this run");
       }
@@ -84,7 +106,7 @@ export function makeScheduler(deps: SchedulerDeps) {
     },
     tick() {
       const now = clock();
-      if (now >= nextRecoveryAt && pendingRecovery(quarantineRoot).length > 0) recoverNow();
+      if (now >= nextRecoveryAt && mayNeedRecovery()) recoverNow();
       if (now - lastCheck < CHECK_MS) return;
       lastCheck = now;
       const next = action(root, new Date(now), {
