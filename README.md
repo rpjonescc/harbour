@@ -155,6 +155,14 @@ signed-in session:
   `409 brain_unreadable`, `413 too_large` and `429 busy`. Approving writes
   `content/approved/<platform>/<date>-<slug>.md` in the brain (never over an existing file; a clash
   gets `-2` to `-9`); discarding an approved piece removes that file. Nothing is ever posted.
+- `POST /api/content` with `{"action": "send-to-postiz", "pieceId": "<ideaId>.<platform>", "revision": 3, "resend": false}`
+  queues a `content-postiz` job for an approved LinkedIn, Facebook or Instagram piece (as **Send
+  to Postiz as a draft** does); the worker makes the draft in Postiz. It needs `HARBOUR_CONTENT=on`,
+  `HARBOUR_POSTIZ_URL` and `HARBOUR_POSTIZ_API_KEY`, and a channel for that platform. A piece already
+  sent is refused with `409 confirm_resend` (its message asks "Send it again?") unless `resend` is
+  `true`. Other refusals: `404 not_found`, `409 content_off`, `409 postiz_off`, `409 not_supported`,
+  `409 not_approved`, `409 stale`, `409 no_channel`, `409 brain_unreadable`, `429 postiz_busy` (one
+  send at a time) and `429 rate_limited` (five sends an hour).
 - `POST /api/actions/<id>` with `{"from": "open", "to": "snoozed", "until": "2026-11-01"}`
   moves an action to a new status. `from` is the status your page showed: if the action changed
   since, the request is refused (`409 stale`) instead of overwriting it. `to` is `open`,
@@ -404,6 +412,8 @@ no links at all: any link is refused.
 | `HARBOUR_SCHEDULED_IDEAS` | `on` | `off` stops Monday 07:00 idea runs; **Find new ideas** still works. |
 | `HARBOUR_CONTENT_DAILY_RUNS` | `24` | Content agent runs per local day (1 to 100), scheduled and manual together. |
 | `HARBOUR_SKILLS_DIR` | `~/.claude/skills` | Where the three skills are installed; must be outside the brain. |
+| `HARBOUR_POSTIZ_URL` | unset | Optional: your Postiz's backend address, on this machine or your tailnet. See below. |
+| `HARBOUR_POSTIZ_API_KEY` | unset | Optional secret: a Postiz API key. Set both or neither. |
 
 **The Content page** (`/content`) has six tabs: Ready for you, Needs you, Ideas, Being written,
 Approved and Discarded. Each idea is a headline and one line; a piece opens to plain text with Copy
@@ -425,8 +435,38 @@ ideas, pieces with a `.gates.json` record of each check, `approved/` exports), s
 the Second Brain viewer or your editor. The Content page only reads; a worker job saves every
 approve, edit and discard and commits just those files. The web process never runs an agent.
 
-**What is not built.** Sending approved pieces to Postiz or any other tool (Harbour never posts),
-images (Instagram gets a written visual brief), analytics and the feedback loop, pruning old
+#### Send to Postiz as a draft
+
+[Postiz](https://postiz.com) is a free, open-source social media scheduler you can run yourself.
+If you do, Harbour can put an approved LinkedIn, Facebook or Instagram piece into it **as a
+draft**, so you can add images, preview it and post it from Postiz. Harbour never schedules,
+publishes or deletes anything there: the client it uses can only list your channels and create a
+draft. It is off until you set it up.
+
+1. In Postiz, connect your social accounts (Postiz calls them channels). Harbour never sees their
+   passwords or tokens.
+2. In Postiz, open **Settings** and create an API key.
+3. In Harbour's `.env`, set `HARBOUR_POSTIZ_URL` to Postiz's backend address (Postiz's own
+   backend URL, which ends in `/api`; for the standard Docker setup on this machine that is
+   `http://127.0.0.1:4007/api`) and `HARBOUR_POSTIZ_API_KEY` to the key. The address must be on this
+   machine or your tailnet, and Harbour never follows a redirect, so the key goes nowhere else.
+4. In `harbour.config.json`, map each platform to a channel id under `content.postiz.channels`
+   (`linkedin`, `facebook`, `instagram`; X, blog posts and website sections are never sent). The
+   ids are in Postiz (or its `GET /public/v1/integrations` answer). See `harbour.config.example.json`.
+5. Restart both services: `systemctl --user restart harbour-web harbour-worker`. Settings then shows
+   Postiz as **Connected**.
+
+On an approved piece the Content page then shows **Send to Postiz as a draft**. Only the piece's
+text is sent (LinkedIn and Facebook: the text and hashtags; Instagram: the caption and hashtags,
+not the visual brief), with no images. The worker checks the channel exists, is switched on and is
+the right kind for the platform, creates the draft, and notes `postiz: { sentAt, postId }` on the
+piece in your brain. Sending a piece again asks first and makes a second draft. At most five sends
+start in any hour, one at a time. If Postiz is down or refuses, the send fails with one sentence
+saying what to do, and the piece stays approved. **The key can publish**, even though Harbour only
+makes drafts with it, so keep it like the Claude token: only in `.env`, used only by the worker.
+
+**What is not built.** Posting or scheduling from Harbour (it never posts), images (Instagram gets
+a written visual brief), analytics and the feedback loop, pruning old
 digests (git history keeps them anyway), a skills panel on the Agents page, and Search Console
 queries as an input to ideas. The design and its known limits are in the
 [content machine spec](docs/superpowers/specs/2026-10-02-content-machine-design.md).
@@ -563,7 +603,7 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_SCHEDULED_IDEAS` | no | `on` | `off` stops Monday 07:00 idea runs; **Find new ideas** on Content still works. |
 | `HARBOUR_CONTENT_DAILY_RUNS` | no | `24` | Content agent runs allowed per local day (1 to 100), scheduled and manual together. |
 | `HARBOUR_SKILLS_DIR` | no | `~/.claude/skills` | Where the `no-ai-slop`, `humanizer` and `atomizer` skills are installed. Must be outside the brain. |
-| `HARBOUR_POSTIZ_URL` | no | unset | Your self-hosted Postiz's backend address, ending in `/api` (for example `http://127.0.0.1:4007/api`). `http` or `https`, on this machine (`127.0.0.1`, `[::1]`, `localhost`) or your tailnet (a `*.ts.net` name or a `100.64.0.0/10` address), with no user, query or fragment. Set it with the key, or neither. Restart both services after changing it. |
+| `HARBOUR_POSTIZ_URL` | no | unset | Your self-hosted Postiz's backend address, ending in `/api` (for example `http://127.0.0.1:4007/api`). `http` or `https`, on this machine (`127.0.0.1`, `[::1]`, `localhost`) or your tailnet (a `*.ts.net` name or a `100.64.0.0/10` address), with no user, query or fragment. Set it with the key, or neither. See [Send to Postiz as a draft](#send-to-postiz-as-a-draft). Restart both services after changing it. |
 | `HARBOUR_POSTIZ_API_KEY` | no | unset | Secret; a Postiz API key (Postiz Settings). Only the worker uses it, only to list channels and create drafts; Settings shows only Connected or Not connected yet. The key itself could publish, so keep it like the Claude token. |
 | `HARBOUR_BACKUP_DIR` | no | `<folder of HARBOUR_DB_PATH>/backups` | Where the nightly backups go (see [Backups and restore](#backups-and-restore)). Use a dedicated folder: old backups are pruned from it by name, so `/`, your home folder and the temp folder are refused, as is anything inside `HARBOUR_BRAIN_DIR` (also through a symlink), because the brain is pushed to a remote. Restart the worker after changing it. |
 | `HARBOUR_SCHEDULED_RESEARCH` | no | `on` | `off` stops the worker queueing the monthly research refresh by itself (the first Sunday of each month at 21:00 and the catch-up on start); **Update old research** on **Agents** still queues it by hand. Restart the worker after changing it. |
