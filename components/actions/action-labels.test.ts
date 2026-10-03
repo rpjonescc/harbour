@@ -19,21 +19,21 @@ describe("STATUS_CONTROLS", () => {
     expect(labels("suggested")).toEqual(["Accept", "Dismiss"]);
     expect(labels("open")).toEqual(["Start", "Mark done", "Snooze…", "Dismiss"]);
     expect(labels("in_progress")).toEqual([
-      "Move back to To do",
+      "Move back to Backlog",
       "Mark done",
       "Snooze…",
       "Dismiss",
     ]);
     expect(labels("snoozed")).toEqual(["Bring back now", "Mark done", "Dismiss"]);
-    expect(labels("done")).toEqual(["Move back to To do"]);
-    expect(labels("dismissed")).toEqual(["Restore to To do"]);
+    expect(labels("done")).toEqual(["Move back to Backlog"]);
+    expect(labels("dismissed")).toEqual(["Restore to Backlog"]);
   });
 });
 
 describe("filter and empty-state wording", () => {
   it("names the status filter in the board's columns", () => {
     expect(STATUS_FILTER_LABEL).toEqual({
-      active: "To do and in progress",
+      active: "Backlog and in progress",
       suggested: STATUS_COLUMN.suggested,
       snoozed: STATUS_COLUMN.snoozed,
       done: STATUS_COLUMN.done,

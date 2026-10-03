@@ -26,10 +26,10 @@ describe("ActionStatusControls", () => {
   it.each<[ActionStatus, string[]]>([
     ["suggested", ["Accept", "Dismiss"]],
     ["open", ["Start", "Mark done", "Snooze…", "Dismiss"]],
-    ["in_progress", ["Move back to To do", "Mark done", "Snooze…", "Dismiss"]],
+    ["in_progress", ["Move back to Backlog", "Mark done", "Snooze…", "Dismiss"]],
     ["snoozed", ["Bring back now", "Mark done", "Dismiss"]],
-    ["done", ["Move back to To do"]],
-    ["dismissed", ["Restore to To do"]],
+    ["done", ["Move back to Backlog"]],
+    ["dismissed", ["Restore to Backlog"]],
   ])("offers exactly the allowed buttons for %s", (status, labels) => {
     renderControls(status);
     expect(buttonNames()).toEqual(labels.map((label) => `${label}: ${TITLE}`));
@@ -62,7 +62,9 @@ describe("ActionStatusControls", () => {
       </ActionAnnouncer>,
     );
     fireEvent.click(screen.getByRole("button", { name: `Accept: ${TITLE}` }));
-    expect(await screen.findByRole("status")).toHaveTextContent(`Accepted, now in To do: ${TITLE}`);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      `Accepted, now in Backlog: ${TITLE}`,
+    );
     expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 

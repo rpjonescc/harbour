@@ -29,7 +29,7 @@ describe("ActionFilters", () => {
     expect(screen.getByLabelText("Product")).toHaveValue("");
     expect(screen.getByLabelText("Area")).toHaveValue("");
     expect(screen.getByLabelText("Status")).toHaveValue("active");
-    expect(screen.getByRole("option", { name: "To do and in progress" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Backlog and in progress" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Clear filters" })).toBeNull();
   });
 

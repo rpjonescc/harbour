@@ -104,7 +104,7 @@ describe("Board", () => {
       within(parked).getByRole("button", { name: "Bring back now: Snoozed job" }),
     ).toBeInTheDocument();
     expect(
-      within(parked).getByRole("button", { name: "Restore to To do: Dismissed job" }),
+      within(parked).getByRole("button", { name: "Restore to Backlog: Dismissed job" }),
     ).toBeInTheDocument();
     expect(within(parked).queryByRole("button", { name: /Move to/ })).toBeNull();
   });

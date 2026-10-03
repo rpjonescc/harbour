@@ -21,9 +21,11 @@ const LOCALE = "en-US";
 const card = (page: Page, title: string, product = CAFE.name) =>
   page.getByRole("article", { name: title, exact: true }).filter({ hasText: product });
 
-/** The board header's counts: "3 to do · 1 in progress · 2 new ideas". */
+/** The board header's counts: "3 in Backlog · 1 in progress · 2 new ideas". */
 async function headerCounts(page: Page) {
-  const text = await page.getByText(/^\d+ to do · \d+ in progress · \d+ new ideas?$/).textContent();
+  const text = await page
+    .getByText(/^\d+ in Backlog · \d+ in progress · \d+ new ideas?$/)
+    .textContent();
   const [open = 0, inProgress = 0, suggested = 0] = (text?.match(/\d+/g) ?? []).map(Number);
   return { open, inProgress, suggested, active: open + inProgress };
 }
@@ -76,7 +78,7 @@ test("the sidebar counts open actions and the board groups them, biggest wins fi
   );
   // Suggestions wait outside the default view.
   await expect(card(page, SUGGESTED.geo)).toHaveCount(0);
-  await expect(page.getByText(/^\d+ to do · \d+ in progress · \d+ new ideas?$/)).toBeVisible();
+  await expect(page.getByText(/^\d+ in Backlog · \d+ in progress · \d+ new ideas?$/)).toBeVisible();
   await expectPlainLanguage(page);
   const acme = card(page, "1 page is missing a title", "Acme Docs");
   await expect(acme.getByText("Big win", { exact: true })).toBeVisible();
@@ -127,7 +129,7 @@ test("accept, start and mark done move an action through the board", async ({ pa
   await changeStatus(page, SUGGESTED.aeo, "Accept", "Waiting for you");
   const history = card(page, SUGGESTED.aeo).locator("details");
   await card(page, SUGGESTED.aeo).getByText("History").click();
-  await expect(history.getByRole("listitem").last()).toContainText("You · New ideas → To do");
+  await expect(history.getByRole("listitem").last()).toContainText("You · New ideas → Backlog");
   await changeStatus(page, SUGGESTED.aeo, "Start", /· In progress$/);
   await changeStatus(page, SUGGESTED.aeo, "Mark done", "Done");
 

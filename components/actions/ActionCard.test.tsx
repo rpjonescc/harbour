@@ -53,7 +53,7 @@ describe("ActionCard", () => {
     expect(card).toHaveTextContent("Search results show a generated title");
     expect(card).toHaveTextContent("Found on Google · quick job · Acme Docs");
     // The status is implied by who's on it, so it is not repeated as a third tag.
-    expect(within(card).queryByText("To do")).toBeNull();
+    expect(within(card).queryByText("Backlog")).toBeNull();
     // Codes and the old effort wording are gone from the surface.
     expect(within(card).queryByText("SEO")).toBeNull();
     expect(within(card).queryByText("Small")).toBeNull();
@@ -286,8 +286,10 @@ describe("ActionCard", () => {
     const items = within(card)
       .getAllByRole("listitem")
       .map((li) => li.textContent);
-    expect(items).toContain("1 Oct 2026, 10:00 · Harbour's check · created as To do");
-    expect(items).toContain("2 Oct 2026, 10:30 · You · To do → In progress · Started on the docs");
+    expect(items).toContain("1 Oct 2026, 10:00 · Harbour's check · created as Backlog");
+    expect(items).toContain(
+      "2 Oct 2026, 10:30 · You · Backlog → In progress · Started on the docs",
+    );
     expect(card).toHaveTextContent("Older history was cleared to save space.");
   });
 
@@ -329,7 +331,7 @@ describe("ActionCard", () => {
       .getAllByRole("listitem")
       .map((li) => li.textContent);
     expect(items).toContain(
-      "2 Oct 2026, 10:30 · Claude · To do → In progress · Fixing in the docs repo",
+      "2 Oct 2026, 10:30 · Claude · Backlog → In progress · Fixing in the docs repo",
     );
     expect(items).toContain(
       "2 Oct 2026, 10:40 · Claude · Linked PR https://github.com/acme/widget/pull/42",

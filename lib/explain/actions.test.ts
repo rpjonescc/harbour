@@ -21,7 +21,7 @@ describe("action phrases", () => {
     });
     expect(STATUS_COLUMN).toEqual({
       suggested: "New ideas",
-      open: "To do",
+      open: "Backlog",
       in_progress: "In progress",
       done: "Done",
       snoozed: "Snoozed",
@@ -86,10 +86,10 @@ describe("board phrases", () => {
   });
   it("sums the board up in one plain line", () => {
     expect(boardSummary({ open: 3, in_progress: 1, suggested: 2 })).toBe(
-      "3 to do · 1 in progress · 2 new ideas",
+      "3 in Backlog · 1 in progress · 2 new ideas",
     );
     expect(boardSummary({ open: 0, in_progress: 0, suggested: 1 })).toBe(
-      "0 to do · 0 in progress · 1 new idea",
+      "0 in Backlog · 0 in progress · 1 new idea",
     );
   });
 

@@ -45,7 +45,7 @@ explainable breakdowns. The roadmap continues with:
   area, how big a job it is (a quick job, an afternoon or a project) and the product in one small
   line, and a link to its pull request. The full reason, evidence, where it came from, the exact fix
   and check, and **Hand to Claude** (a ready prompt) sit under **Technical details**. Filter by
-  product, area and status (a plain, bookmarkable form); move an action through New ideas → To do →
+  product, area and status (a plain, bookmarkable form); move an action through New ideas → Backlog →
   In progress → Done, snooze it until a date or dismiss it. The sidebar badge reads "N things worth
   doing". Claude can triage the board for you with `pnpm actions`, every change recorded with its
   reason.
@@ -104,7 +104,7 @@ explainable breakdowns. The roadmap continues with:
 | `/` | Today |
 | `/products/<id>` | A product's scores, issues, pages and sources |
 | `/content` | Content (only when `HARBOUR_CONTENT=on`, else 404): ideas and drafts in six tabs, with Copy, Approve, Edit and Discard; nothing is posted for you |
-| `/actions` | Actions board: a six-column board by default, or the list with `?view=list` (`?product=<id>&area=SEO\|GEO\|AEO` on both; the list also takes `&status=active\|suggested\|snoozed\|done\|dismissed\|all`, whose stored values the list shows as New ideas (`suggested`), To do (`open`), In progress, Done, Snoozed and Dismissed; the board takes `&focus=stuck\|needs-you`). `#column-<id>` jumps to a column |
+| `/actions` | Actions board: a six-column board by default, or the list with `?view=list` (`?product=<id>&area=SEO\|GEO\|AEO` on both; the list also takes `&status=active\|suggested\|snoozed\|done\|dismissed\|all`, whose stored values the list shows as New ideas (`suggested`), Backlog (`open`), In progress, Done, Snoozed and Dismissed; the board takes `&focus=stuck\|needs-you`). `#column-<id>` jumps to a column |
 | `/settings` | Settings overview: products, schedules, connections, budget and backups |
 | `/settings/products/<id>` | A product's research targets (keywords, AI questions, competitors, content pillars) |
 | `/settings/sources` | Check schedule, connections and each source's last run |
@@ -1112,12 +1112,12 @@ the Treg address is fixed in code and Harbour refuses to follow a redirect from 
   says the list may be out of date, that the last check finished but couldn't update the actions
   (with the time), and that the next check tries again. Reasons are written in plain words;
   actions raised before a wording change keep the old text until the next check refreshes them.
-- **The Actions list** (`/actions?view=list`, the older view of the same jobs) shows To do and In progress actions by default, grouped Big wins → Worth
+- **The Actions list** (`/actions?view=list`, the older view of the same jobs) shows Backlog and In progress actions by default, grouped Big wins → Worth
   doing → Small wins, in-progress first, then the smallest effort. Filters (product, area,
   status) are a normal form, so a filtered view can be bookmarked; at most 200 actions are shown,
   with a count of the rest. Each card offers only the moves its status allows (**Start**,
   **Mark done**, **Snooze…** with a date from tomorrow to a year ahead, **Dismiss**, **Move back
-  to To do**, **Bring back now**, **Restore to To do**; new ideas from the weekly analyst are
+  to Backlog**, **Bring back now**, **Restore to Backlog**; new ideas from the weekly analyst are
   **Accept**ed or **Dismiss**ed). **History** lists every change with who made it (**You**,
   **Claude**, **Harbour's check**…) and its note; a card whose fix has a pull request links to it
   (**Pull request owner/repo#42**, in a new tab). **Hand to Claude** copies a prompt with the
@@ -1146,7 +1146,7 @@ Each card says what the job is, why it matters, who is on it, what it waits for,
 and the last move. A card says **Stuck** when nothing has changed for more than 7 days in Started or
 In progress, or more than 3 days in In review. Each column has a "What's this?" that explains it.
 **Snoozed** cards and cards **dismissed** in the last 14 days are not columns: they sit in the
-**Parked** strip under the board, where **Bring back now** or **Restore to To do** puts them back.
+**Parked** strip under the board, where **Bring back now** or **Restore to Backlog** puts them back.
 
 **Moving a card.** Drag it into another column, or use the card's **Move to…** button, which works
 from the keyboard and on a phone: press Enter to open the menu, the arrow keys to choose a column,

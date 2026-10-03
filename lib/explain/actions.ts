@@ -18,10 +18,10 @@ export const EFFORT_PHRASE: Readonly<Record<Effort, string>> = {
   large: "a project",
 };
 
-/** The Actions board's column for each status (the stored status values are unchanged). */
+/** The Actions list's name for each status (the stored status values are unchanged). */
 export const STATUS_COLUMN: Readonly<Record<ActionStatus, string>> = {
   suggested: "New ideas",
-  open: "To do",
+  open: "Backlog",
   in_progress: "In progress",
   done: "Done",
   snoozed: "Snoozed",
@@ -97,14 +97,14 @@ export const IMPACT_GROUP: Readonly<Record<Impact, string>> = {
   low: "Small wins",
 };
 
-/** The board header's line: "3 to do · 1 in progress · 2 new ideas". */
+/** The list header's line: "3 in Backlog · 1 in progress · 2 new ideas". */
 export function boardSummary(counts: {
   open: number;
   in_progress: number;
   suggested: number;
 }): string {
   const ideas = counts.suggested === 1 ? "idea" : "ideas";
-  return `${counts.open} to do · ${counts.in_progress} in progress · ${counts.suggested} new ${ideas}`;
+  return `${counts.open} in ${STATUS_COLUMN.open} · ${counts.in_progress} in progress · ${counts.suggested} new ${ideas}`;
 }
 
 /** "3 things worth doing": Today's sub-line and the sidebar badge say it the same way. */

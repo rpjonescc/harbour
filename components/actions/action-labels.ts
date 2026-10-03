@@ -24,7 +24,7 @@ export const ACTOR_LABEL: Record<ActionActor, string> = {
  * statuses.
  */
 export const STATUS_FILTER_LABEL: Record<ActionFilter["status"], string> = {
-  active: "To do and in progress",
+  active: `${STATUS_COLUMN.open} and in progress`,
   suggested: STATUS_COLUMN.suggested,
   snoozed: STATUS_COLUMN.snoozed,
   done: STATUS_COLUMN.done,
@@ -50,7 +50,7 @@ export const EMPTY_STATE: Record<
   snoozed: {
     what: "Nothing is snoozed.",
     when: "A snoozed item comes back on the date you pick.",
-    why: "You can snooze anything on your to-do list.",
+    why: "You can snooze anything on the board.",
   },
   done: {
     what: "Nothing is done yet.",
@@ -75,18 +75,24 @@ export type StatusControl = { label: string; to: StatusChange["to"]; done: strin
 const DONE: StatusControl = { label: "Mark done", to: "done", done: "Marked done" };
 const SNOOZE: StatusControl = { label: "Snooze…", to: "snoozed", done: "Snoozed" };
 const DISMISS: StatusControl = { label: "Dismiss", to: "dismissed", done: "Dismissed" };
+/** An open action sits in Backlog; the column name comes from lib/explain. */
+const BACKLOG = STATUS_COLUMN.open;
 const BACK: StatusControl = {
-  label: "Move back to To do",
+  label: `Move back to ${BACKLOG}`,
   to: "open",
-  done: "Moved back to To do",
+  done: `Moved back to ${BACKLOG}`,
 };
 
 /** The owner's buttons per status: exactly the transitions the server allows. */
 export const STATUS_CONTROLS: Record<ActionStatus, readonly StatusControl[]> = {
-  suggested: [{ label: "Accept", to: "open", done: "Accepted, now in To do" }, DISMISS],
+  suggested: [{ label: "Accept", to: "open", done: `Accepted, now in ${BACKLOG}` }, DISMISS],
   open: [{ label: "Start", to: "in_progress", done: "Started" }, DONE, SNOOZE, DISMISS],
   in_progress: [BACK, DONE, SNOOZE, DISMISS],
-  snoozed: [{ label: "Bring back now", to: "open", done: "Brought back to To do" }, DONE, DISMISS],
+  snoozed: [
+    { label: "Bring back now", to: "open", done: `Brought back to ${BACKLOG}` },
+    DONE,
+    DISMISS,
+  ],
   done: [BACK],
-  dismissed: [{ label: "Restore to To do", to: "open", done: "Restored to To do" }],
+  dismissed: [{ label: `Restore to ${BACKLOG}`, to: "open", done: `Restored to ${BACKLOG}` }],
 };
