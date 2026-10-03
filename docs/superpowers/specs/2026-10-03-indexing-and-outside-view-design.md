@@ -1,6 +1,6 @@
 # Indexing coverage and the outside view — design
 
-Status: draft for owner review, 3 October 2026.
+Status: approved by the owner in conversation, 3 October 2026 (decisions in section 7).
 Amends: `2026-10-01-harbour-design.md` §5 (collectors, scoring, rules) and §12 (costs).
 Builds on what a first manual check of a real directory-style site taught us: only 3 of 53 sitemap pages were indexed, "Discovered, currently
 not indexed" for 40, and the owner could not tell from Harbour. Two features, built in this order.
@@ -103,6 +103,14 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
   or a retired endpoint; the weekly run logs the endpoint list it used.
 - All response text is untrusted data: validated with zod, strings capped, never rendered as markup.
 
+### 3.2a "Check now"
+- Besides the weekly run, the product page has a **Check now** button (owner only, same-origin POST, both
+  locks, audited) that enqueues an `outside-check` job for that product. The worker runs only the `treg`
+  collector for it, through the same budget guard, and stores the results as usual.
+- Limits: one check per product per 6 hours (a second click while one is queued returns the existing job),
+  and at most 3 manual checks per product per day. A refused or partial run says why in plain words.
+- The first run after the feature ships is a manual baseline, so the owner sees real numbers immediately.
+
 ### 3.3 History
 - Observations are pruned with the scan (about 30 scans). Weekly checks would keep only 4 or 5 data points, so
   a compact **`external_checks`** table (one migration) stores `{ productId, kind, subject, checkedAt, value }`
@@ -157,9 +165,10 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
 1. Feature 1 (indexing coverage), reviewed and deployed on its own.
 2. Feature 2 (outside view): collector and cost wiring, then history table, rules, then display.
 
-## 7. Decisions for the owner
+## 7. Decisions (owner, 3 October 2026)
 
-1. Monthly budget: set `HARBOUR_MONTHLY_BUDGET_AUD` to A$10 for now? Expected use is about A$1 to A$2.
-2. The tracked searches and AI questions per product (private config). Proposed starting lists are in the
-   brain under `products/<id>/` once approved.
-3. Weekly cadence for the paid checks, and no score change yet: confirm.
+1. **Budget:** `HARBOUR_MONTHLY_BUDGET_AUD=10` is set. Expected use is about A$1 to A$2 a month.
+2. **Tracked searches and AI questions:** the starting lists proposed in conversation (up to 8 searches and
+   5 AI questions per product, drawn from the discovery agent's proposals) are accepted as a start, held in
+   the owner's private `harbour.config.json` (never in the repository) and editable at any time.
+3. **Cadence:** weekly, plus the **Check now** button (3.2a). No score change in this version.
