@@ -15,6 +15,12 @@ const ACTOR: Record<ActionActor, string> = {
   system: "Harbour",
 };
 
+const SOURCE: Record<ActionRow["source"], (row: ActionRow) => string> = {
+  rule: (row) => `scan rule ${t(row.ruleKey ?? "")}`,
+  agent: () => "weekly report",
+  manual: () => "added by hand through the CLI",
+};
+
 /**
  * Printed above every action listing: titles, reasons, fixes, checks and evidence come from
  * crawled pages and the weekly analyst, and the reader (Claude) can change statuses.
@@ -69,7 +75,7 @@ export function showText(
   history: { events: Event[]; truncated: boolean },
 ): string {
   const status = row.status === "snoozed" ? `snoozed until ${row.snoozedUntil}` : row.status;
-  const source = row.source === "rule" ? `scan rule ${t(row.ruleKey ?? "")}` : "weekly report";
+  const source = SOURCE[row.source](row);
   const { docs, invalid: docsInvalid } = readDocs(row.docs);
   return [
     DATA_NOTE,

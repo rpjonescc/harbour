@@ -2,9 +2,10 @@ import { parseArgs } from "node:util";
 import { parseActionId } from "../action-id";
 import type { StatusChange } from "../transitions";
 import { ACTION_STATUSES, type ActionStatus } from "../types";
+import { ADD_OPTIONS, type AddInput, type AddValues, parseAdd } from "./add-args";
+import { CliUsageError } from "./usage-error";
 
-/** A mistake in how the command was typed: shown with the usage, never as a stack trace. */
-export class CliUsageError extends Error {}
+export { CliUsageError };
 
 /** Longest reason Claude may give for a status change. */
 export const MAX_NOTE = 1000;
@@ -14,7 +15,8 @@ export type CliCommand =
   | { name: "list"; productId: string | null; statuses: ActionStatus[] | null; json: boolean }
   | { name: "show"; id: number }
   | { name: "set"; id: number; from: ActionStatus; change: StatusChange & { note: string } }
-  | { name: "link"; id: number; url: string | null };
+  | { name: "link"; id: number; url: string | null }
+  | { name: "add"; input: AddInput };
 
 export const USAGE = `Usage:
   pnpm actions list [--product <id>] [--status <s>[,<s>]] [--json]
@@ -22,6 +24,9 @@ export const USAGE = `Usage:
   pnpm actions set <id> <status> --from <status> --note "<reason>" [--until YYYY-MM-DD]
   pnpm actions link <id> <github-pr-url>
   pnpm actions link <id> --clear
+  pnpm actions add --product <id> --title "<title>" --why "<why>" --area SEO|GEO|AEO
+      --impact high|medium|low --effort small|medium|large [--fix "<fix>"] [--check "<done when>"]
+      [--evidence "<text>"]... [--doc <https-url>]... [--status suggested|open|in_progress]
 
 Statuses: ${ACTION_STATUSES.join(", ")}`;
 
@@ -32,6 +37,15 @@ const OPTIONS = {
   from: { type: "string" },
   note: { type: "string" },
   until: { type: "string" },
+  title: { type: "string" },
+  why: { type: "string" },
+  area: { type: "string" },
+  impact: { type: "string" },
+  effort: { type: "string" },
+  fix: { type: "string" },
+  check: { type: "string" },
+  evidence: { type: "string", multiple: true },
+  doc: { type: "string", multiple: true },
   clear: { type: "boolean" },
   help: { type: "boolean", short: "h" },
 } as const;
@@ -45,7 +59,7 @@ type Values = {
   until?: string;
   clear?: boolean;
   help?: boolean;
-};
+} & AddValues;
 
 /** Which options each command accepts; anything else is a usage error. */
 const ALLOWED: Record<Exclude<CliCommand["name"], "help">, readonly (keyof Values)[]> = {
@@ -53,6 +67,7 @@ const ALLOWED: Record<Exclude<CliCommand["name"], "help">, readonly (keyof Value
   show: [],
   set: ["from", "note", "until"],
   link: ["clear"],
+  add: ["product", "status", ...ADD_OPTIONS],
 };
 
 function tokens(argv: readonly string[]): { positionals: string[]; values: Values } {
@@ -117,6 +132,11 @@ function parseSet(args: string[], values: Values): CliCommand {
   return { name: "set", id, from, change: { to, note, ...parseUntil(to, values.until) } };
 }
 
+function parseAddCommand(args: string[], values: Values): CliCommand {
+  if (args.length > 0) throw new CliUsageError("add takes no arguments, only options");
+  return { name: "add", input: parseAdd(values) };
+}
+
 function parseLink(args: string[], values: Values): CliCommand {
   const usage = "Usage: pnpm actions link <id> <github-pr-url> | pnpm actions link <id> --clear";
   const [rawId, url, ...rest] = args;
@@ -144,7 +164,12 @@ export function parseCliArgs(argv: readonly string[]): CliCommand {
     if (args.length > 1) throw new CliUsageError(usage);
     return { name: "show", id: actionId(args[0], usage) };
   }
-  const parsers = { list: parseList, set: parseSet, link: parseLink } as const;
+  const parsers = {
+    list: parseList,
+    set: parseSet,
+    link: parseLink,
+    add: parseAddCommand,
+  } as const;
   if (!(name in parsers)) throw new CliUsageError(`Unknown command: ${name}`);
   const command = name as keyof typeof parsers;
   rejectForeignOptions(command, values);

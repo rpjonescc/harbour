@@ -56,7 +56,7 @@ export type WeeklyExport = {
     title: string;
     impact: Impact;
     status: ActionStatus;
-    source: "rule" | "agent";
+    source: "rule" | "agent" | "manual";
     ageDays: number;
   }[];
   /** Newest first. */
