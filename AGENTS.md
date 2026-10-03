@@ -175,6 +175,7 @@ not to edit Harbour or the brain.
   without permission prompts, so briefs say exactly what not to touch (no commits, pushes, sign-ins
   or installs unless asked) and carry no secrets. If the Mac is offline, leave the brief on the board
   item and in `handoffs/`; do not retry in a loop.
+- **Session roles:** the main Harbour session coordinates and does Harbour's own work. Topic sessions in the Harbour group are for research and explanation on one topic and do not send hand-offs unless asked. Project owner sessions do only that project's work. The registry in the brain has the detail.
 - **Mistakes to avoid:** do not call something a test or demo from its name alone; check the data.
   Keep each project's ledgers and reports out of a worktree you will delete.
 
