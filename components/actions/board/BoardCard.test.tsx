@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { BoardColumnId } from "@/lib/actions/board-column";
 import type { BoardCard as BoardCardData } from "@/lib/actions/board-view";
 import { BOARD_TEXT, COLUMN_COPY } from "@/lib/explain/board";
@@ -92,5 +92,16 @@ describe("BoardCard", () => {
     const button = screen.getByRole("button", { name: "Move to… Add a title to the pricing page" });
     expect(button).toHaveAttribute("aria-haspopup", "menu");
     expect(button.className).toContain("min-h-11");
+  });
+
+  it("remembers Technical details per card, so opening one leaves the others' faces plain", () => {
+    localStorage.clear();
+    const first = renderCard({ id: 1 }).querySelector("details") as HTMLDetailsElement;
+    // What a click on the summary does: the browser flips `open`, then fires "toggle".
+    first.open = true;
+    fireEvent(first, new Event("toggle"));
+    const second = renderCard({ id: 2, title: "Another job" }).querySelector("details");
+    expect(second).not.toHaveAttribute("open");
+    localStorage.clear();
   });
 });

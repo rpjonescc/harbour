@@ -75,7 +75,8 @@ export function BoardCard({
         />
       )}
       <MoveMenu title={card.title} current={column} isNewIdea={card.isNewIdea} onMove={onMove} />
-      <TechnicalDetails id="board-card" topic={card.title}>
+      {/* Per card: a shared key would open every card's details, stored codes and all. */}
+      <TechnicalDetails id={`board-card-${card.id}`} topic={card.title}>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-ink-muted">
           <dt>{BOARD_TEXT.technical.id}</dt>
           <dd>{card.id}</dd>
