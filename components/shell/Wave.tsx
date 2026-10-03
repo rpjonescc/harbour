@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { WAVE_HEIGHT, WAVE_LAYERS, WAVE_WIDTH, wavePath } from "@/design/wave";
+import { crestPath, WAVE_HEIGHT, WAVE_LAYERS, WAVE_WIDTH, wavePath } from "@/design/wave";
 
 const PLACEMENT = {
   // Behind everything on every page (the root layout), along the lower half of the viewport.
@@ -9,10 +9,11 @@ const PLACEMENT = {
 } as const;
 
 /**
- * The ocean background: a soft fade to the horizon and three layers of inline SVG water drifting
- * and bobbing at different speeds. Decorative only: no script, hidden from assistive tech, never
- * takes a click, painted with the ocean tokens. The motion is CSS (app/globals.css): it stops
- * under prefers-reduced-motion, browsers do not run it in a hidden tab, and print hides it.
+ * The ocean background: a soft fade to the horizon and three layers of inline SVG water, each
+ * with a foam line, drifting and bobbing at different speeds. Decorative only: no script, hidden
+ * from assistive tech, never takes a click, painted with the ocean tokens. The motion is CSS
+ * (app/globals.css): it stops under prefers-reduced-motion, browsers do not run it in a hidden
+ * tab, and print hides it.
  */
 export function Wave({ placement = "page" }: { placement?: keyof typeof PLACEMENT }) {
   return (
@@ -49,6 +50,15 @@ export function Wave({ placement = "page" }: { placement?: keyof typeof PLACEMEN
             }
           >
             <path d={wavePath(layer)} style={{ fill: `var(--${layer.token})` }} />
+            {/* The foam line: a thin lighter edge that dips and lifts a little (the shimmer). */}
+            <path
+              d={crestPath(layer)}
+              className="wave-crest"
+              fill="none"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+              style={{ stroke: "var(--ocean-crest)" }}
+            />
           </svg>
         </div>
       ))}

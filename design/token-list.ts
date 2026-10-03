@@ -18,6 +18,7 @@ export const SEMANTIC_TOKENS = [
   { name: "--ocean-1", role: "Ocean background: far water" },
   { name: "--ocean-2", role: "Ocean background: middle water" },
   { name: "--ocean-3", role: "Ocean background: near water" },
+  { name: "--ocean-crest", role: "Ocean background: foam line on each wave" },
   { name: "--hue-amber", role: "Product hue: amber" },
   { name: "--hue-violet", role: "Product hue: violet" },
   { name: "--hue-blue", role: "Product hue: blue" },

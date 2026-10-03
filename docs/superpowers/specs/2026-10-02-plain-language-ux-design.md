@@ -288,14 +288,17 @@ our tasks, but as a calm flowing motion". It generalises the warm-friend wave (Â
   to the lower half of the viewport, behind all content (content sits in a `z-10` layer above
   it; panels keep their surface background). Off with `HARBOUR_PERSONALITY=quiet`; no new setting.
 - **What:** a fade to the horizon and three opaque wave layers in new semantic tokens
-  (`--ocean-sky-fade`, `--ocean-1` to `--ocean-3`), each drifting sideways (26 to 40 s loops) and
+  (`--ocean-sky-fade`, `--ocean-1` to `--ocean-3`), each edged with a thin foam line
+  (`--ocean-crest`) that shimmers by dipping a pixel, each drifting sideways (26 to 40 s loops) and
   bobbing a few pixels (5.5 to 9 s), with different phases so the crests never line up.
   Transform-only CSS animation; no script, canvas or dependency.
 - **Never in the way:** `aria-hidden`, no role or tab stop, `pointer-events: none`, no layout
   shift or overflow, hidden in print, still under `prefers-reduced-motion: reduce`.
 - **Legible:** every text colour keeps WCAG AA on every ocean token in light, dark and system
-  dark, and each ocean token stays within 1.15:1 of the page so it reads as a backdrop
-  (`design/wave-contrast.test.ts`).
+  dark, and each ocean token stays within 1.4:1 of the page so it reads as a backdrop
+  (`design/wave-contrast.test.ts`). To give the dark theme a clearly visible deep-teal sea, its
+  muted text (`--night-400`) was lightened from `#8d887e` to `#a09a8f`; the foam line is the
+  most intense pixel and sets the limit (red text 4.52:1, muted text 4.73:1).
 - **Wording:** called "Ocean background" on `/design` and in the README.
 
 AGENTS.md gains a short "Plain language" rule under Design system pointing to this spec and

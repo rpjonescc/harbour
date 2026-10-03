@@ -747,12 +747,12 @@ A celebrating note makes the front wave of the [ocean background](#ocean-backgro
 ### Ocean background
 
 Harbour is a harbour, so the lower half of every page is water: a soft fade to the horizon and
-three wave layers (far, middle, near) rolling sideways and bobbing gently, each at its own slow
-pace (26 to 40 seconds a loop). It sits behind everything: cards, panels and text always stay on
+three wave layers (far, middle, near), each edged with a thin foam line, rolling sideways and
+bobbing gently, each at its own slow pace (26 to 40 seconds a loop). It sits behind everything: cards, panels and text always stay on
 top and keep their own background, and clicks pass straight through it. It shows on the sign-in
 and setup pages too.
 
-- **Calm by design** — pale sea-glass on the paper theme, deep water in the dark. Every text
+- **Calm by design** — pale sea-glass on the paper theme, deep teal water in the dark. Every text
   colour keeps WCAG AA contrast (at least 4.5:1, the usual readability bar) on every ocean colour,
   in light, dark and system dark; a test checks this, so a token change that hurts legibility fails.
 - **Reduced motion** — with *Reduce motion* turned on in your operating system, the waves hold

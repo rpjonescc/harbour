@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render } from "@testing-library/react";
-import { WAVE_LAYERS, wavePath } from "@/design/wave";
+import { crestPath, WAVE_LAYERS, wavePath } from "@/design/wave";
 import { Wave } from "./Wave";
 
 describe("Wave", () => {
@@ -23,9 +23,19 @@ describe("Wave", () => {
 
   it("draws exactly the layers the contrast test checks, each in its ocean token", () => {
     const { container } = render(<Wave />);
-    const paths = [...container.querySelectorAll("path")];
+    const paths = [...container.querySelectorAll("path:not(.wave-crest)")] as SVGElement[];
     expect(paths.map((p) => p.getAttribute("d"))).toEqual(WAVE_LAYERS.map((l) => wavePath(l)));
     expect(paths.map((p) => p.style.fill)).toEqual(WAVE_LAYERS.map((l) => `var(--${l.token})`));
+  });
+
+  it("edges each layer with a thin foam line in the crest token, never filled", () => {
+    const { container } = render(<Wave />);
+    const crests = [...container.querySelectorAll(".wave-crest")] as SVGElement[];
+    expect(crests.map((c) => c.getAttribute("d"))).toEqual(WAVE_LAYERS.map((l) => crestPath(l)));
+    for (const crest of crests) {
+      expect(crest).toHaveAttribute("fill", "none");
+      expect(crest.style.stroke).toBe("var(--ocean-crest)");
+    }
   });
 
   it("starts each layer at its own point in its drift and bob, so the crests never line up", () => {

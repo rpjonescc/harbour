@@ -16,9 +16,15 @@ describe("the wave's CSS", () => {
     );
   });
 
+  it("shimmers each foam line slowly, out of step with the others", () => {
+    expect(css).toMatch(
+      /\.wave-crest\s*\{[^}]*animation:\s*wave-shimmer\s+[\d.]+s\s+ease-in-out\s+var\(--bob-delay\)\s+infinite\s+alternate;/,
+    );
+  });
+
   it("moves only by transform, which the browser can run without layout or paint", () => {
     const frames = [...css.matchAll(/@keyframes\s+wave-[a-z]+\s*\{([\s\S]*?)\n\}/g)];
-    expect(frames.length).toBeGreaterThanOrEqual(3);
+    expect(frames.length).toBeGreaterThanOrEqual(4);
     for (const [, body] of frames) {
       const properties = [...(body ?? "").matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
       expect(new Set(properties)).toEqual(new Set(["transform"]));
@@ -46,6 +52,7 @@ describe("the wave's CSS", () => {
     const selectors = reduced?.[1] ?? "";
     expect(selectors).toContain(".wave-drift");
     expect(selectors).toContain(".wave-layer");
+    expect(selectors).toContain(".wave-crest");
     expect(selectors).toContain(CELEBRATE);
   });
 

@@ -53,6 +53,6 @@ describe("WAVE_LAYERS", () => {
   });
 
   it("are each painted with their own ocean token, back to front", () => {
-    expect(WAVE_LAYERS.map((l) => l.token)).toEqual(OCEAN_TOKENS.slice(1));
+    expect(WAVE_LAYERS.map((l) => l.token)).toEqual(OCEAN_TOKENS.slice(1, 4));
   });
 });

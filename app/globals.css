@@ -87,6 +87,17 @@
   }
 }
 
+/* The shimmer: each foam line dips into its water and lifts again, slowly. */
+.wave-crest {
+  animation: wave-shimmer 4.5s ease-in-out var(--bob-delay) infinite alternate;
+}
+
+@keyframes wave-shimmer {
+  to {
+    transform: translateY(1px);
+  }
+}
+
 @keyframes wave-bob {
   to {
     transform: translateY(6px);
@@ -112,6 +123,7 @@ body:has([data-mood="celebrate"]) .wave-layer[data-front] {
 @media (prefers-reduced-motion: reduce) {
   .wave-drift,
   .wave-layer,
+  .wave-crest,
   body:has([data-mood="celebrate"]) .wave-layer[data-front] {
     animation: none;
   }

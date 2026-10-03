@@ -9,9 +9,9 @@ const AA = 4.5;
 describe.each(["light", "dark", "system-dark"] as const)(
   "text over the ocean, %s theme",
   (theme) => {
-    // Every wave layer is opaque and the fade ends in its token, so each ocean pixel is one of
-    // these colours (or the page between them): the darkest-in-light, lightest-in-dark of them is
-    // the most intense pixel, and checking all of them checks it.
+    // Every wave layer and foam line is opaque and the fade ends in its token, so each ocean pixel
+    // is one of these colours (or the page between them): checking all of them checks the most
+    // intense pixel (in dark, the foam line).
     it.each(TEXT.flatMap((text) => OCEAN_TOKENS.map((ocean) => [text, ocean] as const)))(
       "%s on --%s keeps WCAG AA (4.5:1)",
       (text, ocean) => {
@@ -29,10 +29,10 @@ describe.each(["light", "dark", "system-dark"] as const)(
       }
     });
 
-    it("stays a quiet backdrop: no ocean colour is far from the page (under 1.15:1)", () => {
+    it("stays a backdrop: no ocean colour is far from the page (under 1.4:1)", () => {
       const page = themeColour(theme, "bg");
       for (const ocean of OCEAN_TOKENS) {
-        expect(contrastRatio(themeColour(theme, ocean), page)).toBeLessThan(1.15);
+        expect(contrastRatio(themeColour(theme, ocean), page)).toBeLessThan(1.4);
       }
     });
   },

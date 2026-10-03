@@ -8,13 +8,19 @@ export const WAVE_HEIGHT = 160;
 export const WAVE_CREST_Y = 28;
 
 /** The semantic colour tokens the ocean is painted with (design/tokens.css). */
-export const OCEAN_TOKENS = ["ocean-sky-fade", "ocean-1", "ocean-2", "ocean-3"] as const;
+export const OCEAN_TOKENS = [
+  "ocean-sky-fade",
+  "ocean-1",
+  "ocean-2",
+  "ocean-3",
+  "ocean-crest",
+] as const;
 export type OceanToken = (typeof OCEAN_TOKENS)[number];
 
 export type WaveLayer = {
   id: string;
   /** The layer's solid fill: one ocean token, so every wave pixel is a colour the test checks. */
-  token: Exclude<OceanToken, "ocean-sky-fade">;
+  token: Exclude<OceanToken, "ocean-sky-fade" | "ocean-crest">;
   /** Seconds for one drift across half the drawing: slow, and different per layer. */
   seconds: number;
   /** Seconds for one gentle rise or fall (the bob alternates, so a full swell is twice this). */
@@ -67,12 +73,19 @@ export const WAVE_LAYERS: readonly WaveLayer[] = [
   },
 ];
 
-/** A closed SVG path: a sine-like wave along the top (quadratic curves), flat along the bottom. */
-export function wavePath({ amplitude, cycles }: Pick<WaveLayer, "amplitude" | "cycles">): string {
+type Shape = Pick<WaveLayer, "amplitude" | "cycles">;
+
+/** The open line along the water's surface (quadratic curves): the foam line on each layer. */
+export function crestPath({ amplitude, cycles }: Shape): string {
   const halves = cycles * 4; // two screens wide, two half-waves per cycle
   const half = WAVE_WIDTH / halves;
   const mid = WAVE_CREST_Y;
   let path = `M0,${mid} Q${half / 2},${mid - amplitude} ${half},${mid}`;
   for (let i = 2; i <= halves; i++) path += ` T${half * i},${mid}`;
-  return `${path} L${WAVE_WIDTH},${WAVE_HEIGHT} L0,${WAVE_HEIGHT} Z`;
+  return path;
+}
+
+/** A closed SVG path: the crest along the top, flat along the bottom. */
+export function wavePath(shape: Shape): string {
+  return `${crestPath(shape)} L${WAVE_WIDTH},${WAVE_HEIGHT} L0,${WAVE_HEIGHT} Z`;
 }
