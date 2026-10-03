@@ -846,7 +846,7 @@ and `-wal` files, and it says so if it cannot open the database.
 One paid source is in use: **Treg** (`https://treg.to`), a pay-per-call catalogue of data APIs.
 Once a week the `treg` collector asks it for each tracked product's links from other sites, its
 position for each search you chose and whether ChatGPT names or cites it (a full run of 8
-searches and 5 questions costs up to US$0.08 per product per week, about A$1.60 a month for three
+searches and 5 questions costs about US$0.08 per product per week, about A$1.60 a month for three
 products, or A$2.45 if every call hit its price ceiling; fewer searches cost less; see
 [Outside view](#the-outside-view-treg)). The monthly budget bounds the worst case. It makes **no calls** until you set
 `HARBOUR_TREG_API_KEY`, a monthly budget and a `tracking` list. Other paid sources (DataForSEO,
