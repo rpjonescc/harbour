@@ -89,7 +89,8 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
 ### 3.2 Collector `treg`
 - Paid, `cadence: "weekly"`, `collector` timeout 10 minutes (AI answers take about 30 s each).
 - Requires **plain-text lists the owner chooses** per product in `harbour.config.json`:
-  `tracking.products.<id> = { queries: [≤ 10], questions: [≤ 5], location: "Queensland,Australia" (optional) }`.
+  `tracking.products.<id> = { queries: [≤ 8], questions: [≤ 5], location: "Queensland,Australia" (optional),
+  country: "AU" (default), languageCode: "en" (default) }` (each 3 to 160 plain-text characters, unique per list).
   No list → the collector reports "No searches chosen yet" (not configured, not zero). Reading approved
   keyword and question proposals from the database is a later option (not in this version).
 - Three checks per product, each independent (one failing never hides the others):
@@ -100,8 +101,13 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
      checkedAt }`. `null` means *not found in the top 30*, said that way; it is never turned into 31 or 0.
   3. **AI assistant check** — `cloro.ai-search.chatgpt.scrape` (country AU) for each question
      (about US$0.0036 each). Observation `ai_answer`: `{ question, named: boolean, cited: boolean,
-     citedDomains[≤ 8], businessesNamed: number }`. Only these derived fields are stored: the answer text is
+     citedDomains[≤ 8], businessesNamed: number | null }`. Only these derived fields are stored: the answer text is
      not kept (size, copyright, and it is untrusted).
+  4. **Run tally** — observation `treg_summary` per product: `{ attempted, ok, failed, spentMicroUsd, stoppedBy:
+     done | budget | balance | key | error, problems[≤ 30] }`, each problem a fixed code (`above_ceiling`, `retired`,
+     `server`, `timeout`, `unreadable`, `rejected`, `network`), never provider text. A run in which no check was
+     answered is a failed run (retried at the next daily scan), not a week's success; a budget refusal before any
+     call is a skip. After three failures in a row, or 8 minutes, the run stops and keeps what it has.
 - **Price control:** every call carries `X-Treg-Route-Max-Cost` (a hard cap per call, from a per-endpoint
   constant with headroom), is preceded by `budget.allow(estimate)` and followed by `cost.record(actual)` from
   the response header. A call refused by the budget ends the run with a recorded partial result. Expected

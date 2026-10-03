@@ -932,6 +932,13 @@ prices above the ceiling is skipped (that check shows "price above our ceiling")
 carry on; an empty Treg balance or a refused key stops the run; a rate limit stops it with what
 it has. Failed calls are recorded, not retried. The week's tally is stored with the results.
 
+The collector rides along with the daily check but runs only when about a week has passed since
+its last successful run, so Job events read `Outside view: skipped — runs weekly; last ran
+2026-10-01` on the other days. A run that could not answer anything is a failure, not a week's
+success, so it is tried again at the next daily check. With no budget set, a check reads
+`skipped — budget: …`. The key is read only by the worker and is never shown, logged or stored;
+the Treg address is fixed in code and Harbour refuses to follow a redirect from it.
+
 ## Reading the results
 
 - **Today** (`/`) gives every product a verdict per area. A missing score reads "No score yet"
