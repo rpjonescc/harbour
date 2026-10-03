@@ -1,6 +1,14 @@
 import { z } from "zod";
+import {
+  INDEX_STATES,
+  type IndexState,
+  type IndexStatus,
+  type IndexSummary,
+  indexStatusValue,
+  indexSummaryValue,
+  type StoppedBy,
+} from "../index-shapes";
 import type { Observation } from "../types";
-import { INDEX_STATES, type IndexState, type IndexStatus, indexStatusValue } from "./index-state";
 
 // Which pages to inspect next and what a run reports: the carry-over that lets a site larger than
 // one run's budget be covered a part at a time, oldest check first.
@@ -13,29 +21,6 @@ const MAX_URL = 2_000;
 
 const sitemapUrls = z.object({ urls: z.array(z.string()) });
 const isHttp = (value: string) => /^https?:$/.test(URL.parse(value)?.protocol ?? "");
-
-/** Why a run ended before every chosen page was asked about; null when it did not. */
-export type StoppedBy = "quota" | "time" | "errors" | null;
-
-/** One run's report (observation `index_summary`; subject: the property). */
-export type IndexSummary = {
-  /** Pages with a known status, from this run or carried over. */
-  inspected: number;
-  /** Pages in the sitemap. */
-  total: number;
-  byState: Record<IndexState, number>;
-  /** The oldest check behind any known status: nothing older than this is shown; null if none. */
-  checkedThrough: string | null;
-  /** Pages asked about in this run. */
-  checkedThisRun: number;
-  stoppedBy: StoppedBy;
-  /** When Harbour first saw this sitemap's pages, for the rule's "give new pages time" gate. */
-  sitemapSeenSince: string;
-};
-
-const summaryShape = z.object({
-  sitemapSeenSince: z.string().refine((v) => !Number.isNaN(Date.parse(v))),
-});
 
 /** The sitemap's page URLs in the crawler's observations: well-formed, unique, capped. */
 export function sitemapPageUrls(observations: readonly Observation[]): string[] {
@@ -60,7 +45,7 @@ export function knownStatuses(previous: readonly Observation[]): Map<string, Ind
 /** When the earlier run first saw the sitemap, or null if it never reported. */
 export function earlierSeenSince(previous: readonly Observation[]): string | null {
   const found = previous.find((o) => o.kind === "index_summary");
-  const parsed = summaryShape.safeParse(found?.value);
+  const parsed = indexSummaryValue.safeParse(found?.value);
   return parsed.success ? parsed.data.sitemapSeenSince : null;
 }
 

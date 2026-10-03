@@ -1,3 +1,4 @@
+import type { IndexStatus, StoppedBy } from "../index-shapes";
 import type { CollectContext, Collector, CollectorResult, Observation } from "../types";
 import { gscAccess } from "./gsc-access";
 import { type AccessTokenSource, googleAccessToken } from "./gsc-token";
@@ -6,11 +7,10 @@ import {
   chooseUrls,
   earlierSeenSince,
   knownStatuses,
-  type StoppedBy,
   sitemapPageUrls,
   summarise,
 } from "./index-plan";
-import { type IndexStatus, unknownStatus } from "./index-state";
+import { unknownStatus } from "./index-state";
 
 /** One request at a time, each at least this far after the last one started: under 1 a second. */
 const SPACING_MS = 1_100;

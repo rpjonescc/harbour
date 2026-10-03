@@ -1,7 +1,13 @@
 import { RESEARCH_TOPICS } from "@/lib/agents/topics";
 import type { ProductKind } from "@/lib/products/catalog";
 import type { Effort, Issue } from "./issues";
-import { isHtmlPage, type PageFacts, type ReadinessFacts, type SiteFacts } from "./view-shapes";
+import {
+  type CoverageFacts,
+  isHtmlPage,
+  type PageFacts,
+  type ReadinessFacts,
+  type SiteFacts,
+} from "./view-shapes";
 
 // The rule framework: what rules judge, how a rule is built, and when its facts may be incomplete.
 // The rules themselves live in issue-rules.ts.
@@ -13,12 +19,14 @@ export type Facts = {
   unreadablePages: number;
   site: SiteFacts | null;
   readiness: ReadinessFacts | null;
+  /** What Google says about the sitemap pages; null when the indexing check recorded nothing. */
+  coverage: CoverageFacts | null;
   /** "news" sites are the only ones Preferred Sources applies to. */
   productKind: ProductKind;
 };
 
 /** A collector a rule depends on: it must have run ok in the scan for the rule to judge. */
-export type Need = "crawler" | "readiness";
+export type Need = "crawler" | "readiness" | "indexing";
 
 /** One issue rule: what it needs, what fixing it takes, what to read, and how it judges a scan. */
 export type RuleDef = {

@@ -1,48 +1,11 @@
 import { z } from "zod";
 import { stripInvisible } from "@/lib/text/hidden-chars";
 import { forTerminal } from "@/lib/text/terminal";
+import { httpUrl, type IndexState, type IndexStatus, MAX_TEXT, MAX_URL } from "../index-shapes";
 import { parseJson } from "./google-api";
 
 // What Google's URL Inspection says about one page, reduced to the fields Harbour stores and
 // the small fixed set of states its own logic uses. Google's text is untrusted: cleaned, capped.
-
-/** What Harbour concludes from Google's words; "unknown" means the page could not be checked. */
-export const INDEX_STATES = [
-  "indexed",
-  "discovered_not_indexed",
-  "crawled_not_indexed",
-  "unknown_to_google",
-  "blocked",
-  "other",
-  "unknown",
-] as const;
-export type IndexState = (typeof INDEX_STATES)[number];
-
-/** The states that mean "Google has not added this page" (what the rule counts). */
-export const NOT_INDEXED_STATES: readonly IndexState[] = [
-  "discovered_not_indexed",
-  "crawled_not_indexed",
-  "unknown_to_google",
-];
-
-const MAX_TEXT = 200;
-const MAX_URL = 2_000;
-const isoTime = z.string().refine((value) => !Number.isNaN(Date.parse(value)));
-const httpUrl = z.string().refine((value) => /^https?:$/.test(URL.parse(value)?.protocol ?? ""));
-
-/** One inspected page as stored (observation `index_status`; subject: the page URL). */
-export const indexStatusValue = z.object({
-  state: z.enum(INDEX_STATES),
-  /** Google's words, as given (cleaned and capped); null when the page could not be checked. */
-  verdict: z.string().max(MAX_TEXT).nullable(),
-  coverageState: z.string().max(MAX_TEXT).nullable(),
-  lastCrawlTime: isoTime.nullable(),
-  googleCanonical: httpUrl.max(MAX_URL).nullable(),
-  robotsTxtState: z.string().max(MAX_TEXT).nullable(),
-  pageFetchState: z.string().max(MAX_TEXT).nullable(),
-  checkedAt: isoTime,
-});
-export type IndexStatus = z.infer<typeof indexStatusValue>;
 
 const clean = (text: string): string =>
   forTerminal(stripInvisible(text)).replace(/\s+/g, " ").trim().slice(0, MAX_TEXT);

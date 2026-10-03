@@ -1,4 +1,5 @@
 import { RESEARCH_TOPICS } from "@/lib/agents/topics";
+import { coverage, times } from "@/tests/helpers/coverage";
 import {
   ACME_CRAWL,
   ALL_OK,
@@ -9,6 +10,7 @@ import {
 } from "@/tests/helpers/scoring";
 import { RULES } from "./issue-rules";
 import { byImpact, deriveIssues, evaluateRules, type RuleOutcome } from "./issues";
+import { collectorLabel } from "./labels";
 import type { CollectorStatus, ScanObservation } from "./types";
 
 type Statuses = Record<string, CollectorStatus>;
@@ -24,6 +26,7 @@ const CLEAN: ScanObservation[] = [
   htmlPage("/"),
   crawlSite({ brokenInternalLinks: [] }),
   readiness({ robotsTxt: { state: "ok", aiCrawlerAccess: { GPTBot: "allowed" } } }),
+  ...coverage(times(10, "indexed")),
 ];
 
 /** Fixtures for each rule: one where it fires and one where its facts are unknown. */
@@ -68,10 +71,15 @@ const CASES: { id: string; present: ScanObservation[]; unknownFacts: ScanObserva
     present: [readiness({ preferredSources: { button: false } })],
     unknownFacts: [readiness({ preferredSources: null })],
   },
+  {
+    id: "pages-not-indexed",
+    present: coverage([...times(3, "crawled_not_indexed"), ...times(7, "indexed")]),
+    unknownFacts: [crawlSite()],
+  },
 ];
 
 describe("RULES", () => {
-  it("has the eight rules, in order, each with a test case", () => {
+  it("has the nine rules, in order, each with a test case", () => {
     expect(RULES.map((r) => r.id)).toEqual(CASES.map((c) => c.id));
   });
 
@@ -104,6 +112,7 @@ describe("RULES", () => {
         "small",
         ["research/seo/google-preferred-sources.md"],
       ],
+      "pages-not-indexed": [["indexing"], "medium", tech],
     });
   });
 });
@@ -137,7 +146,7 @@ describe.each(CASES)("rule $id", ({ id, present, unknownFacts }) => {
         expect(outcomeOf(id, present, { ...ALL_OK, [need]: status })).toEqual({
           ruleId: id,
           state: "unknown",
-          reason: `${need === "crawler" ? "Crawler" : "Readiness"} did not run ok in this scan`,
+          reason: `${collectorLabel(need)} did not run ok in this scan`,
         });
       }
     },

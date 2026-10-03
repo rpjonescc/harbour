@@ -1,3 +1,4 @@
+import { coverage, times } from "@/tests/helpers/coverage";
 import { ALL_OK, crawlSite, htmlPage, readiness } from "@/tests/helpers/scoring";
 import { evaluateRules, type Issue } from "./issues";
 import { AI_RETRIEVAL_AGENTS } from "./robots";
@@ -92,5 +93,35 @@ describe("rule titles in plain words", () => {
       "product",
     ).flatMap((o) => (o.state === "present" ? [o.issue.title] : []));
     expect(titles).toContain("2 pages are missing a title");
+  });
+});
+
+describe("the not-indexed action in plain words", () => {
+  const raised = () => {
+    const observations = [
+      crawlSite(),
+      ...coverage([...times(3, "crawled_not_indexed"), ...times(7, "indexed")]),
+    ];
+    const outcome = evaluateRules(observations, ALL_OK, "product").find(
+      (o) => o.ruleId === "pages-not-indexed",
+    );
+    if (outcome?.state !== "present") throw new Error("expected present");
+    return outcome.issue;
+  };
+
+  it("pins the wording and keeps jargon and Google's state names out", () => {
+    const issue = raised();
+    expect(issue.title).toBe("Google hasn't added 3 of your 10 pages to its search results");
+    expect(issue.problem).toBe(
+      "Pages Google hasn't added to its search results can't be found there, however good they are.",
+    );
+    expect(issue.fix).toBe(
+      "Make each page clearly different and useful on its own, put the real content in the page itself (not loaded afterwards), link to the page from your other pages, and earn links from other sites.",
+    );
+    expect(issue.check).toBe("The number of pages Google hasn't added falls at the next checks.");
+    for (const text of [issue.title, issue.problem, issue.fix, issue.check]) {
+      expect(text).not.toMatch(JARGON);
+      expect(text).not.toMatch(/\bscan\b|indexed|coverage|discovered|crawled/i);
+    }
   });
 });

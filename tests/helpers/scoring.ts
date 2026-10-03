@@ -247,6 +247,7 @@ export const ALL_OK: Record<string, CollectorStatus> = {
   readiness: "ok",
   pagespeed: "ok",
   "search-console": "ok",
+  indexing: "ok",
 };
 
 export const CONTEXT: ScoreContext = { now: NOW, productKind: "product", previousPagespeed: null };

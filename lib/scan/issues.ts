@@ -3,7 +3,7 @@ import { RULES } from "./issue-rules";
 import { collectorLabel } from "./labels";
 import type { Facts } from "./rule-def";
 import type { CollectorStatus, ScanObservation } from "./types";
-import { crawlPageFacts, crawlSiteFacts, readinessFacts } from "./view-shapes";
+import { crawlPageFacts, crawlSiteFacts, indexCoverageFacts, readinessFacts } from "./view-shapes";
 
 export type IssueArea = "SEO" | "GEO" | "AEO";
 export type Impact = "high" | "medium" | "low";
@@ -53,6 +53,7 @@ export function evaluateRules(
     unreadablePages: crawled.unreadable,
     site: crawlSiteFacts(observations),
     readiness: readinessFacts(observations),
+    coverage: indexCoverageFacts(observations),
     productKind: kind,
   };
   return RULES.map((rule): RuleOutcome => {

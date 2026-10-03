@@ -1,4 +1,5 @@
 import { FetchError } from "../fetch-error";
+import type { IndexStatus } from "../index-shapes";
 import type { CollectContext } from "../types";
 import {
   GSC_MAX_BYTES,
@@ -7,7 +8,7 @@ import {
   httpFailure,
   isQuotaFailure,
 } from "./gsc-access";
-import { type IndexStatus, readInspection } from "./index-state";
+import { readInspection } from "./index-state";
 
 const ENDPOINT = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect";
 
