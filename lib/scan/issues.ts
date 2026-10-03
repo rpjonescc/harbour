@@ -30,10 +30,13 @@ export type Issue = {
   docs: string[];
 };
 
-/** What one rule made of one scan: a problem, nothing wrong, or no way to tell (and why). */
+/**
+ * What one rule made of one scan: a problem, nothing wrong (with a reason when the rule stopped
+ * applying rather than the problem being fixed), or no way to tell (and why).
+ */
 export type RuleOutcome =
   | { ruleId: string; state: "present"; issue: Issue }
-  | { ruleId: string; state: "clear" }
+  | { ruleId: string; state: "clear"; note?: string }
   | { ruleId: string; state: "unknown"; reason: string };
 
 const IMPACT_ORDER: Record<Impact, number> = { high: 0, medium: 1, low: 2 };
@@ -68,6 +71,7 @@ export function evaluateRules(
     }
     const result = rule.evaluate(facts);
     if (result === "clear") return { ruleId: rule.id, state: "clear" };
+    if ("clear" in result) return { ruleId: rule.id, state: "clear", note: result.clear };
     if ("unknown" in result) return { ruleId: rule.id, state: "unknown", reason: result.unknown };
     return { ruleId: rule.id, state: "present", issue: result };
   });

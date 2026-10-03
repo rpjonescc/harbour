@@ -56,8 +56,7 @@ export function ProductHeader({
         {productSummary(product.name, scores.latest?.totals ?? null)}
       </p>
       <AreaCards scores={scores} scan={scan} />
-      {/* Only product sites lost the Preferred Sources weight, so only theirs moved. */}
-      {product.kind === "product" && <ScoringNote change={formulaChange} />}
+      <ScoringNote change={formulaChange} kind={product.kind} />
     </div>
   );
 }

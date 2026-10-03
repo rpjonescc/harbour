@@ -22,7 +22,10 @@ function hasQaMarkup(page: HtmlPage): boolean {
   return schema || types.includes("QAPage") || page.hasFaqMarkup;
 }
 
-/** FAQ/HowTo/Q&A coverage: the share of HTML pages with that markup, against a quarter. */
+/**
+ * FAQ/HowTo/Q&A coverage: the share of HTML pages with that markup, against a quarter. Weight 0
+ * from formula v3: measured for information, since Google stopped showing FAQ results in May 2026.
+ */
 export function qaCoverage(crawl: Crawl): SubScore {
   const html = htmlPages(crawl.pages);
   if (html.length === 0) return missing("No HTML pages were crawled to check");
@@ -73,24 +76,27 @@ export function preferredSources(readiness: Readiness, kind: ProductKind): SubSc
   return measured(score, `${button}; ${updated}`);
 }
 
-/** AEO sub-scores of formula v2; scored weights sum to 1. */
+/**
+ * AEO sub-scores of formula v3; scored weights sum to 1. v3 set Q&A coverage to 0 and spread its
+ * 40% over the rest in proportion (35:25 becomes 58:42, whole percents).
+ */
 export const AEO_SUB_SCORES: readonly SubScoreSpec[] = [
   {
     key: "aeo.qaCoverage",
     label: "FAQ, HowTo and Q&A coverage",
-    weight: 0.4,
+    weight: 0,
     measure: (i) => withSources([i.crawl], qaCoverage),
   },
   {
     key: "aeo.conciseAnswers",
     label: "Concise answer blocks",
-    weight: 0.35,
+    weight: 0.58,
     measure: (i) => withSources([i.crawl], conciseAnswers),
   },
   {
     key: "aeo.preferredSources",
     label: "Fresh content and Preferred Sources",
-    weight: 0.25,
+    weight: 0.42,
     measure: (i) =>
       withSources([i.crawl, i.readiness], (_crawl, r: Readiness) =>
         preferredSources(r, i.productKind),

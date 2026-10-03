@@ -94,4 +94,31 @@ describe("ScoreBreakdown", () => {
     render(<ScoreBreakdown area="geo" entries={[]} complete />);
     expect(screen.getByText(/The details behind Recommended by AI assistants/)).toBeInTheDocument();
   });
+
+  it("tags a measured check of weight 0 Not counted, says why, and lists it after the rest", () => {
+    const aeo = [
+      entry({
+        key: "aeo.qaCoverage",
+        label: "FAQ, HowTo and Q&A coverage",
+        score: 0,
+        weight: 0,
+        evidence:
+          "0 of 5 HTML pages have FAQPage, HowTo or QAPage markup (full marks at a quarter of the pages).",
+      }),
+      entry({
+        key: "aeo.conciseAnswers",
+        label: "Concise answer blocks",
+        score: 40,
+        weight: 0.58,
+        evidence: "2 of 5 question-style headings are answered by a paragraph of at most 60 words.",
+      }),
+    ];
+    render(<ScoreBreakdown area="aeo" entries={aeo} complete />);
+    const names = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(names).toEqual(["Short, direct answers", "Questions and answers marked up"]);
+    expect(screen.getByText("Not counted")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Measured, not counted: Google no longer shows FAQ results\./),
+    ).toBeInTheDocument();
+  });
 });

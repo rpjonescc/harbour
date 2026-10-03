@@ -15,6 +15,9 @@ import type { CollectorStatus, ScanObservation } from "./types";
 
 type Statuses = Record<string, CollectorStatus>;
 
+/** Rules formula v3 retired: they always clear, with the reason. */
+const RETIRED: string[] = ["no-faq-schema", "no-llms-txt"];
+
 const outcomeOf = (ruleId: string, observations: ScanObservation[], statuses: Statuses = ALL_OK) =>
   evaluateRules(observations, statuses, "news").find((o) => o.ruleId === ruleId);
 
@@ -29,7 +32,7 @@ const CLEAN: ScanObservation[] = [
   ...coverage(times(10, "indexed")),
 ];
 
-/** Fixtures for each rule: one where it fires and one where its facts are unknown. */
+/** Fixtures for each active rule: one where it fires and one where its facts are unknown. */
 const CASES: { id: string; present: ScanObservation[]; unknownFacts: ScanObservation[] }[] = [
   {
     id: "missing-title",
@@ -53,18 +56,10 @@ const CASES: { id: string; present: ScanObservation[]; unknownFacts: ScanObserva
   },
   {
     id: "ai-crawlers-blocked",
-    present: [readiness()],
+    present: [
+      readiness({ robotsTxt: { state: "ok", aiCrawlerAccess: { PerplexityBot: "blocked" } } }),
+    ],
     unknownFacts: [readiness({ robotsTxt: { state: "unavailable", aiCrawlerAccess: null } })],
-  },
-  {
-    id: "no-faq-schema",
-    present: [htmlPage("/"), readiness({ schema: { pagesChecked: 3, pagesWith: { FAQPage: 0 } } })],
-    unknownFacts: [htmlPage("/"), readiness({ schema: null })],
-  },
-  {
-    id: "no-llms-txt",
-    present: [readiness({ llmsTxt: { present: false } })],
-    unknownFacts: [readiness({ llmsTxt: { present: null } })],
   },
   {
     id: "no-preferred-sources",
@@ -79,17 +74,19 @@ const CASES: { id: string; present: ScanObservation[]; unknownFacts: ScanObserva
 ];
 
 describe("RULES", () => {
-  it("has the nine page rules, in order, each with a test case, then the two outside-view rules", () => {
+  it("has the page rules in order, the retired ones among them, then the outside-view rules", () => {
     expect(RULES.map((r) => r.id)).toEqual([
-      ...CASES.map((c) => c.id),
+      ...CASES.slice(0, 5).map((c) => c.id),
+      ...RETIRED,
+      ...CASES.slice(5).map((c) => c.id),
       "few-referring-sites",
       "not-named-by-ai",
     ]);
   });
 
-  it("links every rule to real research topics", () => {
+  it("links every active rule to real research topics", () => {
     const paths = new Set(RESEARCH_TOPICS.map((t) => t.path));
-    for (const rule of RULES) {
+    for (const rule of RULES.filter((r) => !RETIRED.includes(r.id))) {
       expect(rule.docs.length).toBeGreaterThan(0);
       for (const doc of rule.docs) expect(paths).toContain(doc);
     }
@@ -105,12 +102,8 @@ describe("RULES", () => {
       "broken-links": [["crawler"], "medium", tech],
       noindex: [["crawler"], "small", tech],
       "ai-crawlers-blocked": [["readiness"], "small", llms],
-      "no-faq-schema": [
-        ["crawler", "readiness"],
-        "medium",
-        ["research/aeo/aeo-and-ai-overviews.md"],
-      ],
-      "no-llms-txt": [["readiness"], "small", llms],
+      "no-faq-schema": [[], "small", []],
+      "no-llms-txt": [[], "small", []],
       "no-preferred-sources": [
         ["crawler", "readiness"],
         "small",
@@ -174,20 +167,9 @@ describe("evaluateRules", () => {
     }
   });
 
-  it("is unknown for every rule without observations or statuses", () => {
-    const outcomes = evaluateRules([], {}, "news");
+  it("is unknown for every active rule without observations or statuses", () => {
+    const outcomes = evaluateRules([], {}, "news").filter((o) => !RETIRED.includes(o.ruleId));
     expect(outcomes.every((o) => o.state === "unknown")).toBe(true);
-  });
-
-  it("judges the FAQ rule clear from FAQ microdata on a crawled page", () => {
-    const faqPage = htmlPage("/faq", { hasFaqMarkup: true });
-    const schema = readiness({ schema: { pagesChecked: 1, pagesWith: { FAQPage: 0 } } });
-    expect(stateOf("no-faq-schema", [faqPage, schema])).toBe("clear");
-  });
-
-  it("is unknown for the FAQ rule when no page had its schema checked", () => {
-    const schema = readiness({ schema: { pagesChecked: 0, pagesWith: { FAQPage: 0 } } });
-    expect(stateOf("no-faq-schema", [htmlPage("/"), schema])).toBe("unknown");
   });
 });
 

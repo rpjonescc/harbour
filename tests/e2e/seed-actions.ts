@@ -37,10 +37,20 @@ export const GEO_EVIDENCE = "The home page opens with a slogan, not the café's 
 const atCafe = (o: ScanObservation): ScanObservation =>
   JSON.parse(JSON.stringify(o).replaceAll(ORIGIN, CAFE_URL));
 
-// The café's crawl is clean; its readiness has no llms.txt, no FAQ markup and blocks GPTBot.
-const CRAWL = [htmlPage("/"), crawlSite({ brokenInternalLinks: [] })].map(atCafe);
+// The café's home page has no meta description and its robots.txt blocks PerplexityBot (an AI
+// search agent) and GPTBot (training only, which raises nothing). It has no llms.txt and no FAQ
+// markup, which raise nothing either since formula v3.
+const CRAWL = [htmlPage("/", { descriptionLength: 0 }), crawlSite({ brokenInternalLinks: [] })].map(
+  atCafe,
+);
 const READINESS = [
   readiness({
+    robotsTxt: {
+      state: "ok",
+      valid: true,
+      googlebot: "allowed",
+      aiCrawlerAccess: { GPTBot: "blocked", PerplexityBot: "blocked", "OAI-SearchBot": "allowed" },
+    },
     llmsTxt: { present: false, status: 404, bytes: null, truncated: false, error: null },
     schema: {
       pagesChecked: 3,

@@ -261,11 +261,22 @@ describe("formulaChange", () => {
     const db = openTestDb();
     seedScan(db, { productId: "acme-docs", at: daysAfter(-3) });
     seedScan(db, { productId: "acme-docs", at: daysAfter(-2), formulaVersion: "v2" });
-    seedScan(db, { productId: "acme-docs", at: daysAfter(-1), formulaVersion: "v3" });
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-1), formulaVersion: "v4" });
     expect(formulaChange(db, "acme-docs", T0)).toEqual({
       from: "v1",
       to: "v2",
       at: daysAfter(-2),
+    });
+  });
+
+  it("finds the move to v3, which has its own note", () => {
+    const db = openTestDb();
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-2), formulaVersion: "v2" });
+    seedScan(db, { productId: "acme-docs", at: daysAfter(-1), formulaVersion: "v3" });
+    expect(formulaChange(db, "acme-docs", T0)).toEqual({
+      from: "v2",
+      to: "v3",
+      at: daysAfter(-1),
     });
   });
 

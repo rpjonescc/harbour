@@ -7,14 +7,16 @@ import { expectPlainLanguage } from "./plain-language";
 import { CAFE, GEO_EVIDENCE, SUGGESTED, seedActions } from "./seed-actions";
 
 // Runs after scans.spec.ts: Acme Docs has the rule actions its scan opened. The seed adds a
-// scored scan of Lighthouse Café (rule actions "No guide to your site for AI assistants", "Your
-// site opts out of AI training" and "Your questions and answers aren't labelled for Google and
-// AI") and two suggestions from the weekly analyst.
+// scored scan of Lighthouse Café (rule actions "1 page has no summary for search results" and
+// "AI assistants can't read your site") and two suggestions from the weekly analyst.
 
 test.describe.configure({ mode: "serial" });
 test.beforeAll(() => seedActions());
 
 const CAFE_BOARD = `/actions?view=list&product=${CAFE.id}`;
+/** The café's two rule actions. */
+const NO_SUMMARY = "1 page has no summary for search results";
+const BLOCKED = "AI assistants can't read your site";
 /** E2E runs with the default locale. */
 const LOCALE = "en-US";
 
@@ -60,20 +62,15 @@ test("the sidebar counts open actions and the board groups them, biggest wins fi
 }) => {
   await page.goto("/actions?view=list");
   const { active } = await headerCounts(page);
-  // Acme Docs' two scan issues and the café's three rule actions are all open.
-  expect(active).toBeGreaterThanOrEqual(5);
+  // Acme Docs' two scan issues and the café's two rule actions are all open.
+  expect(active).toBeGreaterThanOrEqual(4);
   await expect(
     page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: /^Actions/ }),
   ).toHaveAccessibleName(new RegExp(`^Actions\\s*${active} things worth doing$`));
 
   await expect(card(page, "1 page is missing a title", "Acme Docs")).toBeVisible();
   await expect(card(page, "1 page you link to can't be found", "Acme Docs")).toBeVisible();
-  for (const title of [
-    "No guide to your site for AI assistants",
-    "Your site opts out of AI training",
-    "Your questions and answers aren't labelled for Google and AI",
-  ])
-    await expect(card(page, title)).toBeVisible();
+  for (const title of [NO_SUMMARY, BLOCKED]) await expect(card(page, title)).toBeVisible();
   await expect(page.getByRole("main").getByRole("heading", { level: 2 }).first()).toHaveText(
     "Big wins",
   );
@@ -135,14 +132,14 @@ test("accept, start and mark done move an action through the board", async ({ pa
   await changeStatus(page, SUGGESTED.aeo, "Mark done", "Done");
 
   await page.goto(CAFE_BOARD);
-  await expect(card(page, "No guide to your site for AI assistants")).toBeVisible();
+  await expect(card(page, NO_SUMMARY)).toBeVisible();
   await expect(card(page, SUGGESTED.aeo)).toHaveCount(0);
   await page.goto(`${CAFE_BOARD}&status=done`);
   await expect(card(page, SUGGESTED.aeo)).toBeVisible();
 });
 
 test("snooze hides an action until its date; Bring back now brings it back", async ({ page }) => {
-  const title = "No guide to your site for AI assistants";
+  const title = NO_SUMMARY;
   await page.goto(`${CAFE_BOARD}&status=all`);
   const snooze = card(page, title).getByRole("button", { name: `Snooze…: ${title}` });
   await hydrated(snooze);
@@ -162,7 +159,7 @@ test("snooze hides an action until its date; Bring back now brings it back", asy
   ).toBeVisible();
 
   await page.goto(CAFE_BOARD);
-  await expect(card(page, "Your site opts out of AI training")).toBeVisible();
+  await expect(card(page, BLOCKED)).toBeVisible();
   await expect(card(page, title)).toHaveCount(0);
 
   await page.goto(`${CAFE_BOARD}&status=snoozed`);
@@ -215,10 +212,7 @@ test("Today lists the top three actions in board order; issues link to their act
 
   await page.goto(`/products/${CAFE.id}`);
   const issues = page.getByRole("region", { name: "What to fix" });
-  for (const title of [
-    "Your questions and answers aren't labelled for Google and AI",
-    "No guide to your site for AI assistants",
-  ]) {
+  for (const title of [NO_SUMMARY, BLOCKED]) {
     const issue = issues.getByRole("article", { name: title });
     await expect(issue.getByText("Waiting for you", { exact: true })).toBeVisible();
     await expect(issue.getByRole("link", { name: "View on the Actions board" })).toHaveAttribute(
@@ -238,8 +232,8 @@ const focusedName = (page: Page) =>
 test("keyboard: Tab runs from the filters through a card; the snooze form traps nothing", async ({
   page,
 }) => {
-  const title = "Your questions and answers aren't labelled for Google and AI";
-  await page.goto(`${CAFE_BOARD}&area=AEO`);
+  const title = NO_SUMMARY;
+  await page.goto(`${CAFE_BOARD}&area=SEO`);
   await expect(page.getByRole("article")).toHaveCount(1);
   const trigger = card(page, title).getByRole("button", { name: `Snooze…: ${title}` });
   await hydrated(trigger);

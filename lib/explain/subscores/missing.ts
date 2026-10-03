@@ -4,6 +4,10 @@
  */
 const REASONS: readonly (readonly [RegExp, string])[] = [
   [
+    /measured in the outside view, not counted in the score yet/,
+    "Measured in How the web sees you, not counted in the score yet.",
+  ],
+  [
     /needs? (?:API keys|a rankings API key)/,
     "Needs paid data, which isn't connected yet, so it isn't counted.",
   ],

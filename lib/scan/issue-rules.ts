@@ -1,3 +1,4 @@
+import { RETIRED_RULE_NOTES, TRAINING_ONLY_NOTE } from "@/lib/explain/rule-notes";
 import { pagesNotIndexed } from "./issue-rules-indexing";
 import { fewReferringSites, notNamedByAi } from "./issue-rules-outside";
 import { AI_RETRIEVAL_AGENTS } from "./robots";
@@ -7,6 +8,7 @@ import {
   htmlPagesWhere,
   pagesGap,
   type RuleDef,
+  retiredRule,
   rule,
   topicPath,
 } from "./rule-def";
@@ -128,66 +130,27 @@ const aiCrawlersBlocked = rule(
     const blocked = Object.entries(access)
       .filter(([, state]) => state === "blocked")
       .map(([name]) => name);
-    const search = blocked.some((name) => AI_RETRIEVAL_AGENTS.has(name));
+    // Blocking only training crawlers is a policy choice (formula v3): nothing to raise.
+    if (!blocked.some((name) => AI_RETRIEVAL_AGENTS.has(name))) {
+      return blocked.length > 0 ? { clear: TRAINING_ONLY_NOTE } : "clear";
+    }
     return {
       area: "GEO",
-      impact: search ? "high" : "low",
-      title: search ? "AI assistants can't read your site" : "Your site opts out of AI training",
-      problem: search
-        ? "AI assistants' search tools are blocked from reading your site, so they can't cite it."
-        : "Only the tools that collect training data are blocked; AI assistants can still read and cite your site.",
+      impact: "high",
+      title: "AI assistants can't read your site",
+      problem:
+        "AI assistants' search tools are blocked from reading your site, so they can't cite it.",
       fix: `Allow the AI search agents (${[...AI_RETRIEVAL_AGENTS].join(", ")}) in robots.txt; blocking training-only crawlers is your choice.`,
       check: "robots.txt lets each AI search agent fetch /.",
-      locations: blocked.length > 0 ? [atSite(readiness, "/robots.txt")] : [],
+      locations: [atSite(readiness, "/robots.txt")],
     };
   },
 );
 
-const noFaqSchema = rule(
-  {
-    id: "no-faq-schema",
-    needs: ["crawler", "readiness"],
-    effort: "medium",
-    docs: [topicPath("aeo-and-ai-overviews")],
-  },
-  ({ pages, readiness }) => {
-    if (!readiness) return NO_READINESS;
-    const schema = readiness.schema;
-    if (!schema || schema.pagesChecked === 0) return { unknown: "No page's schema was checked" };
-    if (schema.pagesWith.FAQPage > 0 || pages.some((p) => p.hasFaqMarkup === true)) return "clear";
-    return {
-      area: "AEO",
-      impact: "medium",
-      title: "Your questions and answers aren't labelled for Google and AI",
-      problem:
-        "Your pages don't label their questions and answers in a way Google and AI assistants can read, so they're less likely to quote you.",
-      fix: "Add FAQPage JSON-LD to the pages that answer common questions (each question with a short answer).",
-      check:
-        "At least one page serves valid FAQPage JSON-LD (Google's Rich Results Test reads it).",
-      locations: [readiness.url],
-    };
-  },
-);
-
-const noLlmsTxt = rule(
-  { id: "no-llms-txt", needs: ["readiness"], effort: "small", docs: AI_CRAWLERS },
-  ({ readiness }) => {
-    if (!readiness) return NO_READINESS;
-    const present = readiness.llmsTxt.present;
-    if (present === null) return { unknown: "Whether /llms.txt exists could not be checked" };
-    if (present) return "clear";
-    return {
-      area: "GEO",
-      impact: "low",
-      title: "No guide to your site for AI assistants",
-      problem:
-        "There's no short guide to your site written for AI assistants, so they have to guess which pages matter.",
-      fix: "Publish /llms.txt: a Markdown summary of the site with links to its most useful pages.",
-      check: "/llms.txt answers 200 with plain text (not an HTML page).",
-      locations: [atSite(readiness, "/llms.txt")],
-    };
-  },
-);
+// Formula v3 retired these: Google ended FAQ results in May 2026 and says llms.txt neither helps
+// nor harms. They stay in RULES so the normal sync closes their open actions with the reason.
+const noFaqSchema = retiredRule("no-faq-schema", RETIRED_RULE_NOTES["no-faq-schema"]);
+const noLlmsTxt = retiredRule("no-llms-txt", RETIRED_RULE_NOTES["no-llms-txt"]);
 
 const noPreferredSources = rule(
   {

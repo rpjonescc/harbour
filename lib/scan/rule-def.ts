@@ -31,6 +31,9 @@ export type Facts = {
 /** A collector a rule depends on: it must have run ok in the scan for the rule to judge. */
 export type Need = "crawler" | "readiness" | "indexing";
 
+/** Nothing to do, with a plain reason for the action it closes when "not found" would mislead. */
+export type ClearWithNote = { clear: string };
+
 /** One issue rule: what it needs, what fixing it takes, what to read, and how it judges a scan. */
 export type RuleDef = {
   id: string;
@@ -38,13 +41,13 @@ export type RuleDef = {
   effort: Effort;
   /** Brain paths of the research topics that explain the fix. */
   docs: readonly string[];
-  evaluate(facts: Facts): Issue | "clear" | { unknown: string };
+  evaluate(facts: Facts): Issue | "clear" | ClearWithNote | { unknown: string };
 };
 
 type Finding = Omit<Issue, "id" | "effort" | "docs" | "locations" | "total"> & {
   locations: string[];
 };
-type Check = (facts: Facts) => Finding | "clear" | { unknown: string };
+type Check = (facts: Facts) => Finding | "clear" | ClearWithNote | { unknown: string };
 /** Why the facts a rule judged may be incomplete, or null when they cover what it needs. */
 type Gap = (facts: Facts) => string | null;
 
@@ -72,7 +75,7 @@ export function rule(meta: Omit<RuleDef, "evaluate">, check: Check, gap?: Gap): 
     evaluate(facts) {
       const result = check(facts);
       if (result === "clear") return clear(facts);
-      if ("unknown" in result) return result;
+      if ("unknown" in result || "clear" in result) return result;
       const { locations, ...fields } = result;
       if (locations.length === 0) return clear(facts);
       return {
@@ -85,6 +88,15 @@ export function rule(meta: Omit<RuleDef, "evaluate">, check: Check, gap?: Gap): 
       };
     },
   };
+}
+
+/**
+ * A rule Harbour no longer raises: it always clears, with `why`, so the normal sync closes its
+ * open actions with that reason and keeps their history. It needs no collector, so a failed
+ * check can't hold an action open.
+ */
+export function retiredRule(id: string, why: string): RuleDef {
+  return { id, needs: [], effort: "small", docs: [], evaluate: () => ({ clear: why }) };
 }
 
 export const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;

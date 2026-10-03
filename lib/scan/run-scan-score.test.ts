@@ -49,17 +49,17 @@ describe("runScan scoring", () => {
     });
   });
 
-  it("stores a v2 score row from the real scorer", async () => {
+  it("stores a v3 score row from the real scorer", async () => {
     const crawler = returns("crawler", { status: "ok", observations: ACME_CRAWL.map(strip) });
     const ready = returns("readiness", { status: "ok", observations: [strip(readiness())] });
     const { db, scan } = setup([crawler, ready], { scoreScan });
     await scan();
     expect(db.select().from(scores).all()).toEqual([
       expect.objectContaining({
-        formulaVersion: "v2",
+        formulaVersion: "v3",
         seo: 80,
-        geo: 92,
-        aeo: 88,
+        geo: 93,
+        aeo: 81,
         complete: { seo: false, geo: true, aeo: true },
       }),
     ]);
