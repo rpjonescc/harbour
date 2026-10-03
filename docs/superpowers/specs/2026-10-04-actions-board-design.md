@@ -13,7 +13,8 @@ Success: the owner can answer "what is stuck, what needs me, what moved today" w
 and can move a card by dragging it or with the keyboard.
 
 Non-goals: no manual ordering inside a column (cards sort by impact, then age); no new "projects" model
-(a project is a configured product); no swimlanes; no automatic status changes from outside Harbour.
+(a project is a configured product); no swimlanes; no automatic status changes from outside Harbour, except the pull request sync (§9),
+which only reflects what a linked pull request already says.
 
 ## 2. The six columns
 
@@ -174,9 +175,62 @@ Where the build differs from, or adds to, the sections above.
 **Agent as boss**
 - The main agent keeps each card's column true (AGENTS.md): a pull request opened moves the card
   to In review, a merge moves it to Done, and what it cannot resolve is written on the card.
+  Since §9 the hourly pull request sync makes those moves for linked cards; the main agent
+  handles what the sync holds or cannot check.
 
 **Tests**
 - `tests/e2e/board.spec.ts` (project `board`, last in order) seeds Fern & Field cards through
   production code (`tests/e2e/seed-board.ts`) and checks six columns with counts, a keyboard move
   with its announcement and focus, a drag move, a refused move (a card with a pull request moved
   to In progress) reverting with its sentence, and the Today strip links with **Show everything**.
+
+## 9. Pull request sync (4 October 2026)
+
+Requested by the owner: the board keeps itself true against linked GitHub pull requests, so the
+main agent only handles disagreements.
+
+- **Command:** `pnpm actions sync-prs [--dry-run] [--json]`, actor `claude`, a note on every
+  change. Code in `lib/actions/pr-sync/` (`gh.ts` runner and allow-list, `pr-state.ts` parsing,
+  `plan.ts` rules, `sync.ts` the run), the CLI in `lib/actions/cli/sync-prs.ts`, notes and
+  failure sentences in `lib/explain/pr-sync.ts`.
+- **Which cards:** status suggested, open or in progress with a pull request link, least recently
+  changed first, at most 50 per run (the rest are counted and wait for the next run). Done,
+  snoozed and dismissed cards and cards without a link are never read or touched.
+- **Reading GitHub:** `gh pr view <url> --json state,isDraft,mergedAt,closedAt,reviewDecision,statusCheckRollup,title`
+  through `execFile` (no shell), one call at a time, 20 seconds each, 5 minutes per run. The
+  child sees only `PATH`, `HOME`, `LANG`, the XDG and D-Bus variables gh needs to find its own
+  login, and `GH_CONFIG_DIR`; `GH_TOKEN` and `GITHUB_TOKEN` are not passed, so only the existing
+  `gh auth login` is used and no token is read or printed. The runner refuses (throws on) any
+  call but exactly that one, so the code cannot merge, close, comment on or edit a pull request;
+  `gh.test.ts` checks the refusals.
+- **Rules** (moves through `moveToColumn` with the column read with the card, so a card moved
+  meanwhile is refused as stale, never overwritten):
+  - merged: Done, "Pull request merged on <date>." (date in `HARBOUR_TIMEZONE` and `HARBOUR_LOCALE`).
+  - open, not a draft: In review, "The pull request is open and waiting for a review."
+  - open draft: Started, "A draft pull request is open, so the work has started.", only from
+    Backlog or Queue; a card further along stays.
+  - closed without merging: Backlog, "Pull request closed without merging; the card needs a
+    decision." The link stays.
+  - checks on an open pull request: one note per change, "Checks are failing on the pull
+    request." and, after that, "Checks are passing again." No move. Any failed, timed-out or
+    action-required check counts as failing; cancelled and skipped runs do not; while any check
+    runs and none failed, nothing is said.
+- **Memory without a new column:** the sync reads its own notes in the card's history since the
+  pull request was last linked. A move is made once per pull request state: if the sync already
+  recorded that state and the card was moved since (by the owner or the main agent), the card is
+  **held** and reported ("Left for a decision"), not moved back every hour. This makes a second
+  run change nothing.
+- **Authority:** a new idea (suggested) is never moved, since any move would accept it; it is
+  held and gh is not asked. The sync only reflects what the owner or Claude already did on GitHub.
+- **Failures** (gh missing, not logged in, rate limit, pull request not found, timeout, an answer
+  it cannot read, a stored link that is not a pull request, out of time, moved meanwhile) are
+  per-card failures with a plain sentence and exit code 1, never success. After gh missing, not
+  logged in or a rate limit, the run stops calling gh and fails the remaining cards with the same
+  reason.
+- **Output:** a short summary (moved, noted, left for a decision, could not check, no change), or
+  with `--json` `{ note, dryRun, more, failed, cards }`; titles are terminal-safe and the data
+  note says they are data. `--dry-run` reads GitHub and writes nothing.
+- **Schedule:** `deploy/harbour-board-sync.service` (one-shot, `Nice=10`, 10-minute backstop,
+  journal) and `.timer` (hourly, random delay up to 5 minutes, `Persistent=true`), installed and
+  enabled by `install.sh` unless `HARBOUR_BOARD_SYNC=off`.
+

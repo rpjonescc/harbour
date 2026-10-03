@@ -1,0 +1,18 @@
+[Unit]
+Description=Harbour board sync (moves Actions board cards to match their pull requests)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# One run per timer tick (harbour-board-sync.timer); `pnpm actions` reads .env itself.
+Type=oneshot
+WorkingDirectory=__REPO__
+Environment=NODE_ENV=production
+Environment=PATH=__EXTRA_PATH____NODE_BIN__:%h/.local/bin:/usr/bin:/bin
+ExecStart=__NODE_BIN__/pnpm actions sync-prs
+SyslogIdentifier=harbour-board-sync
+Nice=10
+# The sync stops itself after 5 minutes; this is the backstop.
+TimeoutStartSec=10min
+NoNewPrivileges=true
+PrivateTmp=true

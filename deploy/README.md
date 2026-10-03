@@ -94,6 +94,36 @@ Edit the brain only on the Harbour PC: the worker commits and pushes but never p
 brain a `.gitignore` for editor and OS files (`.DS_Store`, `*.swp`, `*~`,
 `.obsidian/workspace*.json`).
 
+## Board sync
+
+`install.sh` also installs `harbour-board-sync.service` and `harbour-board-sync.timer`. Every
+hour (at a random moment in the first 5 minutes) the timer runs `pnpm actions sync-prs` in the
+Harbour folder, with `.env`, at low priority (`Nice=10`) and a 10-minute limit. It moves Actions
+board cards to match their linked GitHub pull requests and only reads GitHub (see
+[Keep cards in step with pull requests](../README.md#keep-cards-in-step-with-pull-requests)).
+A run missed while the machine was off happens soon after it starts.
+
+1. Install the GitHub CLI (`gh`) and run `gh auth login` once as the user that runs Harbour.
+   `install.sh` adds the directory `gh` was found in to the unit's `PATH`; if `gh` is not found
+   it warns, and every run reports its cards as not checked.
+2. The timer runs without a desktop session. If `gh` keeps its login in the system keyring and
+   the log says the CLI is not logged in, check from a plain SSH shell with `gh auth status`; if
+   that fails too, log in again there (`gh auth login`), so the login works without the desktop
+   keyring.
+3. Try it by hand first: `pnpm actions sync-prs --dry-run`.
+
+```bash
+systemctl --user list-timers harbour-board-sync.timer   # when it runs next
+journalctl --user -u harbour-board-sync                  # what each run did
+systemctl --user start harbour-board-sync.service        # run it now
+systemctl --user disable --now harbour-board-sync.timer  # turn it off
+```
+
+A run that could not check a card exits non-zero, so it shows as failed in `systemctl --user
+status harbour-board-sync`. To keep it off when you re-run the installer, use
+`HARBOUR_BOARD_SYNC=off ./deploy/install.sh` (a shell setting for the script; the app does not
+read it).
+
 ## Google data for the visibility scan
 
 Optional. To add PageSpeed (Core Web Vitals), follow
@@ -146,6 +176,7 @@ systemctl --user start harbour-worker
 
 `journalctl --user -u harbour-web -f`
 `journalctl --user -u harbour-worker -f`
+`journalctl --user -u harbour-board-sync`
 
 ## Lost every device
 

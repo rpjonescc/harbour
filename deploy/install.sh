@@ -28,6 +28,14 @@ if [[ -z "$CLAUDE_PATH" ]] && ! grep -q "^HARBOUR_CLAUDE_BIN=." "$REPO/.env"; th
   echo "  Install it, or set HARBOUR_CLAUDE_BIN=/absolute/path/to/claude in .env, then re-run this script." >&2
 fi
 
+# The hourly board sync reads pull requests with the GitHub CLI and its existing login.
+GH_PATH="$(command -v gh || true)"
+BOARD_SYNC="${HARBOUR_BOARD_SYNC:-on}"
+if [[ "$BOARD_SYNC" != "off" && -z "$GH_PATH" ]]; then
+  echo "Warning: the GitHub CLI (gh) is not on PATH, so the hourly board sync will report every card as not checked." >&2
+  echo "  Install it and run gh auth login, then re-run this script (or set HARBOUR_BOARD_SYNC=off)." >&2
+fi
+
 # URL.origin drops the default port, so the config must not carry :443.
 if [[ "$HTTPS_PORT" == "443" ]]; then ORIGIN_HOST="$MAGIC_DNS"; else ORIGIN_HOST="$MAGIC_DNS:$HTTPS_PORT"; fi
 EXPECTED_ORIGIN="HARBOUR_ORIGIN=https://$ORIGIN_HOST"
@@ -67,10 +75,20 @@ node "$REPO/deploy/render-unit.mjs" "$REPO/deploy/harbour-web.service.template" 
   > "$UNIT_DIR/harbour-web.service"
 node "$REPO/deploy/render-unit.mjs" "$REPO/deploy/harbour-worker.service.template" "$REPO" "$NODE_BIN" "$CLAUDE_PATH" \
   > "$UNIT_DIR/harbour-worker.service"
+node "$REPO/deploy/render-unit.mjs" "$REPO/deploy/harbour-board-sync.service.template" "$REPO" "$NODE_BIN" "$GH_PATH" \
+  > "$UNIT_DIR/harbour-board-sync.service"
+node "$REPO/deploy/render-unit.mjs" "$REPO/deploy/harbour-board-sync.timer.template" "$REPO" "$NODE_BIN" \
+  > "$UNIT_DIR/harbour-board-sync.timer"
 systemctl --user daemon-reload
 systemctl --user enable --now harbour-web.service harbour-worker.service
 # enable --now does nothing for a running unit; restart so a re-run serves the new build.
 systemctl --user restart harbour-web.service harbour-worker.service
+if [[ "$BOARD_SYNC" == "off" ]]; then
+  systemctl --user disable --now harbour-board-sync.timer 2>/dev/null || true
+  echo "Hourly board sync is off (HARBOUR_BOARD_SYNC=off)."
+else
+  systemctl --user enable --now harbour-board-sync.timer
+fi
 
 if [[ "$PORT_STATE" == "ours" ]]; then
   echo "Tailscale Serve already proxies port $HTTPS_PORT to Harbour; leaving it as is."
