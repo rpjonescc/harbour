@@ -17,7 +17,10 @@ describe("the jobs.result migration", () => {
       const journal = JSON.parse(readFileSync(journalFile, "utf8")) as {
         entries: { tag: string }[];
       };
-      expect(journal.entries.pop()?.tag).toBe("0012_jobs_result");
+      // Drop 0012 and everything after it: later migrations don't change what this test is about.
+      const at = journal.entries.findIndex((entry) => entry.tag === "0012_jobs_result");
+      expect(at).toBeGreaterThan(0);
+      journal.entries.splice(at);
       writeFileSync(journalFile, JSON.stringify(journal));
 
       const db = openDb(join(dir, "old.db"));
@@ -26,7 +29,7 @@ describe("the jobs.result migration", () => {
         sql`insert into jobs (kind, params, dedupe_key, status, created_at) values ('research', '{}', 'k', 'ok', 1)`,
       );
 
-      migrateDb(db); // the real folder: only the newest migration is pending
+      migrateDb(db); // the real folder: the migrations from `result` on are pending
       expect(db.select().from(jobs).where(eq(jobs.dedupeKey, "k")).get()).toMatchObject({
         kind: "research",
         result: null,

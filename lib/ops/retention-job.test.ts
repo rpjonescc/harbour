@@ -1,5 +1,6 @@
 import { parseConfig } from "@/lib/config";
 import { connectionOf, type Db } from "@/lib/db/client";
+import { externalChecks } from "@/lib/db/schema";
 import { claimNextJob, enqueueJob, eventsSince, getJob } from "@/lib/jobs/queue";
 import { openTestDb } from "@/tests/helpers/db";
 import { addScans, scansWithObservations } from "@/tests/helpers/retention";
@@ -119,5 +120,31 @@ describe("runRetentionJob", () => {
     expect(getJob(db, job.id)).toMatchObject({ status: "cancelled", error: "Worker stopped" });
     expect(texts(db, job.id).at(-1)).toEqual(["status", "Worker stopped"]);
     expect(scansWithObservations(db)[0]).toBe(1);
+  });
+});
+
+describe("outside-view history in the retention job", () => {
+  it("prunes checks older than 400 days and says how many, even with no old scans to tidy", async () => {
+    const { deps, db, job } = setup(3);
+    const old = new Date("2025-08-01T00:00:00Z");
+    const row = {
+      productId: "acme-docs",
+      kind: "backlinks",
+      subject: "docs.example.com",
+      value: {},
+    };
+    db.insert(externalChecks)
+      .values([
+        { ...row, checkedAt: old },
+        { ...row, checkedAt: new Date("2026-09-30T00:00:00Z") },
+      ])
+      .run();
+    await runRetentionJob(deps, job);
+    expect(db.select().from(externalChecks).all()).toHaveLength(1);
+    expect(texts(db, job.id)).toContainEqual([
+      "status",
+      "Removed 1 outside-view check older than 400 days",
+    ]);
+    expect(getJob(db, job.id)?.status).toBe("ok");
   });
 });

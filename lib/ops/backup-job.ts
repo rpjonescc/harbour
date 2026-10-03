@@ -3,6 +3,7 @@
 
 import type { Config } from "@/lib/config";
 import type { Db } from "@/lib/db/client";
+import { KEEP_DAYS, pruneExternalChecks } from "@/lib/external/store";
 import { addEvent, enqueueJob, finishJob, isCancelRequested, type Job } from "@/lib/jobs/queue";
 import { type BackupResult, BackupStopped, runBackup } from "./backup";
 import { backupDirFor, backupFileName } from "./backup-files";
@@ -100,6 +101,12 @@ export async function runRetentionJob(deps: OpsJobDeps, job: Job): Promise<void>
   const status = (text: string) => addEvent(db, job.id, "status", text, now());
   try {
     const keep = config.HARBOUR_OBSERVATION_SCANS_KEPT;
+    // The outside view's history has its own, longer life (400 days).
+    const old = pruneExternalChecks(db, now());
+    if (old > 0)
+      status(
+        `Removed ${old} outside-view ${old === 1 ? "check" : "checks"} older than ${KEEP_DAYS} days`,
+      );
     const plan = planRetention(db, keep);
     const due = plan.products.filter((p) => p.pruneScanIds.length > 0);
     if (due.length === 0) {
