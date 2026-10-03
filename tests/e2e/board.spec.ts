@@ -42,6 +42,11 @@ test("the board shows six columns with their counts", async ({ page }) => {
     await expect(cardsIn(page, name)).toHaveCount(count);
   }
   await expect(card(page, BOARD_CARDS.stuck).getByText("Stuck", { exact: true })).toBeVisible();
+  // The verdict speaks for the whole board, so other specs' cards count too: only its shape is fixed.
+  const verdict = page.locator("[data-page-verdict]");
+  await expect(verdict).toContainText(/waiting for you\./);
+  await expect(verdict).toContainText(/\d+ cards? (has|have) stood still too long\./);
+  await expect(verdict.locator("svg")).toHaveAttribute("data-tone", "watch");
 });
 
 test("the move menu of the lowest card is not clipped by the lanes", async ({ page }) => {

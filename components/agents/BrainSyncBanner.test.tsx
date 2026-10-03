@@ -30,4 +30,13 @@ describe("BrainSyncBanner", () => {
     expect(screen.getByText(SYNC_UNCHECKED)).toBeInTheDocument();
     expect(screen.queryByText(/synced/)).not.toBeInTheDocument();
   });
+
+  it("says Saved · synced, unless the page's verdict already says it", () => {
+    const { container, rerender } = render(<BrainSyncBanner unsaved={0} unpushed={0} />);
+    expect(screen.getByText("Saved · synced")).toBeInTheDocument();
+    rerender(<BrainSyncBanner unsaved={0} unpushed={0} quietWhenSynced />);
+    expect(container).toBeEmptyDOMElement();
+    rerender(<BrainSyncBanner unsaved={0} unpushed={2} quietWhenSynced />);
+    expect(screen.getByText(/waiting to reach GitHub/)).toBeInTheDocument();
+  });
 });

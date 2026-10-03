@@ -17,6 +17,8 @@ export type BrainFacts = {
   lastChanged: string | null;
   /** Note files changed but not saved yet; null when Harbour can't run git in the folder. */
   unsaved: number | null;
+  /** Saved changes not yet on GitHub; null when Harbour couldn't count them. */
+  unpushed: number | null;
   /** Git ran and failed, so Harbour can't say whether the notes are saved. */
   syncFailed: boolean;
   /** An interrupted run is being recovered (or can't be checked), so saving is paused. */
@@ -32,7 +34,11 @@ function saved(f: BrainFacts): PageVerdict | null {
     return { tone: "watch", text: "Harbour couldn't check whether your notes are saved." };
   }
   if (f.unsaved === null) return null;
-  if (f.unsaved === 0) return { tone: "ok", text: "Everything is saved." };
+  if (f.unsaved === 0) {
+    // Said once, here: the Second Brain hides its own "Saved · synced" line when all is clear.
+    const text = f.unpushed === 0 ? "Everything is saved and synced." : "Everything is saved.";
+    return { tone: "ok", text };
+  }
   const files = count(f.unsaved, "change");
   return { tone: "ok", text: `${files} will be saved automatically soon.` };
 }

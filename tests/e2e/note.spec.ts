@@ -110,8 +110,8 @@ test("Write me a fresh one queues a note, the worker commits it, and it appears 
 test("the run is in the Agents history and committed one file", async ({ page }) => {
   await page.goto("/agents");
   const run = page
-    .getByRole("table", { name: "Recent runs" })
-    .getByRole("link", { name: /^Daily note: \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/ })
+    .getByRole("list", { name: "Recent runs" })
+    .getByRole("link", { name: "Wrote the daily note." })
     .first();
   await expect(run).toBeVisible();
   await run.click();

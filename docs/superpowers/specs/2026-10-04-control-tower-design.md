@@ -111,7 +111,8 @@ the DOM is the reading order in §1 at every width.
 - **Sub-line**: the long date, "updated HH:MM" (the server render time), and an **On this page**
   jump list of the six sections (in-page links, so the keyboard can jump straight to a section).
   Below 1024 px the jump list is one row that scrolls sideways, label included, so it never
-  wraps into tall rows of touch targets (polish, 4 October 2026).
+  wraps into tall rows of touch targets (polish, 4 October 2026). Its right edge fades out (a
+  still alpha mask, `.jump-fade`) so it is clear the row scrolls.
 - **What's this page?** at the right (§6.3).
 - The briefing sentence from the plain-language spec moves to lead section (d), where it describes
   the products. It keeps its words and its tests.
@@ -136,12 +137,13 @@ sentence and a link to where to act.
 | Agents | No agent run failed in the last 24 h without a later success of the same kind | "Claude is writing the daily note." / "Nothing running. 3 runs finished today." / "The ideas run didn't finish." | `jobs` running, queued and finished in 24 h; `jobLabel()` | `/agents` |
 | Spend | Cost meter state `ok`, `no-paid-sources` or `no-budget` | "A$4.10 of A$20 this month." / "80% of this month's budget used." / "Budget reached: paid data paused until 1 Nov." | `costMeterView()` | `/settings` |
 
-Each light has one of five tones. Tone is shown by shape and icon as well as colour, never colour alone:
+Each light has one of these tones (`ready` is used only by page verdicts, never by a light). Tone is shown by shape and icon as well as colour, never colour alone:
 
 | Tone | Meaning | Mark |
 |---|---|---|
 | `ok` | Fine | filled circle with a tick |
 | `busy` | Working right now | filled circle with a slow "breathing" ring |
+| `ready` | Good news waiting for you (drafts, new ideas) | star, in the accent colour |
 | `watch` | Worth a look, nothing is lost | triangle |
 | `act` | Needs the owner | diamond with "!" |
 | `off` | Switched off on purpose | hollow circle |
@@ -540,13 +542,19 @@ what is happening" at a glance.
   waits for you first, two parts at most), Sources (`sourcesVerdict`: a data source that didn't
   answer, then checks under way), Settings (`settingsVerdict` over `settingsFacts`: "Everything is
   set up." or the one thing missing), Second Brain (`brainVerdict`: notes, newest change, saved),
-  Devices, research targets and the product page (`productVerdict`, the existing summary).
+  Devices, research targets, the product page (`productVerdict`, the existing summary) and
+  Actions (`actionsVerdict` over `boardTotals`, the whole board's true totals whatever the
+  filters: what waits for you, then cards that stood still).
   A run's page keeps its live status line, now styled as its verdict with the same mark.
 - **Tones.** Anything waiting for the owner's decision is `watch` ("worth a look"); `act` is kept
   for something broken (a failed backup); `busy` while work runs; `unknown` before there is data.
+  A verdict that is only good news for the owner (drafts ready, new ideas to pick, and nothing
+  else waiting) is `ready` ("ready for you": a star in the accent colour), so amber stays for
+  problems.
 - **Words explained in place.** Intros are `TermLine`s (`lib/explain/term-line.ts`): fixed text
   with glossary words a `<Term>` explains. New glossary words: research target, passkey, digest.
   New page help: a run's page and the research targets page.
 - **Layout.** Every page is centred like Today, text pages at `max-w-4xl`; the Second Brain's save
-  line sits under its header; Agents' recent runs sit on the same card surface as the rest.
+  line sits under its header and is hidden when all is clear, since its verdict then says
+  "Everything is saved and synced."; Agents' recent runs sit on the same card surface as the rest.
 - Examples of each tone and a term line are on `/design` ("Page verdicts").

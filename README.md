@@ -41,8 +41,10 @@ explainable breakdowns. The roadmap continues with:
   whether it is OK, what needs you and what is happening: Agents ("Nothing is running. The last 5
   runs worked."), Content ("3 drafts are ready for you."), Sources ("Every connected data source
   answered at the last check."), Settings ("Everything is set up." or the one thing missing), the
-  Second Brain (how many notes, when one last changed, whether all is saved), Devices, research
-  targets and each product.
+  Second Brain (how many notes, when one last changed, whether all is saved), Actions ("2 cards
+  are waiting for you." or "Nothing is waiting for you. 12 cards are on the board."), Devices,
+  research targets and each product. Good news waiting for you (drafts ready, new ideas) has its own
+  mark, a star, so the amber triangle ("worth a look") is kept for problems.
 - **Product pages** — per product: three area cards (Found on Google, Recommended by AI
   assistants, Answer-ready) each with a verdict, the small number and "What's this?", a
   one-line summary, **Check now**, a tab per area listing its sub-scores as plain sentences
@@ -232,6 +234,9 @@ your Second Brain:
 - **Find ideas** — one run per product (**Find ideas for Acme Docs**); it reads your
   `products/<id>/notes.md` and writes `products/<id>/discovery.md` and
   `products/<id>/proposals.json`.
+- **Recent runs** — each run in plain words, as Today's feed says it ("Checked Acme Docs.",
+  "Didn't finish writing the weekly report."), with its status, when it started and how long it
+  took. On a phone each run stacks onto two lines. The job names sit under **Technical details**.
 
 Agents run Claude Code on the Harbour PC with your Claude subscription. Run `claude setup-token`
 there, add `HARBOUR_CLAUDE_OAUTH_TOKEN=…` to `.env`, then restart both services
@@ -263,8 +268,8 @@ For a product with content turned on, discovery also proposes three to five **co
 pillars** (recurring themes to write about), approved the same way. Harbour keeps at most six
 approved pillars; to approve another, reject one first.
 
-Saving and syncing need no action. The Agents page and the Second Brain say "Saved · synced",
-or show note files that "will be saved automatically soon" and saved changes "waiting to reach
+Saving and syncing need no action. The Agents page says "Saved · synced" (on the Second Brain
+the verdict says it once: "Everything is saved and synced."), or the pages show note files that "will be saved automatically soon" and saved changes "waiting to reach
 GitHub — Harbour keeps retrying"; **Save now** and **Retry now** are optional shortcuts. While an
 interrupted run is being recovered, a banner says so and saving is paused.
 

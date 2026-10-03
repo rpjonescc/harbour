@@ -28,7 +28,7 @@ const HOUR = 60 * 60_000;
 /** How much a tone needs the owner; only these can be the worst light. */
 const WORST_RANK: Partial<Record<LightTone, number>> = { act: 3, watch: 2, unknown: 1 };
 /** Within one light, which state speaks for it: the most pressing first. */
-const PRESSING: readonly LightTone[] = ["act", "watch", "unknown", "busy", "ok", "off"];
+const PRESSING: readonly LightTone[] = ["act", "watch", "unknown", "ready", "busy", "ok", "off"];
 export const pressing = (a: LightTone, b: LightTone) => PRESSING.indexOf(a) - PRESSING.indexOf(b);
 
 function workerLight(facts: SystemFacts, now: Date): Shaped {

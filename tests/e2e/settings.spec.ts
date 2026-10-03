@@ -230,8 +230,11 @@ test("Back up now writes a verified backup, then retention runs", async ({ page 
   // The verified backup queues retention; the scans so far are far below the 30 kept.
   await page.goto("/agents");
   await page
-    .getByRole("table", { name: "Recent runs" })
-    .getByRole("link", { name: `Tidy old data: ${today()}` })
+    .getByRole("list", { name: "Recent runs" })
+    .getByRole("link", {
+      name: /^(Tidied old data|Waiting to start tidying old data|Tidying old data)\.$/,
+    })
+    .first()
     .click();
   await expect(activity.getByText(/^No old checks to prune \(newest 30 kept/)).toBeVisible({
     timeout: 60_000,
@@ -257,10 +260,10 @@ test("Update old research rewrites the oldest document with today's date", async
   await expect(page.getByRole("status").filter({ hasText: /^Started/ })).toHaveText(
     /^Started [123] updates?$/,
   );
-  // Newest first: the last "Update:" link is the first one queued (oldest document first).
-  const runs = page.getByRole("table", { name: "Recent runs" });
+  // Newest first: the last update link is the first one queued (oldest document first).
+  const runs = page.getByRole("list", { name: "Recent runs" });
   await runs
-    .getByRole("link", { name: /^Update: / })
+    .getByRole("link", { name: /updat(ed|ing) (a|the) research note/i })
     .last()
     .click();
   await expect(page).toHaveURL(/\/agents\/\d+$/);

@@ -95,7 +95,7 @@ describe("tower words", () => {
       "agents",
       "spend",
     ];
-    const tones: LightTone[] = ["ok", "busy", "watch", "act", "off", "unknown"];
+    const tones: LightTone[] = ["ok", "busy", "ready", "watch", "act", "off", "unknown"];
     expect(Object.keys(LIGHT_LABELS)).toEqual(lights);
     expect(Object.keys(TONE_WORDS)).toEqual(tones);
     expect(Object.keys(SECTION_TITLES)).toEqual([

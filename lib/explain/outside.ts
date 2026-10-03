@@ -48,9 +48,15 @@ export const questionEvidence = (question: string, run: Pick<AiRun, "checkedAt">
 /** What the section says when there is nothing to show, or a notice beside what there is. */
 export const OUTSIDE_EMPTY = {
   no_searches:
-    "No searches chosen yet. Choose the searches and questions to follow in harbour.config.json.",
+    "No searches chosen yet. You choose the searches and questions to follow in Harbour's settings file.",
   not_connected: "Treg isn't connected, so Harbour can't ask how the web sees you.",
   not_checked: "Not checked yet.",
+} as const;
+
+/** Where the searches are chosen, by file name: shown only under Technical details. */
+export const OUTSIDE_SETUP_TECH = {
+  topic: "where to choose the searches",
+  text: 'Add them under "tracking" for this product in harbour.config.json, then restart Harbour.',
 } as const;
 
 export const OUTSIDE_NOTICE = {

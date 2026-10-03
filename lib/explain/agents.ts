@@ -1,8 +1,9 @@
 import type { JobKind, JobStatus } from "@/lib/jobs/queue";
-import { sentenceCase } from "./job-words";
+import { type JobWords, sentenceCase } from "./job-words";
 import { count, type PageVerdict, sentences } from "./page-verdict";
 import type { TermLine } from "./term-line";
 import type { LightTone } from "./tower";
+import { FEED_SENTENCE } from "./tower-activity";
 import { NOTE_RUN_FAILED_LINE } from "./voice/fallback";
 
 // A fixed note text: it lives with the note texts so their tone rules cover it.
@@ -52,6 +53,35 @@ export const RUN_TONE: Readonly<Record<JobStatus, LightTone>> = {
   failed: "watch",
   cancelled: "off",
 };
+
+/**
+ * A run in the Recent runs list, said the way Today's feed says it ("Checked Acme Docs.",
+ * "Didn't finish writing the weekly report."): never its job name, which stays in Technical details.
+ */
+export function runSentence(status: JobStatus, words: JobWords): string {
+  switch (status) {
+    case "ok":
+      return FEED_SENTENCE.done(words.done);
+    case "failed":
+      return FEED_SENTENCE.failed(words.doing);
+    case "running":
+      return FEED_SENTENCE.running(words.doing);
+    case "queued":
+      return FEED_SENTENCE.waiting(words.doing);
+    case "cancelled":
+      return `Stopped ${words.doing}.`;
+  }
+}
+
+/** The small line under a run: when it started and how long it took. */
+export const RUN_META = {
+  started: (when: string) => `Started ${when}`,
+  finished: (when: string) => `Finished ${when}`,
+  notStarted: "Not started yet",
+  took: (duration: string) => `took ${duration}`,
+  technicalTopic: "the job names of these runs",
+  importsGivenUp: "Claude's ideas from this run weren't saved. Run it again.",
+} as const;
 
 export const RUN_FAILED_LINE =
   "This run didn't finish. You can start it again from the Agents page.";

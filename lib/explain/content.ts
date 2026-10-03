@@ -128,7 +128,7 @@ export function contentVerdict(c: ContentCounts): PageVerdict {
       text: "Nothing is waiting for you. New ideas arrive on Monday mornings, or when you ask.",
     };
   }
-  // Anything waiting for the owner is worth a look; otherwise work under way is busy.
-  const tone = c["needs-you"] + c.ready > 0 ? "watch" : c.writing > 0 ? "busy" : "ok";
+  // A problem to look at is worth a look; drafts and ideas waiting are good news, ready for you.
+  const tone = c["needs-you"] > 0 ? "watch" : c.ready + c.ideas > 0 ? "ready" : "busy";
   return { tone, text: sentences(...parts.slice(0, 2)) };
 }

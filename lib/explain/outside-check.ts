@@ -3,7 +3,7 @@
 
 export const OUTSIDE_CHECK_REFUSALS = {
   no_searches:
-    "No searches have been chosen for this product yet. Add them to harbour.config.json, then restart Harbour.",
+    "No searches have been chosen for this product yet. Choose them in Harbour's settings file, then restart Harbour.",
   key_missing:
     "Treg isn't connected, so there is nothing to ask. Add its key to .env and restart the worker.",
   budget_used_up:

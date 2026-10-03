@@ -17,10 +17,13 @@ export function BrainSyncBanner({
   unsaved,
   unpushed,
   paused = false,
+  quietWhenSynced = false,
 }: {
   unsaved: number;
   unpushed: number | null;
   paused?: boolean;
+  /** The page's verdict already says "saved and synced", so say nothing when all is clear. */
+  quietWhenSynced?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -42,7 +45,7 @@ export function BrainSyncBanner({
     trigger("/api/agents/brain-push", "Couldn't start syncing. Try again.", () => router.refresh());
 
   if (unsaved === 0 && unpushed === 0) {
-    return <p className="text-xs text-ink-muted">Saved · synced</p>;
+    return quietWhenSynced ? null : <p className="text-xs text-ink-muted">Saved · synced</p>;
   }
   return (
     <section

@@ -1,5 +1,6 @@
 import { agentsVerdict, type VerdictRun } from "./agents";
 import { targetsVerdict } from "./approvals";
+import { actionsVerdict, type BoardVerdictFacts } from "./board-verdict";
 import { type BrainFacts, brainVerdict } from "./brain-page";
 import { type ContentCounts, contentVerdict } from "./content";
 import { devicesVerdict } from "./devices";
@@ -74,22 +75,28 @@ const tabs = (over: Partial<Record<keyof ContentCounts, number>> = {}): ContentC
 });
 
 describe("contentVerdict", () => {
-  it("leads with drafts ready for you", () => {
+  it("leads with drafts ready for you, as good news rather than a problem", () => {
     expect(contentVerdict(tabs({ ready: 3, approved: 2 }))).toEqual({
-      tone: "watch",
+      tone: "ready",
       text: "3 drafts are ready for you.",
+    });
+    expect(contentVerdict(tabs({ ideas: 2 })).tone).toBe("ready");
+  });
+
+  it("puts what needs a look first, worth a look, and says two things at most", () => {
+    expect(contentVerdict(tabs({ "needs-you": 1, ready: 1, ideas: 4 }))).toEqual({
+      tone: "watch",
+      text: "1 thing needs a look from you. 1 draft is ready for you.",
     });
   });
 
-  it("puts what needs a look first, and says two things at most", () => {
-    expect(contentVerdict(tabs({ "needs-you": 1, ready: 1, ideas: 4 })).text).toBe(
-      "1 thing needs a look from you. 1 draft is ready for you.",
-    );
-  });
-
   it("is busy while pieces are written, and calm when nothing waits", () => {
-    expect(contentVerdict(tabs({ writing: 2, ideas: 1 }))).toEqual({
+    expect(contentVerdict(tabs({ writing: 2 }))).toEqual({
       tone: "busy",
+      text: "2 pieces are being written.",
+    });
+    expect(contentVerdict(tabs({ writing: 2, ideas: 1 }))).toEqual({
+      tone: "ready",
       text: "2 pieces are being written. 1 idea is waiting for you to pick.",
     });
     expect(contentVerdict(tabs({ approved: 5 })).tone).toBe("ok");
@@ -187,6 +194,7 @@ const brain = (over: Partial<BrainFacts> = {}): BrainFacts => ({
   fresh: 0,
   lastChanged: "4 min ago",
   unsaved: 0,
+  unpushed: 0,
   syncFailed: false,
   recovering: false,
   ...over,
@@ -196,8 +204,16 @@ describe("brainVerdict", () => {
   it("counts the notes, says when one changed and that all is saved", () => {
     expect(brainVerdict(brain({ fresh: 3 }))).toEqual({
       tone: "ok",
-      text: "17 notes, the newest changed 4 min ago. Everything is saved. 3 are new to you.",
+      text: "17 notes, the newest changed 4 min ago. Everything is saved and synced. 3 are new to you.",
     });
+  });
+
+  it("says synced only when every saved change has reached GitHub", () => {
+    for (const unpushed of [2, null]) {
+      expect(brainVerdict(brain({ unpushed })).text).toBe(
+        "17 notes, the newest changed 4 min ago. Everything is saved.",
+      );
+    }
   });
 
   it("says what isn't saved, and never reads a failed check as saved", () => {
@@ -252,5 +268,50 @@ describe("productVerdict", () => {
   it("is worth a look when the product needs work, and can't tell before a score", () => {
     expect(productVerdict("Acme Docs", { seo: 30, geo: 40, aeo: 20 }, false).tone).toBe("watch");
     expect(productVerdict("Acme Docs", null, false).tone).toBe("unknown");
+  });
+});
+
+describe("actionsVerdict", () => {
+  const board = (over: Partial<BoardVerdictFacts> = {}): BoardVerdictFacts => ({
+    cards: 12,
+    needsYou: 0,
+    newIdeas: 0,
+    stuck: 0,
+    ...over,
+  });
+
+  it("is calm when nothing waits, and says how many cards are on the board", () => {
+    expect(actionsVerdict(board())).toEqual({
+      tone: "ok",
+      text: "Nothing is waiting for you. 12 cards are on the board.",
+    });
+  });
+
+  it("counts the cards waiting for you, worth a look when they are more than new ideas", () => {
+    expect(actionsVerdict(board({ needsYou: 2, newIdeas: 1 }))).toEqual({
+      tone: "watch",
+      text: "2 cards are waiting for you.",
+    });
+  });
+
+  it("calls new ideas alone good news, ready for you", () => {
+    expect(actionsVerdict(board({ needsYou: 1, newIdeas: 1 }))).toEqual({
+      tone: "ready",
+      text: "1 new idea is waiting for you.",
+    });
+  });
+
+  it("says when cards have stood still, worth a look", () => {
+    expect(actionsVerdict(board({ stuck: 1 }))).toEqual({
+      tone: "watch",
+      text: "Nothing is waiting for you. 1 card has stood still too long.",
+    });
+    expect(actionsVerdict(board({ needsYou: 3, newIdeas: 3, stuck: 2 })).text).toBe(
+      "3 new ideas are waiting for you. 2 cards have stood still too long.",
+    );
+  });
+
+  it("can't tell before the first check puts a card on the board", () => {
+    expect(actionsVerdict(board({ cards: 0 })).tone).toBe("unknown");
   });
 });
