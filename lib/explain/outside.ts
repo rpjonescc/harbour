@@ -42,3 +42,49 @@ export const linksEvidence = (domain: string, n: number, checkedAt: string) =>
 /** One evidence line per question asked, with the week it was checked. */
 export const questionEvidence = (question: string, run: Pick<AiRun, "checkedAt">) =>
   `${question} (checked ${run.checkedAt.slice(0, 10)})`;
+
+/** What the section says when there is nothing to show, or a notice beside what there is. */
+export const OUTSIDE_EMPTY = {
+  no_searches:
+    "No searches chosen yet. Choose the searches and questions to follow in harbour.config.json.",
+  not_connected: "Treg isn't connected, so Harbour can't ask how the web sees you.",
+  not_checked: "Not checked yet.",
+} as const;
+
+export const OUTSIDE_NOTICE = {
+  paused:
+    "Paused: balance or key. Treg's balance is empty or its key was refused. Fix it, then check again.",
+  paused_key: "Paused: balance or key. Treg refused Harbour's key.",
+  paused_balance: "Paused: balance or key. Treg's balance is empty.",
+  budget: "Skipped: this month's budget is used up. The check runs again when it renews.",
+  failed: "The last check didn't work. Harbour tries again.",
+} as const;
+
+export const OUTSIDE_TITLE = "How the web sees you";
+export const OUTSIDE_ONE_LINER =
+  "Who links to you, where you appear on Google for the searches you chose, and whether ChatGPT names you.";
+export const OUTSIDE_PARTS = {
+  what: "Once a week Harbour asks a paid service three things: how many other sites link to you, your position on Google for each search you chose, and whether ChatGPT names you or links to you when it answers each question you chose.",
+  why: "Other sites linking to you, a good place in search and being named in AI answers are how new customers find you before they ever visit.",
+  todo: "If few sites link to you, get listed on local and industry directories. If you don't show up for a search, make a page that answers it. If ChatGPT doesn't name you, say plainly on your pages what you do and who it is for.",
+  worth: "This costs a few cents a week and never changes your scores.",
+} as const;
+
+/** "4 sites link to you" / "1 site links to you". */
+export const linkingLine = (n: number) => `${n} ${n === 1 ? "site links" : "sites link"} to you`;
+
+/** The change in sites linking to you since the check before, or null when there was none. */
+export function linkChange(change: number | null): string | null {
+  if (change === null) return null;
+  if (change === 0) return "No change since the last check";
+  const n = Math.abs(change);
+  return `${change > 0 ? "Up" : "Down"} ${n} since the last check`;
+}
+
+/** A position in words; `null` is "not in the top 30", never a number. */
+export const positionText = (position: number | null) =>
+  position === null ? "Not in the top 30" : `Position ${position}`;
+
+/** "ChatGPT named you in 1 of 5 answers". */
+export const namedLine = (named: number, asked: number) =>
+  `ChatGPT named you in ${named} of ${asked} ${asked === 1 ? "answer" : "answers"}`;

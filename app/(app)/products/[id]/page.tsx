@@ -3,7 +3,8 @@ import { ProductOverview } from "@/components/products/ProductOverview";
 import { requireSession } from "@/lib/auth/guard";
 import { getConfig } from "@/lib/config";
 import { getDb } from "@/lib/db/client";
-import { getProducts } from "@/lib/products/catalog";
+import { getProducts, getTracking } from "@/lib/products/catalog";
+import { outsideView } from "@/lib/scan/outside-view";
 import { productView } from "@/lib/scan/product-view";
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -13,10 +14,13 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   const product = getProducts().find((p) => p.id === id);
   if (!product) notFound();
   const config = getConfig();
+  const db = getDb();
+  const now = new Date();
   return (
     <ProductOverview
       product={product}
-      view={productView(getDb(), product, new Date())}
+      view={productView(db, product, now)}
+      outside={outsideView({ db, config, product, tracking: getTracking(id), now })}
       timeZone={config.HARBOUR_TIMEZONE}
       locale={config.HARBOUR_LOCALE}
     />

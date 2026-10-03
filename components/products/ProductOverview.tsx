@@ -1,10 +1,12 @@
 import { Tabs } from "@/components/ui/Tabs";
 import { AREAS } from "@/lib/explain/areas";
 import type { Product } from "@/lib/products/catalog";
+import type { OutsideView } from "@/lib/scan/outside-view";
 import type { ProductView } from "@/lib/scan/product-view";
 import { AREA_KEYS } from "@/lib/scan/views";
 import { IndexingPanel } from "./IndexingPanel";
 import { IssueList } from "./IssueList";
+import { OutsideViewPanel } from "./OutsideViewPanel";
 import { PagesTable } from "./PagesTable";
 import { PaidSourcePanels } from "./PaidSourcePanels";
 import { ProductHeader } from "./ProductHeader";
@@ -16,11 +18,13 @@ import { SearchConsolePanel } from "./SearchConsolePanel";
 export function ProductOverview({
   product,
   view,
+  outside,
   timeZone,
   locale,
 }: {
   product: Product;
   view: ProductView;
+  outside: OutsideView;
   timeZone: string;
   locale: string;
 }) {
@@ -38,7 +42,7 @@ export function ProductOverview({
   }));
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8">
-      <RefreshWhileScanning active={view.scan.active !== null} />
+      <RefreshWhileScanning active={view.scan.active !== null || outside.check.active !== null} />
       <ProductHeader
         product={product}
         scores={view.scores}
@@ -62,6 +66,7 @@ export function ProductOverview({
       />
       <PagesTable rows={view.pages.rows} total={view.pages.total} />
       <IndexingPanel indexing={view.indexing} locale={locale} />
+      <OutsideViewPanel view={outside} productId={product.id} locale={locale} />
       <SearchConsolePanel search={view.search} locale={locale} />
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <PaidSourcePanels />
