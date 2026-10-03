@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { OutsideCheckButton } from "./OutsideCheckButton";
 
 const nav = vi.hoisted(() => ({ refresh: vi.fn() }));
@@ -7,6 +7,8 @@ const api = vi.hoisted(() => ({ postJson: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => nav }));
 vi.mock("@/lib/auth/client-api", () => api);
 
+// The status line is always on the page and its text arrives after the click: wait for the text.
+const WAIT = { timeout: 3000 };
 const button = () => screen.getByRole("button", { name: "Run this check now" });
 const draw = (props: Partial<Parameters<typeof OutsideCheckButton>[0]> = {}) =>
   render(<OutsideCheckButton productId="acme-docs" active={null} refusal={null} {...props} />);
@@ -18,7 +20,10 @@ describe("OutsideCheckButton", () => {
     api.postJson.mockResolvedValue({ ok: true, data: { jobId: 4, created: true } });
     draw();
     fireEvent.click(button());
-    expect(await screen.findByRole("status")).toHaveTextContent("Checking now.");
+    await waitFor(
+      () => expect(screen.getByRole("status")).toHaveTextContent("Checking now."),
+      WAIT,
+    );
     expect(api.postJson).toHaveBeenCalledWith("/api/outside-checks", { productId: "acme-docs" });
     expect(nav.refresh).toHaveBeenCalled();
   });
@@ -27,7 +32,10 @@ describe("OutsideCheckButton", () => {
     api.postJson.mockResolvedValue({ ok: true, data: { jobId: 4, created: false } });
     draw();
     fireEvent.click(button());
-    expect(await screen.findByRole("status")).toHaveTextContent("A check is already on its way.");
+    await waitFor(
+      () => expect(screen.getByRole("status")).toHaveTextContent("A check is already on its way."),
+      WAIT,
+    );
   });
 
   it.each([
@@ -40,7 +48,7 @@ describe("OutsideCheckButton", () => {
     api.postJson.mockResolvedValue({ ok: false, error });
     draw();
     fireEvent.click(button());
-    expect(await screen.findByRole("status")).toHaveTextContent(words);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(words), WAIT);
     expect(nav.refresh).not.toHaveBeenCalled();
   });
 
@@ -48,9 +56,12 @@ describe("OutsideCheckButton", () => {
     api.postJson.mockResolvedValue({ ok: false, error: "SENTINEL_code", message: "SENTINEL text" });
     draw();
     fireEvent.click(button());
-    const status = await screen.findByRole("status");
-    expect(status).toHaveTextContent("Harbour couldn't start the check");
-    expect(status).not.toHaveTextContent("SENTINEL");
+    await waitFor(
+      () =>
+        expect(screen.getByRole("status")).toHaveTextContent("Harbour couldn't start the check"),
+      WAIT,
+    );
+    expect(screen.getByRole("status")).not.toHaveTextContent("SENTINEL");
     expect(button()).toBeEnabled();
   });
 
@@ -60,8 +71,10 @@ describe("OutsideCheckButton", () => {
       api.postJson.mockResolvedValue({ ok: false, error });
       draw();
       fireEvent.click(button());
-      expect(await screen.findByRole("status")).toHaveTextContent(
-        "Harbour couldn't start the check",
+      await waitFor(
+        () =>
+          expect(screen.getByRole("status")).toHaveTextContent("Harbour couldn't start the check"),
+        WAIT,
       );
     },
   );
@@ -70,7 +83,10 @@ describe("OutsideCheckButton", () => {
     api.postJson.mockResolvedValue({ ok: true, data: { jobId: 4, created: true } });
     const { rerender } = draw();
     fireEvent.click(button());
-    expect(await screen.findByRole("status")).toHaveTextContent("Checking now.");
+    await waitFor(
+      () => expect(screen.getByRole("status")).toHaveTextContent("Checking now."),
+      WAIT,
+    );
     rerender(<OutsideCheckButton productId="acme-docs" active="queued" refusal={null} />);
     expect(screen.getByRole("status")).toHaveTextContent("Checking now.");
   });
@@ -91,7 +107,10 @@ describe("OutsideCheckButton", () => {
     api.postJson.mockResolvedValue({ ok: true, data: { jobId: 4, created: true } });
     const { rerender } = draw();
     fireEvent.click(button());
-    expect(await screen.findByRole("status")).toHaveTextContent("Checking now.");
+    await waitFor(
+      () => expect(screen.getByRole("status")).toHaveTextContent("Checking now."),
+      WAIT,
+    );
     rerender(<OutsideCheckButton productId="acme-docs" active="running" refusal={null} />);
     rerender(<OutsideCheckButton productId="acme-docs" active={null} refusal="too_soon" />);
     expect(screen.getByRole("status")).not.toHaveTextContent("Checking now.");
