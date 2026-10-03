@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { BLOG_CARD, DOCS_CARD, FALLING_CARD } from "@/components/design/tower-example-data";
+import { CHECK_SENTENCE } from "@/lib/explain/tower-lights";
+import { GAP_REASONS, verdictFor } from "@/lib/explain/verdict";
 import { RunwayCard } from "./RunwayCard";
 
 describe("RunwayCard", () => {
@@ -52,5 +54,16 @@ describe("RunwayCard", () => {
     render(<RunwayCard card={FALLING_CARD} />);
     const trend = screen.getByText("down 3 since last week");
     expect(trend.parentElement?.querySelector("[aria-hidden='true']")).toHaveTextContent("↓");
+  });
+
+  it("says 'not checked yet' once when the gap's reason and the check line are the same words", () => {
+    const card = {
+      ...BLOG_CARD,
+      verdict: verdictFor(null, GAP_REASONS.notChecked),
+      checked: { phrase: CHECK_SENTENCE.never(null), tone: "unknown" as const },
+    };
+    render(<RunwayCard card={card} />);
+    expect(screen.getByText("No score yet")).toBeVisible();
+    expect(screen.getAllByText("Not checked yet.")).toHaveLength(1);
   });
 });

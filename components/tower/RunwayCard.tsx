@@ -15,7 +15,10 @@ function Verdict({ card }: { card: RunwayCardData }) {
       <span className={`font-serif text-2xl ${VERDICT_TONE_CLASS[verdict.tone]}`}>
         {verdict.label}
       </span>
-      {verdict.tone === "gap" && <span className="text-xs text-ink-muted">{verdict.sentence}</span>}
+      {/* The gap's reason, unless the check line below already says the same words. */}
+      {verdict.tone === "gap" && verdict.sentence !== card.checked.phrase && (
+        <span className="text-xs text-ink-muted">{verdict.sentence}</span>
+      )}
       {trend.direction && trend.phrase && (
         <span className="text-sm text-ink-muted">
           <span aria-hidden="true">{TREND_ARROW[trend.direction]}</span> <span>{trend.phrase}</span>
