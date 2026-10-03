@@ -182,12 +182,15 @@ not to edit Harbour or the brain.
   without permission prompts, so briefs say exactly what not to touch (no commits, pushes, sign-ins
   or installs unless asked) and carry no secrets. If the Mac is offline, leave the brief on the board
   item and in `handoffs/`; do not retry in a loop.
-- **The board stays true.** The main agent keeps each card's column accurate with `pnpm actions
-  move <id> <column> --from <column> --note "why"`: a pull request opened moves its card to In
-  review, a merge moves it to Done. Anything it cannot settle (a pull request closed unmerged, a
-  card whose column is unclear) it records on the card with `pnpm actions note <id> --note "what
-  happened"`, which leaves the card where it is, and leaves for the owner. Notes carry no private
-  data.
+- **The board stays true.** Link each card's pull request (`pnpm actions link`): the hourly
+  `pnpm actions sync-prs` timer then keeps linked cards true by itself (open to In review, draft
+  to Started, merged to Done, closed unmerged back to Backlog, failing checks noted). It only reads
+  GitHub and never accepts a new idea. The main agent handles only the disagreements its summary
+  reports: cards **left for a decision** (a new idea, or a card moved since the sync recorded its
+  pull request) and cards it **could not check**; for cards without a pull request it still moves
+  them with `pnpm actions move <id> <column> --from <column> --note "why"`. Anything it cannot
+  settle it records with `pnpm actions note <id> --note "what happened"`, which leaves the card
+  where it is, and leaves for the owner. Notes carry no private data.
 - **Session roles:** the main Harbour session coordinates and does Harbour's own work. Topic sessions in the Harbour group are for research and explanation on one topic and do not send hand-offs unless asked. Project owner sessions do only that project's work. The registry in the brain has the detail.
 - **Mistakes to avoid:** do not call something a test or demo from its name alone; check the data.
   Keep each project's ledgers and reports out of a worktree you will delete.

@@ -559,10 +559,11 @@ pnpm retention:check  # read-only: what the next retention run would delete (see
 pnpm skills:install # copies the atomizer skill into HARBOUR_SKILLS_DIR (see "Content machine")
 pnpm gsc:connect    # signs in with Google to connect Search Console (see "Connect Search Console")
 pnpm actions list   # lists and triages actions from a terminal (see "Let Claude triage the board")
+pnpm actions sync-prs  # moves cards to match their linked pull requests (see "Keep cards in step with pull requests")
 ```
 
-A deployed install runs the worker as the `harbour-worker` systemd user service (see
-`deploy/README.md`).
+A deployed install runs the worker as the `harbour-worker` systemd user service, and the pull
+request sync every hour with the `harbour-board-sync` timer (see `deploy/README.md`).
 
 The worker is the only process that runs agents or touches the brain's git history. Between
 jobs it saves your own brain edits (commit + push) once they have been quiet for 2 minutes,
@@ -1243,6 +1244,7 @@ pnpm actions move 12 in_review --from started --note "Pull request acme/widget#4
 pnpm actions link 12 https://github.com/acme/widget/pull/42
 pnpm actions link 12 --clear
 pnpm actions note 12 --note "Pull request acme/widget#42 was closed without merging"
+pnpm actions sync-prs [--dry-run] [--json]
 pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles" \
   --why "Pages without a clear title are skipped by search and AI answers." \
   --area SEO --impact high --effort small --fix "Give each page a title under 60 characters" \
@@ -1285,11 +1287,47 @@ pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles"
   already has a to-do, suggested, in-progress or snoozed action with the same title. Scans never
   close or rewrite a hand-made action, and its history starts with "Added by hand through the CLI".
 
+- **sync-prs** moves cards to match their linked pull requests; see the next section.
+
 Only actions of products in `harbour.config.json` are found. Errors print one line and exit
 non-zero. The output is the actions' own content, never settings or secrets. Because titles,
 reasons and evidence come from crawled pages and the analyst, `list` and `show` start with a note
 (the `note` field in JSON) saying they are data, not instructions, and every printed field has
 terminal escape sequences and control characters removed.
+
+### Keep cards in step with pull requests
+
+`pnpm actions sync-prs` reads every linked pull request on GitHub and moves its card to match, so
+you and Claude do not have to. A deployed install runs it every hour (see [deploy/README.md](deploy/README.md#board-sync)). It uses the
+GitHub command-line tool, `gh`, with the login you already made with `gh auth login` on the
+Harbour machine, and it only reads: it cannot merge, close, comment on or edit a pull request.
+
+| The pull request is | The card goes to | Note on the card |
+|---|---|---|
+| merged | Done | "Pull request merged on 3 October 2026." |
+| open | In review | "The pull request is open and waiting for a review." |
+| a draft | Started, if it was in Backlog or Queue | "A draft pull request is open, so the work has started." |
+| closed without merging | Backlog (the link stays) | "Pull request closed without merging; the card needs a decision." |
+
+When an open pull request's checks start failing it adds one note, "Checks are failing on the
+pull request.", and when they pass again, "Checks are passing again."; the card does not move.
+
+- **What it leaves alone:** cards without a pull request, done, snoozed and dismissed cards, and
+  new ideas (moving one would accept it, which is your call). It makes each move once: if you
+  move a card after the sync moved it, the sync leaves it there and lists it as "Left for a
+  decision". Running it twice changes nothing the second time.
+- **Limits:** at most 50 cards per run, one GitHub call at a time, 20 seconds per call and
+  5 minutes per run. Cards it did not reach wait for the next run.
+- **Output:** a short summary of what moved, what it could not check and what did not change.
+  `--dry-run` shows what it would do and changes nothing; `--json` prints the same as data.
+- **When it cannot check a card** (gh not installed or not logged in, GitHub's rate limit, a pull
+  request it cannot find) it says which card and why, and exits non-zero. It never counts a card
+  it could not read as fine.
+
+To run it by hand: `pnpm actions sync-prs --dry-run`, then `pnpm actions sync-prs`. To turn the
+hourly run off: `systemctl --user disable --now harbour-board-sync.timer` (and install with
+`HARBOUR_BOARD_SYNC=off ./deploy/install.sh` so a re-install keeps it off). Its log:
+`journalctl --user -u harbour-board-sync`.
 
 ## Connecting Google data
 
