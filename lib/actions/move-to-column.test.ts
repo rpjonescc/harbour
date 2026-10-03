@@ -201,6 +201,12 @@ describe("moveToColumn", () => {
     expect(row(other)?.stage).toBe("queue");
   });
 
+  it("tells a new idea's mover what the board offers: Accept, or a move to Queue", () => {
+    expect(MOVE_REFUSAL.not_allowed).toBe(
+      "A new idea can't go straight to Done. Accept it first, or move it to Queue.",
+    );
+  });
+
   it("has a plain sentence for every refusal", () => {
     for (const sentence of Object.values(MOVE_REFUSAL)) {
       expect(sentence).toMatch(/^[A-Z].*\.$/);

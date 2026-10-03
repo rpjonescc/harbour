@@ -17,5 +17,6 @@ export const MOVE_REFUSAL: Record<MoveRefusal, string> = {
   same_column: "The card is already in that column, so nothing changed.",
   has_pull_request: "This card has a pull request, so it counts as In review.",
   note_required: "Claude has to say why it moved a card. Add a note and move it again.",
-  not_allowed: "A new idea has to be accepted first. Move it to Backlog or Queue, then to Done.",
+  // The board's Move to… menu leaves Done out for a new idea, and its card has an Accept button.
+  not_allowed: "A new idea can't go straight to Done. Accept it first, or move it to Queue.",
 };

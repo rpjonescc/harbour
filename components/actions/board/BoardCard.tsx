@@ -74,7 +74,7 @@ export function BoardCard({
           demo={demo}
         />
       )}
-      <MoveMenu title={card.title} current={column} onMove={onMove} />
+      <MoveMenu title={card.title} current={column} isNewIdea={card.isNewIdea} onMove={onMove} />
       <TechnicalDetails id="board-card" topic={card.title}>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-ink-muted">
           <dt>{BOARD_TEXT.technical.id}</dt>

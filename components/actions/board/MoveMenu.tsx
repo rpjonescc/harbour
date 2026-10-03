@@ -58,10 +58,13 @@ function useTopLayer(open: boolean) {
 export function MoveMenu({
   title,
   current,
+  isNewIdea = false,
   onMove,
 }: {
   title: string;
   current: BoardColumnId;
+  /** A new idea cannot go straight to Done, so Done is not offered. */
+  isNewIdea?: boolean;
   onMove: (to: BoardColumnId) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -70,7 +73,9 @@ export function MoveMenu({
   const { trigger, menu } = useTopLayer(open);
   const items = useRef<(HTMLButtonElement | null)[]>([]);
   const menuId = useId();
-  const targets = BOARD_COLUMNS.filter((column) => column !== current);
+  const targets = BOARD_COLUMNS.filter(
+    (column) => column !== current && !(isNewIdea && column === "done"),
+  );
 
   useEffect(() => {
     if (open) items.current[first]?.focus();

@@ -103,4 +103,15 @@ describe("MoveMenu", () => {
       Reflect.deleteProperty(HTMLElement.prototype, "showPopover");
     }
   });
+
+  it("leaves Done out for a new idea, which has to be accepted first", () => {
+    render(<MoveMenu title={TITLE} current="backlog" isNewIdea onMove={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: `Move to… ${TITLE}` }));
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual([
+      "Queue",
+      "Started",
+      "In progress",
+      "In review",
+    ]);
+  });
 });

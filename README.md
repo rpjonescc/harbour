@@ -276,7 +276,7 @@ git gate and Claude subscription as the other agents (no paid API calls).
   and never twice; each failure is listed on the run's activity page.
 - **Where suggestions appear** — on the **Actions** board as **New ideas** (`/actions`), labelled
   "Suggested by the weekly report"; accept or dismiss each one. An action the product already
-  has (a new idea, to do, in progress, snoozed or dismissed) is not suggested again.
+  has (a new idea, in Backlog, in progress, snoozed or dismissed) is not suggested again.
 - **When it runs** — every Sunday at 20:00 in `HARBOUR_TIMEZONE`, for that week (see [When things
   run](#when-things-run)). The **Weekly report** panel on **Agents** shows the next scheduled run
   (or that a run is queued or running, that a catch-up is due, or that scheduled runs are off or
@@ -1153,8 +1153,8 @@ from the keyboard and on a phone: press Enter to open the menu, the arrow keys t
 Enter to move and Escape to close it. The move is announced ("Moved … to Queue") and focus returns
 to the card. If Harbour refuses a move (the card was moved a moment ago, or it has a pull request
 and you chose In progress) the card snaps back and a plain sentence says why. A card can go to any
-column except that a new idea cannot go straight to Done: accept it by moving it to Backlog or
-Queue first.
+column except that a new idea cannot go straight to Done: **Accept** it first (the menu leaves
+Done out for a new idea), or move it to Queue.
 
 **The Today strip.** Today's **Where the work is** band shows a tile per column with its count, a
 bar of how the jobs are spread, how many are stuck, how many need you (new ideas, pull requests
