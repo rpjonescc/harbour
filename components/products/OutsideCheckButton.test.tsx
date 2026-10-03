@@ -66,6 +66,17 @@ describe("OutsideCheckButton", () => {
     expect(button()).toBeEnabled();
   });
 
+  it("drops the click's note once the check it started has finished", async () => {
+    api.postJson.mockResolvedValue({ ok: true, data: { jobId: 4, created: true } });
+    const { rerender } = draw();
+    fireEvent.click(button());
+    expect(await screen.findByRole("status")).toHaveTextContent("Checking now.");
+    rerender(<OutsideCheckButton productId="acme-docs" active="running" refusal={null} />);
+    rerender(<OutsideCheckButton productId="acme-docs" active={null} refusal="too_soon" />);
+    expect(screen.getByRole("status")).not.toHaveTextContent("Checking now.");
+    expect(screen.getByRole("status")).toHaveTextContent("checked in the last 6 hours");
+  });
+
   it("queues nothing in the /design example", () => {
     draw({ demo: true });
     fireEvent.click(button());

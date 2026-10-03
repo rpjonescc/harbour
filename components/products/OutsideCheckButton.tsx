@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DEMO_NOTE } from "@/components/ui/demo-note";
 import { postJson } from "@/lib/auth/client-api";
@@ -36,6 +36,13 @@ export function OutsideCheckButton({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+
+  // When the check ends, what the click said ("Checking now") is out of date: the page speaks.
+  const was = useRef(active);
+  useEffect(() => {
+    if (was.current !== null && active === null) setNote("");
+    was.current = active;
+  }, [active]);
 
   async function check() {
     setNote("");

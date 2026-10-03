@@ -24,6 +24,12 @@ describe("jobLabel", () => {
     expect(jobLabel({ kind: "discovery", params: { productId: "acme-docs" } }, products)).toBe(
       "Find ideas: Acme Docs",
     );
+    expect(jobLabel({ kind: "outside-check", params: { productId: "acme-docs" } }, products)).toBe(
+      "Check how the web sees you: Acme Docs",
+    );
+    expect(jobLabel({ kind: "outside-check", params: { productId: "gone" } }, products)).toBe(
+      "Check how the web sees you: gone",
+    );
     expect(jobLabel({ kind: "brain-push", params: {} }, products)).toBe(
       "Sync Second Brain to GitHub",
     );
