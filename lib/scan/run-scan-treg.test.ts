@@ -189,7 +189,8 @@ describe("runScan with the Treg collector", () => {
   });
 
   it("copies the week's checks into the history and lets the rules see them", async () => {
-    const { db, deps, scan } = await tregScan();
+    // Four linking sites, all outside: under the 5 the rule wants (and the list call is made).
+    const { db, deps, scan } = await tregScan({ answers: { referringDomains: 4 } });
     deps.afterScore = workerScanDeps(deps).afterScore;
     const job = await scan();
     expect(db.select().from(externalChecks).all()).toHaveLength(4);

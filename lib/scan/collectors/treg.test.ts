@@ -19,7 +19,8 @@ describe("treg collector: a normal run", () => {
     const [backlinks] = observed(run.result, "backlinks");
     expect(backlinks?.subject).toBe(DOMAIN);
     expect(backlinksValue.parse(backlinks?.value)).toMatchObject({
-      referringDomains: 4,
+      referringDomains: 40,
+      ownDomainExcluded: false,
       backlinks: 120,
       dofollow: 80,
       rank: 12.5,

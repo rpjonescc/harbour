@@ -29,6 +29,11 @@ export const backlinksValue = z.object({
   /** The provider's own domain rank; null when it gave none. */
   rank: z.number().nonnegative().max(1e12).nullable(),
   provider: plain(1, 60),
+  /**
+   * True when the site's own domain was taken out of the count (referringDomains and backlinks
+   * are then outside sites only); false or absent (older rows) when it could not be.
+   */
+  ownDomainExcluded: z.boolean().optional(),
   checkedAt: isoTime,
 });
 export type Backlinks = z.infer<typeof backlinksValue>;

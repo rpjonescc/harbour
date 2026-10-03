@@ -2,7 +2,13 @@ import type { ProductTracking } from "@/lib/products/config";
 import type { TregCheck, TregProblem, TregStoppedBy, TregSummary } from "../treg-shapes";
 import type { Observation } from "../types";
 import { type CallOutcome, callEndpoint, type TregRun } from "./treg-client";
-import { AI_CHATGPT, BACKLINKS, SERP_ORGANIC } from "./treg-endpoints";
+import {
+  AI_CHATGPT,
+  BACKLINKS,
+  LINKING_DOMAINS,
+  MAX_LISTED_DOMAINS,
+  SERP_ORGANIC,
+} from "./treg-endpoints";
 import { hostMatches, mentionsProduct } from "./treg-match";
 
 /** What a run's checks came to, before the summary is made. */
@@ -41,6 +47,52 @@ function defaultLocation(country: string): string {
   }
 }
 
+type Summary = {
+  referringDomains: number;
+  backlinks: number;
+  dofollow: number;
+  rank: number | null;
+};
+type Counted = Extract<CallOutcome<Record<string, unknown>>, { kind: "ok" }>;
+
+/**
+ * The links summary counts every domain that links, the site's own pages included. For a site with
+ * few linking domains one more call lists them, and the site's own domain (and its subdomains) is
+ * taken out; for a larger one a self-link is a rounding error and the summary stands. A failed list
+ * call never loses the check: the summary counts are kept and the problem is noted.
+ */
+async function outsideLinks(run: TregRun, domain: string, summary: Summary): Promise<Counted> {
+  const keep = (excluded: boolean, extra: Partial<Counted> = {}): Counted => ({
+    kind: "ok",
+    value: { ...summary, ownDomainExcluded: excluded },
+    ...extra,
+  });
+  if (summary.referringDomains === 0) return keep(true);
+  if (summary.referringDomains > MAX_LISTED_DOMAINS) return keep(false);
+  const listed = await callEndpoint(run, LINKING_DOMAINS, {
+    domain,
+    rows: summary.referringDomains,
+  });
+  if (listed.kind === "stop") return keep(false, { stopAfter: listed.why });
+  if (listed.kind === "failed") return keep(false, { note: listed.problem });
+  const { rows } = listed.value;
+  // The list says exactly the domains the summary counted: none at all cannot be right.
+  if (rows.length === 0) return keep(false, { note: "unreadable" });
+  const own = rows.filter((row) => hostMatches(row.host, domain));
+  const ownPages = own.reduce((sum, row) => sum + row.pages, 0);
+  const backlinks = Math.max(0, summary.backlinks - ownPages);
+  return {
+    kind: "ok",
+    value: {
+      ...summary,
+      referringDomains: rows.length - own.length,
+      backlinks,
+      dofollow: Math.min(summary.dofollow, backlinks),
+      ownDomainExcluded: true,
+    },
+  };
+}
+
 /** Each check as one call, in the order they run: links, then each search, then each question. */
 function tasks(run: TregRun, input: CheckInput, checkedAt: string): Task[] {
   const { domain, name, tracking } = input;
@@ -51,8 +103,9 @@ function tasks(run: TregRun, input: CheckInput, checkedAt: string): Task[] {
     ask: async () => {
       const out = await callEndpoint(run, BACKLINKS, { domain });
       if (out.kind !== "ok") return out;
+      const counted = await outsideLinks(run, domain, out.value);
       const provider = BACKLINKS.provider;
-      return { kind: "ok", value: { ...out.value, provider, checkedAt } };
+      return { ...counted, value: { ...counted.value, provider, checkedAt } };
     },
   };
   const searches = tracking.queries.map(
@@ -116,6 +169,15 @@ export async function runChecks(
       tally.ok++;
       inARow = 0;
       tally.observations.push({ kind: task.check, subject: task.subject, value: outcome.value });
+      // A check that kept a usable result but lost a part says so, without being a failed check.
+      if (outcome.note) {
+        const reason = outcome.note;
+        tally.problems.push({ check: task.check, subject: task.subject.slice(0, 160), reason });
+      }
+      if (outcome.stopAfter) {
+        tally.stoppedBy = outcome.stopAfter;
+        break;
+      }
       continue;
     }
     tally.failed++;
