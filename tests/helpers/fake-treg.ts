@@ -82,7 +82,9 @@ function respond(
       res.writeHead(429, json).end('{"detail":"slow down"}');
       return;
     case "server_error":
-      res.writeHead(503, json).end('{"detail":"down"}');
+      res
+        .writeHead(503, { ...json, ...(charge ? { "x-treg-cost-micro": charge } : {}) })
+        .end('{"detail":"down"}');
       return;
     case "unknown_endpoint":
       res.writeHead(404, json).end('{"detail":"unknown endpoint"}');

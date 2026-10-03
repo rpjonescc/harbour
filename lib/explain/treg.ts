@@ -8,6 +8,8 @@ export const TREG_REASONS = {
   noKey:
     "Treg isn't connected: add HARBOUR_TREG_API_KEY to .env and restart the worker (see the outside view in README.md).",
   budget: "budget: the monthly budget does not cover the next outside-view check",
+  paused:
+    "Treg was paused after an earlier check found a problem with the key or the balance. Fix it, then restart Harbour or use Check now.",
   key: "Treg refused Harbour's key: check HARBOUR_TREG_API_KEY in .env, then restart the worker.",
   balance: "Treg says its balance is empty: top it up, then run the check again.",
   rateLimited: "Treg is limiting how fast Harbour may ask: the check will run again later.",

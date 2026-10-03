@@ -125,7 +125,9 @@ export async function callEndpoint<In, Out>(
   }
   const reported = reportedCost(response.headers);
   const ok = response.status >= 200 && response.status < 300;
-  if (ok && reported === null) {
+  // A charge header that is there but unreadable may hide a real charge: count the estimate.
+  const garbled = reported === null && response.headers["x-treg-cost-micro"] !== undefined;
+  if ((ok && reported === null) || garbled) {
     ctx.log("A call's cost was missing or unreadable: its estimate was recorded");
     settle(run, estimate);
   } else if (reported !== null && (ok || reported > 0)) {

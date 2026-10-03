@@ -46,11 +46,15 @@ function nothingAnswered(tally: Tally, spentMicroUsd: number): CollectorResult {
 }
 
 type Halt = { why: "key" | "balance"; until: number };
-/** A refused key or an empty balance repeats for every product, so it ends them all for a while. */
-const HALT_MS = 6 * 60 * 60_000;
+// A refused key or an empty balance repeats for every product, so it ends them all: a key until
+// the worker restarts (after the owner fixes it), a balance until the next scan day (it may be topped up).
+const BALANCE_HALT_MS = 24 * 60 * 60_000;
+const haltUntil = (why: "key" | "balance", now: number) =>
+  why === "key" ? Number.POSITIVE_INFINITY : now + BALANCE_HALT_MS;
 /** Header values: visible ASCII, no spaces. Anything else could never be sent. */
 const USABLE_KEY = /^[!-~]{1,200}$/;
 
+/** The run that found the problem says what it is; later runs only say Treg was paused. */
 function stopped(why: "key" | "balance"): never {
   throw new Error(why === "key" ? TREG_REASONS.key : TREG_REASONS.balance);
 }
@@ -68,10 +72,10 @@ async function collectWith(
   if (!apiKey) return { status: "not_configured", reason: TREG_REASONS.noKey };
 
   if (!USABLE_KEY.test(apiKey)) {
-    state.halted = { why: "key", until: deps.clock() + HALT_MS };
+    state.halted = { why: "key", until: haltUntil("key", deps.clock()) };
     return stopped("key");
   }
-  if (state.halted && deps.clock() < state.halted.until) return stopped(state.halted.why);
+  if (state.halted && deps.clock() < state.halted.until) throw new Error(TREG_REASONS.paused);
 
   const domain = productDomain(ctx.product.url);
   const run: TregRun = {
@@ -90,7 +94,7 @@ async function collectWith(
   });
   const { ok, failed, stoppedBy } = tally;
   if (stoppedBy === "key" || stoppedBy === "balance") {
-    state.halted = { why: stoppedBy, until: deps.clock() + HALT_MS };
+    state.halted = { why: stoppedBy, until: haltUntil(stoppedBy, deps.clock()) };
   }
   ctx.log(`${ok} of ${ok + failed} outside-view checks answered; the run ended: ${stoppedBy}`);
   if (ok === 0) return nothingAnswered(tally, run.spentMicroUsd);

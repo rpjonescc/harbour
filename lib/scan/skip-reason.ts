@@ -21,6 +21,7 @@ function weeklySkipReason(
 }
 
 const DAY_MS = 24 * 60 * 60_000;
+const SLACK_MS = 12 * 60 * 60_000;
 
 function backoffSkipReason(
   deps: Pick<ScanDeps, "db">,
@@ -33,7 +34,8 @@ function backoffSkipReason(
   const last = latestAnsweredRun(deps.db, productId, collector.id);
   if (last?.status !== "failed" || last.error !== backoff.error) return null;
   const waited = now.getTime() - last.finishedAt.getTime();
-  return waited < backoff.days * DAY_MS ? backoff.reason : null;
+  // Slack like the weekly rule, so a scan a little earlier than the last one is not pushed back a day.
+  return waited < backoff.days * DAY_MS - SLACK_MS ? backoff.reason : null;
 }
 
 /** Why the collector is skipped before it runs, or null; throws when the budget check fails. */

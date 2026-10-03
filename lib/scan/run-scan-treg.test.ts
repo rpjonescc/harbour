@@ -164,7 +164,8 @@ describe("runScan with the Treg collector", () => {
       error: "backing off for two days after calls that may have been billed came to nothing",
     });
     expect(server.calls).toHaveLength(calls);
-    advance(DAY);
+    // Two days less the usual 12 h of slack: a scan 36 h after the failure tries again.
+    advance(DAY / 2);
     await scan();
     expect(runsOf(db)[2]?.status).toBe("failed");
     expect(server.calls.length).toBeGreaterThan(calls);
