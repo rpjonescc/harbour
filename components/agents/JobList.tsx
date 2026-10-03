@@ -26,9 +26,14 @@ type Props = {
   importsGivenUp?: ReadonlySet<number>;
 };
 
-/** "Started 4 Oct, 09:00 · took 5m 00s", or "Not started yet". */
+/** "Started 4 Oct, 09:00 · took 5m 00s", "Finished 4 Oct, 09:05" or "Not started yet". */
 function metaLine(job: Job, timeZone: string, locale: string): string {
-  if (!job.startedAt) return RUN_META.notStarted;
+  if (!job.startedAt) {
+    // A run can end without starting (cancelled while queued, or written straight to done).
+    return job.finishedAt
+      ? RUN_META.finished(formatDateTime(job.finishedAt, timeZone, locale))
+      : RUN_META.notStarted;
+  }
   const started = RUN_META.started(formatDateTime(job.startedAt, timeZone, locale));
   return job.finishedAt
     ? `${started} · ${RUN_META.took(formatDuration(job.startedAt, job.finishedAt))}`

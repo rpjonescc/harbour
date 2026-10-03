@@ -76,6 +76,7 @@ export function runSentence(status: JobStatus, words: JobWords): string {
 /** The small line under a run: when it started and how long it took. */
 export const RUN_META = {
   started: (when: string) => `Started ${when}`,
+  finished: (when: string) => `Finished ${when}`,
   notStarted: "Not started yet",
   took: (duration: string) => `took ${duration}`,
   technicalTopic: "the job names of these runs",

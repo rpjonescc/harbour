@@ -29,6 +29,17 @@ describe("JobList", () => {
     expect(screen.queryByText("ok")).toBeNull();
   });
 
+  it("says when a run that never started finished, and that a queued one hasn't started", () => {
+    const never = { ...job(4, "2026-W42"), startedAt: null };
+    const queued = { ...never, id: 5, status: "queued" as const, finishedAt: null };
+    render(
+      <JobList jobs={[queued, never]} products={[]} timeZone="Europe/London" locale="en-GB" />,
+    );
+    const runs = screen.getByRole("list", { name: "Recent runs" });
+    expect(runs).toHaveTextContent(/Finished /);
+    expect(within(runs).getAllByText("Not started yet")).toHaveLength(1);
+  });
+
   it("explains an empty list", () => {
     render(<JobList jobs={[]} products={[]} timeZone="Europe/London" locale="en-GB" />);
     expect(screen.getByText(/appears here as soon as you start one/)).toBeInTheDocument();
@@ -72,6 +83,7 @@ describe("JobList", () => {
     ).toBeInTheDocument();
     expect(runs).not.toHaveTextContent("Weekly");
     expect(runs).toHaveTextContent(/Started .* · took 5m 00s/);
+    expect(runs).not.toHaveTextContent("Not started yet");
     const details = screen.getByText(/^Technical details/).closest("details");
     expect(details).toHaveTextContent("(weekly-analyst)");
   });
