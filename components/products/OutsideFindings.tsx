@@ -35,7 +35,7 @@ export function OutsideFindings({
     <div className="flex flex-col gap-3">
       <div>
         <p className="font-serif text-2xl">
-          {links ? linkingLine(links.count) : "Links to you: not checked yet"}
+          {links ? linkingLine(links.count, links.ownExcluded) : "Links to you: not checked yet"}
         </p>
         {change && <p className="text-sm text-ink-muted">{change}</p>}
       </div>
@@ -80,7 +80,8 @@ export function OutsideFindings({
         <ul className="flex flex-col gap-1">
           {links && (
             <li>
-              Sites linking to you: {links.count}, checked {links.checkedAt.slice(0, 10)}.
+              Sites linking to you: {links.count}, checked {links.checkedAt.slice(0, 10)}
+              {links.ownExcluded ? ", your own pages not counted" : ""}.
             </li>
           )}
           {searches.map((row) => (

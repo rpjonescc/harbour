@@ -85,7 +85,7 @@ describe("OutsideViewPanel: with results", () => {
   it("says no sites link to you yet, never 0 sites", () => {
     draw({
       ...OUTSIDE_READY,
-      links: { count: 0, change: null, checkedAt: "2026-10-04T06:00:00.000Z" },
+      links: { count: 0, change: null, checkedAt: "2026-10-04T06:00:00.000Z", ownExcluded: true },
     });
     expect(region().textContent).toContain("No sites link to you yet");
     expect(region().textContent).not.toMatch(/\b0 sites/);
@@ -100,6 +100,20 @@ describe("OutsideViewPanel: with results", () => {
     }
   });
 
+  it("says your own pages are not counted, only when they were taken out", () => {
+    draw(OUTSIDE_READY);
+    expect(region().textContent).toContain("4 sites link to you (your own pages not counted)");
+  });
+
+  it("does not say it for a count that included them", () => {
+    draw({
+      ...OUTSIDE_READY,
+      links: { count: 3, change: null, checkedAt: "2026-10-04T06:00:00.000Z", ownExcluded: false },
+    });
+    expect(region().textContent).toContain("3 sites link to you");
+    expect(region().textContent).not.toContain("own pages not counted");
+  });
+
   it("says the AI check hasn't been made rather than 0 of 0", () => {
     draw({ ...OUTSIDE_READY, ai: null });
     expect(region().textContent).not.toContain("0 of 0");
@@ -109,7 +123,7 @@ describe("OutsideViewPanel: with results", () => {
   it("pluralises one site and one answer", () => {
     draw({
       ...OUTSIDE_READY,
-      links: { count: 1, change: -1, checkedAt: "2026-10-04T06:00:00.000Z" },
+      links: { count: 1, change: -1, checkedAt: "2026-10-04T06:00:00.000Z", ownExcluded: false },
       ai: { asked: 1, named: 1, cited: 0, domains: [], checkedAt: "2026-10-04T06:00:00.000Z" },
     });
     expect(region().textContent).toContain("1 site links to you");

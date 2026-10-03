@@ -10,6 +10,8 @@ let mode: Mode = "ok";
 const calls: { endpoint: string }[] = [];
 const ANSWERS = {
   rank: 4,
+  // Four linking sites: the list call is made, and its four rows are all outside sites.
+  referringDomains: 4,
   domain: "fernandfield.example.com",
   text: "Fern & Field and Lighthouse Café are both good options.",
   sources: ["https://news.example.org/plants", "https://reviews.example.net/shops"],

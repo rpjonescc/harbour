@@ -108,7 +108,20 @@ describe("outsideView: results", () => {
   it("reads the latest links count and the change since the check before", () => {
     const db = openTestDb();
     keep(db, [links(7, 3), links(0, 5)]);
-    expect(view(db).links).toEqual({ count: 5, change: 2, checkedAt: NOW.toISOString() });
+    expect(view(db).links).toEqual({
+      count: 5,
+      change: 2,
+      checkedAt: NOW.toISOString(),
+      ownExcluded: false,
+    });
+  });
+
+  it("compares only checks counted the same way: the own domain was left out only since the fix", () => {
+    const db = openTestDb();
+    const fixed = links(0, 0);
+    keep(db, [links(7, 1), { ...fixed, value: { ...fixed.value, ownDomainExcluded: true } }]);
+    // 1 (own domain counted) to 0 (left out) is not "down 1".
+    expect(view(db).links).toMatchObject({ count: 0, change: null, ownExcluded: true });
   });
 
   it("has no change for the first links check", () => {

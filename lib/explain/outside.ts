@@ -77,8 +77,11 @@ export const OUTSIDE_PARTS = {
 } as const;
 
 /** "4 sites link to you" / "1 site links to you". */
-export const linkingLine = (n: number) =>
-  n === 0 ? "No sites link to you yet" : `${n} ${n === 1 ? "site links" : "sites link"} to you`;
+export const linkingLine = (n: number, ownExcluded = false) => {
+  const line =
+    n === 0 ? "No sites link to you yet" : `${n} ${n === 1 ? "site links" : "sites link"} to you`;
+  return ownExcluded ? `${line} (your own pages not counted)` : line;
+};
 
 /** The change in sites linking to you since the check before, or null when there was none. */
 export function linkChange(change: number | null): string | null {

@@ -7,7 +7,7 @@ const READY: OutsideView = {
   state: "ready",
   notice: null,
   checkedAt: AT,
-  links: { count: 4, change: 1, checkedAt: AT },
+  links: { count: 4, change: 1, checkedAt: AT, ownExcluded: true },
   searches: [
     {
       query: "acme docs",
@@ -70,6 +70,14 @@ const NOTHING = { checkedAt: null, links: null, searches: [], ai: null, check: C
 /** Every state of the "How the web sees you" section, for /design and the component tests. */
 export const OUTSIDE_STATES: { label: string; view: OutsideView }[] = [
   { label: "Checked", view: READY },
+  {
+    label: "No outside site links yet (own pages not counted)",
+    view: { ...READY, links: { count: 0, change: null, checkedAt: AT, ownExcluded: true } },
+  },
+  {
+    label: "Links counted before own pages were left out",
+    view: { ...READY, links: { count: 3, change: null, checkedAt: AT, ownExcluded: false } },
+  },
   { label: "Paused after a refused key", view: { ...READY, notice: "paused_key" } },
   { label: "Paused: balance empty", view: { ...READY, notice: "paused_balance" } },
   { label: "Skipped: budget used up", view: { ...READY, notice: "budget" } },

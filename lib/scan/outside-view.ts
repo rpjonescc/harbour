@@ -54,7 +54,13 @@ export type OutsideView = {
   notice: OutsideNotice | null;
   /** The newest check of any kind (ISO), or null. */
   checkedAt: string | null;
-  links: { count: number; change: number | null; checkedAt: string } | null;
+  links: {
+    count: number;
+    change: number | null;
+    checkedAt: string;
+    /** The site's own pages were taken out of the count. */
+    ownExcluded: boolean;
+  } | null;
   searches: SearchRow[];
   ai: {
     asked: number;
@@ -182,11 +188,16 @@ function linksOf(domain: string, rows: StoredCheck<Backlinks>[]): OutsideView["l
   const mine = rows.filter((r) => siteKey(r.subject) === domain);
   const [latest] = mine;
   if (!latest) return null;
-  const earlier = mine.find((r) => r.checkedAt < latest.checkedAt);
+  const ownExcluded = latest.value.ownDomainExcluded === true;
+  // A check made before the own domain was taken out counted it: the two are not comparable.
+  const earlier = mine.find(
+    (r) => r.checkedAt < latest.checkedAt && (r.value.ownDomainExcluded === true) === ownExcluded,
+  );
   return {
     count: latest.value.referringDomains,
     change: earlier ? latest.value.referringDomains - earlier.value.referringDomains : null,
     checkedAt: latest.checkedAt.toISOString(),
+    ownExcluded,
   };
 }
 
