@@ -29,7 +29,6 @@ describe("linkPullRequest", () => {
     const { db, id, link, row, audits } = setup();
     expect(link(URL_42)).toEqual({ ok: true, id, prUrl: URL_42 });
     expect(row()).toMatchObject({ prUrl: URL_42, status: "in_progress", updatedAt: t1 });
-    expect(row()?.statusChangedAt).toEqual(t0);
     expect(actionEventsFor(db, id).at(-1)).toMatchObject({
       actor: "claude",
       from: "in_progress",

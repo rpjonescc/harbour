@@ -19,10 +19,10 @@ export type ActionFilter = {
   /** active = open + in_progress. */
   status: (typeof STATUS_FILTERS)[number];
 };
-export type ActionEventView = Pick<
-  typeof actionEvents.$inferSelect,
-  "at" | "actor" | "from" | "to" | "note"
->;
+type EventRow = typeof actionEvents.$inferSelect;
+/** A history entry; the stages are there so a board move within one status reads as a move. */
+export type ActionEventView = Pick<EventRow, "at" | "actor" | "from" | "to" | "note"> &
+  Partial<Pick<EventRow, "fromStage" | "toStage">>;
 /**
  * An action for the board. Stored evidence and docs are re-validated: a value that fails is
  * shown as a gap (empty, with the matching `…Invalid` flag), never trusted.
@@ -104,9 +104,9 @@ function eventsByAction(db: Db, ids: number[]): Map<number, ActionEventView[]> {
     .where(inArray(actionEvents.actionId, ids))
     .orderBy(asc(actionEvents.id))
     .all();
-  for (const { actionId, at, actor, from, to, note } of rows) {
+  for (const { actionId, at, actor, from, to, fromStage, toStage, note } of rows) {
     const list = byAction.get(actionId) ?? [];
-    list.push({ at, actor, from, to, note });
+    list.push({ at, actor, from, to, fromStage, toStage, note });
     byAction.set(actionId, list);
   }
   return byAction;

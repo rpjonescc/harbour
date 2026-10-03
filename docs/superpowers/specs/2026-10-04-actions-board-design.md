@@ -110,6 +110,11 @@ Where the build differs from, or adds to, the sections above.
   Backlog is accepted as open. Every move updates `statusChangedAt`, including a stage-only move.
 - A stage-only move (Backlog to Queue) counts as a status change for "who is on it" and for the
   active-work query; adding a pull request link (status and stage unchanged) does not.
+- Linking a pull request to a card In progress (no stage) moves it to In review: `linkPullRequest`
+  sets stage `in_review`, restarts `statusChangedAt`, and its history entry records the stage
+  change, so the card is not Stuck at once and the link counts as Claude's move. Clearing a link
+  that alone made an older card In review restarts `statusChangedAt` too. A link that does not
+  change the column leaves both alone.
 - API: `POST /api/actions/<id>` accepts the old status body unchanged or a strict
   `{ moveFrom, moveTo, note? }`; a mixed body is 400. Success is `{ id, column }`, a refusal is
   409 `{ error, message }` with the plain sentence, `not_found` is 404.
@@ -149,7 +154,8 @@ Where the build differs from, or adds to, the sections above.
 - Counts per column are the true totals; the stuck and needs-you counts, and the first five
   needs-you lines, come from the loaded cards (so they are bounded by the 200-card cap).
 - "Moved today" counts cards with a status or stage change since local midnight in
-  `HARBOUR_TIMEZONE`; creation and pull request links are not moves.
+  `HARBOUR_TIMEZONE`; creation and pull request links are not moves, except a link that moves a
+  card from In progress to In review.
 - The strip sits after the Today header and sample banner, not directly under the note.
 
 **Agent as boss**

@@ -1205,7 +1205,8 @@ pnpm actions add --product acme-docs --title "Rewrite the Acme Docs page titles"
   new idea accepts it; a card with a pull request cannot go to `in_progress` (it counts as in
   review), and a new idea cannot go straight to `done`.
 - **link** stores a GitHub pull request URL (`https://github.com/<owner>/<repo>/pull/<number>`,
-  nothing else) on the action, or clears it with `--clear`, and notes it in the history.
+  nothing else) on the action, or clears it with `--clear`, and notes it in the history. Linking
+  a card that is In progress moves it to In review, and its "stuck" clock starts again.
 - **add** creates a board item by hand, as Claude, and prints `Created action #<id>` and the
   same text as `show`. Required: `--product` (a configured product id), `--title` (8 to 140
   characters, one line), `--why` (10 to 600), `--area` (`SEO`, `GEO` or `AEO`), `--impact`
