@@ -117,6 +117,11 @@ export type Collector = {
   paid: boolean;
   /** Collectors whose results this one reads through `ctx.earlier`: they must run before it. */
   dependsOn?: readonly string[];
+  /**
+   * A run that fails with exactly `error` makes the next scans skip this collector for `days`
+   * (with `reason`), instead of retrying at once: for a failure that may have cost money.
+   */
+  backoff?: { error: string; days: number; reason: string };
   /** Throwing means the collector failed. */
   collect(ctx: CollectContext): Promise<CollectorResult>;
 };

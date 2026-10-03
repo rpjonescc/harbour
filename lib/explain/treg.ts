@@ -12,6 +12,9 @@ export const TREG_REASONS = {
   balance: "Treg says its balance is empty: top it up, then run the check again.",
   rateLimited: "Treg is limiting how fast Harbour may ask: the check will run again later.",
   nothingAnswered: "None of the outside-view checks could be completed this time.",
+  nothingAnsweredBilled:
+    "None of the outside-view checks could be completed, and some calls may have been billed: the next try waits two days.",
+  backingOff: "backing off for two days after calls that may have been billed came to nothing",
 } as const;
 
 /** Why one part of the check failed, for Technical details and the summary. */

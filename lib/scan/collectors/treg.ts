@@ -31,7 +31,7 @@ const summaryOf = (tally: Tally, spentMicroUsd: number): TregSummary => ({
 });
 
 /** What a run with no answered check ends as: a skip for the budget, else a fixed failure. */
-function nothingAnswered(tally: Tally): CollectorResult {
+function nothingAnswered(tally: Tally, spentMicroUsd: number): CollectorResult {
   const { stoppedBy } = tally;
   if (stoppedBy === "budget" && tally.failed === 0) {
     return { status: "skipped", reason: TREG_REASONS.budget };
@@ -39,16 +39,39 @@ function nothingAnswered(tally: Tally): CollectorResult {
   if (stoppedBy === "key") throw new Error(TREG_REASONS.key);
   if (stoppedBy === "balance") throw new Error(TREG_REASONS.balance);
   if (stoppedBy === "error" && tally.failed === 0) throw new Error(TREG_REASONS.rateLimited);
-  throw new Error(TREG_REASONS.nothingAnswered);
+  // Calls that may have been billed come to nothing: the next scans wait (see `backoff`).
+  throw new Error(
+    spentMicroUsd > 0 ? TREG_REASONS.nothingAnsweredBilled : TREG_REASONS.nothingAnswered,
+  );
 }
 
-async function collectWith(deps: TregDeps, ctx: CollectContext): Promise<CollectorResult> {
+type Halt = { why: "key" | "balance"; until: number };
+/** A refused key or an empty balance repeats for every product, so it ends them all for a while. */
+const HALT_MS = 6 * 60 * 60_000;
+/** Header values: visible ASCII, no spaces. Anything else could never be sent. */
+const USABLE_KEY = /^[!-~]{1,200}$/;
+
+function stopped(why: "key" | "balance"): never {
+  throw new Error(why === "key" ? TREG_REASONS.key : TREG_REASONS.balance);
+}
+
+async function collectWith(
+  deps: TregDeps,
+  ctx: CollectContext,
+  state: { halted: Halt | null },
+): Promise<CollectorResult> {
   const tracking = deps.tracking(ctx.product.id);
   if (!tracking || tracking.queries.length + tracking.questions.length === 0) {
     return { status: "not_configured", reason: TREG_REASONS.noSearches };
   }
   const apiKey = ctx.config.HARBOUR_TREG_API_KEY;
   if (!apiKey) return { status: "not_configured", reason: TREG_REASONS.noKey };
+
+  if (!USABLE_KEY.test(apiKey)) {
+    state.halted = { why: "key", until: deps.clock() + HALT_MS };
+    return stopped("key");
+  }
+  if (state.halted && deps.clock() < state.halted.until) return stopped(state.halted.why);
 
   const domain = productDomain(ctx.product.url);
   const run: TregRun = {
@@ -66,8 +89,11 @@ async function collectWith(deps: TregDeps, ctx: CollectContext): Promise<Collect
     deadline: deps.clock() + MAX_RUN_MS,
   });
   const { ok, failed, stoppedBy } = tally;
+  if (stoppedBy === "key" || stoppedBy === "balance") {
+    state.halted = { why: stoppedBy, until: deps.clock() + HALT_MS };
+  }
   ctx.log(`${ok} of ${ok + failed} outside-view checks answered; the run ended: ${stoppedBy}`);
-  if (ok === 0) return nothingAnswered(tally);
+  if (ok === 0) return nothingAnswered(tally, run.spentMicroUsd);
   const summary = summaryOf(tally, run.spentMicroUsd);
   const observations = [
     ...tally.observations,
@@ -78,11 +104,19 @@ async function collectWith(deps: TregDeps, ctx: CollectContext): Promise<Collect
 
 /** Builds the collector around its address, timeout and clock (tests inject fakes). */
 export function createTreg(deps: TregDeps): Collector {
+  // The collector lives as long as the worker, so this is how one product's refusal reaches the
+  // others; a restart (after fixing the key) clears it.
+  const state: { halted: Halt | null } = { halted: null };
   return {
     id: "treg",
     cadence: "weekly",
     paid: true,
-    collect: (ctx) => collectWith(deps, ctx),
+    backoff: {
+      error: TREG_REASONS.nothingAnsweredBilled,
+      days: 2,
+      reason: TREG_REASONS.backingOff,
+    },
+    collect: (ctx) => collectWith(deps, ctx, state),
   };
 }
 

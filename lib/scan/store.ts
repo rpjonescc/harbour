@@ -84,6 +84,27 @@ export function latestOkRun(db: Db, productId: string, collector: string) {
     .get();
 }
 
+/** How a collector's latest ok or failed run ended (skips and not-configured runs do not count). */
+export function latestAnsweredRun(db: Db, productId: string, collector: string) {
+  return db
+    .select({
+      status: collectorRuns.status,
+      error: collectorRuns.error,
+      finishedAt: collectorRuns.finishedAt,
+    })
+    .from(collectorRuns)
+    .innerJoin(scanRuns, eq(collectorRuns.scanId, scanRuns.id))
+    .where(
+      and(
+        eq(scanRuns.productId, productId),
+        eq(collectorRuns.collector, collector),
+        inArray(collectorRuns.status, ["ok", "failed"]),
+      ),
+    )
+    .orderBy(desc(collectorRuns.finishedAt), desc(collectorRuns.id))
+    .get();
+}
+
 /** When a collector last finished ok for a product, or null if never. */
 export function lastOkRunAt(db: Db, productId: string, collector: string): Date | null {
   return latestOkRun(db, productId, collector)?.finishedAt ?? null;

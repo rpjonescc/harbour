@@ -7,7 +7,7 @@ import { createTreg, type TregDeps } from "@/lib/scan/collectors/treg";
 import { AI_CHATGPT, BACKLINKS, SERP_ORGANIC } from "@/lib/scan/collectors/treg-endpoints";
 import { createSafeFetch } from "@/lib/scan/fetch";
 import { HostLimiter } from "@/lib/scan/host-limiter";
-import type { CollectContext, CollectorResult } from "@/lib/scan/types";
+import type { CollectContext, Collector, CollectorResult } from "@/lib/scan/types";
 import { type Answers, DOMAIN, okBody } from "./fake-treg-answers";
 import { site } from "./http-site";
 
@@ -167,6 +167,13 @@ export function fakeFetch(timeoutMs = 5_000) {
   });
 }
 
+export const deps = (origin: string): TregDeps => ({
+  tracking: () => TRACKING,
+  baseUrl: origin,
+  timeoutMs: 5_000,
+  clock: Date.now,
+});
+
 export type Spent = {
   estimates: number[];
   recorded: { provider: string; units: number; amountMicroAud: number }[];
@@ -183,6 +190,8 @@ export type RunSetup = {
   clock?: () => number;
   signal?: AbortSignal;
   product?: Partial<Product>;
+  /** Reuse one collector across runs (it remembers a halt). */
+  collector?: Collector;
 };
 
 /** Runs the collector once against the fake; collects the budget asks, costs and log lines. */
@@ -223,7 +232,7 @@ export async function tregRun(setup: RunSetup) {
   let result: CollectorResult | null = null;
   let error: Error | null = null;
   try {
-    result = await createTreg(deps).collect(ctx);
+    result = await (setup.collector ?? createTreg(deps)).collect(ctx);
   } catch (caught) {
     error = caught instanceof Error ? caught : new Error(String(caught));
   }

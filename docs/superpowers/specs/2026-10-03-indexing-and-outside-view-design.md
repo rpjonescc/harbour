@@ -110,8 +110,11 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
      call is a skip. After three failures in a row, or 8 minutes, the run stops and keeps what it has.
 - **Price control:** every call carries `X-Treg-Route-Max-Cost` (a hard cap per call, from a per-endpoint
   constant with headroom), is preceded by `budget.allow(estimate)` and followed by `cost.record(actual)` from
-  the response header. A call refused by the budget ends the run with a recorded partial result. Expected
-  spend: about US$0.04 per product per week (≈ A$1 a month for three products).
+  the response header. A call refused by the budget ends the run with a recorded partial result. Spend: a full run
+  (1 backlinks call, 8 searches, 5 questions) is 2,500 + 8×6,000 + 5×3,600 = 68,500 µUSD, up to about US$0.07 per
+  product per week (≈ A$1.4 a month for three products, ≈ A$2.1 at the price ceilings); `HARBOUR_MONTHLY_BUDGET_AUD`
+  bounds the worst case. A key or balance stop ends the run for every product for 6 hours (until the worker restarts);
+  calls that may have been billed and came to nothing delay the next try by 2 days.
 - Provider ids are pinned in one table with the price headroom and a fixed-sentence failure for an unknown id
   or a retired endpoint; the weekly run logs the endpoint list it used.
 - All response text is untrusted data: validated with zod, strings capped, never rendered as markup.

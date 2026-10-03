@@ -123,4 +123,50 @@ describe("runScan with the Treg collector", () => {
         "Treg refused Harbour's key: check HARBOUR_TREG_API_KEY in .env, then restart the worker.",
     });
   });
+
+  it.each([
+    ["a 401", "unauthorized"],
+    ["a 402 balance", "balance"],
+    ["a 429", "rate_limit"],
+    ["a 503", "server_error"],
+  ] as const)("leaves no reservation behind after %s", async (_name, mode) => {
+    const { db, scan } = await tregScan({ mode });
+    await scan();
+    expect(runsOf(db)[0]).toMatchObject({ status: "failed" });
+    const rows = db.select().from(costs).all();
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.filter((r) => r.status === "reserved")).toEqual([]);
+    expect(rows.reduce((sum, r) => sum + r.amountMicroAud, 0)).toBe(0);
+  });
+
+  it("settles each call against its own reservation: a 503 then successes logs no cost warning", async () => {
+    const { db, scan } = await tregScan({ mode: (_e, n) => (n === 1 ? "server_error" : "ok") });
+    const job = await scan();
+    expect(runsOf(db)[0]).toMatchObject({ status: "ok" });
+    expect(texts(db, job).join("\n")).not.toContain("above its");
+    const rows = db.select().from(costs).orderBy(costs.id).all();
+    expect(rows.map((r) => r.amountMicroAud)).toEqual([0, 9_300, 9_300, 5_580]);
+    expect(rows.every((r) => r.status === "recorded")).toBe(true);
+  });
+
+  it("waits two days after calls that may have been billed came to nothing, then tries again", async () => {
+    const { db, scan, advance, server } = await tregScan({ mode: "huge" });
+    await scan();
+    expect(runsOf(db)[0]).toMatchObject({
+      status: "failed",
+      error: expect.stringContaining("waits two days"),
+    });
+    const calls = server.calls.length;
+    advance(DAY);
+    await scan();
+    expect(runsOf(db)[1]).toMatchObject({
+      status: "skipped",
+      error: "backing off for two days after calls that may have been billed came to nothing",
+    });
+    expect(server.calls).toHaveLength(calls);
+    advance(DAY);
+    await scan();
+    expect(runsOf(db)[2]?.status).toBe("failed");
+    expect(server.calls.length).toBeGreaterThan(calls);
+  });
 });

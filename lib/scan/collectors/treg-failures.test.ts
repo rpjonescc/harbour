@@ -1,5 +1,6 @@
 import {
   DOMAIN,
+  deps,
   fakeTreg,
   KEY,
   type Mode,
@@ -9,6 +10,7 @@ import {
 } from "@/tests/helpers/fake-treg";
 import { closeSites } from "@/tests/helpers/http-site";
 import { tregSummaryValue } from "../treg-shapes";
+import { createTreg } from "./treg";
 
 afterEach(closeSites);
 
@@ -74,7 +76,13 @@ describe("treg collector: one check failing never hides the others", () => {
   it("records no cost for a ceiling refusal: nothing was charged", async () => {
     const { origin } = await fakeTreg({ mode: only(SERP, "route_max_cost") });
     const run = await tregRun({ origin });
-    expect(run.spent.recorded.map((r) => r.amountMicroAud)).toEqual([3_875, 5_580]);
+    // The refused calls are settled at zero so no reservation is left counting.
+    expect(run.spent.recorded.map((r) => [r.units, r.amountMicroAud])).toEqual([
+      [1, 3_875],
+      [0, 0],
+      [0, 0],
+      [1, 5_580],
+    ]);
   });
 
   it("stops asking after three failures in a row, and fails when nothing was answered", async () => {
@@ -112,7 +120,7 @@ describe("treg collector: reasons that end the run", () => {
         : "Treg says its balance is empty: top it up, then run the check again.",
     );
     expect(run.error?.cause).toBeUndefined();
-    expect(run.spent.recorded).toEqual([]);
+    expect(run.spent.recorded).toEqual([{ provider: "treg", units: 0, amountMicroAud: 0 }]);
   });
 
   it("ends on a 429 with a fixed sentence", async () => {
@@ -230,11 +238,10 @@ describe("treg collector: spending", () => {
     expect(summaryOf(run.result).spentMicroUsd).toBe(2_000 + 6_000 + 6_000 + 3_600);
   });
 
-  it("records the estimate when the reported charge is implausible (over US$1)", async () => {
+  it("records a reported charge above the ceiling in full: the budget never under-counts", async () => {
     const { origin } = await fakeTreg({ charges: { [BACKLINKS]: "5000000" } });
     const run = await tregRun({ origin });
-    expect(run.spent.recorded[0]?.amountMicroAud).toBe(3_875);
-    expect(run.result?.status).toBe("ok");
+    expect(run.spent.recorded[0]?.amountMicroAud).toBe(7_750_000);
   });
 
   it("records a reported zero charge as zero: a real figure is not an estimate", async () => {
@@ -273,5 +280,62 @@ describe("treg collector: hostile input", () => {
       citedDomains: [],
     });
     expect(JSON.stringify(run.result)).not.toContain("script");
+  });
+});
+
+describe("treg collector: a key or balance stop ends the run for every product", () => {
+  const KEY_SENTENCE =
+    "Treg refused Harbour's key: check HARBOUR_TREG_API_KEY in .env, then restart the worker.";
+
+  it.each([
+    ["unauthorized", KEY_SENTENCE],
+    ["balance", "Treg says its balance is empty: top it up, then run the check again."],
+  ] as const)(
+    "after %s the next product makes no call and fails the same way",
+    async (mode, sentence) => {
+      const { origin, calls } = await fakeTreg({ mode: (_e, n) => (n === 1 ? mode : "ok") });
+      const collector = createTreg(deps(origin));
+      const first = await tregRun({ origin, collector });
+      expect(first.error?.message).toBe(sentence);
+      const second = await tregRun({ origin, collector, product: { id: "other" } });
+      expect(second.error?.message).toBe(sentence);
+      expect(calls).toHaveLength(1);
+      expect(second.spent.estimates).toEqual([]);
+    },
+  );
+
+  it("does not halt on a 429: the next product still asks", async () => {
+    const { origin, calls } = await fakeTreg({ mode: (_e, n) => (n === 1 ? "rate_limit" : "ok") });
+    const collector = createTreg(deps(origin));
+    await tregRun({ origin, collector });
+    const second = await tregRun({ origin, collector });
+    expect(second.result?.status).toBe("ok");
+    expect(calls.length).toBeGreaterThan(1);
+  });
+
+  it("asks again once the halt is over", async () => {
+    const { origin, calls } = await fakeTreg({
+      mode: (_e, n) => (n === 1 ? "unauthorized" : "ok"),
+    });
+    let now = 0;
+    const collector = createTreg({ ...deps(origin), clock: () => now });
+    await tregRun({ origin, collector });
+    now = 6 * 60 * 60_000 + 1;
+    const later = await tregRun({ origin, collector });
+    expect(later.result?.status).toBe("ok");
+    expect(calls.length).toBeGreaterThan(1);
+  });
+
+  it.each([
+    ["has a space", "abc def"],
+    ["has non-ASCII", "abc\u00e9"],
+    ["has a line break", "abc\ndef"],
+  ])("stops at once, with no call, for a key that %s", async (_name, key) => {
+    const { origin, calls } = await fakeTreg();
+    const run = await tregRun({ origin, key });
+    expect(run.error?.message).toBe(KEY_SENTENCE);
+    expect(calls).toEqual([]);
+    expect(run.spent.estimates).toEqual([]);
+    expect(JSON.stringify([run.error?.message, run.log])).not.toContain("abc");
   });
 });
