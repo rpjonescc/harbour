@@ -42,6 +42,16 @@ describe("gatherIdeasInputs", () => {
     expect(inputs.waiting).toBe(1);
   });
 
+  it("skips a digest file named for a day that does not exist", () => {
+    const inputs = gather({
+      [NOTES_PATH]: notes,
+      "content/digests/2026-09-31.md": digestFile("2026-10-01", [
+        ["acme-docs", "A theme in a file whose name is not a real day."],
+      ]),
+    });
+    expect(inputs.themes).toEqual([]);
+  });
+
   it("reports a gap when there is no recent digest, and truncates a long notes file", () => {
     const inputs = gather({ [NOTES_PATH]: "x".repeat(10_000) });
     expect(inputs.digestGap).toBe(true);

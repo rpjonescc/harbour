@@ -11,7 +11,7 @@ describe("readStagedFiles", () => {
     const git = (...args: string[]) => execFileSync("git", args, { cwd: root });
     try {
       git("init", "-q");
-      const token = "ghp_" + "a".repeat(36);
+      const token = `ghp_${"a".repeat(36)}`;
       writeFileSync(join(root, "one.ts"), `const key = "${token}";\n`);
       writeFileSync(join(root, "two.ts"), `const key = "${token}";\n`);
       git("add", "one.ts", "two.ts");

@@ -1,4 +1,4 @@
-import { sameSite, siteKey } from "./site";
+import { domainKey, productDomain, sameSite, siteKey } from "./site";
 
 const url = (href: string) => new URL(href);
 
@@ -33,5 +33,14 @@ describe("siteKey", () => {
     expect(siteKey("www.localhost")).toBe("www.localhost");
     expect(siteKey("www.www.com")).toBe("www.com");
     expect(siteKey("WWW.Com")).toBe("www.com");
+  });
+});
+
+describe("domainKey", () => {
+  it("drops trailing dots once, then a leading www, like productDomain", () => {
+    expect(domainKey("Docs.Example.COM.")).toBe("docs.example.com");
+    expect(domainKey("www.example.com..")).toBe("example.com");
+    expect(domainKey("www.com.")).toBe("www.com");
+    expect(domainKey("www.com")).toBe(productDomain("https://www.com/"));
   });
 });

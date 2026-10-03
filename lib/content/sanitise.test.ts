@@ -185,6 +185,15 @@ describe("sanitiseContent", () => {
     expect(sanitiseContent("facebook", { text, hashtags: [] }, hosts).ok).toBe(true);
   });
 
+  it("reads hosts the way the product's own domain is read (trailing dots, www.com)", () => {
+    const ok = (text: string, allowed: string[]) =>
+      sanitiseContent("facebook", { text, hashtags: [] }, allowed).ok;
+    expect(ok("Read it at https://docs.example.com./start", hosts)).toBe(true);
+    expect(ok("Read it at https://www.com/start", ["www.com"])).toBe(true);
+    expect(ok("see www.com", ["www.com"])).toBe(true);
+    expect(ok("see www.com", ["com"])).toBe(false);
+  });
+
   it("refuses content nested deeper than any platform shape", () => {
     let deep: unknown = "x";
     for (let i = 0; i < 20_000; i += 1) deep = { a: deep };

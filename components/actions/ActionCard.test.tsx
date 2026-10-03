@@ -156,18 +156,16 @@ describe("ActionCard", () => {
     const first = exampleActionView({ id: 1, title: "First thing" });
     const second = exampleActionView({ id: 2, title: "Second thing" });
     render(
-      <>
-        {[first, second].map((action) => (
-          <ActionCard
-            key={action.id}
-            action={action}
-            product={PRODUCT}
-            locale="en-GB"
-            timeZone="Europe/London"
-            today="2026-10-02"
-          />
-        ))}
-      </>,
+      [first, second].map((action) => (
+        <ActionCard
+          key={action.id}
+          action={action}
+          product={PRODUCT}
+          locale="en-GB"
+          timeZone="Europe/London"
+          today="2026-10-02"
+        />
+      )),
     );
     const names = (selector: string, attribute?: string) =>
       [...document.querySelectorAll(selector)].map((el) =>

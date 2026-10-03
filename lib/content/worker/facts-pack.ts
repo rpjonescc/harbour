@@ -6,6 +6,7 @@ import { resolveBrainPath } from "@/lib/brain/paths";
 import { parseFile } from "@/lib/content/files";
 import { contentPaths } from "@/lib/content/paths";
 import { digestFrontmatter, type IdeaFront } from "@/lib/content/schema";
+import { isIsoDay } from "@/lib/format/iso-day";
 import { readBoundedBytes, readPrefixBytes } from "@/lib/note/bounded-read";
 import type { ContentProduct } from "@/lib/products/content";
 import { hasControlChars, stripInvisible } from "@/lib/text/hidden-chars";
@@ -45,7 +46,7 @@ function plain(text: string): string {
 
 function themeText(root: string, ref: string, productId: string): string | null {
   const match = /^digest:(\d{4}-\d{2}-\d{2})#(t\d{1,2})$/.exec(ref);
-  if (!match?.[1]) return null;
+  if (!match?.[1] || !isIsoDay(match[1])) return null;
   let bytes: Buffer | null;
   try {
     bytes = readBoundedBytes(join(root, contentPaths.digest(match[1])), DIGEST_BYTES);

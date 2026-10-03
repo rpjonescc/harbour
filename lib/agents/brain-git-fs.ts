@@ -16,6 +16,27 @@ import { posix, resolve, sep } from "node:path";
 
 export type FileStat = { size: number; mtimeMs: number; ino: number };
 
+/** How deep and how wide a walk of the brain may go before it is refused. */
+export type WalkLimits = { depth: number; entries: number };
+
+// A brain past these is refused with an error, never checked in part: a walk that stopped
+// quietly would let a nested .git or a changed file go unseen.
+export const WALK_LIMITS: WalkLimits = { depth: 64, entries: 100_000 };
+
+/** A per-walk counter that throws once a folder is too deep or too many entries were seen. */
+function walkBudget(limits: WalkLimits) {
+  let seen = 0;
+  return {
+    enter(depth: number): void {
+      if (depth > limits.depth) throw new Error("Folders are nested too deeply to check");
+    },
+    count(): void {
+      seen += 1;
+      if (seen > limits.entries) throw new Error("Too many files and folders to check");
+    },
+  };
+}
+
 export function statOf(root: string, path: string): FileStat | null {
   try {
     const st = lstatSync(posix.join(root, path));
@@ -30,9 +51,11 @@ function sha(data: Buffer | string): string {
 }
 
 /** Git metadata files (relative paths) that decide what git does with the brain. */
-export function gitMetaPaths(root: string): string[] {
+export function gitMetaPaths(root: string, limits = WALK_LIMITS): string[] {
   const out = [".git/config", ".git/HEAD", ".git/packed-refs", ".gitmodules"];
-  const walk = (rel: string) => {
+  const budget = walkBudget(limits);
+  const walk = (rel: string, depth: number) => {
+    budget.enter(depth);
     let entries: Dirent[];
     try {
       if (!lstatSync(posix.join(root, rel)).isDirectory()) return; // not a dir, or a symlink
@@ -41,13 +64,14 @@ export function gitMetaPaths(root: string): string[] {
       return;
     }
     for (const entry of entries) {
+      budget.count();
       const child = posix.join(rel, entry.name);
-      if (entry.isDirectory()) walk(child);
+      if (entry.isDirectory()) walk(child, depth + 1);
       else out.push(child);
     }
   };
-  walk(".git/info");
-  walk(".git/refs");
+  walk(".git/info", 0);
+  walk(".git/refs", 0);
   return out;
 }
 
@@ -75,10 +99,15 @@ export function isRestorable(path: string): boolean {
   return path === ".git/HEAD" || path === ".git/config" || path.startsWith(".git/info/");
 }
 
-/** Nested `.git` entries under `starts`, found by an lstat walk (never follows symlinks). */
-export function nestedGitDirs(root: string, starts: string[]): string[] {
+/**
+ * Nested `.git` entries under `starts`, found by an lstat walk (never follows symlinks). Throws
+ * past `limits` rather than return a partial answer.
+ */
+export function nestedGitDirs(root: string, starts: string[], limits = WALK_LIMITS): string[] {
   const found: string[] = [];
-  const walk = (rel: string) => {
+  const budget = walkBudget(limits);
+  const walk = (rel: string, depth: number) => {
+    budget.enter(depth);
     let entries: Dirent[];
     try {
       entries = readdirSync(posix.join(root, rel), { withFileTypes: true });
@@ -86,13 +115,14 @@ export function nestedGitDirs(root: string, starts: string[]): string[] {
       return;
     }
     for (const entry of entries) {
+      budget.count();
       const child = rel ? posix.join(rel, entry.name) : entry.name;
       if (entry.name === ".git") {
         if (rel) found.push(child);
-      } else if (entry.isDirectory()) walk(child);
+      } else if (entry.isDirectory()) walk(child, depth + 1);
     }
   };
-  for (const start of starts) walk(start);
+  for (const start of starts) walk(start, 0);
   return found;
 }
 
@@ -119,7 +149,8 @@ export function prepareQuarantineDir(root: string, dir: string): string {
 /**
  * Copies each change's current content (files, and directories recursively including `.git`) into
  * the quarantine and notes every entry. Throws, before anything is deleted, if a file exceeds the
- * cap. Symlinks and special files are noted, not copied. Files in `done` are skipped.
+ * cap or a folder is past `limits`. Symlinks and special files are noted, not copied. Files in
+ * `done` are skipped.
  */
 export function quarantine(
   root: string,
@@ -127,8 +158,11 @@ export function quarantine(
   changes: { path: string }[],
   notes: string[],
   done: Set<string>,
+  limits = WALK_LIMITS,
 ): void {
-  const visit = (rel: string) => {
+  const budget = walkBudget(limits);
+  const visit = (rel: string, depth: number) => {
+    budget.count();
     const from = posix.join(root, rel);
     let st: ReturnType<typeof lstatSync>;
     try {
@@ -140,9 +174,10 @@ export function quarantine(
     if (st.isSymbolicLink()) {
       notes.push(`${rel}: symlink to ${readlinkSync(from)} (not copied)`);
     } else if (st.isDirectory()) {
+      budget.enter(depth);
       mkdirSync(resolve(dir, rel), { recursive: true });
       notes.push(`${rel}/: directory`);
-      for (const entry of readdirSync(from)) visit(posix.join(rel, entry));
+      for (const entry of readdirSync(from)) visit(posix.join(rel, entry), depth + 1);
     } else if (st.isFile()) {
       if (done.has(rel)) return;
       if (st.size > MAX_QUARANTINE_FILE_BYTES) {
@@ -158,7 +193,7 @@ export function quarantine(
       notes.push(`${rel}: special file (not copied)`);
     }
   };
-  for (const change of changes) visit(change.path.replace(/\/$/, ""));
+  for (const change of changes) visit(change.path.replace(/\/$/, ""), 0);
 }
 
 function isLink(path: string): boolean {

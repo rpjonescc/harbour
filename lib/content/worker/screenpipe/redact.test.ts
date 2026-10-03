@@ -185,6 +185,10 @@ describe("filterSnippets: redacting", () => {
     expect(filterSnippets([snip("Acme Docs on docs.example.com ok")], withUrl).kept[0]).toBe(
       "Acme Docs on docs.example.com ok",
     );
+    const dotted = { ...RULES, productHost: "https://docs.example.com./" };
+    expect(filterSnippets([snip("Acme Docs on docs.example.com ok")], dotted).kept[0]).toBe(
+      "Acme Docs on docs.example.com ok",
+    );
     const none = { ...RULES, productHost: "" };
     expect(filterSnippets([snip("Acme Docs on docs.example.com ok")], none).kept[0]).toBe(
       "Acme Docs on [link] ok",

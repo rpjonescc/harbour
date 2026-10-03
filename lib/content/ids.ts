@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isIsoDay } from "@/lib/format/iso-day";
 
 export const PLATFORMS = ["linkedin", "x", "instagram", "facebook", "blog", "website"] as const;
 export type Platform = (typeof PLATFORMS)[number];
@@ -41,7 +42,7 @@ export function slugify(text: string, max = 40): string {
 
 /** The id of a new idea; the worker makes it from the validated title, never from agent text. */
 export function makeIdeaId(productId: string, day: string, title: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error("makeIdeaId: day must be YYYY-MM-DD");
+  if (!isIsoDay(day)) throw new Error("makeIdeaId: day must be YYYY-MM-DD");
   const head = `${productIdSchema.parse(productId)}-${day.replaceAll("-", "")}-`;
   return ideaIdSchema.parse(`${head}${slugify(title, Math.max(1, 80 - head.length))}`);
 }

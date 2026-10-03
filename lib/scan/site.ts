@@ -7,12 +7,20 @@ export function siteKey(hostname: string): string {
 }
 
 /**
- * A product's own domain, normalised in one place for everything that stores or reads its checks:
- * lower case, trailing dots off ("example.com." is "example.com"), a leading www off. The port and
- * path of the URL are not part of it.
+ * A hostname normalised the way a product's own domain is: lower case, trailing dots off
+ * ("example.com." is "example.com"), then a leading www off (see siteKey). Both sides of a host
+ * comparison use this, so they always agree.
+ */
+export function domainKey(hostname: string): string {
+  return siteKey(hostname.replace(/\.+$/, ""));
+}
+
+/**
+ * A product's own domain, normalised in one place for everything that stores or reads its checks
+ * (see domainKey). The port and path of the URL are not part of it.
  */
 export function productDomain(url: string): string {
-  return siteKey(new URL(url).hostname.replace(/\.+$/, ""));
+  return domainKey(new URL(url).hostname);
 }
 
 /**

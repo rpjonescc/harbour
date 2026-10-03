@@ -20,6 +20,8 @@ describe("contentPaths", () => {
   it.each([
     () => p.voice("../x"),
     () => p.digest("yesterday"),
+    () => p.digest("2026-02-31"),
+    () => p.approved("blog", "2026-02-31", "five-minutes"),
     () => p.idea("acme-docs", "a/b"),
     () => p.piece("acme-docs-20261002-x", "tiktok" as never),
     () => p.approved("blog", "2026-10-02", "Bad Slug"),

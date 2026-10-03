@@ -4,7 +4,7 @@
 import { lstatSync } from "node:fs";
 import { join } from "node:path";
 import { readDoc } from "@/lib/brain/docs";
-import { parseDay } from "@/lib/format/zoned-time";
+import { parseDay } from "@/lib/format/iso-day";
 import { RESEARCH_TOPICS } from "./topics";
 
 /** A document is due for a refresh this many days after its `researched` date. */

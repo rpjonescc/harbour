@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
-import { addIsoDays, formatIsoDay } from "@/lib/format/date";
+import { formatIsoDay } from "@/lib/format/date";
+import { addDays } from "@/lib/format/iso-day";
 import { E2E_LOGIN, E2E_ORIGIN } from "../../playwright.config";
 import { hydrated } from "./hydration";
 import { expectPlainLanguage } from "./plain-language";
@@ -147,7 +148,7 @@ test("snooze hides an action until its date; Bring back now brings it back", asy
   // A week from today: the field's minimum is tomorrow.
   const tomorrow = await until.getAttribute("min");
   expect(tomorrow).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  const nextWeek = addIsoDays(tomorrow ?? "", 6);
+  const nextWeek = addDays(tomorrow ?? "", 6);
   await until.fill(nextWeek);
   await card(page, title)
     .getByRole("button", { name: `Snooze: ${title}`, exact: true })

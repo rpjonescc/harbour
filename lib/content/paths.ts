@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { isIsoDay, isoDaySchema } from "@/lib/format/iso-day";
 import { ideaIdSchema, type Platform, platformSchema, productIdSchema } from "./ids";
 
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const day = isoDaySchema;
 const slug = z
   .string()
   .max(80)
@@ -20,6 +21,10 @@ export const isApprovedPath = (platform: Platform, path: string): boolean =>
   new RegExp(
     `^content/approved/${platform}/\\d{4}-\\d{2}-\\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\\.md$`,
   ).test(path) && path.length <= 120;
+
+/** Whether a file name in the digest folder is a digest: a real day, then ".md". */
+export const isDigestName = (name: string): boolean =>
+  name.endsWith(".md") && isIsoDay(name.slice(0, -3));
 
 /** The only place a content path is built; all of them are inside `content/` in the brain. */
 export const contentPaths = {

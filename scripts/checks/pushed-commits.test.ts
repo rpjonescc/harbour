@@ -81,7 +81,7 @@ describe("scanCommits", () => {
 
   it("reports a secret added in one commit and removed in the next", () => {
     const base = git("rev-parse", "HEAD");
-    const token = "ghp_" + "a".repeat(36);
+    const token = `ghp_${"a".repeat(36)}`;
     writeFileSync(join(root, "leak.ts"), `const key = "${token}";\n`);
     git("add", ".");
     commit("feat: add key");

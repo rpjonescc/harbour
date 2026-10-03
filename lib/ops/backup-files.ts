@@ -3,7 +3,7 @@
 import { lstatSync, readdirSync, type Stats } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { Config } from "@/lib/config";
-import { parseDay } from "@/lib/format/zoned-time";
+import { parseDay } from "@/lib/format/iso-day";
 
 export const BACKUPS_KEPT = 14;
 export const BACKUP_NAME = /^harbour-(\d{4}-\d{2}-\d{2})\.db$/;

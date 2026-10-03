@@ -2,10 +2,10 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Pillar } from "@/lib/agents/pillars";
 import { parseFile } from "@/lib/content/files";
-import { contentPaths } from "@/lib/content/paths";
+import { contentPaths, isDigestName } from "@/lib/content/paths";
 import { ideaFileIds, readAllIdeas } from "@/lib/content/read/ideas";
 import { digestFrontmatter } from "@/lib/content/schema";
-import { addDays } from "@/lib/format/zoned-time";
+import { addDays } from "@/lib/format/iso-day";
 import { readBoundedBytes, readPrefixBytes } from "@/lib/note/bounded-read";
 import type { ContentProduct } from "@/lib/products/content";
 import { hasControlChars, stripInvisible } from "@/lib/text/hidden-chars";
@@ -59,7 +59,7 @@ function themesSince(
     throw error;
   }
   const days = names
-    .filter((n) => /^\d{4}-\d{2}-\d{2}\.md$/.test(n))
+    .filter(isDigestName)
     .map((n) => n.slice(0, 10))
     .filter((d) => d >= since)
     .sort();

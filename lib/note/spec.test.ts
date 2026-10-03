@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { makeBrain } from "@/tests/helpers/brain";
 import { FACTS, GOOD_NOTE, noteFileText } from "@/tests/helpers/note";
 import { noteDigest } from "./digest";
-import { dailyNoteSpec, NOTE_TIMEOUT_MS, reviewNote } from "./spec";
+import { dailyNoteSpec, NOTE_TIMEOUT_MS } from "./spec";
 
 const STAMP = "2026-10-02-0630";
 const PATH = `notes/daily/${STAMP}.md`;
@@ -46,12 +46,14 @@ describe("dailyNoteSpec", () => {
   });
 });
 
-describe("reviewNote", () => {
+describe("the draft check", () => {
+  // Through the production path: the spec's own review.check on the draft.
+  const checkDraft = (root: string) => dailyNoteSpec({ stamp: STAMP }, context).review?.check(root);
   const review = (files: Record<string, string>, after?: (root: string) => void) => {
     const brain = makeBrain(files);
     try {
       after?.(brain.root);
-      return reviewNote(brain.root, DRAFT, FACTS);
+      return checkDraft(brain.root);
     } finally {
       brain.cleanup();
     }
@@ -88,7 +90,7 @@ describe("reviewNote", () => {
   it("propagates a real read error", () => {
     const brain = makeBrain({ "notes/daily": "a file where the folder should be" });
     try {
-      expect(() => reviewNote(brain.root, DRAFT, FACTS)).toThrow();
+      expect(() => checkDraft(brain.root)).toThrow();
     } finally {
       brain.cleanup();
     }

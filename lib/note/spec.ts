@@ -38,11 +38,6 @@ function inspectNote(root: string, path: string, facts: Facts): Review {
   return reason === null ? { reason: null, digest: noteDigest(bytes) } : { reason };
 }
 
-/** Why the file at `path` is not an acceptable note, or null when it is. */
-export function reviewNote(root: string, path: string, facts: Facts): string | null {
-  return inspectNote(root, path, facts).reason;
-}
-
 /** The daily note: a draft, Write as the only tool, a short timeout and one reviewed retry. */
 export function dailyNoteSpec(params: Record<string, string>, context: SpecContext): AgentSpec {
   const stamp = params.stamp ?? "";

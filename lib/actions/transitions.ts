@@ -1,3 +1,4 @@
+import { isIsoDay, parseDay } from "@/lib/format/iso-day";
 import type { ActionStatus } from "./types";
 
 export type StatusChange = {
@@ -22,12 +23,7 @@ const DAY_MS = 86_400_000;
 
 /** Days since the epoch for a strict, real `YYYY-MM-DD` date; null otherwise. */
 function dayNumber(date: string): number | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-  const ms = Date.parse(`${date}T00:00:00Z`);
-  if (Number.isNaN(ms)) return null;
-  // Date.parse rolls impossible days over (2026-02-30 → March 2); refuse those.
-  if (new Date(ms).toISOString().slice(0, 10) !== date) return null;
-  return ms / DAY_MS;
+  return isIsoDay(date) ? parseDay(date) / DAY_MS : null;
 }
 
 function checkUntil(until: string, today: string): string | null {

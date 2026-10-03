@@ -3,7 +3,7 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { MAX_SNOOZE_DAYS } from "@/lib/actions/transitions";
-import { addIsoDays } from "@/lib/format/date";
+import { addDays, isIsoDay } from "@/lib/format/iso-day";
 
 /**
  * Picks the day an action comes back: tomorrow at the earliest, a year at the latest (the
@@ -28,8 +28,8 @@ export function SnoozeForm({
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const min = addIsoDays(today, 1);
-  const max = addIsoDays(today, MAX_SNOOZE_DAYS);
+  const min = addDays(today, 1);
+  const max = addDays(today, MAX_SNOOZE_DAYS);
   const fieldId = `snooze-until-${id}`;
   const errorId = `snooze-error-${id}`;
 
@@ -41,7 +41,7 @@ export function SnoozeForm({
     event.preventDefault();
     const until = input.current?.value ?? "";
     // ISO dates compare correctly as strings.
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(until) || until < min || until > max) {
+    if (!isIsoDay(until) || until < min || until > max) {
       setError("Pick a date between tomorrow and a year from now.");
       input.current?.focus();
       return;

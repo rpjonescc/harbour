@@ -1,3 +1,4 @@
+import { domainKey } from "@/lib/scan/site";
 import { hasControlChars, stripInvisible } from "@/lib/text/hidden-chars";
 import type { Platform } from "./ids";
 
@@ -27,7 +28,7 @@ export const KNOWN_TLDS =
 // Hosts written without a scheme: "//host", "www.host" and "label.tld" (see KNOWN_TLDS).
 const BARE_HOSTS = [
   /(?<![\w@.:/-])\/\/([a-z0-9-]+(?:\.[a-z0-9-]+)*)/gi,
-  /\bwww\.([a-z0-9-]+(?:\.[a-z0-9-]+)*)/gi,
+  /\b(www\.[a-z0-9-]+(?:\.[a-z0-9-]+)*)/gi,
   new RegExp(
     `(?<![\\w@.-])((?:[a-z0-9-]+\\.)+(?:[a-z]{2,}(?=[/?#]|:\\d)|(?:${KNOWN_TLDS})(?![\\w-])))`,
     "gi",
@@ -39,7 +40,7 @@ const reject = (reason: string): SanitiseResult => ({ ok: false, reason });
 
 function hostOf(target: string): string | null {
   if (!/^https?:\/\//i.test(target) || !URL.canParse(target)) return null;
-  return new URL(target).hostname.toLowerCase().replace(/^www\./, "");
+  return domainKey(new URL(target).hostname);
 }
 
 /**
@@ -58,7 +59,7 @@ export function linkProblem(text: string, hosts: readonly string[]): string | nu
   }
   for (const pattern of BARE_HOSTS) {
     for (const match of text.matchAll(pattern)) {
-      const host = (match[1] ?? "").toLowerCase().replace(/^www\./, "");
+      const host = domainKey(match[1] ?? "");
       if (!hosts.includes(host)) return OUTSIDE;
     }
   }

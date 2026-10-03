@@ -33,6 +33,7 @@ describe("makeIdeaId", () => {
 
   it("refuses a day that is not YYYY-MM-DD", () => {
     expect(() => makeIdeaId("acme-docs", "2 Oct 2026", "x")).toThrow(/day/);
+    expect(() => makeIdeaId("acme-docs", "2026-02-31", "x")).toThrow(/day/);
   });
 });
 

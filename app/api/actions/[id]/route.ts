@@ -13,6 +13,8 @@ const Body = z
   .object({
     from: z.enum(["suggested", "open", "in_progress", "done", "snoozed", "dismissed"]),
     to: z.enum(["open", "in_progress", "done", "snoozed", "dismissed"]),
+    // Shape only: checkTransition refuses a day that does not exist with until_invalid, which
+    // the page words as "pick a date".
     until: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)

@@ -4,7 +4,7 @@ import { renderFile } from "@/lib/content/files";
 import { productIdSchema } from "@/lib/content/ids";
 import { contentPaths } from "@/lib/content/paths";
 import { DIGEST_PROMPT_VERSION, digestPrompt } from "@/lib/content/prompts/digest";
-import { parseDay } from "@/lib/format/zoned-time";
+import { isoDaySchema } from "@/lib/format/iso-day";
 import { readNeverMention } from "./never-mention";
 import { requireContent } from "./run-context";
 import { quotesSnippets } from "./screenpipe/overlap";
@@ -25,11 +25,7 @@ const workSchema = z.strictObject({
 
 /** The digest agent: Write only, prompt on stdin, and a run record with none of its words. */
 export function digestSpec(params: Record<string, string>, context: SpecContext): AgentSpec {
-  const day = z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .parse(params.day);
-  parseDay(day); // a real calendar date, not just a shape
+  const day = isoDaySchema.parse(params.day);
   const content = requireContent(context);
   const inputs = content.digest;
   if (!inputs || inputs.day !== day) throw new Error("The digest's inputs are not available");
