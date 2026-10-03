@@ -63,10 +63,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       now,
     });
     if (result.ok) return Response.json({ id, column: moveTo });
-    if (result.reason === "not_found") return jsonError(404, "not_found");
+    // Every refusal carries its sentence, a gone card too: "try again" would not help there.
     return Response.json(
       { error: result.reason, message: MOVE_REFUSAL[result.reason] },
-      { status: 409 },
+      { status: result.reason === "not_found" ? 404 : 409 },
     );
   }
 

@@ -117,7 +117,7 @@ Where the build differs from, or adds to, the sections above.
   change the column leaves both alone.
 - API: `POST /api/actions/<id>` accepts the old status body unchanged or a strict
   `{ moveFrom, moveTo, note? }`; a mixed body is 400. Success is `{ id, column }`, a refusal is
-  409 `{ error, message }` with the plain sentence, `not_found` is 404.
+  409 `{ error, message }` with the plain sentence; `not_found` is 404 with its sentence too.
 - CLI: `move`, `list --column`, `add --column` (any column but done), `show` prints the column.
   `--status` with `--column` is refused. `list --column` uses a SQL mirror of `boardColumn`
   (`board-column-sql.ts`), checked against it for every status, stage and pull request case.

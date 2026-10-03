@@ -93,7 +93,11 @@ describe("POST /api/actions/[id] with a board move", () => {
     expect((await send(999, { moveFrom: "backlog", moveTo: "queue" })).status).toBe(404);
     const response = await send(other, { moveFrom: "backlog", moveTo: "queue" });
     expect(response.status).toBe(404);
-    expect(await response.json()).toEqual({ error: "not_found" });
+    // The board shows the sentence: "try again" would never help with a card that is gone.
+    expect(await response.json()).toEqual({
+      error: "not_found",
+      message: MOVE_REFUSAL.not_found,
+    });
   });
 
   it("409s a second mover with the plain sentence", async () => {
