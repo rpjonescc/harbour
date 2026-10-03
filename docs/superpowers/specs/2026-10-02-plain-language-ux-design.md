@@ -278,5 +278,25 @@ Each step is its own reviewed change.
 5. Settings, Agents and messages (done).
 6. Scoring v2 (Preferred Sources) (done).
 
+## Amendment: Ocean background (2026-10-03)
+
+The owner asked for the lower half of every page to be calm, rolling water, "not to distract from
+our tasks, but as a calm flowing motion". It generalises the warm-friend wave (§5 of
+`2026-10-02-warm-friend-design.md`) rather than adding a second one.
+
+- **Where:** the root layout, so every page has it, the sign-in and setup pages included; fixed
+  to the lower half of the viewport, behind all content (content sits in a `z-10` layer above
+  it; panels keep their surface background). Off with `HARBOUR_PERSONALITY=quiet`; no new setting.
+- **What:** a fade to the horizon and three opaque wave layers in new semantic tokens
+  (`--ocean-sky-fade`, `--ocean-1` to `--ocean-3`), each drifting sideways (26 to 40 s loops) and
+  bobbing a few pixels (5.5 to 9 s), with different phases so the crests never line up.
+  Transform-only CSS animation; no script, canvas or dependency.
+- **Never in the way:** `aria-hidden`, no role or tab stop, `pointer-events: none`, no layout
+  shift or overflow, hidden in print, still under `prefers-reduced-motion: reduce`.
+- **Legible:** every text colour keeps WCAG AA on every ocean token in light, dark and system
+  dark, and each ocean token stays within 1.15:1 of the page so it reads as a backdrop
+  (`design/wave-contrast.test.ts`).
+- **Wording:** called "Ocean background" on `/design` and in the README.
+
 AGENTS.md gains a short "Plain language" rule under Design system pointing to this spec and
 `lib/explain`, so new UI follows the same pattern.
