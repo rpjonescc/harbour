@@ -179,6 +179,14 @@ not to edit Harbour or the brain.
 - **Mistakes to avoid:** do not call something a test or demo from its name alone; check the data.
   Keep each project's ledgers and reports out of a worktree you will delete.
 
+## Drafting content for the owner's products
+
+Any copy drafted for an owner's product (posts, pages, descriptions, emails) goes through the
+`no-ai-slop` skill and then the `humanizer` skill before it is shown to the owner, and the fixes are
+applied to the draft, not just listed. Check each claim against what is true (for example, which
+data is self-sourced) and never put in a number the owner has not given. The content machine does
+this in code for its own pieces; for hand-drafted copy, invoke the skills every time.
+
 ## Reliability and security
 
 - A caught failure is recorded or propagated — never logged and turned into
