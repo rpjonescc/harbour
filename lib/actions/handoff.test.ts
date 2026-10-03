@@ -15,6 +15,7 @@ function row(action: NewAction, over: Partial<ActionRow> = {}): ActionRow {
     snoozedUntil: action.snoozedUntil ?? null,
     issuePresent: action.issuePresent ?? null,
     prUrl: null,
+    stage: null,
     titleKey: action.title.toLowerCase(),
     createdAt: t0,
     updatedAt: t0,

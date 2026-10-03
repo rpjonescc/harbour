@@ -120,6 +120,7 @@ describe("runActionsCli", () => {
           status: "snoozed",
           snoozedUntil: "2026-10-09",
           prUrl: null,
+          stage: null,
           createdAt: t0.toISOString(),
           statusChangedAt: t0.toISOString(),
         },
