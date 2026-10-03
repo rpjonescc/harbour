@@ -1,0 +1,35 @@
+[
+  {
+    "id": "cm4ean69r0003w8w1cdomox9n",
+    "name": "Acme Docs",
+    "identifier": "linkedin-page",
+    "picture": "https://uploads.example.com/avatar-1.jpg",
+    "disabled": false,
+    "profile": "acme-docs",
+    "customer": { "id": "customer-id", "name": "Example Customer" }
+  },
+  {
+    "id": "cm4ean69r0004w8w1fbexample",
+    "name": "Acme Docs",
+    "identifier": "facebook",
+    "picture": "https://uploads.example.com/avatar-2.jpg",
+    "disabled": false,
+    "profile": "acmedocs"
+  },
+  {
+    "id": "cm4ean69r0005w8w1igexample",
+    "name": "acme.docs",
+    "identifier": "instagram-standalone",
+    "picture": "https://uploads.example.com/avatar-3.jpg",
+    "disabled": false,
+    "profile": "acme.docs"
+  },
+  {
+    "id": "cm4ean69r0006w8w1xxexample",
+    "name": "Acme Docs",
+    "identifier": "x",
+    "picture": "https://uploads.example.com/avatar-4.jpg",
+    "disabled": true,
+    "profile": "acmedocs"
+  }
+]
