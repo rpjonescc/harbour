@@ -40,6 +40,10 @@ export function jobLabel(job: Pick<Job, "kind" | "params">, products: readonly N
     const title = RESEARCH_TOPICS.find((t) => t.id === topic)?.title ?? topic;
     return `${job.params.mode === "refresh" ? "Update" : "Research"}: ${title}`;
   }
+  if (job.kind === "outside-check") {
+    const id = job.params.productId ?? "";
+    return `Check how the web sees you: ${products.find((p) => p.id === id)?.name ?? id}`;
+  }
   if (job.kind === "discovery" || job.kind === "scan") {
     const id = job.params.productId ?? "";
     const name = products.find((p) => p.id === id)?.name ?? id;

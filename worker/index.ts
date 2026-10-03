@@ -31,6 +31,7 @@ import { type OpsJobDeps, runBackupJob, runRetentionJob } from "@/lib/ops/backup
 import { describeNextBackup, makeBackupSchedule } from "@/lib/ops/backup-schedule";
 import { backupStatus } from "@/lib/ops/backup-status";
 import { getContentProducts, getOwnerFirstName, getProducts } from "@/lib/products/catalog";
+import { runOutsideCheck } from "@/lib/scan/run-outside-check";
 import { runScan } from "@/lib/scan/run-scan";
 import { failInterruptedScans } from "@/lib/scan/store";
 import { workerScanDeps } from "@/lib/scan/worker-deps";
@@ -231,6 +232,15 @@ async function main() {
         stopping: () => stopping,
       });
       await runScan(deps, job);
+    } else if (job.kind === "outside-check") {
+      const deps = workerScanDeps({
+        db,
+        config,
+        products: getProducts(),
+        now,
+        stopping: () => stopping,
+      });
+      await runOutsideCheck(deps, job);
     } else if (job.kind === "backup") {
       await runBackupJob(opsDeps(now), job);
     } else if (job.kind === "retention") {

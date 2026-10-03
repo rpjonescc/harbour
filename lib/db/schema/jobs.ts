@@ -12,6 +12,7 @@ export const jobs = sqliteTable(
         "brain-push",
         "notes-sync",
         "scan",
+        "outside-check",
         "weekly-analyst",
         "daily-note",
         "backup",

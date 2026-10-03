@@ -1,6 +1,6 @@
 import { getConfig } from "@/lib/config";
 import { MICRO_PER_AUD } from "@/lib/costs/budget";
-import { costs } from "@/lib/db/schema";
+import { actions, costs, externalChecks } from "@/lib/db/schema";
 import {
   type FakeTregOptions,
   fakeFetch,
@@ -11,6 +11,7 @@ import {
 import { closeSites } from "@/tests/helpers/http-site";
 import { DAY, runsOf, setup, texts } from "@/tests/helpers/scan-run";
 import { createTreg } from "./collectors/treg";
+import { workerScanDeps } from "./worker-deps";
 
 afterEach(closeSites);
 
@@ -169,5 +170,20 @@ describe("runScan with the Treg collector", () => {
     await scan();
     expect(runsOf(db)[2]?.status).toBe("failed");
     expect(server.calls.length).toBeGreaterThan(calls);
+  });
+
+  it("copies the week's checks into the history and lets the rules see them", async () => {
+    const { db, deps, scan } = await tregScan();
+    deps.afterScore = workerScanDeps(deps).afterScore;
+    const job = await scan();
+    expect(db.select().from(externalChecks).all()).toHaveLength(4);
+    expect(texts(db, job).join("\n")).toContain("Outside view: kept 4 new checks");
+    // The fake reports 4 referring sites, under the 5 the rule wants.
+    const raised = db
+      .select()
+      .from(actions)
+      .all()
+      .filter((a) => a.ruleKey === "few-referring-sites");
+    expect(raised).toHaveLength(1);
   });
 });

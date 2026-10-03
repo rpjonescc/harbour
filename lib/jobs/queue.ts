@@ -24,6 +24,7 @@ export type JobKind =
   | "brain-push"
   | "notes-sync"
   | "scan"
+  | "outside-check"
   | "weekly-analyst"
   | "daily-note"
   | "backup"

@@ -40,6 +40,7 @@ export const RUN_FAILED_LINE =
 const RUN_FAILED_NEXT_STEP: Readonly<Partial<Record<JobKind, string>>> = {
   "daily-note": NOTE_RUN_FAILED_LINE,
   scan: "This check didn't finish. Choose Check now on the product's page.",
+  "outside-check": "This check didn't finish. Choose Run this check now on the product's page.",
   backup: "This backup didn't finish. Choose Back up now in Settings.",
   retention: "This tidy-up didn't finish. Harbour tries again at the next run.",
   "brain-push": "This sync didn't finish. Harbour tries again at the next run.",

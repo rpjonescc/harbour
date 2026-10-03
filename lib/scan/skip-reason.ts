@@ -38,16 +38,20 @@ function backoffSkipReason(
   return waited < backoff.days * DAY_MS - SLACK_MS ? backoff.reason : null;
 }
 
-/** Why the collector is skipped before it runs, or null; throws when the budget check fails. */
+/**
+ * Why the collector is skipped before it runs, or null; throws when the budget check fails. A
+ * `manual` run (the owner asked) skips the cadence and backoff rules, never the budget.
+ */
 export function skipReason(
   deps: Pick<ScanDeps, "db" | "budget">,
   productId: string,
   collector: Collector,
   now: Date,
+  manual = false,
 ): string | null {
-  const weekly = weeklySkipReason(deps, productId, collector, now);
+  const weekly = manual ? null : weeklySkipReason(deps, productId, collector, now);
   if (weekly || !collector.paid) return weekly;
-  const backoff = backoffSkipReason(deps, productId, collector, now);
+  const backoff = manual ? null : backoffSkipReason(deps, productId, collector, now);
   if (backoff) return backoff;
   try {
     return budgetSkipReason(deps.db, deps.budget.capMicroAud, deps.budget.timeZone, now);

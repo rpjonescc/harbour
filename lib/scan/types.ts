@@ -87,6 +87,11 @@ export type CollectContext = {
   fetch: SafeFetch;
   /** Becomes a job event. */
   log: (message: string) => void;
+  /**
+   * The owner asked for this run (Run this check now) rather than the schedule: a paid collector
+   * may then try again after a failure that made the schedule back off.
+   */
+  manual: boolean;
   /** Aborted on timeout, job cancel or worker shutdown. */
   signal: AbortSignal;
   /** Results of the collectors that ran before this one in the same scan. */

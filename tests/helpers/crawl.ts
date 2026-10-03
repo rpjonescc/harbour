@@ -35,6 +35,7 @@ export function crawlContext(url: string, overrides: Partial<CollectContext> = {
       limiter: new HostLimiter({ concurrency: 2, spacingMs: 1 }),
     }),
     log: () => {},
+    manual: false,
     signal: new AbortController().signal,
     earlier: { status: () => undefined, observations: () => [] },
     previous: { observations: () => [] },

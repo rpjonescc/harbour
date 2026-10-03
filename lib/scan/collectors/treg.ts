@@ -75,7 +75,9 @@ async function collectWith(
     state.halted = { why: "key", until: haltUntil("key", deps.clock()) };
     return stopped("key");
   }
-  if (state.halted && deps.clock() < state.halted.until) throw new Error(TREG_REASONS.paused);
+  // A manual check ignores a balance halt (the owner may have topped up) but not a refused key.
+  const halted = state.halted && deps.clock() < state.halted.until ? state.halted : null;
+  if (halted && !(ctx.manual && halted.why === "balance")) throw new Error(TREG_REASONS.paused);
 
   const domain = productDomain(ctx.product.url);
   const run: TregRun = {
@@ -95,6 +97,9 @@ async function collectWith(
   const { ok, failed, stoppedBy } = tally;
   if (stoppedBy === "key" || stoppedBy === "balance") {
     state.halted = { why: stoppedBy, until: haltUntil(stoppedBy, deps.clock()) };
+  } else if (state.halted?.why === "balance") {
+    // A manual check got through after a top-up: the balance halt is over.
+    state.halted = null;
   }
   ctx.log(`${ok} of ${ok + failed} outside-view checks answered; the run ended: ${stoppedBy}`);
   if (ok === 0) return nothingAnswered(tally, run.spentMicroUsd);

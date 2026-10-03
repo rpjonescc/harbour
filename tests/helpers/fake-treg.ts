@@ -192,6 +192,8 @@ export type RunSetup = {
   clock?: () => number;
   signal?: AbortSignal;
   product?: Partial<Product>;
+  /** A run the owner asked for by hand. */
+  manual?: boolean;
   /** Reuse one collector across runs (it remembers a halt). */
   collector?: Collector;
 };
@@ -213,6 +215,7 @@ export async function tregRun(setup: RunSetup) {
     now: new Date("2026-10-04T06:00:00Z"),
     fetch: fakeFetch(setup.timeoutMs),
     log: (m) => log.push(m),
+    manual: setup.manual ?? false,
     signal: setup.signal ?? new AbortController().signal,
     earlier: { status: () => undefined, observations: () => [] },
     previous: { observations: () => [] },

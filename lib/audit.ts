@@ -13,6 +13,7 @@ export type AuditEvent =
   | "agent_run_cancelled"
   | "proposal_decided"
   | "scan_requested"
+  | "outside_check_requested"
   | "action_created"
   | "action_status_changed"
   | "action_pr_linked"

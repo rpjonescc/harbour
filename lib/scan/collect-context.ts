@@ -14,17 +14,20 @@ export type CollectContextInput = {
   signal: AbortSignal;
   /** The collector's cost ledger and budget guard (see `makeSpend` / `noSpend`). */
   spend: Spend;
+  /** The owner asked for this run by hand (it is not a scheduled scan). */
+  manual?: boolean;
 };
 
 /** What one collector sees while it runs in a scan. */
 export function collectContext(input: CollectContextInput): CollectContext {
-  const { deps, product, scanId, statuses, log, signal, spend } = input;
+  const { deps, product, scanId, statuses, log, signal, spend, manual = false } = input;
   return {
     product,
     config: deps.config,
     now: deps.now(),
     fetch: deps.fetch,
     log,
+    manual,
     signal,
     earlier: {
       status: (id) => statuses[id],
