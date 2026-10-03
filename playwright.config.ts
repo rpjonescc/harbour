@@ -75,7 +75,8 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: /(agents|scans|actions|board|analyst|note|content|settings|outside)\.spec\.ts/,
+      testIgnore:
+        /(agents|scans|actions|board|analyst|note|content|settings|outside|tower)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     // Agent runs change the brain (new documents, sidebar counts), so they run after the rest.
@@ -153,6 +154,14 @@ export default defineConfig({
       name: "board",
       testMatch: /board\.spec\.ts/,
       dependencies: ["outside"],
+      use: { ...devices["Desktop Chrome"] },
+    },
+    // The tower reads everything the specs above left behind (checks, cards, ideas, content,
+    // runs), and its last test hides the worker's table for one render, so it runs at the end.
+    {
+      name: "tower",
+      testMatch: /tower\.spec\.ts/,
+      dependencies: ["board"],
       use: { ...devices["Desktop Chrome"] },
     },
   ],
