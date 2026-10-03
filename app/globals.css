@@ -129,6 +129,23 @@ body:has([data-mood="celebrate"]) .wave-layer[data-front] {
   }
 }
 
+/* A term's tip (components/explain/Term.tsx) fades in; under reduced motion it just appears. */
+.term-tip-fade {
+  animation: term-tip-in var(--duration-fast) ease-out;
+}
+
+@keyframes term-tip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term-tip-fade {
+    animation: none;
+  }
+}
+
 /* Paper copies carry only the content. */
 @media print {
   [data-wave] {

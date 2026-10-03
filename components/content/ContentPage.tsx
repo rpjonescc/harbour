@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/explain/EmptyState";
+import { PageHeader } from "@/components/explain/PageHeader";
 import { Tabs } from "@/components/ui/Tabs";
 import type { ContentView, TabId } from "@/lib/content/read/view-types";
 import { CAP_NOTES, EMPTY_TABS, FOLDER_ERROR } from "@/lib/explain/content";
@@ -46,12 +47,11 @@ function TabPanel({ view, id }: { view: ContentView; id: TabId }) {
 export function ContentPage({ view, template }: { view: ContentView; template: string | null }) {
   return (
     <div className="flex max-w-3xl flex-col gap-5">
-      <header className="flex flex-col gap-1">
-        <h1 className="font-serif text-3xl">Content</h1>
-        <p className="text-sm text-ink-muted">
-          Ideas and drafts from your recent work. Nothing is posted until you post it.
-        </p>
-      </header>
+      <PageHeader
+        title="Content"
+        intro="Ideas and drafts from your recent work. Nothing is posted until you post it."
+        page="content"
+      />
       <div className="flex flex-wrap items-center gap-3">
         <RunButton
           label="Make today's digest now"

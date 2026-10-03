@@ -10,9 +10,11 @@ import { ProposalExamples } from "@/components/design/ProposalExamples";
 import { ScanExamples } from "@/components/design/ScanExamples";
 import { SettingsExamples } from "@/components/design/SettingsExamples";
 import { SourcesExamples } from "@/components/design/SourcesExamples";
+import { TermExamples } from "@/components/design/TermExamples";
 import { TodayExamples } from "@/components/design/TodayExamples";
 import { TokenSwatches } from "@/components/design/TokenSwatches";
 import { WaveExample } from "@/components/design/WaveExample";
+import { PageHeader } from "@/components/explain/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Delta } from "@/components/ui/Delta";
 import { Panel } from "@/components/ui/Panel";
@@ -37,12 +39,11 @@ export default async function DesignPage() {
   const [firstProduct] = getProducts();
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8">
-      <header>
-        <h1 className="font-serif text-3xl">Design system</h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Paper &amp; Tide. Edit values in design/tokens.css.
-        </p>
-      </header>
+      <PageHeader
+        title="Design system"
+        intro="Paper & Tide. Edit values in design/tokens.css."
+        page="design"
+      />
       <Section title="Colour tokens">
         <TokenSwatches />
       </Section>
@@ -90,6 +91,9 @@ export default async function DesignPage() {
       </Section>
       <Section title="Plain-language examples">
         <ExplainExamples />
+      </Section>
+      <Section title="Terms and page help">
+        <TermExamples />
       </Section>
       <Section title="Today examples">
         {firstProduct && <TodayExamples product={firstProduct} />}

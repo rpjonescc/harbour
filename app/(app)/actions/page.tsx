@@ -1,7 +1,9 @@
 import { ActionBoard } from "@/components/actions/ActionBoard";
 import { ActionFilters } from "@/components/actions/ActionFilters";
 import { ApprovalsNote } from "@/components/actions/ApprovalsNote";
+import { BOARD_HEADING_ID } from "@/components/actions/focus-after-change";
 import { SyncFailureNote } from "@/components/actions/SyncFailureNote";
+import { PageHeader } from "@/components/explain/PageHeader";
 import { approvalsWaiting, syncFailures } from "@/lib/actions/board-notices";
 import { actionCounts, boardActions, parseActionFilter } from "@/lib/actions/views";
 import { requireSession } from "@/lib/auth/guard";
@@ -28,15 +30,17 @@ export default async function ActionsPage({
   const zone = { timeZone: config.HARBOUR_TIMEZONE, locale: config.HARBOUR_LOCALE };
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <header>
-        <h1 id="actions-heading" tabIndex={-1} className="font-serif text-3xl">
-          Actions
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Things worth doing to get found more easily. You decide what happens to each.
-        </p>
-        <p className="mt-1 text-sm text-ink-muted tabular-nums">{boardSummary(counts)}</p>
-      </header>
+      <PageHeader
+        title="Actions"
+        page="actions"
+        titleId={BOARD_HEADING_ID}
+        intro={
+          <>
+            <p>Things worth doing to get found more easily. You decide what happens to each.</p>
+            <p className="tabular-nums">{boardSummary(counts)}</p>
+          </>
+        }
+      />
       <SyncFailureNote failures={syncFailures(db, products)} {...zone} />
       <ApprovalsNote waiting={approvalsWaiting(db, products)} />
       <ActionFilters filter={filter} products={products} />
