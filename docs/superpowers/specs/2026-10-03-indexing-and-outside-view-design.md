@@ -121,7 +121,7 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
   the response header. A call refused by the budget ends the run with a recorded partial result. Spend: a full run
   (1 backlinks call, 8 searches, 5 questions) is 2,500 + 8×6,000 + 5×3,600 = 68,500 µUSD, up to about US$0.07 per
   product per week (≈ A$1.4 a month for three products, ≈ A$2.1 at the price ceilings); `HARBOUR_MONTHLY_BUDGET_AUD`
-  bounds the worst case. A key or balance stop ends the run for every product for 6 hours (until the worker restarts);
+  bounds the worst case. A key or balance stop ends the run for every product: a key stop lasts until the worker restarts, a balance stop for 24 hours;
   calls that may have been billed and came to nothing delay the next try by 2 days.
 - Provider ids are pinned in one table with the price headroom and a fixed-sentence failure for an unknown id
   or a retired endpoint; the weekly run logs the endpoint list it used.
@@ -145,7 +145,7 @@ points); no automatic fixing; no posting; no scraping of anything beyond the Goo
 ### 3.3 History
 - Observations are pruned with the scan (about 30 scans). Weekly checks would keep only 4 or 5 data points, so
   a compact **`external_checks`** table (one migration) stores `{ productId, kind, subject, checkedAt, value }`
-  for backlinks, ranks and AI answers, written by the worker after the collector, pruned after 400 days.
+  for backlinks, ranks and AI answers, written by the worker after the collector, pruned after 400 days. The rules read the last 60 days of it and the product page shows the last 120 days.
   Backup first, as always.
 
 ### 3.4 Rules (actions only)

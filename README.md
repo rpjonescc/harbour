@@ -964,7 +964,7 @@ next scan's rule sync after a manual check; the product page's issue list judges
 
 Results are kept in the `external_checks` table (one row per links, position or AI check, written by
 the worker after the check, only if it passes its shape; 400 days, pruned by the nightly retention
-job), so a trend is visible long after the scans' own observations are pruned. Take a backup before
+job; the actions read the last 60 days and the page shows the last 120), so a trend is visible long after the scans' own observations are pruned. Take a backup before
 updating Harbour: the migration only adds this table.
 
 Two actions can come from it, in the Actions board and on the product page, and they never change
