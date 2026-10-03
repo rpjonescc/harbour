@@ -1,4 +1,4 @@
-import { stripInvisible } from "@/lib/text/hidden-chars";
+import { hasControlChars, hasInvisible, stripInvisible } from "@/lib/text/hidden-chars";
 import { siteKey } from "../site";
 
 // Whether a site is the one a result is about. Pure: the provider's strings are untrusted, so a
@@ -8,9 +8,25 @@ const HOST = /^[a-z0-9](?:[a-z0-9.-]{0,98}[a-z0-9])?$/;
 /** The longest name we look for in an answer: a longer one is not a product name. */
 const MAX_NAME = 200;
 
-/** The product's own domain: its URL's host without a leading www. */
+/**
+ * The product's own domain, normalised once and used both to match and to ask Treg: lower case, one
+ * trailing dot stripped ("example.com." is "example.com") and a leading www removed. The port and
+ * path of the URL are not part of it.
+ */
 export function productDomain(url: string): string {
-  return siteKey(new URL(url).hostname);
+  return siteKey(new URL(url).hostname.replace(/\.$/, ""));
+}
+
+/** A linking domain from a provider list as a strict host name (punycode for unicode), or null. */
+export function listedHost(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.length === 0 || raw.length > 253) return null;
+  if (hasInvisible(raw) || hasControlChars(raw, { tab: false }) || /[\s\r\n]/.test(raw))
+    return null;
+  // Only a bare host: a path, port, login, query or escape in the field is not a domain.
+  if (/[/:@?#\\%]/.test(raw)) return null;
+  const url = URL.parse(`http://${raw}`);
+  if (!url) return null;
+  return cleanHost(url.hostname);
 }
 
 /** A lowercase host without www in a strict form, or null for anything else. */
