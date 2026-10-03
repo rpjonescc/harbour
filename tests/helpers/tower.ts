@@ -89,7 +89,11 @@ export function systemFacts(over: Partial<SystemFacts> = {}): SystemFacts {
       lastRetention: null,
       health: "ok",
     },
-    brain: { sync: { unsaved: 0, unpushed: 0 }, recovery: { pending: [], lastError: null } },
+    brain: {
+      sync: { unsaved: 0, unpushed: 0 },
+      syncFailed: false,
+      recovery: { pending: [], lastError: null },
+    },
     notesSavedAt: ago(2 * HOUR),
     failures: [],
     agents: { running: [], queued: [], failedUnretried: [], finishedToday: 3 },

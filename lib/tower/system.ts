@@ -98,6 +98,10 @@ function backupsLight(facts: SystemFacts, words: Words): Shaped {
   const done = BACKUP_SENTENCE.done(
     agoPhrase(latest.modifiedAt, words.now, words.timeZone, words.locale),
   );
+  // Git failed: whether notes are saved is unknown, never fine.
+  if (facts.brain.syncFailed) {
+    return { tone: "unknown", sentence: `${done} ${BACKUP_SENTENCE.notesUnknown}` };
+  }
   const unsaved = facts.brain.sync?.unsaved;
   if (unsaved === undefined) return { tone: "ok", sentence: done };
   if (unsaved === 0) return { tone: "ok", sentence: `${done} ${BACKUP_SENTENCE.notesSaved}` };

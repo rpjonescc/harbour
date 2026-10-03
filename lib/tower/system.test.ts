@@ -150,12 +150,24 @@ describe("the backups light", () => {
   });
 
   it("leaves notes out when Harbour can't count them", () => {
-    const brain = { sync: null, recovery: { pending: null, lastError: null } };
+    const brain = { sync: null, syncFailed: false, recovery: { pending: null, lastError: null } };
     expect(light("backups", { brain }).sentence).toBe("Backed up 6 h ago.");
   });
 
+  it("says it couldn't check the notes when git failed, never that all is fine", () => {
+    const brain = { sync: null, syncFailed: true, recovery: { pending: [], lastError: null } };
+    expect(light("backups", { brain })).toMatchObject({
+      tone: "unknown",
+      sentence: "Backed up 6 h ago. Couldn't check whether your notes are saved.",
+    });
+  });
+
   it("is worth a look when notes have waited over an hour, fine while they are recent", () => {
-    const brain = { sync: { unsaved: 2, unpushed: 0 }, recovery: { pending: [], lastError: null } };
+    const brain = {
+      sync: { unsaved: 2, unpushed: 0 },
+      syncFailed: false,
+      recovery: { pending: [], lastError: null },
+    };
     expect(light("backups", { brain, notesSavedAt: ago(30 * MIN) })).toMatchObject({
       tone: "ok",
       sentence: "Backed up 6 h ago.",

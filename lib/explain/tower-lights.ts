@@ -60,6 +60,7 @@ export const CHECK_SENTENCE = {
 export const BACKUP_SENTENCE = {
   done: (ago: string) => `Backed up ${ago}.`,
   notesSaved: "Notes saved.",
+  notesUnknown: "Couldn't check whether your notes are saved.",
   notesWaiting: (n: number) =>
     `${n} ${n === 1 ? "change" : "changes"} in your Second Brain haven't been saved for over an hour.`,
 } as const;

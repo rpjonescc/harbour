@@ -18,6 +18,7 @@ import type { Product } from "@/lib/products/catalog";
 import { type ScheduleRow, scheduleRows } from "@/lib/settings/view";
 import { productToday } from "@/lib/today/from-scans";
 import type { SourceFailure } from "@/lib/today/types";
+import { towerSyncRead } from "./brain-sync-cache";
 import { agentActivity, lastFinishedJob } from "./jobs-data";
 import { WEB_STARTED_AT } from "./web-started";
 
@@ -92,7 +93,11 @@ export function systemFacts(
       failedAt: today.failedAt,
     })),
     backup: backupStatus(db, config, now),
-    brain: brainSyncStatus(config.HARBOUR_BRAIN_DIR, quarantineRootFor(config.HARBOUR_DB_PATH)),
+    brain: brainSyncStatus(
+      config.HARBOUR_BRAIN_DIR,
+      quarantineRootFor(config.HARBOUR_DB_PATH),
+      towerSyncRead(now),
+    ),
     notesSavedAt: lastNotesSave(db),
     failures: perProduct.flatMap(({ today }) => today.failures),
     agents: agentActivity(db, now, config.HARBOUR_TIMEZONE),

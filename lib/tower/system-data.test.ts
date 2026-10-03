@@ -12,6 +12,18 @@ import { ago, DAY, HOUR, MIN, PRODUCT_ROWS, t0, towerConfig } from "@/tests/help
 import { systemLights } from "./system";
 import { systemFacts } from "./system-data";
 
+const brainGit = vi.hoisted(() => ({ reads: 0 }));
+vi.mock("@/lib/agents/brain-status", async (importOriginal) => {
+  const real = await importOriginal<typeof import("@/lib/agents/brain-status")>();
+  return {
+    ...real,
+    readSyncCounts: () => {
+      brainGit.reads += 1;
+      return { unsaved: 1, unpushed: 0 };
+    },
+  };
+});
+
 let dir: string;
 let db: Db;
 
@@ -119,5 +131,18 @@ describe("systemFacts", () => {
     ran("notes-sync", {}, "failed", ago(HOUR));
     expect(systemFacts(db, towerConfig(dir), PRODUCT_ROWS, t0).notesSavedAt).toEqual(ago(3 * HOUR));
     expect(db.select().from(jobs).where(eq(jobs.id, id)).get()?.status).toBe("ok");
+  });
+
+  it("runs git in the brain once for every Today render within 30 seconds", () => {
+    const config = towerConfig(dir);
+    const before = brainGit.reads;
+    expect(systemFacts(db, config, PRODUCT_ROWS, t0).brain.sync).toEqual({
+      unsaved: 1,
+      unpushed: 0,
+    });
+    systemFacts(db, config, PRODUCT_ROWS, new Date(t0.getTime() + 15_000));
+    expect(brainGit.reads - before).toBe(1);
+    systemFacts(db, config, PRODUCT_ROWS, new Date(t0.getTime() + 30_000));
+    expect(brainGit.reads - before).toBe(2);
   });
 });
