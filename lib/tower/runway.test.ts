@@ -76,14 +76,15 @@ describe("runwayCard", () => {
     expect(card()).toEqual({
       productId: "acme-docs",
       name: "Acme Docs",
+      hue: "amber",
       verdict: expect.objectContaining({ label: "Good" }),
       trend: { direction: "up", phrase: "up 3 since last week" },
       next: { title: "Add a sitemap", href: "/actions#action-12" },
       checked: { phrase: "Checked 3 h ago.", tone: "ok" },
       highlights: [
-        "In Google: 3 of 53 pages",
-        "ChatGPT and others named you in 1 of 5 answers",
-        "4 sites link to you",
+        { term: "indexed", text: "In Google: 3 of 53 pages" },
+        { term: "cited", text: "ChatGPT and others named you in 1 of 5 answers" },
+        { term: "links-to-you", text: "4 sites link to you" },
       ],
       contentLine: "2 drafts ready for you · 1 being written · 4 ideas waiting",
       claudeLine: "Claude last updated this product's cards 2 h ago.",
@@ -154,7 +155,9 @@ describe("runwayCard", () => {
       },
     });
     expect(unasked.highlights).toEqual([]);
-    expect(card({ outside: null }).highlights).toEqual(["In Google: 3 of 53 pages"]);
+    expect(card({ outside: null }).highlights).toEqual([
+      { term: "indexed", text: "In Google: 3 of 53 pages" },
+    ]);
   });
 
   it("leaves the content line out when content is off or nothing is in the works", () => {

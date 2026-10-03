@@ -3,7 +3,7 @@ import { trendPhrase, type VerdictTone, verdictFor } from "@/lib/explain/verdict
 import type { AreaKey } from "@/lib/scan/views";
 
 /** No red: the word carries the meaning, the tone only supports it. */
-const TONE: Readonly<Record<VerdictTone, string>> = {
+export const VERDICT_TONE_CLASS: Readonly<Record<VerdictTone, string>> = {
   strong: "text-good",
   good: "text-good",
   fair: "text-ink",
@@ -53,7 +53,7 @@ export function VerdictLine({
     return (
       <span className={wrap}>
         {name}
-        <span className={`${word} ${TONE.gap}`}>{verdict.label}</span>{" "}
+        <span className={`${word} ${VERDICT_TONE_CLASS.gap}`}>{verdict.label}</span>{" "}
         <span className={note(compact || stacked)}>{verdict.sentence}</span>
       </span>
     );
@@ -62,7 +62,7 @@ export function VerdictLine({
   return (
     <span className={wrap}>
       {name}
-      <span className={`${word} ${TONE[verdict.tone]}`}>{verdict.label}</span>{" "}
+      <span className={`${word} ${VERDICT_TONE_CLASS[verdict.tone]}`}>{verdict.label}</span>{" "}
       <span className="text-xs tabular-nums text-ink-muted">
         {score}
         <span className="sr-only"> out of 100</span>

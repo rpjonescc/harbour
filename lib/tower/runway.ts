@@ -1,5 +1,6 @@
 // One runway card per product (spec §4.6). Pure: no I/O, no clock.
 
+import type { TermId } from "@/lib/explain/glossary";
 import { agoPhrase, type LightTone } from "@/lib/explain/tower";
 import { CHECK_SENTENCE } from "@/lib/explain/tower-lights";
 import {
@@ -9,6 +10,7 @@ import {
   weekTrendPhrase,
 } from "@/lib/explain/tower-runway";
 import { averageScore, gapReason, type Verdict, verdictFor } from "@/lib/explain/verdict";
+import type { Product } from "@/lib/products/catalog";
 import { AREA_KEYS } from "@/lib/scan/views";
 import { actionHref } from "@/lib/today/from-actions";
 import { FRESHNESS_RULES, freshness } from "./freshness";
@@ -17,15 +19,18 @@ import type { RunwayFacts } from "./runway-data";
 export type RunwayCard = {
   productId: string;
   name: string;
+  hue: Product["hue"];
   verdict: Verdict;
   trend: { direction: "up" | "down" | "steady" | null; phrase: string | null };
   next: { title: string; href: string } | null;
   checked: { phrase: string; tone: LightTone };
-  /** At most 3; a highlight with no data is left out. */
-  highlights: string[];
+  /** At most 3; a highlight with no data is left out. `term` is the glossary word it rests on. */
+  highlights: Highlight[];
   contentLine: string | null;
   claudeLine: string;
 };
+
+export type Highlight = { term: TermId; text: string };
 
 const WEEK_MS = 7 * 24 * 60 * 60_000;
 const HIGHLIGHTS = 3;
@@ -53,17 +58,19 @@ function checkedOf(facts: RunwayFacts, now: Date, timeZone: string, locale: stri
 }
 
 /** Indexing, then what AI answers and other sites say: only what has data, at most 3. */
-function highlightsOf({ indexing, outside }: RunwayFacts): string[] {
-  const lines = [
+function highlightsOf({ indexing, outside }: RunwayFacts): Highlight[] {
+  const lines: (Highlight | null)[] = [
     indexing?.state === "counted"
-      ? RUNWAY_HIGHLIGHT.inGoogle(indexing.indexed, indexing.checked)
+      ? { term: "indexed", text: RUNWAY_HIGHLIGHT.inGoogle(indexing.indexed, indexing.checked) }
       : null,
     outside?.ai && outside.ai.asked > 0
-      ? RUNWAY_HIGHLIGHT.aiNamed(outside.ai.named, outside.ai.asked)
+      ? { term: "cited", text: RUNWAY_HIGHLIGHT.aiNamed(outside.ai.named, outside.ai.asked) }
       : null,
-    outside?.links ? RUNWAY_HIGHLIGHT.linksToYou(outside.links.count) : null,
+    outside?.links
+      ? { term: "links-to-you", text: RUNWAY_HIGHLIGHT.linksToYou(outside.links.count) }
+      : null,
   ];
-  return lines.filter((line): line is string => line !== null).slice(0, HIGHLIGHTS);
+  return lines.filter((line): line is Highlight => line !== null).slice(0, HIGHLIGHTS);
 }
 
 /** A product's card: verdict, weekly trend, next action, last check, highlights and Claude's touch. */
@@ -80,6 +87,7 @@ export function runwayCard(
   return {
     productId: facts.product.id,
     name: facts.product.name,
+    hue: facts.product.hue,
     verdict: verdictFor(averageScore(scores), gapReason(row)),
     trend: trendOf(facts.weekly),
     next: facts.nextAction
