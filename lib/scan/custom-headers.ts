@@ -20,3 +20,13 @@ export function checkedCustomHeaders(
   }
   return checked;
 }
+
+/** Whether a (lowercased) response header is one of Treg's. */
+export const isTregHeader = (name: string): boolean => name.startsWith("x-treg-");
+
+/** The `x-treg-*` response headers only. */
+export function tregHeaders(headers: Readonly<Record<string, string>>): Record<string, string> {
+  const own: Record<string, string> = Object.create(null);
+  for (const [name, value] of Object.entries(headers)) if (isTregHeader(name)) own[name] = value;
+  return own;
+}

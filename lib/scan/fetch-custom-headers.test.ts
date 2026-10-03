@@ -75,15 +75,48 @@ describe("safeFetch POST with custom headers", () => {
   });
 
   it("refuses custom headers over plain http outside tests", async () => {
-    const { port, hits } = await site({});
     const fetch = createSafeFetch({
       allowedHosts: new Set([TREG_HOST]),
       limiter: new HostLimiter({ concurrency: 2, spacingMs: 0 }),
       resolveHost: async (): Promise<LookupAddress[]> => [{ address: "127.0.0.1", family: 4 }],
     });
-    const error = await fetchError(fetch(`http://${TREG_HOST}:${port}/x`, opts));
+    const error = await fetchError(fetch(`http://${TREG_HOST}/x`, opts));
     expect(error.message).toBe(`A POST to ${TREG_HOST} must use https`);
+  });
+
+  it.each([
+    ["a port", `https://${TREG_HOST}:8443/x`],
+    ["a login", `https://user:pass@${TREG_HOST}/x`],
+  ])("refuses %s on treg.to outside tests, before anything is sent", async (_name, url) => {
+    const fetch = createSafeFetch({
+      allowedHosts: new Set([TREG_HOST]),
+      limiter: new HostLimiter({ concurrency: 2, spacingMs: 0 }),
+      resolveHost: async (): Promise<LookupAddress[]> => [{ address: "127.0.0.1", family: 4 }],
+    });
+    const error = await fetchError(fetch(url, opts));
+    expect(error.message).toBe(`${TREG_HOST} must be called without a port or login`);
+    expect(error.message).not.toContain(KEY);
+  });
+
+  it("refuses a plain GET to treg.to: only the collector's POSTs go there", async () => {
+    const { port, hits } = await site({});
+    const error = await fetchError(
+      testFetch()(`http://${TREG_HOST}:${port}/x`, { maxBytes: 1024, ignoreRobots: true }),
+    );
+    expect(error.message).toBe(`${TREG_HOST} only takes the Treg collector's calls`);
     expect(hits).toEqual([]);
+  });
+
+  it("hands back only the x-treg response headers from treg.to", async () => {
+    const { port } = await site({
+      "/x": (_req, res) =>
+        res
+          .writeHead(200, { "x-treg-cost-micro": "1", "set-cookie": "a=b", "x-other": "y" })
+          .end("{}"),
+    });
+    const response = await testFetch()(`http://${TREG_HOST}:${port}/x`, opts);
+    expect(Object.keys(response.headers)).toEqual(["x-treg-cost-micro"]);
+    expect(response.headerLines).toEqual([["x-treg-cost-micro", "1"]]);
   });
 
   it("never follows a redirect, and never sends the key on", async () => {

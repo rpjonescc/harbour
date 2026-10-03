@@ -1,4 +1,4 @@
-import { checkedCustomHeaders } from "./custom-headers";
+import { checkedCustomHeaders, isTregHeader, tregHeaders } from "./custom-headers";
 import { readCappedBody } from "./fetch-body";
 import { FetchError } from "./fetch-error";
 import { HostLimiter } from "./host-limiter";
@@ -163,11 +163,20 @@ export function createSafeFetch(
   /** A bearer POST goes to Google API hosts only; a custom-header POST to Treg's host only. */
   function assertPostAllowed(url: URL, options: SafeFetchOptions): void {
     const { post } = options;
-    if (!post) return;
     const host = url.hostname;
+    const treg = settings.customHeaderHosts.includes(host);
+    if (!post) {
+      // Treg's host answers its own collector's POSTs and nothing else.
+      if (treg) throw new FetchError("network", `${host} only takes the Treg collector's calls`);
+      return;
+    }
     if ("headers" in post) {
-      if (settings.customHeaderHosts.includes(host)) return;
-      throw new FetchError("network", `${host} does not take custom headers`);
+      if (!treg) throw new FetchError("network", `${host} does not take custom headers`);
+      // The key goes to the plain host on the default port only, never to user:pass@ or :port.
+      const plain =
+        url.username === "" && url.password === "" && (url.port === "" || settings.allowLoopback);
+      if (!plain) throw new FetchError("network", `${host} must be called without a port or login`);
+      return;
     }
     if (!GOOGLE_API_HOSTS.includes(host)) {
       throw new FetchError("network", `${host} is not a Google API host: only those take a POST`);
@@ -192,7 +201,13 @@ export function createSafeFetch(
       const result = await hop(current, options);
       ms += result.ms;
       if (result.location === null) {
-        const { status, headers, headerLines, body, truncated } = result;
+        const { status, body, truncated } = result;
+        // Treg's answers expose only its own headers: the rest is not the collector's business.
+        const own = settings.customHeaderHosts.includes(current.hostname);
+        const headers = own ? tregHeaders(result.headers) : result.headers;
+        const headerLines = own
+          ? result.headerLines.filter(([name]) => isTregHeader(name))
+          : result.headerLines;
         const finalUrl = current.href;
         return { url: raw, finalUrl, redirects, status, headers, headerLines, body, truncated, ms };
       }
