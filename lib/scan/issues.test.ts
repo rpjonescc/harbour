@@ -9,10 +9,11 @@ const at = (path: string) => `https://docs.example.com${path}`;
 const ids = (issues: ReturnType<typeof deriveIssues>) => issues.map((issue) => issue.id);
 
 describe("deriveIssues", () => {
-  it("finds noindex pages, broken links and blocked AI crawlers in Acme Docs' scan", () => {
+  it("finds noindex pages and broken links in Acme Docs' scan, not its training-crawler block", () => {
     const issues = deriveIssues([...ACME_CRAWL, readiness()]);
-    expect(ids(issues)).toEqual(["broken-links", "noindex", "ai-crawlers-blocked"]);
-    const [broken, noindex, crawlers] = issues;
+    // Only a training crawler is blocked: the owner's choice, not an action (formula v3).
+    expect(ids(issues)).toEqual(["broken-links", "noindex"]);
+    const [broken, noindex] = issues;
     expect(broken).toMatchObject({
       area: "SEO",
       impact: "high",
@@ -24,13 +25,6 @@ describe("deriveIssues", () => {
     expect(noindex).toMatchObject({
       title: "1 page is hidden from search",
       locations: [at("/about")],
-    });
-    // Only a training crawler is blocked: worth knowing, not urgent.
-    expect(crawlers).toMatchObject({
-      area: "GEO",
-      impact: "low",
-      title: "Your site opts out of AI training",
-      locations: [at("/robots.txt")],
     });
   });
 
@@ -91,7 +85,7 @@ describe("deriveIssues", () => {
     expect(issue?.locations).toHaveLength(20);
   });
 
-  it("finds a missing llms.txt, FAQ schema and Preferred Sources button on a news site", () => {
+  it("finds a missing Preferred Sources button on a news site, not llms.txt or FAQ markup", () => {
     const issues = derive(
       [
         htmlPage("/"),
@@ -105,16 +99,8 @@ describe("deriveIssues", () => {
       ALL_OK,
       "news",
     );
-    expect(ids(issues)).toEqual(["no-faq-schema", "no-llms-txt", "no-preferred-sources"]);
-    expect(issues.find((i) => i.id === "no-llms-txt")?.locations).toEqual([at("/llms.txt")]);
-  });
-
-  it("counts FAQ microdata as FAQ markup", () => {
-    const issues = deriveIssues([
-      htmlPage("/faq", { hasFaqMarkup: true }),
-      readiness({ schema: { pagesChecked: 1, pagesWith: { FAQPage: 0 } } }),
-    ]);
-    expect(ids(issues)).not.toContain("no-faq-schema");
+    // No llms.txt and no FAQ markup raise nothing since formula v3.
+    expect(ids(issues)).toEqual(["no-preferred-sources"]);
   });
 
   it("raises nothing it cannot judge: unknown parts and malformed data are gaps", () => {

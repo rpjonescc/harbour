@@ -88,7 +88,14 @@ const scanned: ProductView = {
       failedCollectors: [{ collector: "pagespeed", error: "quota exceeded" }],
     },
   },
-  issues: deriveIssues([...ACME_CRAWL, readiness()], ALL_OK, "product"),
+  issues: deriveIssues(
+    [
+      ...ACME_CRAWL,
+      readiness({ robotsTxt: { state: "ok", aiCrawlerAccess: { PerplexityBot: "blocked" } } }),
+    ],
+    ALL_OK,
+    "product",
+  ),
   actionByRule: new Map([
     ["broken-links", { id: 5, status: "in_progress", snoozedUntil: null, who: "claude" }],
     ["noindex", { id: 6, status: "snoozed", snoozedUntil: "2026-10-12", who: null }],
@@ -120,6 +127,11 @@ describe("ProductOverview", () => {
   it("doesn't show it for a news site, whose score did not change", () => {
     renderPage({ ...scanned, formulaChange: { from: "v1", to: "v2", at: AT } }, { kind: "news" });
     expect(screen.queryByText(/Scoring updated/)).toBeNull();
+  });
+
+  it("shows the v3 note on a news site too, since v3 changed every kind", () => {
+    renderPage({ ...scanned, formulaChange: { from: "v2", to: "v3", at: AT } }, { kind: "news" });
+    expect(screen.getByText(/^Scoring updated: FAQ markup, llms.txt/)).toBeInTheDocument();
   });
 
   it("for a product never checked says so everywhere, with Check now and the research link", () => {
@@ -185,7 +197,7 @@ describe("ProductOverview", () => {
     expect(
       within(issue("hidden from search")).getByText("Snoozed until 12 Oct 2026"),
     ).toBeInTheDocument();
-    const untracked = issue("opts out of AI training");
+    const untracked = issue("AI assistants can't read your site");
     expect(within(untracked).getByText("Tracking starts with the next check")).toBeInTheDocument();
     expect(
       within(untracked).queryByRole("link", {

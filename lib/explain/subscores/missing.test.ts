@@ -26,7 +26,7 @@ describe("missingLine", () => {
       "The data didn't arrive in the last check, so it isn't counted for now.",
     );
     expect(lineFor(result, "geo.aiEngines")).toBe(
-      "Needs paid data, which isn't connected yet, so it isn't counted.",
+      "Measured in How the web sees you, not counted in the score yet.",
     );
     expect(lineFor(result, "aeo.snippets")).toBe(
       "Needs paid data, which isn't connected yet, so it isn't counted.",

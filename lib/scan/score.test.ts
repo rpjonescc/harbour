@@ -18,10 +18,10 @@ const DAY = 24 * 60 * 60_000;
 describe("scoreScan on a full scan", () => {
   it("scores every sub-score and total exactly, with the evidence behind each", () => {
     expect(score(ACME_SCAN)).toEqual({
-      formulaVersion: "v2",
+      formulaVersion: "v3",
       seo: 81,
-      geo: 92,
-      aeo: 88,
+      geo: 93,
+      aeo: 81,
       complete: { seo: true, geo: true, aeo: true },
       breakdown: [
         {
@@ -66,19 +66,19 @@ describe("scoreScan on a full scan", () => {
         {
           key: "geo.aiCrawlers",
           label: "AI crawler access",
-          score: 94,
-          weight: 0.3,
+          score: 100,
+          weight: 0.35,
           status: "ok",
           evidence:
             "8 of 9 AI crawlers may fetch the home page: 4 of 4 search and retrieval agents, " +
-            "4 of 5 training crawlers; blocked: GPTBot (training only); some paths disallowed " +
-            "for: CCBot.",
+            "4 of 5 training crawlers (not counted); blocked: GPTBot (training only); some " +
+            "paths disallowed for: CCBot.",
         },
         {
           key: "geo.llmsTxt",
           label: "llms.txt",
           score: 100,
-          weight: 0.15,
+          weight: 0,
           status: "ok",
           evidence: "llms.txt present (81 bytes); llms-full.txt not present.",
         },
@@ -86,7 +86,7 @@ describe("scoreScan on a full scan", () => {
           key: "geo.entities",
           label: "Entity structured data",
           score: 100,
-          weight: 0.25,
+          weight: 0.3,
           status: "ok",
           evidence: "Of 5 HTML pages: 1 declares an Organization or LocalBusiness, 1 the WebSite.",
         },
@@ -94,11 +94,11 @@ describe("scoreScan on a full scan", () => {
           key: "geo.citations",
           label: "Citation-ready content",
           score: 80,
-          weight: 0.3,
+          weight: 0.35,
           status: "ok",
           evidence:
-            "2 of 5 HTML pages have FAQ, HowTo or Article schema or question-style headings " +
-            "(full marks at half the pages).",
+            "2 of 5 HTML pages have Article schema or question-style headings (full marks at " +
+            "half the pages).",
         },
         {
           key: "geo.aiEngines",
@@ -106,13 +106,14 @@ describe("scoreScan on a full scan", () => {
           score: null,
           weight: 0,
           status: "missing",
-          evidence: "AI engine mention checks not connected (they need API keys).",
+          evidence:
+            "AI engine mentions are measured in the outside view, not counted in the score yet.",
         },
         {
           key: "aeo.qaCoverage",
           label: "FAQ, HowTo and Q&A coverage",
           score: 100,
-          weight: 0.4,
+          weight: 0,
           status: "ok",
           evidence:
             "2 of 5 HTML pages have FAQPage, HowTo or QAPage markup (full marks at a quarter " +
@@ -122,7 +123,7 @@ describe("scoreScan on a full scan", () => {
           key: "aeo.conciseAnswers",
           label: "Concise answer blocks",
           score: 67,
-          weight: 0.35,
+          weight: 0.58,
           status: "ok",
           evidence:
             "4 of 6 question-style headings are answered by a paragraph of at most 60 words " +
@@ -132,7 +133,7 @@ describe("scoreScan on a full scan", () => {
           key: "aeo.preferredSources",
           label: "Fresh content and Preferred Sources",
           score: 100,
-          weight: 0.25,
+          weight: 0.42,
           status: "ok",
           evidence: "4 URLs updated in the last 30 days (fresh content).",
         },
@@ -156,7 +157,7 @@ describe("scoreScan on a full scan", () => {
   });
 });
 
-describe("scoring v2 weights", () => {
+describe("scoring v3 weights", () => {
   it.each(Object.entries(SUB_SCORES))("%s weights sum to 1", (_total, specs) => {
     const sum = specs.reduce((n, spec) => n + spec.weight, 0);
     expect(sum).toBeCloseTo(1, 10);
@@ -182,7 +183,7 @@ describe("scoreScan with collectors that did not end ok", () => {
     } as const;
     const result = score([...ACME_CRAWL, readiness()], statuses);
     // (0.35 × 72 + 0.25 × 92) / 0.6 = 80.33
-    expect(result).toMatchObject({ seo: 80, geo: 92, aeo: 88 });
+    expect(result).toMatchObject({ seo: 80, geo: 93, aeo: 81 });
     expect(result?.complete).toEqual({ seo: false, geo: true, aeo: true });
     expect(entry(result, "seo.cwv")).toMatchObject({
       score: null,
@@ -196,10 +197,11 @@ describe("scoreScan with collectors that did not end ok", () => {
     const blind = readiness({ sitemap: null, schema: null, preferredSources: null });
     const observations = [blind, cwv(), ...searchConsole(daysOf(28, 59), daysOf(28, 50))];
     const result = score(observations, { ...ALL_OK, crawler: "failed" });
-    // SEO: (0.2 × 76 + 0.2 × 89) / 0.4 = 82.5; GEO: (0.3 × 94 + 0.15 × 100) / 0.45 = 96
-    expect(result).toMatchObject({ seo: 83, geo: 96, aeo: null });
+    // SEO: (0.2 × 76 + 0.2 × 89) / 0.4 = 82.5; GEO: AI crawler access alone (llms.txt is not
+    // counted) = 100
+    expect(result).toMatchObject({ seo: 83, geo: 100, aeo: null });
     expect(result?.complete).toEqual({ seo: false, geo: false, aeo: false });
-    for (const key of ["seo.technical", "seo.indexability", "geo.entities", "aeo.qaCoverage"]) {
+    for (const key of ["seo.technical", "seo.indexability", "geo.entities", "aeo.conciseAnswers"]) {
       expect(entry(result, key)).toMatchObject({
         score: null,
         status: "missing",
@@ -272,7 +274,7 @@ describe("scoreScan with a weekly PageSpeed skipped this scan", () => {
   });
 });
 
-describe("scoring v2", () => {
+describe("Preferred Sources by kind", () => {
   const stale = readiness({
     preferredSources: {
       button: true,
@@ -290,9 +292,9 @@ describe("scoring v2", () => {
   const scoreKind = (productKind: "news" | "product") =>
     score(observations, ALL_OK, { ...CONTEXT, productKind });
 
-  it("is formula v2", () => {
-    expect(FORMULA_VERSION).toBe("v2");
-    expect(scoreKind("product")?.formulaVersion).toBe("v2");
+  it("is formula v3", () => {
+    expect(FORMULA_VERSION).toBe("v3");
+    expect(scoreKind("product")?.formulaVersion).toBe("v3");
   });
 
   it("changes only the Preferred Sources sub-score and the AEO total between kinds", () => {
@@ -300,9 +302,69 @@ describe("scoring v2", () => {
     const product = scoreKind("product");
     expect(entry(news, "aeo.preferredSources")?.score).toBe(50);
     expect(entry(product, "aeo.preferredSources")?.score).toBe(0);
-    expect(entry(product, "aeo.preferredSources")?.weight).toBe(0.25);
+    expect(entry(product, "aeo.preferredSources")?.weight).toBe(0.42);
     expect(news?.seo).toBe(product?.seo);
     expect(news?.geo).toBe(product?.geo);
     expect(news?.aeo).toBeGreaterThan(product?.aeo ?? 0);
+  });
+});
+
+describe("scoring v3", () => {
+  const scored = (observations: Parameters<typeof score>[0]) => score(observations, ALL_OK);
+  const base = [
+    ...ACME_CRAWL,
+    readiness(),
+    cwv(),
+    ...searchConsole(daysOf(28, 59), daysOf(28, 50)),
+  ];
+
+  it("measures FAQ markup and llms.txt but does not count them", () => {
+    expect(entry(scored(base), "aeo.qaCoverage")).toMatchObject({ weight: 0, status: "ok" });
+    expect(entry(scored(base), "geo.llmsTxt")).toMatchObject({ weight: 0, status: "ok" });
+  });
+
+  it("leaves the totals unchanged when FAQ markup and llms.txt are removed", () => {
+    const noFaq = (types: unknown) =>
+      Array.isArray(types) ? types.filter((t) => t !== "FAQPage" && t !== "HowTo") : types;
+    const plain = base.map((o) => {
+      if (o.kind !== "page") return o;
+      const value = o.value as { jsonLdTypes: unknown };
+      return {
+        ...o,
+        value: { ...value, jsonLdTypes: noFaq(value.jsonLdTypes), hasFaqMarkup: false },
+      };
+    });
+    const noLlms = readiness({
+      llmsTxt: { present: false, status: 404, bytes: null, truncated: false, error: null },
+    });
+    const without = scored([...plain.filter((o) => o.collector !== "readiness"), noLlms]);
+    const withAll = scored(base);
+    expect(without?.geo).toBe(withAll?.geo);
+    expect(without?.aeo).toBe(withAll?.aeo);
+    expect(entry(without, "aeo.qaCoverage")?.score).toBe(0);
+    expect(entry(without, "geo.llmsTxt")?.score).toBe(0);
+  });
+
+  it("does not lower AI crawler access when only training crawlers are blocked", () => {
+    const access = Object.fromEntries(
+      ["GPTBot", "ClaudeBot", "Google-Extended", "CCBot", "Bytespider"].map((n) => [n, "blocked"]),
+    );
+    const robots = {
+      state: "ok",
+      valid: true,
+      googlebot: "allowed",
+      aiCrawlerAccess: {
+        ...access,
+        "OAI-SearchBot": "allowed",
+        "ChatGPT-User": "allowed",
+        PerplexityBot: "allowed",
+        "Claude-SearchBot": "allowed",
+      },
+    };
+    const result = scored([
+      ...base.filter((o) => o.collector !== "readiness"),
+      readiness({ robotsTxt: robots }),
+    ]);
+    expect(entry(result, "geo.aiCrawlers")?.score).toBe(100);
   });
 });

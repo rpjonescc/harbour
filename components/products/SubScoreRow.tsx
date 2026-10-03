@@ -1,8 +1,14 @@
 import { Explainer } from "@/components/explain/Explainer";
 import { Tag } from "@/components/ui/Tag";
 import type { ScoreBreakdownEntry } from "@/lib/db/schema";
-import { subScoreExplanation, subScoreLine } from "@/lib/explain/subscores";
+import {
+  isInformational,
+  NOT_COUNTED,
+  subScoreExplanation,
+  subScoreLine,
+} from "@/lib/explain/subscores";
 import { type VerdictTone, verdictFor } from "@/lib/explain/verdict";
+import type { OutsideView } from "@/lib/scan/outside-view";
 
 /** No red: the verdict word carries the meaning, the tone only supports it. */
 const TAG_TONE: Readonly<Record<VerdictTone, "good" | "warn" | "neutral">> = {
@@ -13,8 +19,9 @@ const TAG_TONE: Readonly<Record<VerdictTone, "good" | "warn" | "neutral">> = {
   gap: "neutral",
 };
 
-function Verdict({ score }: { score: number | null }) {
+function Verdict({ entry: { score, weight } }: { entry: ScoreBreakdownEntry }) {
   if (score === null) return <Tag tone="neutral">Not counted yet</Tag>;
+  if (isInformational({ score, weight })) return <Tag tone="neutral">{NOT_COUNTED}</Tag>;
   const verdict = verdictFor(score);
   return (
     <>
@@ -27,16 +34,25 @@ function Verdict({ score }: { score: number | null }) {
   );
 }
 
-/** One sub-score: its plain name, a verdict chip, one plain sentence and "What's this?". */
-export function SubScoreRow({ entry }: { entry: ScoreBreakdownEntry }) {
+/**
+ * One sub-score: its plain name, a verdict chip, one plain sentence and "What's this?". `outside`
+ * is the state of How the web sees you, which AI engine mentions point to.
+ */
+export function SubScoreRow({
+  entry,
+  outside,
+}: {
+  entry: ScoreBreakdownEntry;
+  outside?: OutsideView["state"];
+}) {
   const explanation = subScoreExplanation(entry.key);
   const name = explanation?.name ?? entry.label;
-  const sentence = subScoreLine(entry);
+  const sentence = subScoreLine(entry, outside);
   return (
     <li className="flex flex-col gap-1.5 py-4">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <h3 className="mr-1 text-base font-medium text-ink">{name}</h3>
-        <Verdict score={entry.score} />
+        <Verdict entry={entry} />
       </div>
       {explanation ? (
         <Explainer topic={name} oneLiner={sentence} parts={explanation.parts} />

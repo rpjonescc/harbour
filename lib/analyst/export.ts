@@ -32,6 +32,8 @@ export type ProductExport = {
     key: string;
     label: string;
     score: number | null;
+    /** Its weight in the total; 0 means measured for information and not counted. */
+    weight: number;
     status: "ok" | "missing";
     evidence: string;
   }[];

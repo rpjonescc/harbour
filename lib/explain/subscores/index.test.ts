@@ -18,6 +18,45 @@ describe("subScoreLine", () => {
     ).toBe("Not connected yet, so it isn't counted.");
   });
 
+  it("says why a measured check of weight 0 isn't counted", () => {
+    const result = scoreOf(ACME_SCAN);
+    const faq = entryOf(result, "aeo.qaCoverage");
+    const llms = entryOf(result, "geo.llmsTxt");
+    if (!faq || !llms) throw new Error("missing entries");
+    expect(subScoreLine(faq)).toBe(
+      "2 of 5 pages are marked up as questions and answers. Measured, not counted: Google no " +
+        "longer shows FAQ results.",
+    );
+    expect(subScoreLine(llms)).toBe(
+      "Your site has an llms.txt guide for AI assistants. Measured, not counted: llms.txt has no " +
+        "known effect.",
+    );
+  });
+
+  it("reads a formula v2 entry that was counted without the note", () => {
+    const v2 = {
+      key: "aeo.qaCoverage",
+      score: 100,
+      weight: 0.4,
+      evidence:
+        "2 of 5 HTML pages have FAQPage, HowTo or QAPage markup (full marks at a quarter of the pages).",
+    };
+    expect(subScoreLine(v2)).toBe("2 of 5 pages are marked up as questions and answers.");
+  });
+
+  it("points AI engine mentions to How the web sees you, old wording or new", () => {
+    const v3 = entryOf(scoreOf(ACME_SCAN), "geo.aiEngines");
+    if (!v3) throw new Error("no geo.aiEngines entry");
+    expect(subScoreLine(v3)).toBe(
+      "Measured in How the web sees you, not counted in the score yet.",
+    );
+    const v2 = { ...v3, evidence: "AI engine mention checks not connected (they need API keys)." };
+    expect(subScoreLine(v2, "not_connected")).toMatch(/^Not measured: Treg isn't connected/);
+    expect(subScoreLine(v2, "ready")).toBe(
+      "Measured in How the web sees you, not counted in the score yet.",
+    );
+  });
+
   // Review Focus 3: stored rows keep the wording and keys of the formula that scored them.
   it("falls back to the verdict's sentence for an older formula's wording or key", () => {
     expect(
@@ -58,5 +97,15 @@ describe("weakestFirst", () => {
     ];
     expect(weakestFirst(entries).map((e) => e.key)).toEqual(["c", "a", "d", "b"]);
     expect(entries.map((e) => e.key)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("puts checks that are measured but not counted after the counted ones", () => {
+    const entries = [
+      { key: "faq", score: 0, weight: 0 },
+      { key: "a", score: 80, weight: 0.5 },
+      { key: "gap", score: null, weight: 0.5 },
+      { key: "c", score: 30, weight: 0.5 },
+    ];
+    expect(weakestFirst(entries).map((e) => e.key)).toEqual(["c", "a", "faq", "gap"]);
   });
 });

@@ -4,6 +4,7 @@ import { Panel } from "@/components/ui/Panel";
 import type { ScoreBreakdownEntry } from "@/lib/db/schema";
 import { AREAS } from "@/lib/explain/areas";
 import { weakestFirst } from "@/lib/explain/subscores";
+import type { OutsideView } from "@/lib/scan/outside-view";
 import type { AreaKey } from "@/lib/scan/views";
 import { SubScoreRow } from "./SubScoreRow";
 
@@ -48,10 +49,13 @@ export function ScoreBreakdown({
   area,
   entries,
   complete,
+  outside,
 }: {
   area: AreaKey;
   entries: ScoreBreakdownEntry[];
   complete: boolean;
+  /** The state of How the web sees you, which AI engine mentions point to. */
+  outside?: OutsideView["state"];
 }) {
   const { name, code } = AREAS[area];
   const own = weakestFirst(entries.filter((entry) => entry.key.startsWith(`${area}.`)));
@@ -69,7 +73,7 @@ export function ScoreBreakdown({
       <p className="text-xs text-ink-muted">{complete ? WEAKEST_FIRST : WITH_GAPS}</p>
       <ul className="divide-y divide-line">
         {own.map((entry) => (
-          <SubScoreRow key={entry.key} entry={entry} />
+          <SubScoreRow key={entry.key} entry={entry} outside={outside} />
         ))}
       </ul>
       <TechnicalDetails id={`breakdown-${area}`} topic={`${code} scores in numbers`}>

@@ -47,11 +47,7 @@ describe("productView", () => {
     // A later failed scan is left out: the page keeps showing the last good scan's findings.
     seedScan(db, { productId: "acme-docs", at: T0, status: "failed", runs: [crawler("failed")] });
     const view = productView(db, PRODUCT, T0);
-    expect(view.issues.map((i) => i.id)).toEqual([
-      "broken-links",
-      "noindex",
-      "ai-crawlers-blocked",
-    ]);
+    expect(view.issues.map((i) => i.id)).toEqual(["broken-links", "noindex"]);
     expect(view.pages.total).toBe(6);
     expect(view.search).toMatchObject({ state: "ok", summary: { clicks: 0, days: [] } });
     expect(view.scan.last?.status).toBe("failed");

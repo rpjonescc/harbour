@@ -1,4 +1,12 @@
-import { aiCrawlerAccess, crawlerAccess, isAllowed, parseRobots } from "./robots";
+import {
+  AI_CRAWLERS,
+  AI_RETRIEVAL_AGENTS,
+  AI_TRAINING_CRAWLERS,
+  aiCrawlerAccess,
+  crawlerAccess,
+  isAllowed,
+  parseRobots,
+} from "./robots";
 
 describe("parseRobots", () => {
   it("groups consecutive user-agents, ignores comments and collects sitemaps anywhere", () => {
@@ -157,5 +165,23 @@ describe("crawlerAccess", () => {
     ["", "allowed"],
   ])("reads Googlebot's access to / from %j as %s", (text, expected) => {
     expect(crawlerAccess(parseRobots(text), "Googlebot")).toBe(expected);
+  });
+});
+
+describe("AI crawler classes", () => {
+  it("puts every AI crawler in exactly one class: answering questions or training", () => {
+    for (const crawler of AI_CRAWLERS) {
+      expect(AI_RETRIEVAL_AGENTS.has(crawler) !== AI_TRAINING_CRAWLERS.has(crawler)).toBe(true);
+    }
+  });
+
+  it("treats the training-data crawlers as training only", () => {
+    expect([...AI_TRAINING_CRAWLERS].sort()).toEqual([
+      "Bytespider",
+      "CCBot",
+      "ClaudeBot",
+      "GPTBot",
+      "Google-Extended",
+    ]);
   });
 });

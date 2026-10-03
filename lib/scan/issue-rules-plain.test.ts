@@ -10,7 +10,10 @@ const JARGON =
 const SEARCH_AGENT = [...AI_RETRIEVAL_AGENTS][0] ?? "";
 const TRAINING_ONLY = "CCBot";
 
-/** Every rule fires: a bare page, a broken link, no llms.txt, no FAQ, one agent blocked. */
+/**
+ * Every active rule fires: a bare page, a broken link, one agent blocked, no Preferred Sources
+ * button. No llms.txt and no FAQ markup raise nothing since formula v3.
+ */
 function issuesWhenBlocked(agent: string): Issue[] {
   const observations = [
     htmlPage("/", { titleLength: 0, descriptionLength: 0, noindex: true }),
@@ -38,11 +41,11 @@ describe("rule reasons in plain words", () => {
     expect(AI_RETRIEVAL_AGENTS.has(TRAINING_ONLY)).toBe(false);
   });
 
-  it("says each reason without jargon, for the search-agent and training-only variants", () => {
+  it("says each reason without jargon, and raises nothing for a training crawler alone", () => {
+    expect(problemsWhenBlocked(SEARCH_AGENT)).toHaveLength(6);
+    expect(problemsWhenBlocked(TRAINING_ONLY)).toHaveLength(5);
     for (const agent of [SEARCH_AGENT, TRAINING_ONLY]) {
-      const problems = problemsWhenBlocked(agent);
-      expect(problems).toHaveLength(8);
-      for (const problem of problems) expect(problem).not.toMatch(JARGON);
+      for (const problem of problemsWhenBlocked(agent)) expect(problem).not.toMatch(JARGON);
     }
   });
 
@@ -53,23 +56,16 @@ describe("rule reasons in plain words", () => {
       "Links on your site lead to pages that are gone or show an error, so visitors and Google hit dead ends.",
       "These pages ask search engines not to list them, so they can't be found on Google.",
       "AI assistants' search tools are blocked from reading your site, so they can't cite it.",
-      "Your pages don't label their questions and answers in a way Google and AI assistants can read, so they're less likely to quote you.",
-      "There's no short guide to your site written for AI assistants, so they have to guess which pages matter.",
       "Readers can't pick your site as a favourite source in Google's Top Stories.",
     ]);
-    expect(problemsWhenBlocked(TRAINING_ONLY)[4]).toBe(
-      "Only the tools that collect training data are blocked; AI assistants can still read and cite your site.",
-    );
   });
 });
 
 describe("rule titles in plain words", () => {
-  it("titles every rule without jargon, for both blocked-agent variants", () => {
-    for (const agent of [SEARCH_AGENT, TRAINING_ONLY]) {
-      const titles = titlesWhenBlocked(agent);
-      expect(titles).toHaveLength(8);
-      for (const title of titles) expect(title).not.toMatch(TITLE_JARGON);
-    }
+  it("titles every rule without jargon", () => {
+    const titles = titlesWhenBlocked(SEARCH_AGENT);
+    expect(titles).toHaveLength(6);
+    for (const title of titles) expect(title).not.toMatch(TITLE_JARGON);
   });
 
   it("pins the titles", () => {
@@ -79,11 +75,8 @@ describe("rule titles in plain words", () => {
       "1 page you link to can't be found",
       "1 page is hidden from search",
       "AI assistants can't read your site",
-      "Your questions and answers aren't labelled for Google and AI",
-      "No guide to your site for AI assistants",
       "No favourite-source link for Google readers",
     ]);
-    expect(titlesWhenBlocked(TRAINING_ONLY)[4]).toBe("Your site opts out of AI training");
   });
 
   it("counts in the plural", () => {

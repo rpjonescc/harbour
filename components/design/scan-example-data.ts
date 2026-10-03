@@ -19,7 +19,7 @@ export const EXAMPLE_SCORES: ScoreTrend = {
   latest: {
     scanId: 1,
     computedAt: AT,
-    formulaVersion: "v2",
+    formulaVersion: "v3",
     totals: { seo: 78, geo: 46, aeo: null },
     complete: { seo: true, geo: false, aeo: false },
     breakdown: [
@@ -40,12 +40,20 @@ export const EXAMPLE_SCORES: ScoreTrend = {
         status: "ok",
       },
       {
-        key: "geo.llmsTxt",
-        label: "llms.txt",
+        key: "geo.entities",
+        label: "Entity structured data",
         score: null,
-        weight: 0.15,
+        weight: 0.3,
         evidence: "Readiness failed in this scan",
         status: "missing",
+      },
+      {
+        key: "geo.llmsTxt",
+        label: "llms.txt",
+        score: 0,
+        weight: 0,
+        evidence: "No llms.txt; llms-full.txt not present.",
+        status: "ok",
       },
       {
         key: "geo.aiEngines",
