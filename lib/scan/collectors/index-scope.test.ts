@@ -51,6 +51,28 @@ describe("pagesInScope", () => {
     ]);
   });
 
+  it("matches a Unicode domain property to the punycode page host and the Unicode host", () => {
+    const urls = [
+      "https://xn--mnchen-3ya.de/a",
+      "https://münchen.de/b",
+      "https://www.münchen.de/c",
+    ];
+    expect(pagesInScope(urls, "sc-domain:münchen.de")).toHaveLength(3);
+    expect(pagesInScope(urls, "sc-domain:xn--mnchen-3ya.de")).toHaveLength(3);
+  });
+
+  it("ignores one trailing dot on either side", () => {
+    expect(pagesInScope(["https://example.com./a"], "sc-domain:example.com")).toHaveLength(1);
+    expect(pagesInScope(["https://example.com/a"], "sc-domain:example.com.")).toHaveLength(1);
+  });
+
+  it("matches nothing for an empty or garbage domain", () => {
+    const urls = ["https://example.com/a", "https://localhost/b", "https://./c"];
+    expect(pagesInScope(urls, "sc-domain:")).toEqual([]);
+    expect(pagesInScope(urls, "sc-domain:  ")).toEqual([]);
+    expect(pagesInScope(urls, "sc-domain:bad host/with space")).toEqual([]);
+  });
+
   it("covers nothing for a property it cannot read", () => {
     expect(pagesInScope(["https://example.com/"], "not a property")).toEqual([]);
   });

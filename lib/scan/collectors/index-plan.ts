@@ -49,6 +49,12 @@ export function earlierSeenSince(previous: readonly Observation[]): string | nul
   return parsed.success ? parsed.data.sitemapSeenSince : null;
 }
 
+/** A host as URLs spell it (punycode, lower case) without one trailing dot; "" if unparsable. */
+function normaliseHost(host: string): string {
+  const parsed = host.trim() === "" ? null : URL.parse(`http://${host}`);
+  return parsed ? parsed.hostname.replace(/\.$/, "") : "";
+}
+
 /**
  * The pages a Search Console property covers. `sc-domain:d` covers `d` and its subdomains (any
  * scheme); a URL-prefix property covers pages on the same origin whose path starts with its path.
@@ -56,13 +62,17 @@ export function earlierSeenSince(previous: readonly Observation[]): string | nul
  */
 export function pagesInScope(urls: readonly string[], property: string): string[] {
   const domain = property.startsWith("sc-domain:")
-    ? property.slice("sc-domain:".length).toLowerCase()
+    ? normaliseHost(property.slice("sc-domain:".length))
     : null;
   const prefix = domain === null ? URL.parse(property) : null;
   return urls.filter((url) => {
     const page = URL.parse(url);
     if (!page) return false;
-    if (domain !== null) return page.hostname === domain || page.hostname.endsWith(`.${domain}`);
+    if (domain !== null) {
+      // An empty or unparsable domain ("" after normalising) matches nothing.
+      const host = normaliseHost(page.hostname);
+      return domain !== "" && (host === domain || host.endsWith(`.${domain}`));
+    }
     return (
       prefix !== null && page.origin === prefix.origin && page.pathname.startsWith(prefix.pathname)
     );

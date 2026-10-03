@@ -30,21 +30,25 @@ export const httpUrl = z
   .refine((value) => /^https?:$/.test(URL.parse(value)?.protocol ?? ""));
 
 /** One inspected page as stored (observation `index_status`; subject: the page URL). */
-export const indexStatusValue = z.object({
-  state: z.enum(INDEX_STATES),
-  /** Google's words, as given (cleaned and capped); null when the page could not be checked. */
-  verdict: z.string().max(MAX_TEXT).nullable(),
-  coverageState: z.string().max(MAX_TEXT).nullable(),
-  lastCrawlTime: isoTime.nullable(),
-  googleCanonical: httpUrl.max(MAX_URL).nullable(),
-  robotsTxtState: z.string().max(MAX_TEXT).nullable(),
-  pageFetchState: z.string().max(MAX_TEXT).nullable(),
-  checkedAt: isoTime,
-  /** Checks of this page that failed since its last good one; absent when none. */
-  failures: z.number().int().positive().optional(),
-  /** When the last failed check was made; present exactly when `failures` is. */
-  attemptedAt: isoTime.optional(),
-});
+export const indexStatusValue = z
+  .object({
+    state: z.enum(INDEX_STATES),
+    /** Google's words, as given (cleaned and capped); null when the page could not be checked. */
+    verdict: z.string().max(MAX_TEXT).nullable(),
+    coverageState: z.string().max(MAX_TEXT).nullable(),
+    lastCrawlTime: isoTime.nullable(),
+    googleCanonical: httpUrl.max(MAX_URL).nullable(),
+    robotsTxtState: z.string().max(MAX_TEXT).nullable(),
+    pageFetchState: z.string().max(MAX_TEXT).nullable(),
+    checkedAt: isoTime,
+    /** Checks of this page that failed since its last good one; absent when none. */
+    failures: z.number().int().positive().optional(),
+    /** When the last failed check was made; present exactly when `failures` is. */
+    attemptedAt: isoTime.optional(),
+  })
+  .refine((value) => (value.failures === undefined) === (value.attemptedAt === undefined), {
+    message: "failures and attemptedAt go together",
+  });
 export type IndexStatus = z.infer<typeof indexStatusValue>;
 
 const stoppedBy = z.enum(["quota", "time", "errors"]).nullable();
