@@ -73,8 +73,9 @@ explainable breakdowns. The roadmap continues with:
   can wait. A calm wave drifts behind the app. Both are off with `HARBOUR_PERSONALITY=quiet`
   (see [Daily note](#daily-note)).
 - **Cost meter** — Today shows this month's paid API spend against your monthly budget, with a
-  month-end projection, a warning at 80 % and a pause at 100 %. No paid source exists yet, so it
-  says "No paid data connected" (see [Costs and budget](#costs-and-budget)).
+  month-end projection, a warning at 80 % and a pause at 100 %. Until a paid source (Treg, for
+  the weekly [outside view](#the-outside-view-treg)) is connected it says "No paid data
+  connected" (see [Costs and budget](#costs-and-budget)).
 - **Design system** — "Paper & Tide" tokens (primitives → semantic) in light and dark, with
   a living reference at `/design` showing every component in its main states.
 - **Nightly backups** — a verified copy of the database every night at 03:15, the newest 14 kept,
@@ -569,6 +570,8 @@ All settings are environment variables, validated at startup.
 | `HARBOUR_PAGESPEED_API_KEY` | for PageSpeed | unset | Secret; a Google Cloud API key restricted to the PageSpeed Insights API (see [Connect PageSpeed](#connect-pagespeed)). Once a week per product the check asks PageSpeed Insights for mobile performance and Core Web Vitals (this sends the product URL to Google). Without a key PageSpeed shows as not connected: Google gives keyless requests no quota. Used by the worker only; never logged, shown or stored with results. Restart the worker after changing it. |
 | `HARBOUR_GSC_CREDENTIALS` | for Search Console | unset | Absolute path to a Google credentials JSON file — a service account key or an OAuth authorized-user file (see [Connect Search Console](#connect-search-console)). Keep it outside the repo with mode 600; Harbour warns in the check if other users can read it. Read by the worker only; its contents and the access tokens are never logged, shown or stored. Restart the worker after changing it. |
 | `HARBOUR_MONTHLY_BUDGET_AUD` | no | `0` | Monthly cap on paid API spend in Australian dollars, 0 to 10000 in whole cents (e.g. `60` or `12.50`). `0` means no paid calls at all. See [Costs and budget](#costs-and-budget). Restart both services after changing it. |
+| `HARBOUR_TREG_API_KEY` | no | unset | Secret key for Treg, the pay-per-call service behind the weekly outside view (links to you, where you rank, whether AI assistants name you). Only the worker reads it; Settings shows only Connected or Not connected yet. Needs a monthly budget and a `tracking` list. See [The outside view](#the-outside-view-treg) and [Costs and budget](#costs-and-budget). |
+| `HARBOUR_USD_TO_AUD` | no | `1.55` | US dollars to Australian dollars, 1 to 3. Treg charges in US dollars; this converts both the amount reserved before a call and the charge recorded after it into the AUD ledger and budget. |
 | `HARBOUR_DATAFORSEO_LOGIN` | no | unset | Not used yet — reserved for the DataForSEO login of the future rankings and SERP collectors. Secret: only whether it is set will ever be shown (on Settings), never its value. |
 | `HARBOUR_DATAFORSEO_PASSWORD` | no | unset | Not used yet — reserved for the DataForSEO password of the future rankings and SERP collectors. Secret: only whether it is set will ever be shown (on Settings), never its value. |
 | `HARBOUR_OPENAI_API_KEY` | no | unset | Not used yet — reserved for the future AI-engines collector (ChatGPT search). Secret: only whether it is set will ever be shown (on Settings), never its value. |
@@ -607,6 +610,9 @@ Optionally, `searchConsoleProperty` names the product's Google Search Console pr
 either form Search Console uses: a domain property (`"sc-domain:example.com"`) or a URL-prefix
 property (`"https://www.example.com/"`, ending in `/`). Without it, Search Console data for that
 product shows as not connected; see [Connect Search Console](#connect-search-console).
+
+Optionally, `tracking` chooses the searches and AI questions the weekly outside-view check asks
+about each product; see [The outside view (Treg)](#the-outside-view-treg).
 
 Optionally, `ownerName` (at most 40 characters: letters, spaces, apostrophes, dots and hyphens) is
 used only as a first name in the daily note's greeting; it stays in this gitignored file and is
@@ -837,10 +843,18 @@ and `-wal` files, and it says so if it cannot open the database.
 
 ## Costs and budget
 
-Some data Harbour plans to collect comes from paid APIs (DataForSEO for rankings and AI
-Overviews; OpenAI, Perplexity and Gemini for AI answers). None of those collectors exists yet,
-so today Harbour makes **no paid calls**. The guard below is in place so the first one can only
+One paid source is in use: **Treg** (`https://treg.to`), a pay-per-call catalogue of data APIs.
+Once a week the `treg` collector asks it for each tracked product's links from other sites, its
+position for each search you chose and whether ChatGPT names or cites it (about US$0.04 per
+product per week; see [Outside view](#the-outside-view-treg)). It makes **no calls** until you set
+`HARBOUR_TREG_API_KEY`, a monthly budget and a `tracking` list. Other paid sources (DataForSEO,
+OpenAI, Perplexity, Gemini) have no collector yet. The guard below means a paid collector can only
 spend what you allow.
+
+Treg charges in US dollars and the ledger is in Australian dollars, so Harbour converts both the
+amount it reserves before a call (the endpoint's price estimate) and the charge Treg reports after
+it (the `x-treg-cost-micro` header) with `HARBOUR_USD_TO_AUD`. Every call also carries a hard price
+ceiling (about 1.5 times the estimate, never above US$0.05) that Treg enforces itself.
 
 - **The ledger.** Every paid call writes one row to the `costs` table: provider, collector,
   product, units billed and the amount. Amounts are stored as whole **micro-AUD** (1 AUD =
@@ -864,11 +878,59 @@ style: `A$12.40` in `en-GB` or `en-US`, `$12.40` in `en-AU`.
 
 | Meter | Meaning |
 |---|---|
-| No paid data connected — Harbour is using free data only, so nothing is being spent | No paid collector exists (or its keys are missing). With spend earlier this month it reads "No paid data connected · A$1.23 spent this month". |
+| No paid data connected — Harbour is using free data only, so nothing is being spent | No paid source is connected (its key is missing). With spend earlier this month it reads "No paid data connected · A$1.23 spent this month". |
 | Paid data is off until you set a monthly budget — how to set one | A paid source is connected but the budget is 0. |
 | A$12.40 of A$60.00 this month · on track for A$31.00 | Spend so far, the budget and a straight-line month-end projection (from the second day of the month). |
 | … with "80 % of budget" | You have used at least 80 % of the budget. |
 | Budget reached — paid data is paused until 1 Nov. Free checks carry on as normal. | Paid collectors are skipped until the next month starts. |
+
+## The outside view (Treg)
+
+Besides what Google tells you, Harbour asks how the rest of the web sees each product. Once a
+week the worker's `treg` collector makes up to three kinds of paid call to
+[Treg](https://treg.to), a pay-per-call catalogue of data APIs:
+
+1. **Links to you**: how many other sites link to your domain (about US$0.0025).
+2. **Where you rank**: your position on Google for each search you chose, looking down to
+   position 30 (about US$0.006 each). "Not in the top 30" is stored as such, never as a number.
+3. **AI answers**: whether ChatGPT names or cites your site when asked each question you chose
+   (about US$0.0036 each). Only the verdict is stored; the answer text is never kept.
+
+Each check is independent: one failing never hides the others. Nothing is called until you
+(a) put `HARBOUR_TREG_API_KEY` in `.env`, (b) set `HARBOUR_MONTHLY_BUDGET_AUD` above 0 (A$10 is
+plenty) and (c) choose what to track in `harbour.config.json`:
+
+```json
+{
+  "tracking": {
+    "products": {
+      "acme-docs": {
+        "queries": ["acme docs", "best documentation tools for small teams"],
+        "questions": ["What are good tools for writing team documentation?"],
+        "location": "Queensland,Australia",
+        "country": "AU",
+        "languageCode": "en"
+      }
+    }
+  }
+}
+```
+
+- `queries`: up to 8 searches to find your rank for. `questions`: up to 5 questions to put to an
+  AI assistant. Each is 3 to 160 characters of plain visible text (no control or hidden
+  characters) and unique in its list.
+- `location` (optional, e.g. `"Queensland,Australia"`) is where the searches are made from.
+  `country` (an ISO 3166 two-letter code, default `AU`) is the AI check's country and
+  `languageCode` (default `en`) the search language.
+- Every id must be one of your `products`; a typo is an error, not ignored. A product with no
+  entry shows "No searches chosen yet", not a zero.
+- Keep your real searches in your own `harbour.config.json` (it is gitignored), never in the
+  repository.
+
+Every call carries a hard price ceiling and is checked against the budget first. A call Treg
+prices above the ceiling is skipped (that check shows "price above our ceiling") and the rest
+carry on; an empty Treg balance or a refused key stops the run; a rate limit stops it with what
+it has. Failed calls are recorded, not retried. The week's tally is stored with the results.
 
 ## Reading the results
 
