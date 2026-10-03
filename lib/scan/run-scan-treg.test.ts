@@ -11,9 +11,25 @@ import {
 import { closeSites } from "@/tests/helpers/http-site";
 import { DAY, runsOf, setup, texts } from "@/tests/helpers/scan-run";
 import { createTreg } from "./collectors/treg";
+import { outsideView } from "./outside-view";
 import { workerScanDeps } from "./worker-deps";
 
+const store = vi.hoisted(() => ({ failCopy: false }));
+vi.mock("@/lib/external/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/external/store")>();
+  return {
+    ...actual,
+    saveExternalChecks: (...args: Parameters<typeof actual.saveExternalChecks>) => {
+      if (store.failCopy) throw new Error("disk full");
+      return actual.saveExternalChecks(...args);
+    },
+  };
+});
+
 afterEach(closeSites);
+afterEach(() => {
+  store.failCopy = false;
+});
 
 const A$ = (aud: number) => Math.round(aud * MICRO_PER_AUD);
 
@@ -22,7 +38,7 @@ async function tregScan(options: FakeTregOptions = {}, capAud = 1, key: string |
   const server = await fakeTreg(options);
   const collector = createTreg({
     tracking: () => TRACKING,
-    baseUrl: () => server.origin,
+    baseUrl: server.origin,
     timeoutMs: 5_000,
     clock: Date.now,
   });
@@ -185,5 +201,43 @@ describe("runScan with the Treg collector", () => {
       .all()
       .filter((a) => a.ruleKey === "few-referring-sites");
     expect(raised).toHaveLength(1);
+  });
+
+  it("tells the page why a scheduled run answered only part", async () => {
+    const { db, scan } = await tregScan({}, 0.02);
+    await scan();
+    const view = outsideView({
+      db,
+      config: { ...getConfig(), HARBOUR_TREG_API_KEY: KEY },
+      product: { id: "acme-docs", url: "https://docs.example.com" },
+      tracking: TRACKING,
+      now: new Date("2026-10-01T07:00:00Z"),
+    });
+    expect(view.notice).toBe("partial_budget");
+  });
+
+  it("catches up the checks of an earlier scan whose copy was missed", async () => {
+    const { db, deps, scan, advance } = await tregScan();
+    await scan(); // no afterScore yet: nothing copied
+    expect(db.select().from(externalChecks).all()).toEqual([]);
+    deps.afterScore = workerScanDeps(deps).afterScore;
+    advance(DAY);
+    const job = await scan(); // the weekly check is skipped, but the last one's checks are copied
+    expect(db.select().from(externalChecks).all()).toHaveLength(4);
+    expect(texts(db, job).join("\n")).toContain("Outside view: kept 4 new checks");
+    advance(DAY);
+    await scan();
+    expect(db.select().from(externalChecks).all()).toHaveLength(4);
+  });
+
+  it("reports a failed copy instead of failing the scan, and the action sync still runs", async () => {
+    const { db, deps, scan } = await tregScan();
+    deps.afterScore = workerScanDeps(deps).afterScore;
+    store.failCopy = true;
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const job = await scan();
+    error.mockRestore();
+    expect(texts(db, job).join("\n")).toContain("Outside view: could not keep the checks");
+    expect(texts(db, job).join("\n")).toContain("Actions:");
   });
 });

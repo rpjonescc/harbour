@@ -34,7 +34,7 @@ import { getContentProducts, getOwnerFirstName, getProducts } from "@/lib/produc
 import { runOutsideCheck } from "@/lib/scan/run-outside-check";
 import { runScan } from "@/lib/scan/run-scan";
 import { failInterruptedScans } from "@/lib/scan/store";
-import { workerScanDeps } from "@/lib/scan/worker-deps";
+import { type WorkerTestSeams, workerScanDeps } from "@/lib/scan/worker-deps";
 
 const IDLE_MS = 2000;
 const HEARTBEAT_MS = 10_000;
@@ -72,7 +72,11 @@ function readyForIdeas(root: string, productId: string): boolean {
   }
 }
 
-async function main() {
+/**
+ * Runs the worker until it is told to stop. `seams` is for the end-to-end tests' own entry point
+ * only (tests/e2e/worker.ts); the production entry (worker/index.ts) passes nothing.
+ */
+export async function runWorker(seams?: WorkerTestSeams) {
   const config = getConfig();
   const db = getDb();
   const root = config.HARBOUR_BRAIN_DIR;
@@ -216,7 +220,7 @@ async function main() {
   });
 
   const scanDeps = (now: () => Date) =>
-    workerScanDeps({ db, config, products: getProducts(), now, stopping: () => stopping });
+    workerScanDeps({ db, config, products: getProducts(), now, stopping: () => stopping }, seams);
 
   const runJob = async (job: Job) => {
     const now = () => new Date();
@@ -286,8 +290,3 @@ async function main() {
     }
   }
 }
-
-main().catch((error) => {
-  console.error("harbour-worker crashed", error);
-  process.exit(1);
-});

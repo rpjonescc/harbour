@@ -1,4 +1,3 @@
-import type { Config } from "@/lib/config";
 import { TREG_REASONS } from "@/lib/explain/treg";
 import { getTracking } from "@/lib/products/catalog";
 import type { ProductTracking } from "@/lib/products/config";
@@ -15,8 +14,8 @@ const MAX_RUN_MS = 8 * 60_000;
 export type TregDeps = {
   /** What the owner chose to track for a product; null when nothing. */
   tracking: (productId: string) => ProductTracking | null;
-  /** Treg's address: the constant, except under the end-to-end tests' own setting. */
-  baseUrl: (config: Config) => string;
+  /** Treg's address; the end-to-end tests' worker points it at a fake server. */
+  baseUrl: string;
   timeoutMs: number;
   /** Milliseconds now, for the run's own time limit. */
   clock: () => number;
@@ -78,14 +77,16 @@ async function collectWith(
   }
   // A manual check ignores a balance halt (the owner may have topped up) but not a refused key.
   const halted = state.halted && deps.clock() < state.halted.until ? state.halted : null;
-  if (halted && !(ctx.manual && halted.why === "balance")) throw new Error(TREG_REASONS.paused);
+  if (halted && !(ctx.manual && halted.why === "balance")) {
+    throw new Error(halted.why === "key" ? TREG_REASONS.pausedKey : TREG_REASONS.pausedBalance);
+  }
 
   const domain = productDomain(ctx.product.url);
   const run: TregRun = {
     ctx,
     apiKey,
     rate: ctx.config.HARBOUR_USD_TO_AUD,
-    baseUrl: deps.baseUrl(ctx.config),
+    baseUrl: deps.baseUrl,
     timeoutMs: deps.timeoutMs,
     spentMicroUsd: 0,
   };
@@ -98,8 +99,8 @@ async function collectWith(
   const { ok, failed, stoppedBy } = tally;
   if (stoppedBy === "key" || stoppedBy === "balance") {
     state.halted = { why: stoppedBy, until: haltUntil(stoppedBy, deps.clock()) };
-  } else if (state.halted?.why === "balance") {
-    // A manual check got through after a top-up: the balance halt is over.
+  } else if (ok > 0 && state.halted?.why === "balance") {
+    // A manual check got an answer after a top-up: the balance halt is over.
     state.halted = null;
   }
   ctx.log(`${ok} of ${ok + failed} outside-view checks answered; the run ended: ${stoppedBy}`);
@@ -130,13 +131,18 @@ export function createTreg(deps: TregDeps): Collector {
   };
 }
 
+/** The collector as the worker runs it, at `baseUrl` (always Treg's own, except in the e2e worker). */
+export function createDefaultTreg(baseUrl: string): Collector {
+  return createTreg({
+    tracking: getTracking,
+    baseUrl,
+    timeoutMs: TREG_TIMEOUT_MS,
+    clock: Date.now,
+  });
+}
+
 /**
  * The outside view, once a week: links to the site, where it ranks for the chosen searches and
  * whether ChatGPT names or cites it, through Treg. Paid, capped and checked against the budget.
  */
-export const treg: Collector = createTreg({
-  tracking: getTracking,
-  baseUrl: (config) => config.HARBOUR_TREG_TEST_URL ?? TREG_BASE_URL,
-  timeoutMs: TREG_TIMEOUT_MS,
-  clock: Date.now,
-});
+export const treg: Collector = createDefaultTreg(TREG_BASE_URL);

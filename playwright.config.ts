@@ -55,10 +55,9 @@ const env = {
   // The web process only checks that a key is set; the worker is the one that uses it.
   HARBOUR_SCREENPIPE_URL: `http://127.0.0.1:${E2E_SCREENPIPE_PORT}`,
   HARBOUR_SCREENPIPE_API_KEY: E2E_SCREENPIPE_KEY,
-  // The outside view: a fake Treg on this machine (config refuses the test URL outside test mode)
-  // and a budget, so Run this check now is allowed. Scans of Acme Docs still skip it: no searches.
+  // The outside view: a key and a budget, so Run this check now is allowed. The worker below is the
+  // e2e entry (tests/e2e/worker.ts), which points Treg's collector at the fake: no setting can.
   HARBOUR_TREG_API_KEY: E2E_TREG_KEY,
-  HARBOUR_TREG_TEST_URL: `http://127.0.0.1:${E2E_TREG_PORT}`,
   HARBOUR_MONTHLY_BUDGET_AUD: "10",
   // Fictional token: the agent CLI is the fake below, so nothing is ever sent anywhere.
   HARBOUR_CLAUDE_OAUTH_TOKEN: "e2e-fake-token",
@@ -193,7 +192,7 @@ export default defineConfig({
     },
     {
       name: "worker",
-      command: "pnpm exec tsx worker/index.ts",
+      command: "pnpm exec tsx tests/e2e/worker.ts",
       // The worker has no HTTP port, and a URL probe would find the web server already up and
       // refuse to start; Playwright waits for the worker's ready line on stdout instead.
       wait: { stdout: /harbour-worker ready/ },

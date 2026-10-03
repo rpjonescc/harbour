@@ -26,34 +26,13 @@ describe("Treg settings", () => {
   });
 });
 
-describe("HARBOUR_TREG_TEST_URL", () => {
-  const test = {
-    ...base,
-    HARBOUR_ORIGIN: "http://localhost:3401",
-    HARBOUR_RP_ID: "localhost",
-    HARBOUR_TEST_MODE: "1",
-  };
-
-  it("is unset by default and accepted under test mode on a loopback origin", () => {
-    expect(parseConfig(base).HARBOUR_TREG_TEST_URL).toBeUndefined();
-    const url = "http://127.0.0.1:3405";
-    expect(parseConfig({ ...test, HARBOUR_TREG_TEST_URL: url }).HARBOUR_TREG_TEST_URL).toBe(url);
-  });
-
-  it("is refused without test mode, so a deployed Harbour can never send the key elsewhere", () => {
-    expect(() => parseConfig({ ...base, HARBOUR_TREG_TEST_URL: "http://127.0.0.1:3405" })).toThrow(
-      /HARBOUR_TREG_TEST_URL/,
-    );
-  });
-
-  it.each([
-    "https://treg.example.com",
-    "http://192.168.1.5:3405",
-    "http://127.0.0.1:3405/path",
-    "nope",
-  ])("is refused for %s", (url) => {
-    expect(() => parseConfig({ ...test, HARBOUR_TREG_TEST_URL: url })).toThrow(
-      /HARBOUR_TREG_TEST_URL/,
-    );
+describe("there is no setting that redirects Treg's key", () => {
+  it("ignores an address in the environment: the collector only ever has treg.to", () => {
+    const config = parseConfig({
+      ...base,
+      HARBOUR_TREG_API_KEY: "k",
+      HARBOUR_TREG_TEST_URL: "http://127.0.0.1:1",
+    });
+    expect(Object.keys(config)).not.toContain("HARBOUR_TREG_TEST_URL");
   });
 });
