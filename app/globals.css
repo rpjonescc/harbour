@@ -101,13 +101,25 @@ body:has([data-mood="celebrate"]) .wave-layer[data-front] {
   }
 }
 
+/* The Today work strip's flow bar fills in from the left. */
+.strip-grow {
+  animation: strip-grow var(--duration-base) ease-out;
+}
+
+@keyframes strip-grow {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+}
+
 /* Reduced motion: the wave holds still (the ripple too) and a moved board card simply appears.
    The selector for the ripple repeats its rule's, so this wins on specificity. */
 @media (prefers-reduced-motion: reduce) {
   .wave-drift,
   .wave-layer,
   body:has([data-mood="celebrate"]) .wave-layer[data-front],
-  .board-arrive {
+  .board-arrive,
+  .strip-grow {
     animation: none;
   }
 }

@@ -8,6 +8,7 @@ import { noteSlot } from "@/lib/note/view";
 import { backupStatus } from "@/lib/ops/backup-status";
 import { getProducts } from "@/lib/products/catalog";
 import { todaySummary } from "@/lib/today/from-scans";
+import { loadWorkStrip } from "@/lib/today/work-strip";
 
 export default async function TodayPage() {
   // Layouts do not re-run on client navigation, so every page checks the session itself.
@@ -33,6 +34,7 @@ export default async function TodayPage() {
         tokenSet,
         now,
       })}
+      workStrip={loadWorkStrip(db, now, config.HARBOUR_TIMEZONE)}
       costMeter={costMeterView(db, config, now)}
       backup={backup}
       now={now}

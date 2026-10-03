@@ -220,3 +220,68 @@ export const BOARD_TEXT = {
     `The board shows ${max} cards at most, so some are not here. Use the filters to narrow it.`,
   technical: { id: "Card number", status: "Stored status", column: "Column id" },
 } as const;
+
+/** The Today "Where the work is" band: every sentence, so a quiet board still says something. */
+export const STRIP_TEXT = {
+  heading: "Where the work is",
+  oneLiner: "Every job by column. Pick a column to open it on the board.",
+  explainer: [
+    {
+      label: "What it shows",
+      text: "How many jobs sit in each column of the board, and the bar shows how they are spread.",
+    },
+    {
+      label: "What stuck means",
+      text: `A job is stuck when nothing has changed for more than ${count(STUCK_DAYS.started, "day")} (${count(STUCK_DAYS.in_review, "day")} in review).`,
+    },
+    {
+      label: "What needs you",
+      text: "New ideas to decide, pull requests waiting for a look, and work that is yours to carry on.",
+    },
+  ],
+  openBoard: "Open the board",
+  nothingYet: "No jobs are on the board yet. They appear after the next check.",
+  /** The tile's name for a column: "Queue: 3 cards". */
+  columnTile: (column: BoardColumnId, n: number) => `${COLUMN_COPY[column].name}: ${cards(n)}`,
+  cards,
+  stuckTitle: "Stuck",
+  stuck: (n: number) =>
+    n === 0
+      ? "Nothing is stuck."
+      : `${count(n, "job")} ${n === 1 ? "has" : "have"} stood still for too long.`,
+  stuckLink: "See the stuck jobs",
+  needsTitle: "Needs you",
+  needs: (n: number) =>
+    n === 0
+      ? "Nothing needs you right now."
+      : `${count(n, "job")} ${n === 1 ? "is" : "are"} waiting for you.`,
+  needsLink: "See what needs you",
+  needsMore: (n: number) => `${n} more on the board.`,
+  moved: (n: number) => (n === 0 ? "Nothing has moved today." : `${count(n, "job")} moved today.`),
+} as const;
+
+function cards(n: number): string {
+  return n === 0 ? "no cards" : count(n, "card");
+}
+
+/** "Claude moved “Fix the title” to Queue": the latest move of the day, on Today. */
+export function movedTodayLine(move: {
+  actor: ActionActor;
+  title: string;
+  to: BoardColumnId | null;
+}): string {
+  const where = move.to ? COLUMN_COPY[move.to].name : "Parked";
+  return `${MOVER[move.actor]} moved “${move.title}” to ${where}.`;
+}
+
+/** The "Needs you" line for a card: its title and what it is waiting on. */
+export function needsYouLine(title: string, column: BoardColumnId, card: CardState): string {
+  return `${title}. ${COLUMN_COPY[column].waitingOn(card)}`;
+}
+
+/** The note on /actions while the Today strip's `?focus=` is on: what is filtered, and how to clear it. */
+export const FOCUS_TEXT = {
+  stuck: "Showing only the stuck jobs.",
+  "needs-you": "Showing only the jobs that need you.",
+  clear: "Show everything",
+} as const;

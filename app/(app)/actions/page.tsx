@@ -1,7 +1,7 @@
 import { ActionBoard } from "@/components/actions/ActionBoard";
 import { ActionFilters } from "@/components/actions/ActionFilters";
 import { ApprovalsNote } from "@/components/actions/ApprovalsNote";
-import { Board, ViewSwitch } from "@/components/actions/board";
+import { Board, FocusNotice, ViewSwitch } from "@/components/actions/board";
 import { SyncFailureNote } from "@/components/actions/SyncFailureNote";
 import { approvalsWaiting, syncFailures } from "@/lib/actions/board-notices";
 import { loadBoard, parseActionsView, parseBoardFocus } from "@/lib/actions/board-view";
@@ -27,6 +27,7 @@ export default async function ActionsPage({
   const params = await searchParams;
   const filter = parseActionFilter(params, ids);
   const view = parseActionsView(params.view);
+  const focus = parseBoardFocus(params.focus);
   const counts = actionCounts(db, ids);
   const now = new Date();
   const today = isoDateIn(config.HARBOUR_TIMEZONE, now);
@@ -46,9 +47,10 @@ export default async function ActionsPage({
       <ApprovalsNote waiting={approvalsWaiting(db, products)} />
       <ViewSwitch view={view} filter={filter} />
       <ActionFilters filter={filter} products={products} view={view} />
+      {view === "board" && <FocusNotice focus={focus} filter={filter} />}
       {view === "board" ? (
         <Board
-          board={loadBoard(db, { ...filter, focus: parseBoardFocus(params.focus) }, now, products)}
+          board={loadBoard(db, { ...filter, focus }, now, products)}
           products={products}
           now={now}
           locale={zone.locale}

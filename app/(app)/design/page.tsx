@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ActionExamples } from "@/components/design/ActionExamples";
 import { AgentExamples } from "@/components/design/AgentExamples";
+import { BoardExamples } from "@/components/design/BoardExamples";
 import { BrainExamples } from "@/components/design/BrainExamples";
 import { ContentExamples } from "@/components/design/ContentExamples";
 import { ExplainExamples } from "@/components/design/ExplainExamples";
@@ -102,6 +103,9 @@ export default async function DesignPage() {
       </Section>
       <Section title="Actions board examples">
         <ActionExamples />
+      </Section>
+      <Section title="Board and work strip examples">
+        <BoardExamples />
       </Section>
       <Section title="Agents examples">
         <AgentExamples />
