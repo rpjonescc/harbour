@@ -36,7 +36,11 @@ function useTopLayer(open: boolean) {
     const place = () => {
       const box = trigger.current?.getBoundingClientRect();
       if (!box) return;
-      const { top, left } = menuPosition(box, element.offsetHeight, window.innerHeight);
+      const { top, left } = menuPosition(
+        box,
+        { height: element.offsetHeight, width: element.offsetWidth },
+        { height: window.innerHeight, width: window.innerWidth },
+      );
       element.style.top = `${top}px`;
       element.style.left = `${left}px`;
     };
@@ -133,13 +137,14 @@ export function MoveMenu({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         aria-label={`${BOARD_TEXT.moveTo} ${title}`}
+        title={BOARD_TEXT.moveTo}
         onClick={() => (open ? setOpen(false) : show(0))}
         onKeyDown={onTriggerKey}
         onBlur={closeOnLeave}
-        className={`${TARGET} inline-flex items-center gap-1.5 border border-line px-3 text-ink-muted hover:bg-surface-sunk hover:text-ink`}
+        className={`${TARGET} inline-flex min-w-11 items-center justify-center border border-line text-ink-muted hover:bg-surface-sunk hover:text-ink`}
       >
+        {/* Icon only, to keep cards short: the name says it for screen readers, the title on hover. */}
         <ArrowRightLeft aria-hidden="true" className="size-4" />
-        {BOARD_TEXT.moveTo}
       </button>
       {open && (
         <div

@@ -27,7 +27,7 @@ type ColumnCopy = {
   short: string;
   /** The four parts behind "What's this?". */
   explainer: { what: string; whoMoves: string; next: string; ifStuck: string };
-  /** One sentence: what this card is waiting on. */
+  /** One sentence: who has the card and what it is waiting on (the card's one status line). */
   waitingOn: (card: CardState) => string;
   /** One sentence: what happens next, or what to do. */
   whatNext: (card: CardState) => string;
@@ -70,7 +70,7 @@ export const COLUMN_COPY: Readonly<Record<BoardColumnId, ColumnCopy>> = {
     waitingOn: (card) =>
       card.isNewIdea
         ? "Waiting for you to accept or dismiss it."
-        : "Waiting for someone to pick it up.",
+        : "Waiting for you to pick it up.",
     whatNext: (card) =>
       card.isNewIdea
         ? "Accept it to keep it, or dismiss it."
@@ -85,7 +85,7 @@ export const COLUMN_COPY: Readonly<Record<BoardColumnId, ColumnCopy>> = {
       next: "Someone picks up the next job and moves it to Started.",
       ifStuck: "If a job sits here for weeks, move it back to Backlog or dismiss it.",
     },
-    waitingOn: () => "Waiting for someone to start it.",
+    waitingOn: () => "Waiting for you or Claude to start it.",
     whatNext: () => "Next, someone starts it.",
   },
   started: {
@@ -210,6 +210,8 @@ export const BOARD_TEXT = {
   board: "Board",
   list: "List",
   moveTo: "Move to…",
+  /** The card's small disclosure: what happens next, the last move and Technical details. */
+  details: "Details",
   newIdea: "New idea",
   stuck: "Stuck",
   emptyColumn: "No cards here.",

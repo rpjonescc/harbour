@@ -82,8 +82,9 @@ describe("COLUMN_COPY", () => {
       );
     });
 
-    it("says nobody has picked up a plain backlog card", () => {
-      expect(COLUMN_COPY.backlog.waitingOn(card())).toBe("Waiting for someone to pick it up.");
+    it("says a plain backlog card waits for the owner to pick it up, a queued one for either", () => {
+      expect(COLUMN_COPY.queue.waitingOn(card())).toBe("Waiting for you or Claude to start it.");
+      expect(COLUMN_COPY.backlog.waitingOn(card())).toBe("Waiting for you to pick it up.");
       expect(COLUMN_COPY.backlog.whatNext(card())).toBe(
         "Move it to Queue when you want it done soon.",
       );

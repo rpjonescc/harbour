@@ -56,6 +56,12 @@ Wake and Bring back buttons, exactly as today.
   project, who is on it (`whoIsOnIt`), what it is waiting on and what happens next (both from
   `lib/explain/board.ts`, per column), the last move ("Claude moved this to Queue, 2 days ago"), and the
   pull request link when there is one.
+- **Compact cards** (polish, 4 October 2026): the face holds the tags, title, why (clamped to two
+  lines), the project dot and name with ONE status line (`waitingOn`, which already says who has it:
+  "Claude is working on it.", "Waiting for you to pick it up."), the pull request link, Accept and
+  Dismiss for a new idea, and an icon-only **Move to…** button (named "Move to… <title>", 44 px). What
+  happens next, the last move and Technical details sit behind a small per-card **Details**
+  disclosure; opening it also shows the whole why.
 - All wording lives in `lib/explain/board.ts`. No codes on the card face; stage names and ids only inside
   `TechnicalDetails`.
 - **Moving:** mouse drag and drop (native HTML5 drag events, no new dependency). Every card also has a
