@@ -7,12 +7,11 @@ import { runProcess } from "@/lib/agents/process";
 import { makeRefreshSchedule, type QueuedRefresh } from "@/lib/agents/refresh-schedule";
 import { makeAnalystSchedule } from "@/lib/analyst/schedule";
 import { getConfig } from "@/lib/config";
-import { countWaitingIdeas, MAX_WAITING_IDEAS } from "@/lib/content/read/ideas";
-import { readVoice } from "@/lib/content/read/voice";
 import { makeDigestSchedule, makeIdeasSchedule } from "@/lib/content/schedule";
 import { deferForOtherChain } from "@/lib/content/worker/chain-wait";
 import { runContentDecision } from "@/lib/content/worker/decision-job";
 import { runDigestJob } from "@/lib/content/worker/digest-job";
+import { makeIdeasReadiness } from "@/lib/content/worker/ideas-ready";
 import { contentRunDeps, decisionDeps, resumeContentChains } from "@/lib/content/worker/wire";
 import { getDb } from "@/lib/db/client";
 import { isoDateIn } from "@/lib/format/date";
@@ -51,26 +50,6 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const logQueued = (why: string, scans: readonly QueuedScan[]) => {
   for (const s of scans) console.log(`${why}: queued scan #${s.jobId} for ${s.productId}`);
 };
-
-const warnedIdeas = new Set<string>();
-
-/** A product with a usable voice profile and room in its backlog; an unreadable brain queues nothing. */
-function readyForIdeas(root: string, productId: string): boolean {
-  try {
-    const ready =
-      readVoice(root, productId).state === "ok" &&
-      countWaitingIdeas(root, productId) < MAX_WAITING_IDEAS;
-    warnedIdeas.delete(productId);
-    return ready;
-  } catch {
-    // Once per product until it reads again, not every 30 seconds.
-    if (!warnedIdeas.has(productId)) {
-      warnedIdeas.add(productId);
-      console.warn(`ideas: could not read the brain for ${productId}; skipped`);
-    }
-    return false;
-  }
-}
 
 /**
  * Runs the worker until it is told to stop. `seams` is for the end-to-end tests' own entry point
@@ -129,7 +108,7 @@ export async function runWorker(seams?: WorkerTestSeams) {
     dailyRuns: config.HARBOUR_CONTENT_DAILY_RUNS,
     clock: Date.now,
     productIds: () => getContentProducts().map((p) => p.id),
-    isReady: (id) => readyForIdeas(root, id),
+    isReady: makeIdeasReadiness(root),
   });
   const logIdeas = (why: string, queued: readonly { jobId: number; productId: string }[]) => {
     for (const q of queued)
