@@ -19,7 +19,7 @@ const statusActor = sql<string | null>`(
 )`;
 
 /** An active action as Today counts it. */
-export type ActiveWork = Pick<ActionRow, "id" | "productId" | "area" | "prUrl"> & {
+export type ActiveWork = Pick<ActionRow, "id" | "productId" | "area" | "prUrl" | "stage"> & {
   status: "open" | "in_progress";
   /** Null when pruning removed every status change: unknown, never guessed. */
   statusActor: ActionActor | null;
@@ -35,6 +35,7 @@ export function activeWork(db: Db, productIds: readonly string[]): ActiveWork[] 
       area: actions.area,
       status: actions.status,
       prUrl: actions.prUrl,
+      stage: actions.stage,
       statusActor,
     })
     .from(actions)

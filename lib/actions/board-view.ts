@@ -55,7 +55,7 @@ export type BoardCard = {
   lastMove: { actor: ActionActor; to: BoardColumnId; at: Date } | null;
   /** Stood still longer than STUCK_DAYS for its column. */
   stuck: boolean;
-  /** A new idea to decide, a pull request waiting, or work that is the owner's. */
+  /** A new idea to decide, a card In review waiting for a look, or work that is the owner's. */
   needsOwner: boolean;
   isNewIdea: boolean;
   /** Parked cards need these for Wake and Bring back. */
@@ -125,7 +125,7 @@ function isStuck(column: BoardColumnId | null, row: ActionRow, now: Date): boole
 }
 
 function needsOwner(who: WhoOnIt | null, column: BoardColumnId | null): boolean {
-  if (who === "undecided" || who === "pr_waiting") return true;
+  if (who === "undecided" || who === "pr_waiting" || who === "review_waiting") return true;
   // Backlog and Queue cards read "waiting for you" too, but nothing is due there yet.
   return (
     who === "you" && (column === "started" || column === "in_progress" || column === "in_review")
@@ -141,7 +141,7 @@ function toCard(
   const column = boardColumn(row);
   const move = latestStatusChange(history);
   const to = move && column !== null ? moveTarget(move, row) : null;
-  const who = whoIsOnIt({ status: row.status, prUrl: row.prUrl, statusActor: move?.actor ?? null });
+  const who = whoIsOnIt({ ...row, statusActor: move?.actor ?? null });
   return {
     id: row.id,
     title: row.title,

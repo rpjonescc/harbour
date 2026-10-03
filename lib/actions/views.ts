@@ -144,6 +144,7 @@ function toViews(db: Db, rows: ActionRow[]): ActionView[] {
       who: whoIsOnIt({
         status: row.status,
         prUrl: row.prUrl,
+        stage: row.stage,
         statusActor: lastStatusActor(history),
       }),
     };
@@ -233,6 +234,7 @@ export function ruleActionStatuses(db: Db, productId: string): Map<string, RuleA
       status: actions.status,
       snoozedUntil: actions.snoozedUntil,
       prUrl: actions.prUrl,
+      stage: actions.stage,
     })
     .from(actions)
     .where(and(eq(actions.productId, productId), eq(actions.source, "rule")))
@@ -243,7 +245,7 @@ export function ruleActionStatuses(db: Db, productId: string): Map<string, RuleA
     rows.map((row) => row.id),
   );
   return new Map(
-    rows.flatMap(({ ruleKey, prUrl, ...rest }) =>
+    rows.flatMap(({ ruleKey, prUrl, stage, ...rest }) =>
       ruleKey === null
         ? []
         : [
@@ -254,6 +256,7 @@ export function ruleActionStatuses(db: Db, productId: string): Map<string, RuleA
                 who: whoIsOnIt({
                   status: rest.status,
                   prUrl,
+                  stage,
                   statusActor: lastStatusActor(events.get(rest.id) ?? []),
                 }),
               },

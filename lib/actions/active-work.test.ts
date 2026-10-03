@@ -41,6 +41,7 @@ describe("activeWork", () => {
         area: "SEO",
         status: "open",
         prUrl: null,
+        stage: null,
         statusActor: "scan",
       },
       {
@@ -49,6 +50,7 @@ describe("activeWork", () => {
         area: "SEO",
         status: "in_progress",
         prUrl: null,
+        stage: null,
         statusActor: "owner",
       },
       {
@@ -57,6 +59,7 @@ describe("activeWork", () => {
         area: "GEO",
         status: "in_progress",
         prUrl: null,
+        stage: null,
         statusActor: "claude",
       },
     ]);
@@ -97,6 +100,7 @@ describe("activeWork", () => {
         area: "SEO",
         status: "in_progress",
         prUrl: null,
+        stage: "started",
         statusActor: null,
       },
     ]);

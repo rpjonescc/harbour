@@ -132,8 +132,9 @@ Where the build differs from, or adds to, the sections above.
 - Stuck: whole days since `statusChangedAt` strictly greater than the limit (7 days 23 hours is
   not stuck), only in Started, In progress (7 days) and In review (3 days), from `STUCK_DAYS`,
   which also words the copy so the two cannot drift.
-- `needsOwner` is true for a new idea, a card with a pull request waiting for a look, or a card
-  in Started, In progress or In review that waits on the owner. Backlog and Queue cards that merely
+- `needsOwner` is true for a new idea, a card with a pull request waiting for a look, any card In
+  review (with no pull request it reads "Waiting for you to look it over", whoever moved it
+  there), or a card in Started or In progress that waits on the owner. Backlog and Queue cards that merely
   read "waiting for you" do not count: they would flag every card.
 - `STATUS_COLUMN` stayed: the list view, history and /design still use it.
 

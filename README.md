@@ -40,7 +40,8 @@ explainable breakdowns. The roadmap continues with:
 - **Actions board** — every issue the check finds becomes a tracked action, grouped as Big wins,
   Worth doing and Small wins. Each card is a headline, one line on why it matters, a chip for how
   big a win it is (Big win, Worth doing, Small win) and a chip for who's on it (a new idea not
-  decided yet, Claude is on it, a pull request waiting for your OK, or waiting for you), with the
+  decided yet, Claude is on it, a pull request waiting for your OK, waiting for you to look it over
+  when it is In review without a pull request, or waiting for you), with the
   area, how big a job it is (a quick job, an afternoon or a project) and the product in one small
   line, and a link to its pull request. The full reason, evidence, where it came from, the exact fix
   and check, and **Hand to Claude** (a ready prompt) sit under **Technical details**. Filter by
@@ -1060,7 +1061,8 @@ the Treg address is fixed in code and Harbour refuses to follow a redirect from 
   details**. Each product name opens its page. While a check is queued or running, the page
   refreshes itself. **Next up** shows the top three open or in-progress actions (in
   the Actions board's order), each linked to its card and saying who's on it (Claude is on it,
-  Pull request waiting for your OK, or Waiting for you), and the briefing's second line counts
+  Pull request waiting for your OK, Waiting for you to look it over, or Waiting for you), and the
+  briefing's second line counts
   every one of them; the rest are a link away on the Actions board. Before the first check is
   scored, Today shows clearly flagged sample data instead.
 - **Product page** (`/products/<id>`) opens with the three area cards and a one-line summary (for

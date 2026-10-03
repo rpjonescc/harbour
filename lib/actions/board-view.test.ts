@@ -216,6 +216,13 @@ describe("needsOwner", () => {
     expect(load().columns.in_review[0]).toMatchObject({ who: "pr_waiting", needsOwner: true });
   });
 
+  it("is true for a card Claude moved to In review with no pull request: it waits for a look", () => {
+    const { seed, load } = setup();
+    seed("in_review", { actor: "claude" });
+    expect(load().columns.in_review[0]).toMatchObject({ who: "review_waiting", needsOwner: true });
+    expect(load({ ...ALL, focus: "needs-you" }).columns.in_review).toHaveLength(1);
+  });
+
   it("is true for work the owner has started, in progress or in review", () => {
     const { seed, load } = setup();
     seed("started", { actor: "owner" });

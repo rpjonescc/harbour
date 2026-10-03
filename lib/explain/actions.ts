@@ -1,4 +1,4 @@
-import type { ActionActor, ActionStatus } from "@/lib/actions/types";
+import type { ActionActor, ActionStage, ActionStatus } from "@/lib/actions/types";
 import type { Effort, Impact } from "@/lib/scan/issues";
 
 export const IMPACT_PHRASE: Readonly<Record<Impact, string>> = {
@@ -32,11 +32,12 @@ export const STATUS_COLUMN: Readonly<Record<ActionStatus, string>> = {
 export const SIGN_IN_ENDED =
   "Your sign-in has ended. Reload the page and sign in again, then try again.";
 
-export type WhoOnIt = "claude" | "pr_waiting" | "you" | "undecided";
+export type WhoOnIt = "claude" | "pr_waiting" | "review_waiting" | "you" | "undecided";
 
 export const WHO_PHRASE: Readonly<Record<WhoOnIt, string>> = {
   claude: "Claude is on it",
   pr_waiting: "Pull request waiting for your OK",
+  review_waiting: "Waiting for you to look it over",
   you: "Waiting for you",
   undecided: "New idea, not decided yet",
 };
@@ -44,20 +45,24 @@ export const WHO_PHRASE: Readonly<Record<WhoOnIt, string>> = {
 export type WhoInput = {
   status: ActionStatus;
   prUrl: string | null;
+  /** In review (stage `in_review`) with no pull request still waits on the owner. */
+  stage: ActionStage | null;
   /** Who made the latest status change (creation counts, a PR link does not); null if pruned. */
   statusActor: ActionActor | null;
 };
 
 /**
  * Who's on an action (spec §3): a suggestion is undecided; work in progress with a pull request
- * waits for the owner's OK; work Claude started is Claude's; anything else open or in progress
- * waits for the owner. Finished, snoozed and dismissed actions have no one on them.
+ * waits for the owner's OK, and work In review without one waits for the owner's look, whoever
+ * moved it; work Claude started is Claude's; anything else open or in progress waits for the
+ * owner. Finished, snoozed and dismissed actions have no one on them.
  */
-export function whoIsOnIt({ status, prUrl, statusActor }: WhoInput): WhoOnIt | null {
+export function whoIsOnIt({ status, prUrl, stage, statusActor }: WhoInput): WhoOnIt | null {
   if (status === "suggested") return "undecided";
   if (status === "open") return "you";
   if (status !== "in_progress") return null;
   if (prUrl !== null) return "pr_waiting";
+  if (stage === "in_review") return "review_waiting";
   return statusActor === "claude" ? "claude" : "you";
 }
 

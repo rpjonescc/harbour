@@ -33,6 +33,7 @@ describe("action phrases", () => {
     expect(WHO_PHRASE).toEqual({
       claude: "Claude is on it",
       pr_waiting: "Pull request waiting for your OK",
+      review_waiting: "Waiting for you to look it over",
       you: "Waiting for you",
       undecided: "New idea, not decided yet",
     });
@@ -42,25 +43,33 @@ describe("action phrases", () => {
 describe("whoIsOnIt", () => {
   const PR = "https://github.com/example/site/pull/12";
   it.each([
-    ["suggested", null, "agent", "undecided"],
-    ["suggested", PR, "claude", "undecided"],
-    ["open", null, "owner", "you"],
-    ["open", null, "scan", "you"],
-    ["open", null, "claude", "you"],
-    ["open", PR, "claude", "you"],
-    ["in_progress", PR, "claude", "pr_waiting"],
-    ["in_progress", PR, "owner", "pr_waiting"],
-    ["in_progress", null, "claude", "claude"],
-    ["in_progress", null, "owner", "you"],
-    ["in_progress", null, "system", "you"],
+    ["suggested", null, "agent", "undecided", null],
+    ["suggested", PR, "claude", "undecided", null],
+    ["open", null, "owner", "you", null],
+    ["open", null, "scan", "you", null],
+    ["open", null, "claude", "you", null],
+    ["open", PR, "claude", "you", null],
+    ["in_progress", PR, "claude", "pr_waiting", null],
+    ["in_progress", PR, "owner", "pr_waiting", null],
+    ["in_progress", null, "claude", "claude", null],
+    // In review with no pull request waits for the owner's look, whoever moved it there.
+    ["in_progress", null, "claude", "review_waiting", "in_review"],
+    ["in_progress", null, "owner", "review_waiting", "in_review"],
+    ["in_progress", PR, "claude", "pr_waiting", "in_review"],
+    ["in_progress", null, "claude", "claude", "started"],
+    ["in_progress", null, "owner", "you", null],
+    ["in_progress", null, "system", "you", null],
     // Review Focus 1: history pruned to no status change: never "Claude is on it".
-    ["in_progress", null, null, "you"],
-    ["done", PR, "claude", null],
-    ["snoozed", null, "owner", null],
-    ["dismissed", null, "claude", null],
-  ] as const)("%s, PR %s, last moved by %s → %s", (status, prUrl, statusActor, who) => {
-    expect(whoIsOnIt({ status, prUrl, statusActor })).toBe(who);
-  });
+    ["in_progress", null, null, "you", null],
+    ["done", PR, "claude", null, null],
+    ["snoozed", null, "owner", null, null],
+    ["dismissed", null, "claude", null, null],
+  ] as const)(
+    "%s, PR %s, last moved by %s → %s (stage %s)",
+    (status, prUrl, statusActor, who, stage) => {
+      expect(whoIsOnIt({ status, prUrl, statusActor, stage })).toBe(who);
+    },
+  );
 });
 
 describe("impactTone", () => {
