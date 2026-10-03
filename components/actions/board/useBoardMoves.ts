@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { DEMO_NOTE } from "@/components/ui/demo-note";
 import type { BoardColumnId } from "@/lib/actions/board-column";
 import { type ApiResult, postJson } from "@/lib/auth/client-api";
@@ -57,21 +57,19 @@ export function useBoardMoves({
   if (!board) throw new Error("The board's moves need an ActionAnnouncer around them.");
   const { announce, alert, afterChange } = board;
 
-  async function move(card: BoardCardView, to: BoardColumnId) {
-    const from = moved[card.id] ?? card.column;
-    if (from === null || from === to) return;
-    // Clear first, so a repeat of the same message is announced again.
-    announce("");
-    alert("");
-    if (demo) return announce(DEMO_NOTE);
+  // Each card's latest move, resolving to the column it is in once the server has answered.
+  const chains = useRef(new Map<number, Promise<BoardColumnId>>());
+
+  /** Asks the server to move the card out of `from`; resolves to the column it is in afterwards. */
+  async function send(card: BoardCardView, from: BoardColumnId, to: BoardColumnId) {
+    if (from === to) return from;
     const snapshot = snapshotBoard(card.id);
     setMoved((was) => ({ ...was, [card.id]: to }));
     setPending((was) => new Set(was).add(card.id));
     setArrived(card.id);
-    const body = { moveFrom: from, moveTo: to };
     const result = await postJson<{ id: number; column: BoardColumnId }>(
       `/api/actions/${card.id}`,
-      body,
+      { moveFrom: from, moveTo: to },
     );
     setPending((was) => {
       const now = new Set(was);
@@ -89,6 +87,25 @@ export function useBoardMoves({
     }
     // A refusal may mean the card moved elsewhere already: the refresh shows where it is now.
     afterChange(snapshot, () => router.refresh());
+    return result.ok ? to : from;
+  }
+
+  async function move(card: BoardCardView, to: BoardColumnId) {
+    const shown = moved[card.id] ?? card.column;
+    if (shown === null || shown === to) return;
+    // Clear first, so a repeat of the same message is announced again.
+    announce("");
+    alert("");
+    if (demo) return announce(DEMO_NOTE);
+    // One request per card at a time: a second move waits for the first answer and then names the
+    // column the card is really in. Sent together, the second could reach the server first and be
+    // refused as stale. The card still shows in its new column at once.
+    const before = chains.current.get(card.id);
+    if (before) setMoved((was) => ({ ...was, [card.id]: to }));
+    const run = before ? before.then((from) => send(card, from, to)) : send(card, shown, to);
+    chains.current.set(card.id, run);
+    await run;
+    if (chains.current.get(card.id) === run) chains.current.delete(card.id);
   }
 
   /** A drop names the card by id; cards not on this board are ignored. */

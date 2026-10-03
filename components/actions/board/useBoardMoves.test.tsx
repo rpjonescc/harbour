@@ -69,4 +69,71 @@ describe("useBoardMoves", () => {
     hook.rerender(columnsWith("started", "done"));
     expect(ids("done")).toEqual([6]);
   });
+
+  it("sends a second move of the same card only after the first answer, from its new column", async () => {
+    const replies: ((value: unknown) => void)[] = [];
+    api.postJson.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));
+    const first = columnsWith("queue", "queue");
+    const hook = renderHook((props) => useBoardMoves({ ...props, demo: false }), {
+      initialProps: first,
+      wrapper,
+    });
+    const five = first.columns.queue.find((c) => c.id === 5) as BoardCardView;
+    let moves: Promise<void>[] = [];
+    act(() => {
+      moves = [hook.result.current.move(five, "started")];
+    });
+    act(() => {
+      moves.push(hook.result.current.move(five, "in_progress"));
+    });
+    // Shown in its latest column at once, but only one request is out.
+    const ids = (column: BoardColumnId) => hook.result.current.placed[column].map((c) => c.id);
+    expect(ids("in_progress")).toEqual([5]);
+    expect(api.postJson).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      replies[0]?.({ ok: true, data: { id: 5, column: "started" } });
+      await moves[0];
+    });
+    expect(api.postJson).toHaveBeenCalledTimes(2);
+    expect(api.postJson).toHaveBeenLastCalledWith("/api/actions/5", {
+      moveFrom: "started",
+      moveTo: "in_progress",
+    });
+    await act(async () => {
+      replies[1]?.({ ok: true, data: { id: 5, column: "in_progress" } });
+      await moves[1];
+    });
+    expect(ids("in_progress")).toEqual([5]);
+  });
+
+  it("sends the second move from the old column when the first was refused", async () => {
+    const replies: ((value: unknown) => void)[] = [];
+    api.postJson.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));
+    const first = columnsWith("queue", "queue");
+    const hook = renderHook((props) => useBoardMoves({ ...props, demo: false }), {
+      initialProps: first,
+      wrapper,
+    });
+    const five = first.columns.queue.find((c) => c.id === 5) as BoardCardView;
+    let moves: Promise<void>[] = [];
+    act(() => {
+      moves = [hook.result.current.move(five, "started")];
+    });
+    act(() => {
+      moves.push(hook.result.current.move(five, "done"));
+    });
+    await act(async () => {
+      replies[0]?.({ ok: false, error: "refused", message: "Not now." });
+      await moves[0];
+    });
+    expect(api.postJson).toHaveBeenLastCalledWith("/api/actions/5", {
+      moveFrom: "queue",
+      moveTo: "done",
+    });
+    expect(hook.result.current.placed.done.map((c) => c.id)).toEqual([5]);
+    await act(async () => {
+      replies[1]?.({ ok: true, data: { id: 5, column: "done" } });
+      await moves[1];
+    });
+  });
 });
