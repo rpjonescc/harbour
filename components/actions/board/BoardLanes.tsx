@@ -23,7 +23,7 @@ export function BoardLanes({
   demo: boolean;
 }) {
   const moves = useBoardMoves({ columns, counts, demo });
-  const drag = useBoardDrag(moves.drop);
+  const drag = useBoardDrag(moves.drop, columns);
   return (
     <div className="flex gap-3 overflow-x-auto pb-2">
       {BOARD_COLUMNS.map((column) => (

@@ -43,7 +43,7 @@ export function BoardCard({
       aria-labelledby={headingId}
       data-action-id={card.id}
       data-group-heading={columnHeadingId(column)}
-      className={`flex cursor-grab flex-col gap-2 rounded-md border border-line bg-surface p-3 active:cursor-grabbing ${arrived ? "board-arrive" : ""}`}
+      className={`flex cursor-grab flex-col gap-2 rounded-md border border-line bg-surface p-3 active:cursor-grabbing data-dragging:opacity-60 ${arrived ? "board-arrive" : ""}`}
       {...drag}
     >
       {(card.isNewIdea || state.stuck) && (

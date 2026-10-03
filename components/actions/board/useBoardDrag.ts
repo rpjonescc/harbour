@@ -1,6 +1,6 @@
 "use client";
 
-import { type DragEvent, useState } from "react";
+import { type DragEvent, useEffect, useRef, useState } from "react";
 import type { BoardColumnId } from "@/lib/actions/board-column";
 
 const DRAG_TYPE = "text/plain";
@@ -8,6 +8,8 @@ const DRAG_TYPE = "text/plain";
 /** Props a draggable card spreads onto its root element. */
 export type CardDragProps = {
   draggable: true;
+  /** Set on the card being dragged (its look, and what the e2e waits for). */
+  "data-dragging"?: true;
   onDragStart: (event: DragEvent<HTMLElement>) => void;
   onDragEnd: () => void;
 };
@@ -19,38 +21,47 @@ export type ZoneDragProps = {
   onDrop: (event: DragEvent<HTMLElement>) => void;
 };
 
-/** The card id a drop carries: the one this board started dragging, else the transfer's text. */
-function droppedId(dragging: number | null, event: DragEvent<HTMLElement>): number | null {
-  if (dragging !== null) return dragging;
-  const id = Number(event.dataTransfer?.getData(DRAG_TYPE));
-  return Number.isInteger(id) && id > 0 ? id : null;
-}
-
 /**
  * Mouse drag and drop between columns with native HTML5 drag events (no library). The Move to…
- * menu is the keyboard and touch path, so this only needs to serve a pointer.
+ * menu is the keyboard and touch path, so this only needs to serve a pointer. Only a drag this
+ * board started is accepted. `columns` is the board's cards: when they refresh, the dragged card
+ * may have unmounted and its dragend will never come, so the drag is forgotten.
  */
-export function useBoardDrag(onDrop: (cardId: number, to: BoardColumnId) => void) {
+export function useBoardDrag(
+  onDrop: (cardId: number, to: BoardColumnId) => void,
+  columns: unknown,
+) {
+  // A ref, set synchronously in dragstart: a quick flick sends dragover and drop before React
+  // re-renders, and those must already see the card. The state is only for the card's look.
+  const draggedRef = useRef<number | null>(null);
   const [dragging, setDragging] = useState<number | null>(null);
   const [over, setOver] = useState<BoardColumnId | null>(null);
 
+  const end = () => {
+    draggedRef.current = null;
+    setDragging(null);
+    setOver(null);
+  };
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new `columns` is the trigger.
+  useEffect(end, [columns]);
+
   const card = (id: number): CardDragProps => ({
     draggable: true,
+    "data-dragging": dragging === id ? true : undefined,
     onDragStart: (event) => {
       // Firefox starts a drag only when some data is set.
       event.dataTransfer?.setData(DRAG_TYPE, String(id));
       if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+      draggedRef.current = id;
       setDragging(id);
     },
-    onDragEnd: () => {
-      setDragging(null);
-      setOver(null);
-    },
+    onDragEnd: end,
   });
 
   const zone = (column: BoardColumnId): ZoneDragProps => ({
     onDragOver: (event) => {
-      if (dragging === null) return;
+      if (draggedRef.current === null) return;
       // Cancelling dragover is what makes this element a drop target.
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
@@ -62,11 +73,11 @@ export function useBoardDrag(onDrop: (cardId: number, to: BoardColumnId) => void
       setOver((was) => (was === column ? null : was));
     },
     onDrop: (event) => {
+      const id = draggedRef.current;
+      if (id === null) return;
       event.preventDefault();
-      const id = droppedId(dragging, event);
-      setDragging(null);
-      setOver(null);
-      if (id !== null) onDrop(id, column);
+      end();
+      onDrop(id, column);
     },
   });
 

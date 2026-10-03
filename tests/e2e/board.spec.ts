@@ -92,16 +92,15 @@ test("dragging a card to another column moves it", async ({ page }) => {
   const title = BOARD_CARDS.drag;
   await page.goto(BOARD);
   await hydrated(card(page, title));
-  // Step by step, not dragTo: React must render the drag state before the first dragover.
   const target = await column(page, "Started").getByRole("list").boundingBox();
   const source = await card(page, title).boundingBox();
   if (!target || !source) throw new Error("The card or the column is not on the page.");
   await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
   await page.mouse.down();
   await page.mouse.move(source.x + source.width / 2 + 10, source.y + source.height / 2 + 10);
-  await page.waitForTimeout(300);
+  // The drag has started: the card marks itself.
+  await expect(card(page, title)).toHaveAttribute("data-dragging", "true");
   await page.mouse.move(target.x + target.width / 2, target.y + 30, { steps: 10 });
-  await page.waitForTimeout(300);
   await page.mouse.up();
 
   await expect(cardsIn(page, "Started").getByRole("heading", { name: title })).toBeVisible();
